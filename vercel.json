@@ -1,3 +1,1 @@
-{
-  "_comentario": "Cron nativo do Vercel removido de propósito: no plano Hobby ele só roda 1x/dia, o que não atende o SLA de 3-4h de entrega expressa. A coleta é disparada por um scheduler externo gratuito (cron-job.org) chamando GET /api/collect?secret=SEU_CRON_SECRET a cada 1-2 min. Ver README para o passo a passo."
-}
+{}
