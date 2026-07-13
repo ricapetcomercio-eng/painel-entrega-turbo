@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel Entrega Turbo/Expressa — Ricapet & Thapets</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --card: #171a23;
+    --border: #262b38;
+    --text: #e6e8ec;
+    --muted: #8a90a2;
+    --accent: #ffb020;
+    --ml: #ffe600;
+    --shopee: #ee4d2d;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 24px;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .subtitle { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-bottom: 24px; }
+  .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+  .stat-card .value { font-size: 28px; font-weight: 700; }
+  .stat-card .label { color: var(--muted); font-size: 13px; }
+  table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 10px; overflow: hidden; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 13px; }
+  th { color: var(--muted); font-weight: 600; text-transform: uppercase; font-size: 11px; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+  .badge-ml { background: rgba(255,230,0,0.15); color: var(--ml); }
+  .badge-shopee { background: rgba(238,77,45,0.15); color: var(--shopee); }
+  .empty { text-align: center; padding: 40px; color: var(--muted); }
+</style>
+</head>
+<body>
+  <h1>🚀 Painel Entrega Turbo / Expressa</h1>
+  <div class="subtitle" id="atualizado-em">Carregando...</div>
+
+  <div class="grid">
+    <div class="stat-card">
+      <div class="value" id="total-pedidos">–</div>
+      <div class="label">Pedidos expressos (últimas horas)</div>
+    </div>
+    <div class="stat-card">
+      <div class="value" id="total-ml">–</div>
+      <div class="label">Mercado Livre</div>
+    </div>
+    <div class="stat-card">
+      <div class="value" id="total-shopee">–</div>
+      <div class="label">Shopee (Entrega Turbo)</div>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Marketplace</th>
+        <th>Conta/Loja</th>
+        <th>Pedido</th>
+        <th>Data</th>
+        <th>Valor</th>
+        <th>Itens</th>
+      </tr>
+    </thead>
+    <tbody id="tabela-pedidos"></tbody>
+  </table>
+
+  <script>
+    async function carregar() {
+      const resp = await fetch('/api/dashboard-data');
+      const dados = await resp.json();
+
+      const atualizadoEm = document.getElementById('atualizado-em');
+      if (dados.atualizado_em) {
+        atualizadoEm.textContent = 'Última atualização: ' + new Date(dados.atualizado_em).toLocaleString('pt-BR');
+      } else {
+        atualizadoEm.textContent = dados.aviso || 'Sem dados ainda.';
+      }
+
+      const pedidos = dados.pedidos || [];
+      document.getElementById('total-pedidos').textContent = pedidos.length;
+      document.getElementById('total-ml').textContent = pedidos.filter(p => p.marketplace === 'mercado_livre').length;
+      document.getElementById('total-shopee').textContent = pedidos.filter(p => p.marketplace === 'shopee').length;
+
+      const tbody = document.getElementById('tabela-pedidos');
+      if (!pedidos.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="empty">Nenhum pedido expresso encontrado no período.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = pedidos.map(p => `
+        <tr>
+          <td><span class="badge ${p.marketplace === 'mercado_livre' ? 'badge-ml' : 'badge-shopee'}">
+            ${p.marketplace === 'mercado_livre' ? 'Mercado Livre' : 'Shopee'}
+          </span></td>
+          <td>${p.conta || p.loja || '-'}</td>
+          <td>${p.order_id}</td>
+          <td>${new Date(p.date_created).toLocaleString('pt-BR')}</td>
+          <td>${p.total_amount ? 'R$ ' + Number(p.total_amount).toFixed(2) : '-'}</td>
+          <td>${(p.itens || []).map(i => `${i.quantidade}x ${i.titulo}`).join('<br>')}</td>
+        </tr>
+      `).join('');
+    }
+
+    carregar();
+    setInterval(carregar, 30000); // atualiza a cada 30s - só lê Redis, é barato (CPU ~zero por chamada)
+  </script>
+</body>
+</html>
