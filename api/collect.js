@@ -9,6 +9,7 @@
 const { getRedis } = require('../lib/redis');
 const { coletarPedidosExpressos, SELLER_IDS } = require('../lib/mlOrders');
 const { coletarPedidosTurbo } = require('../lib/shopeeOrders');
+const { coletarPedidosFlex } = require('../lib/mlFlexOrders');
 
 const HORAS_RETROATIVAS = 6; // janela de busca de pedidos
 
@@ -46,6 +47,7 @@ module.exports = async (req, res) => {
   const erros = [];
   let pedidosML = [];
   let pedidosShopee = [];
+  let pedidosFlex = [];
 
   for (const conta of Object.keys(SELLER_IDS)) {
     try {
@@ -53,6 +55,15 @@ module.exports = async (req, res) => {
       pedidosML = pedidosML.concat(pedidos);
     } catch (err) {
       erros.push({ fonte: `ml:${conta}`, mensagem: err.message });
+    }
+  }
+
+  for (const conta of Object.keys(SELLER_IDS)) {
+    try {
+      const pedidos = await coletarPedidosFlex(conta, HORAS_RETROATIVAS);
+      pedidosFlex = pedidosFlex.concat(pedidos);
+    } catch (err) {
+      erros.push({ fonte: `ml_flex:${conta}`, mensagem: err.message });
     }
   }
 
@@ -82,11 +93,21 @@ module.exports = async (req, res) => {
     erros,
   };
 
+  const resultadoFlex = {
+    atualizado_em: new Date().toISOString(),
+    pedidos: pedidosFlex,
+    total: pedidosFlex.length,
+    aguardando_coleta: pedidosFlex.filter((p) => !p.coletado).length,
+    coletados: pedidosFlex.filter((p) => p.coletado).length,
+  };
+
   await redis.set('entrega_turbo:ultima_coleta', resultado);
+  await redis.set('entrega_turbo:ultima_coleta_flex', resultadoFlex);
 
   res.status(200).json({
     ok: true,
     total_coletado: resultado.total,
+    total_coletado_flex: resultadoFlex.total,
     erros,
   });
 };
