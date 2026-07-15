@@ -89,8 +89,8 @@
     <button class="periodo-btn" onclick="definirPeriodo('7dias')">Últimos 7 dias</button>
     <button class="periodo-btn" onclick="definirPeriodo('30dias')">Últimos 30 dias</button>
     <button class="periodo-btn" onclick="definirPeriodo('tudo')">Tudo</button>
-    <label>De <input type="date" id="periodoDe"></label>
-    <label>Até <input type="date" id="periodoAte"></label>
+    <label>De <input type="date" id="periodoDe" onchange="limparDestaquePeriodo()"></label>
+    <label>Até <input type="date" id="periodoAte" onchange="limparDestaquePeriodo()"></label>
     <button class="periodo-btn periodo-aplicar" onclick="aplicarPeriodoManual()">Aplicar</button>
     <span id="periodoLabel" class="periodo-label"></span>
   </div>
@@ -348,10 +348,17 @@
     aplicarPeriodoManual();
   }
 
+  function limparDestaquePeriodo() {
+    document.querySelectorAll('.periodo-btn').forEach(b => b.classList.remove('periodo-ativo'));
+  }
+
   function aplicarPeriodoManual() {
     const de = document.getElementById('periodoDe').value;
     const ate = document.getElementById('periodoAte').value;
     periodoAtual = { de, ate };
+    // Nenhum botão rápido corresponde a um intervalo digitado manualmente —
+    // remove o destaque visual deles para não sugerir um período errado.
+    document.querySelectorAll('.periodo-btn').forEach(b => b.classList.remove('periodo-ativo'));
     carregarAnalytics();
     carregarTodos();
   }
