@@ -81,6 +81,7 @@
   <div class="abas">
     <button class="aba-btn ativa" id="abaBtnTurbo" onclick="mudarAba('turbo')">Turbo / Expressa</button>
     <button class="aba-btn" id="abaBtnFlex" onclick="mudarAba('flex')">Flex</button>
+    <button class="aba-btn" id="abaBtnTodos" onclick="mudarAba('todos')">Todos os pedidos</button>
   </div>
 
   <div class="periodo-controle">
@@ -236,6 +237,73 @@
 
   </div>
 
+  <!-- ABA: TODOS OS PEDIDOS -->
+  <div id="painelTodos" class="oculto">
+
+    <div class="periodo-controle">
+      <label>Forma de entrega
+        <select id="filtroFormaEntrega" onchange="carregarTodos()">
+          <option value="todas">Todas</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="grid">
+      <div class="stat-card">
+        <div class="value" id="todos-total">–</div>
+        <div class="label">Total no período (com filtro aplicado)</div>
+      </div>
+      <div class="stat-card">
+        <div class="value" id="todos-ticket-medio">–</div>
+        <div class="label">Ticket médio</div>
+      </div>
+    </div>
+
+    <div class="secao-titulo">Análise do período</div>
+    <div class="grid-charts">
+      <div class="chart-card">
+        <h2>Por horário do dia</h2>
+        <div class="chart-wrap"><canvas id="chartTodosHora"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h2>Por dia da semana</h2>
+        <div class="chart-wrap"><canvas id="chartTodosDiaSemana"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h2>Por forma de entrega</h2>
+        <div class="chart-wrap"><canvas id="chartTodosFormaEntrega"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h2>Por loja</h2>
+        <div class="chart-wrap"><canvas id="chartTodosLoja"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h2>Top estados (destino)</h2>
+        <div class="chart-wrap"><canvas id="chartTodosEstados"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h2>Top itens vendidos</h2>
+        <div class="chart-wrap"><canvas id="chartTodosItens"></canvas></div>
+      </div>
+    </div>
+
+    <div class="secao-titulo">Pedidos (mais recentes primeiro, até 300 exibidos)</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Conta/Loja</th>
+          <th>Pedido</th>
+          <th>Data</th>
+          <th>Forma de entrega</th>
+          <th>Valor</th>
+          <th>Itens</th>
+        </tr>
+      </thead>
+      <tbody id="tabela-todos"></tbody>
+    </table>
+
+  </div>
+
 
 <script>
   const CORES = {
@@ -285,24 +353,34 @@
     const ate = document.getElementById('periodoAte').value;
     periodoAtual = { de, ate };
     carregarAnalytics();
+    carregarTodos();
   }
 
   function mudarAba(aba) {
     const painelTurbo = document.getElementById('painelTurbo');
     const painelFlex = document.getElementById('painelFlex');
+    const painelTodos = document.getElementById('painelTodos');
     const btnTurbo = document.getElementById('abaBtnTurbo');
     const btnFlex = document.getElementById('abaBtnFlex');
+    const btnTodos = document.getElementById('abaBtnTodos');
+
+    painelTurbo.className = 'oculto';
+    painelFlex.className = 'oculto';
+    painelTodos.className = 'oculto';
+    btnTurbo.className = 'aba-btn';
+    btnFlex.className = 'aba-btn';
+    btnTodos.className = 'aba-btn';
 
     if (aba === 'flex') {
-      painelTurbo.className = 'oculto';
       painelFlex.className = '';
-      btnTurbo.className = 'aba-btn';
       btnFlex.className = 'aba-btn ativa flex-ativa';
+    } else if (aba === 'todos') {
+      painelTodos.className = '';
+      btnTodos.className = 'aba-btn ativa';
+      carregarTodos();
     } else {
       painelTurbo.className = '';
-      painelFlex.className = 'oculto';
       btnTurbo.className = 'aba-btn ativa';
-      btnFlex.className = 'aba-btn';
     }
   }
 
@@ -526,6 +604,113 @@
       },
       options: { ...baseBarOptions(), indexAxis: 'y' }
     });
+  }
+
+  // ---------- ABA TODOS OS PEDIDOS ----------
+
+  async function carregarTodos() {
+    try {
+      const params = new URLSearchParams();
+      if (periodoAtual.de) params.set('de', periodoAtual.de);
+      if (periodoAtual.ate) params.set('ate', periodoAtual.ate);
+      const formaAtual = document.getElementById('filtroFormaEntrega').value;
+      if (formaAtual) params.set('forma_entrega', formaAtual);
+
+      const resp = await fetch('/api/analytics-todos-data?' + params.toString());
+      const dados = await resp.json();
+
+      // Popula o <select> com as formas de entrega reais encontradas,
+      // preservando a seleção atual do usuário.
+      const select = document.getElementById('filtroFormaEntrega');
+      const valorSelecionado = select.value;
+      const opcoes = ['todas', ...(dados.formas_entrega_disponiveis || [])];
+      select.innerHTML = opcoes.map(o => `<option value="${o}">${o === 'todas' ? 'Todas' : o}</option>`).join('');
+      if (opcoes.includes(valorSelecionado)) select.value = valorSelecionado;
+
+      const pedidos = dados.pedidos || [];
+      document.getElementById('todos-total').textContent = pedidos.length;
+      const media = ticketMedio(pedidos);
+      document.getElementById('todos-ticket-medio').textContent = media === null ? '-' : 'R$ ' + media.toFixed(2);
+
+      if (pedidos.length > 0) {
+        criarOuAtualizarChart('chartTodosHora', {
+          type: 'bar',
+          data: {
+            labels: Array.from({length: 24}, (_, i) => i + 'h'),
+            datasets: [{ data: agregarPorHora(pedidos), backgroundColor: CORES.accent, borderRadius: 4 }]
+          },
+          options: baseBarOptions()
+        });
+
+        const diasNomes = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+        criarOuAtualizarChart('chartTodosDiaSemana', {
+          type: 'bar',
+          data: {
+            labels: diasNomes,
+            datasets: [{ data: agregarPorDiaSemana(pedidos), backgroundColor: CORES.ok, borderRadius: 4 }]
+          },
+          options: baseBarOptions()
+        });
+
+        const porForma = contarPor(pedidos, 'forma_entrega');
+        criarOuAtualizarChart('chartTodosFormaEntrega', {
+          type: 'doughnut',
+          data: {
+            labels: Object.keys(porForma),
+            datasets: [{ data: Object.values(porForma), backgroundColor: [CORES.flex, CORES.shopee, CORES.accent, CORES.ok, CORES.ml] }]
+          },
+          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: CORES.muted } } } }
+        });
+
+        const porLoja = contarPor(pedidos, 'conta');
+        criarOuAtualizarChart('chartTodosLoja', {
+          type: 'doughnut',
+          data: {
+            labels: Object.keys(porLoja),
+            datasets: [{ data: Object.values(porLoja), backgroundColor: [CORES.accent, CORES.shopee, CORES.ok, CORES.ml] }]
+          },
+          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: CORES.muted } } } }
+        });
+
+        const estadosTop = topN(contarPor(pedidos, 'estado'), 10);
+        criarOuAtualizarChart('chartTodosEstados', {
+          type: 'bar',
+          data: {
+            labels: estadosTop.map(e => e[0]),
+            datasets: [{ data: estadosTop.map(e => e[1]), backgroundColor: CORES.accent, borderRadius: 4 }]
+          },
+          options: { ...baseBarOptions(), indexAxis: 'y' }
+        });
+
+        const itensTop = contarItens(pedidos, 10);
+        criarOuAtualizarChart('chartTodosItens', {
+          type: 'bar',
+          data: {
+            labels: itensTop.map(i => i[0].length > 30 ? i[0].slice(0, 30) + '…' : i[0]),
+            datasets: [{ data: itensTop.map(i => i[1]), backgroundColor: CORES.ok, borderRadius: 4 }]
+          },
+          options: { ...baseBarOptions(), indexAxis: 'y' }
+        });
+      }
+
+      const tbodyTodos = document.getElementById('tabela-todos');
+      if (!pedidos.length) {
+        tbodyTodos.innerHTML = '<tr><td colspan="6" class="empty">Nenhum pedido encontrado no período/filtro.</td></tr>';
+      } else {
+        tbodyTodos.innerHTML = pedidos.slice(0, 300).map(p => `
+          <tr>
+            <td>${p.conta || '-'}</td>
+            <td>${p.order_id}</td>
+            <td>${new Date(p.date_created).toLocaleString('pt-BR')}</td>
+            <td>${p.forma_entrega || '-'}</td>
+            <td>${p.total_amount ? 'R$ ' + Number(p.total_amount).toFixed(2) : '-'}</td>
+            <td>${(p.itens || []).map(i => `${i.quantidade}x ${i.titulo}`).join('<br>')}</td>
+          </tr>
+        `).join('');
+      }
+    } catch (e) {
+      // silencioso — se falhar, os cards/gráficos simplesmente não atualizam
+    }
   }
 
   async function carregarAnalytics() {
