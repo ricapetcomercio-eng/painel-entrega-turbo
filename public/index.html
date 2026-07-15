@@ -238,6 +238,12 @@
     Chart.defaults.font.size = 11;
   }
 
+  // Ainda não existem pedidos "Turbo" reais (Shopee Entrega Turbo pendente
+  // de aprovação; Mercado Livre não tem uma modalidade "Turbo" própria).
+  // Por isso a aba é desativada por enquanto — reative trocando para true
+  // assim que houver dados reais de Turbo para mostrar.
+  const TURBO_ATIVO = false;
+
   let charts = {};
 
   let periodoAtual = { de: null, ate: null };
@@ -569,6 +575,11 @@
   carregarAnalytics();
   setInterval(carregar, 30000); // atualiza a cada 30s - só lê Redis, é barato (CPU ~zero por chamada)
   setInterval(carregarAnalytics, 60000); // histórico muda com menos frequência
+
+  if (!TURBO_ATIVO) {
+    document.querySelector('.abas').style.display = 'none';
+    mudarAba('flex');
+  }
 </script>
 </body>
 </html>

@@ -387,6 +387,13 @@
   }
 
   // ---- Alternancia automatica de tela: Principal <-> Flex ----
+  // Ainda não existem pedidos "Turbo" reais (Shopee Entrega Turbo pendente
+  // de aprovação; Mercado Livre não tem uma modalidade "Turbo" própria).
+  // Por isso a alternância de tela é desativada por enquanto — a TV mostra
+  // só a tela Flex. Reative trocando para true assim que houver dados
+  // reais de Turbo para mostrar.
+  var TURBO_ATIVO = false;
+
   var SEGUNDOS_TELA_PRINCIPAL = 40;
   var SEGUNDOS_TELA_FLEX = 25;
   var mostrandoFlex = false;
@@ -416,7 +423,16 @@
 
   atualizarRelogio();
   buscarDados();
-  setTimeout(alternarTela, SEGUNDOS_TELA_PRINCIPAL * 1000);
+
+  if (TURBO_ATIVO) {
+    setTimeout(alternarTela, SEGUNDOS_TELA_PRINCIPAL * 1000);
+  } else {
+    document.getElementById('viewPrincipal').className = 'conteudo oculto';
+    document.getElementById('viewFlex').className = 'conteudo';
+    document.getElementById('modoIndicador').innerHTML = 'Expedicao Flex';
+    document.getElementById('modoIndicador').className = 'modo-indicador modo-flex';
+    mostrandoFlex = true;
+  }
 </script>
 </body>
 </html>
