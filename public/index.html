@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Painel Entrega Flex/Turbo — Ricapet & Thapets</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
 <style>
   :root {
     --bg: #f2f4f6;
@@ -319,6 +320,7 @@
   if (typeof Chart !== 'undefined') {
     Chart.defaults.color = CORES.muted;
     Chart.defaults.font.size = 11;
+    if (typeof ChartDataLabels !== 'undefined') Chart.register(ChartDataLabels);
   }
 
   const TURBO_ATIVO = false; // ainda não existem pedidos Turbo reais; aba desativada por enquanto
@@ -337,7 +339,16 @@
   function baseBarOptions() {
     return {
       responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
+      plugins: {
+        legend: { display: false },
+        datalabels: {
+          color: '#2d3436',
+          font: { weight: 'bold', size: 11 },
+          anchor: 'end',
+          align: 'end',
+          formatter: (v) => (v === null || v === 0) ? '' : v
+        }
+      },
       scales: {
         x: { grid: { display: false }, ticks: { color: CORES.muted } },
         y: { grid: { color: CORES.grid }, ticks: { color: CORES.muted }, beginAtZero: true }
@@ -505,8 +516,10 @@
       data: {
         labels: Array.from({ length: 24 }, (_, i) => i + 'h'),
         datasets: [
-          { type: 'bar', label: 'Pedidos', data: porHora, backgroundColor: CORES.teal, borderRadius: 4, yAxisID: 'y' },
-          { type: 'line', label: 'Ticket médio', data: ticketPorHora, borderColor: CORES.blue, borderDash: [4, 3], tension: 0.3, yAxisID: 'y1', spanGaps: true, pointRadius: 2 }
+          { type: 'bar', label: 'Pedidos', data: porHora, backgroundColor: CORES.teal, borderRadius: 4, yAxisID: 'y',
+            datalabels: { color: '#2d3436', font: { weight: 'bold', size: 10 }, anchor: 'end', align: 'top', formatter: (v) => v === 0 ? '' : v } },
+          { type: 'line', label: 'Ticket médio', data: ticketPorHora, borderColor: CORES.blue, borderDash: [4, 3], tension: 0.3, yAxisID: 'y1', spanGaps: true, pointRadius: 2,
+            datalabels: { display: false } }
         ]
       },
       options: {
@@ -524,7 +537,7 @@
     criarOuAtualizarChart('chartFlexDiaSemana', { type: 'bar', data: { labels: diasNomes, datasets: [{ data: agregarPorDiaSemana(pedidos), backgroundColor: CORES.blue, borderRadius: 4 }] }, options: baseBarOptions() });
 
     const porLoja = contarPor(pedidos, 'conta');
-    criarOuAtualizarChart('chartFlexLoja', { type: 'doughnut', data: { labels: Object.keys(porLoja), datasets: [{ data: Object.values(porLoja), backgroundColor: PALETA_MULTI, borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } } } } });
+    criarOuAtualizarChart('chartFlexLoja', { type: 'doughnut', data: { labels: Object.keys(porLoja), datasets: [{ data: Object.values(porLoja), backgroundColor: PALETA_MULTI, borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } }, datalabels: { color: '#fff', font: { weight: 'bold', size: 11 }, formatter: (v) => v } } } });
 
     const itensTop = contarItens(pedidos, 8);
     criarOuAtualizarChart('chartFlexItens', { type: 'bar', data: { labels: itensTop.map(i => i[0].length > 24 ? i[0].slice(0, 24) + '…' : i[0]), datasets: [{ data: itensTop.map(i => i[1]), backgroundColor: CORES.yellow, borderRadius: 4 }] }, options: { ...baseBarOptions(), indexAxis: 'y' } });
@@ -558,9 +571,9 @@
         const diasNomes = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
         criarOuAtualizarChart('chartTodosDiaSemana', { type: 'bar', data: { labels: diasNomes, datasets: [{ data: agregarPorDiaSemana(pedidos), backgroundColor: CORES.blue, borderRadius: 4 }] }, options: baseBarOptions() });
         const porForma = contarPor(pedidos, 'forma_entrega');
-        criarOuAtualizarChart('chartTodosFormaEntrega', { type: 'doughnut', data: { labels: Object.keys(porForma), datasets: [{ data: Object.values(porForma), backgroundColor: PALETA_MULTI, borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } } } } });
+        criarOuAtualizarChart('chartTodosFormaEntrega', { type: 'doughnut', data: { labels: Object.keys(porForma), datasets: [{ data: Object.values(porForma), backgroundColor: PALETA_MULTI, borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } }, datalabels: { color: '#fff', font: { weight: 'bold', size: 11 }, formatter: (v) => v } } } });
         const porLoja = contarPor(pedidos, 'conta');
-        criarOuAtualizarChart('chartTodosLoja', { type: 'doughnut', data: { labels: Object.keys(porLoja), datasets: [{ data: Object.values(porLoja), backgroundColor: PALETA_MULTI, borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } } } } });
+        criarOuAtualizarChart('chartTodosLoja', { type: 'doughnut', data: { labels: Object.keys(porLoja), datasets: [{ data: Object.values(porLoja), backgroundColor: PALETA_MULTI, borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } }, datalabels: { color: '#fff', font: { weight: 'bold', size: 11 }, formatter: (v) => v } } } });
         const estadosTop = topN(contarPor(pedidos, 'estado'), 10);
         criarOuAtualizarChart('chartTodosEstados', { type: 'bar', data: { labels: estadosTop.map(e => e[0]), datasets: [{ data: estadosTop.map(e => e[1]), backgroundColor: CORES.teal, borderRadius: 4 }] }, options: { ...baseBarOptions(), indexAxis: 'y' } });
         const itensTop = contarItens(pedidos, 10);
