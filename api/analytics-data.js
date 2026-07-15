@@ -10,8 +10,8 @@
 
 const { getRedis } = require('../lib/redis');
 
-const HISTORICO_KEY = 'entrega_turbo:historico_pedidos';
-const HISTORICO_FLEX_KEY = 'entrega_turbo:historico_pedidos_flex';
+const HISTORICO_KEY = 'entrega_turbo:historico_pedidos'; // Turbo (lista, congelada na 1a leitura)
+const HISTORICO_FLEX_HASH_KEY = 'entrega_turbo:historico_flex_hash'; // Flex (hash, sempre atualizado)
 
 function calcularIntervaloPadrao() {
   const agora = new Date();
@@ -40,10 +40,12 @@ module.exports = async (req, res) => {
   const { de, ate } = parseIntervalo(req.query || {});
 
   const pedidosBrutos = await redis.lrange(HISTORICO_KEY, 0, -1);
-  const pedidosFlexBrutos = await redis.lrange(HISTORICO_FLEX_KEY, 0, -1);
+
+  const hashFlex = await redis.hgetall(HISTORICO_FLEX_HASH_KEY);
+  const pedidosFlexBrutos = hashFlex ? Object.values(hashFlex) : [];
 
   const pedidos = filtrarPorPeriodo(pedidosBrutos || [], de, ate);
-  const pedidosFlex = filtrarPorPeriodo(pedidosFlexBrutos || [], de, ate);
+  const pedidosFlex = filtrarPorPeriodo(pedidosFlexBrutos, de, ate);
 
   res.status(200).json({
     periodo: { de: de.toISOString(), ate: ate.toISOString() },
