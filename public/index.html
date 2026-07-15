@@ -702,6 +702,19 @@ function trendHTML(delta, eraZero) {
   return `<span class="trend ${cls}">${arrow} ${texto}</span>`;
 }
 
+function buildBuscaMercadoLivreUrl(nome) {
+  // remove o sufixo "(2)", "(3)" etc. que usamos só para diferenciar
+  // produtos com nome duplicado no mesmo concorrente
+  const nomeBase = nome.replace(/\s*\(\d+\)\s*$/, '');
+  const slug = nomeBase
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remove acentos
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-');
+  return `https://lista.mercadolivre.com.br/${encodeURIComponent(slug)}`;
+}
+
 function renderTabelaMetrica(nomesProdutoHist, produtosHist, datas, metricKey) {
   const nomes = [...nomesProdutoHist];
   const ultimaData = datas[datas.length - 1];
@@ -716,21 +729,20 @@ function renderTabelaMetrica(nomesProdutoHist, produtosHist, datas, metricKey) {
   html += '</tr></thead><tbody>';
 
   nomes.forEach(nome => {
-    // procura a imagem e o link mais recentes disponíveis (do dia mais novo pro mais antigo)
+    // procura a imagem mais recente disponível (do dia mais novo pro mais antigo)
     let imagemUrl = null;
-    let linkUrl = null;
     for (let i = datas.length - 1; i >= 0; i--) {
       const reg = (produtosHist[nome] || {})[datas[i]];
-      if (reg && reg.imagem && !imagemUrl) imagemUrl = reg.imagem;
-      if (reg && reg.link && !linkUrl) linkUrl = reg.link;
-      if (imagemUrl && linkUrl) break;
+      if (reg && reg.imagem) { imagemUrl = reg.imagem; break; }
     }
     const thumbHtml = imagemUrl
       ? `<img class="produto-thumb" src="${imagemUrl}" alt="" loading="lazy" onerror="this.style.display='none'">`
       : `<div class="produto-thumb"></div>`;
-    const nomeHtml = linkUrl
-      ? `<a class="produto-link" href="${linkUrl}" target="_blank" rel="noopener noreferrer">${nome}</a>`
-      : `<span>${nome}</span>`;
+    // o Mercado Livre não expõe um link direto do anúncio nessa tabela de
+    // métricas, então linkamos para a busca pelo nome do produto (sem o
+    // sufixo "(2)", "(3)" que usamos aqui só para diferenciar duplicatas)
+    const linkUrl = buildBuscaMercadoLivreUrl(nome);
+    const nomeHtml = `<a class="produto-link" href="${linkUrl}" target="_blank" rel="noopener noreferrer">${nome}</a>`;
 
     html += `<tr><td class="produto-cell"><div class="produto-linha">${thumbHtml}${nomeHtml}</div></td>`;
     let valorAnterior = null;
