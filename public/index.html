@@ -809,9 +809,13 @@
       const params = new URLSearchParams();
       if (periodoAtual.de) params.set('de', periodoAtual.de);
       if (periodoAtual.ate) params.set('ate', periodoAtual.ate);
-      const resp = await fetch('/api/analytics-data?' + params.toString());
+      // A aba Flex agora lê do MESMO histórico unificado da aba "Todos os
+      // pedidos" (fixando o filtro de forma de entrega em Flex), em vez de
+      // um histórico separado — evita as duas fontes ficarem dessincronizadas.
+      params.set('forma_entrega', 'Mercado Envios Flex');
+      const resp = await fetch('/api/analytics-todos-data?' + params.toString());
       const dados = await resp.json();
-      renderizarGraficosFlex(dados.pedidosFlex || []);
+      renderizarGraficosFlex(dados.pedidos || []);
       const label = document.getElementById('periodoLabel');
       if (dados.periodo) {
         label.textContent = `Período: ${new Date(dados.periodo.de).toLocaleDateString('pt-BR')} até ${new Date(dados.periodo.ate).toLocaleDateString('pt-BR')}`;
