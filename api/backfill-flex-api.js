@@ -1,6 +1,6 @@
-// api/backfill-todos-api.js
-// Preenche o histórico com TODOS os pedidos (qualquer forma de entrega)
-// chamando a API do Mercado Livre diretamente.
+// api/backfill-flex-api.js
+// Preenche retroativamente o histórico do Flex chamando a API do Mercado
+// Livre diretamente — sem depender de upload de relatório.
 //
 // IMPORTANTE: a busca é feita DIA A DIA (não numa janela única de N dias),
 // porque a API de busca do Mercado Livre não permite paginar (offset) além
@@ -9,11 +9,11 @@
 //
 // Uso (chamar repetidamente com os valores de next_dia/next_offset
 // retornados, até vir "done": true):
-//   /api/backfill-todos-api?secret=SEU_SECRET&conta=ricapet&dias=30&dia=0&offset=0
+//   /api/backfill-flex-api?secret=SEU_SECRET&conta=ricapet&dias=30&dia=0&offset=0
 
 const { getRedis } = require('../lib/redis');
-const { buscarPedidosPeriodo, buscarDetalhesShipment, montarPedidoGenerico } = require('../lib/mlAllOrders');
-const { registrarHistoricoTodos } = require('../lib/historicoTodos');
+const { buscarPedidosPeriodo, verificarFlex, montarPedidoFlex } = require('../lib/mlFlexOrders');
+const { registrarHistoricoFlex } = require('../lib/historicoFlex');
 
 const LIMITE_TEMPO_MS = 8000;
 const PAGINA_TAMANHO = 50;
@@ -29,7 +29,7 @@ module.exports = async (req, res) => {
 
   const conta = req.query.conta;
   const dias = parseInt(req.query.dias, 10) || 30;
-  let diaAtual = parseInt(req.query.dia, 10) || 0; // 0 = dia mais antigo da janela
+  let diaAtual = parseInt(req.query.dia, 10) || 0;
   let offsetNoDia = parseInt(req.query.offset, 10) || 0;
 
   if (!conta) {
@@ -38,7 +38,6 @@ module.exports = async (req, res) => {
   }
 
   const redis = getRedis();
-  // desde = início do dia mais antigo da janela (hoje - dias dias, à meia-noite)
   const hoje = new Date();
   const inicioJanela = new Date(hoje);
   inicioJanela.setDate(inicioJanela.getDate() - dias);
@@ -58,13 +57,12 @@ module.exports = async (req, res) => {
     let diasProcessados = 0;
 
     while (Date.now() - inicio < LIMITE_TEMPO_MS) {
-      if (diaAtual >= dias) break; // acabou a janela toda
+      if (diaAtual >= dias) break;
 
       const { de, ate } = limitesDoDia(diaAtual);
       const pagina = await buscarPedidosPeriodo(conta, de.toISOString(), ate.toISOString(), offsetNoDia, PAGINA_TAMANHO);
 
       if (pagina.results.length === 0 || offsetNoDia >= pagina.total) {
-        // terminou esse dia, avança pro próximo
         diaAtual++;
         offsetNoDia = 0;
         diasProcessados++;
@@ -75,18 +73,20 @@ module.exports = async (req, res) => {
         if (Date.now() - inicio >= LIMITE_TEMPO_MS) break;
 
         const shipmentId = pedido.shipping && pedido.shipping.id;
-        const detalhes = await buscarDetalhesShipment(conta, shipmentId);
+        const info = await verificarFlex(conta, shipmentId);
         offsetNoDia++;
         processadosNestaExecucao++;
 
-        pedidosParaGravar.push(montarPedidoGenerico(conta, pedido, shipmentId, detalhes));
+        if (info) {
+          pedidosParaGravar.push(montarPedidoFlex(conta, pedido, shipmentId, info));
+        }
 
         // Pequena pausa entre chamadas à API do ML, para não estourar rate limit
         await new Promise((r) => setTimeout(r, 80));
       }
     }
 
-    const { gravados } = await registrarHistoricoTodos(redis, pedidosParaGravar);
+    const { gravados } = await registrarHistoricoFlex(redis, pedidosParaGravar);
     const done = diaAtual >= dias;
 
     res.status(200).json({
