@@ -308,6 +308,13 @@
       </div>
     </div>
 
+    <div class="grid-bottom">
+      <div class="card">
+        <div class="card-head">Top cidades (destino)</div>
+        <div class="card-body"><div class="chart-wrap-grande" style="height:400px;"><canvas id="chartTodosCidades"></canvas></div></div>
+      </div>
+    </div>
+
     <div class="secao-titulo">Mapa de pedidos por estado</div>
     <div class="card" style="margin-bottom:24px;">
       <div class="card-head">Clique num estado para filtrar</div>
@@ -322,7 +329,7 @@
 
     <div class="secao-titulo">Pedidos (mais recentes primeiro, até 300 exibidos)</div>
     <table>
-      <thead><tr><th>Conta/Loja</th><th>Pedido</th><th>Data</th><th>Forma de entrega</th><th>Valor</th><th>Itens</th></tr></thead>
+      <thead><tr><th>Conta/Loja</th><th>Pedido</th><th>Data</th><th>Forma de entrega</th><th>Estado</th><th>Cidade</th><th>Valor</th><th>Itens</th></tr></thead>
       <tbody id="tabela-todos"></tbody>
     </table>
   </div>
@@ -711,12 +718,15 @@
         });
         const itensTop = contarItens(pedidos, 10);
         criarOuAtualizarChart('chartTodosItens', { type: 'bar', data: { labels: itensTop.map(i => i[0].length > 30 ? i[0].slice(0, 30) + '…' : i[0]), datasets: [{ data: itensTop.map(i => i[1]), backgroundColor: CORES.yellow, borderRadius: 4 }] }, options: { ...baseBarOptions(), indexAxis: 'y' } });
+
+        const cidadesTop = topN(contarPor(pedidos, 'cidade'), 12);
+        criarOuAtualizarChart('chartTodosCidades', { type: 'bar', data: { labels: cidadesTop.map(c => c[0]), datasets: [{ data: cidadesTop.map(c => c[1]), backgroundColor: CORES.blue, borderRadius: 4 }] }, options: { ...baseBarOptions(), indexAxis: 'y' } });
       }
 
       const tbodyTodos = document.getElementById('tabela-todos');
       tbodyTodos.innerHTML = !pedidos.length
-        ? '<tr><td colspan="6" class="empty">Nenhum pedido encontrado no período/filtro.</td></tr>'
-        : pedidos.slice(0, 300).map(p => `<tr><td>${p.conta || '-'}</td><td>${p.order_id}</td><td>${new Date(p.date_created).toLocaleString('pt-BR')}</td><td>${p.forma_entrega || '-'}</td><td>${p.total_amount ? 'R$ ' + Number(p.total_amount).toFixed(2) : '-'}</td><td>${(p.itens || []).map(i => `${i.quantidade}x ${i.titulo}`).join('<br>')}</td></tr>`).join('');
+        ? '<tr><td colspan="8" class="empty">Nenhum pedido encontrado no período/filtro.</td></tr>'
+        : pedidos.slice(0, 300).map(p => `<tr><td>${p.conta || '-'}</td><td>${p.order_id}</td><td>${new Date(p.date_created).toLocaleString('pt-BR')}</td><td>${p.forma_entrega || '-'}</td><td>${p.estado || '-'}</td><td>${p.cidade || '-'}</td><td>${p.total_amount ? 'R$ ' + Number(p.total_amount).toFixed(2) : '-'}</td><td>${(p.itens || []).map(i => `${i.quantidade}x ${i.titulo}`).join('<br>')}</td></tr>`).join('');
     } catch (e) { /* silencioso */ }
   }
 
