@@ -7,16 +7,17 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <style>
   :root {
-    --bg: #0f1117;
-    --card: #171a23;
-    --border: #262b38;
-    --text: #e6e8ec;
-    --muted: #8a90a2;
-    --accent: #ffb020;
-    --ml: #ffe600;
-    --shopee: #ee4d2d;
-    --flex: #4d9bff;
-    --ok: #17b897;
+    --bg: #f2f4f6;
+    --card: #ffffff;
+    --border: #e6e9ed;
+    --text: #2d3436;
+    --muted: #7f8c96;
+    --teal: #17a389;
+    --teal-light: #d7f0ec;
+    --yellow: #f2c94c;
+    --gray: #bdc3c7;
+    --blue: #2f80ed;
+    --red: #eb5757;
   }
   * { box-sizing: border-box; }
   body {
@@ -26,56 +27,90 @@
     color: var(--text);
     padding: 24px;
   }
-  h1 { font-size: 20px; margin: 0 0 4px; }
-  h2 { font-size: 14px; margin: 0; color: var(--text); font-weight: 600; }
+  h1 { font-size: 21px; margin: 0 0 4px; }
+  h2 { font-size: 13px; margin: 0; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
   .subtitle { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
-  .abas { display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid var(--border); }
-  .aba-btn {
-    background: none; border: none; color: var(--muted); font-size: 14px;
-    font-weight: 600; padding: 10px 18px; cursor: pointer; border-bottom: 2px solid transparent;
-  }
-  .aba-btn.ativa { color: var(--text); border-bottom: 2px solid var(--accent); }
-  .aba-btn.ativa.flex-ativa { border-bottom-color: var(--flex); }
+
+  .abas { display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 1px solid var(--border); }
+  .aba-btn { background: none; border: none; color: var(--muted); font-size: 14px; font-weight: 700; padding: 10px 18px; cursor: pointer; border-bottom: 3px solid transparent; }
+  .aba-btn.ativa { color: var(--teal); border-bottom-color: var(--teal); }
+  .oculto { display: none; }
+
   .periodo-controle {
     display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
     margin-bottom: 20px; padding: 10px 14px; background: var(--card);
     border: 1px solid var(--border); border-radius: 10px; font-size: 12px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
   }
   .periodo-controle label { color: var(--muted); display: flex; align-items: center; gap: 4px; }
-  .periodo-controle input[type="date"] {
-    background: var(--bg); border: 1px solid var(--border); color: var(--text);
-    border-radius: 6px; padding: 4px 6px; font-size: 12px;
+  .periodo-controle select, .periodo-controle input[type="date"] {
+    background: #fff; border: 1px solid var(--border); color: var(--text);
+    border-radius: 6px; padding: 5px 8px; font-size: 12px;
   }
-  .periodo-btn {
-    background: var(--bg); border: 1px solid var(--border); color: var(--muted);
-    border-radius: 6px; padding: 5px 10px; font-size: 12px; cursor: pointer;
-  }
-  .periodo-btn.periodo-ativo { color: var(--text); border-color: var(--accent); }
-  .periodo-aplicar { color: var(--text); border-color: var(--ok); }
+  .periodo-btn { background: #fff; border: 1px solid var(--border); color: var(--muted); border-radius: 6px; padding: 5px 10px; font-size: 12px; cursor: pointer; }
+  .periodo-btn.periodo-ativo { color: #fff; background: var(--teal); border-color: var(--teal); }
+  .periodo-aplicar { color: #fff; background: var(--blue); border-color: var(--blue); }
   .periodo-label { color: var(--muted); margin-left: auto; }
-  .oculto { display: none; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px; }
-  .grid-charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 16px; margin-bottom: 24px; }
-  .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
-  .stat-card .value { font-size: 28px; font-weight: 700; }
-  .stat-card .label { color: var(--muted); font-size: 13px; }
-  .chart-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
-  .chart-card .chart-wrap { position: relative; height: 240px; margin-top: 12px; }
+
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .card-head {
+    padding: 12px 16px; border-bottom: 1px solid var(--border);
+    font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em;
+  }
+  .card-body { padding: 16px; }
+
+  .grid-top3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 16px; }
+  .grid-bottom { display: grid; grid-template-columns: 1fr 1fr 2fr; gap: 16px; margin-bottom: 24px; }
+  @media (max-width: 900px) {
+    .grid-top3, .grid-bottom { grid-template-columns: 1fr; }
+  }
+
+  .gauge-numero { font-size: 15px; font-weight: 700; text-align: center; margin-top: -6px; }
+  .gauge-ref { font-size: 11px; color: var(--muted); text-align: center; margin-top: 2px; }
+
+  .donut-wrap { display: flex; align-items: center; gap: 16px; }
+  .donut-canvas-wrap { position: relative; width: 140px; height: 140px; flex-shrink: 0; }
+  .donut-center-texto { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; }
+  .donut-center-texto .valor { font-size: 26px; font-weight: 800; }
+  .donut-center-texto .rotulo { font-size: 10px; color: var(--muted); }
+
+  .legenda-lista { flex: 1; font-size: 12px; }
+  .legenda-item { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid #f1f2f4; }
+  .legenda-item:last-child { border-bottom: none; }
+  .legenda-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+  .legenda-nome { color: var(--text); flex: 1; }
+  .legenda-valor { color: var(--muted); font-weight: 700; }
+
+  .icon-stat { display: flex; align-items: center; gap: 14px; padding: 6px 0; }
+  .icon-stat .icone { width: 46px; height: 46px; border-radius: 10px; background: var(--teal-light); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .icon-stat .valor { font-size: 24px; font-weight: 800; line-height: 1.1; }
+  .icon-stat .rotulo { font-size: 12px; color: var(--muted); }
+
+  .chart-wrap-grande { position: relative; height: 220px; }
+
   table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 10px; overflow: hidden; }
   th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 13px; }
-  th { color: var(--muted); font-weight: 600; text-transform: uppercase; font-size: 11px; }
-  .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
-  .badge-ml { background: rgba(255,230,0,0.15); color: var(--ml); }
-  .badge-shopee { background: rgba(238,77,45,0.15); color: var(--shopee); }
-  .badge-flex { background: rgba(77,155,255,0.15); color: var(--flex); }
-  .status-coletado { color: var(--ok); font-weight: 600; }
-  .status-aguardando { color: var(--muted); font-weight: 600; }
+  th { color: var(--muted); font-weight: 700; text-transform: uppercase; font-size: 11px; background: #fafbfc; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+  .badge-ml { background: #fff7d6; color: #a3810c; }
+  .badge-shopee { background: #ffe4dc; color: #ee4d2d; }
+  .status-coletado { color: var(--teal); font-weight: 700; }
+  .status-aguardando { color: var(--muted); font-weight: 700; }
+  .status-transito { color: var(--blue); font-weight: 700; }
   .empty { text-align: center; padding: 40px; color: var(--muted); }
-  .secao-titulo { font-size: 15px; font-weight: 600; margin: 32px 0 12px; color: var(--text); }
+  .secao-titulo { font-size: 15px; font-weight: 700; margin: 28px 0 12px; color: var(--text); }
+
+  .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+  .stat-card .value { font-size: 24px; font-weight: 800; }
+  .stat-card .label { color: var(--muted); font-size: 12px; }
+  .grid-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 20px; }
 </style>
 </head>
 <body>
-  <h1>🚀 Painel Entrega Flex / Turbo</h1>
+  <h1>Painel de Logística — Flex / Turbo</h1>
   <div class="subtitle" id="atualizado-em">Carregando...</div>
 
   <div class="abas">
@@ -89,157 +124,141 @@
     <button class="periodo-btn" onclick="definirPeriodo('7dias')">Últimos 7 dias</button>
     <button class="periodo-btn" onclick="definirPeriodo('30dias')">Últimos 30 dias</button>
     <button class="periodo-btn" onclick="definirPeriodo('tudo')">Tudo</button>
-    <label>De <input type="date" id="periodoDe" onchange="limparDestaquePeriodo()"></label>
-    <label>Até <input type="date" id="periodoAte" onchange="limparDestaquePeriodo()"></label>
+    <button class="periodo-btn" id="btnPeriodoEspecifico" onclick="ativarPeriodoEspecifico()">Período específico</button>
+    <label>De <input type="date" id="periodoDe" onchange="ativarPeriodoEspecifico()"></label>
+    <label>Até <input type="date" id="periodoAte" onchange="ativarPeriodoEspecifico()"></label>
     <button class="periodo-btn periodo-aplicar" onclick="aplicarPeriodoManual()">Aplicar</button>
     <span id="periodoLabel" class="periodo-label"></span>
   </div>
 
   <!-- ABA: TURBO / EXPRESSA -->
   <div id="painelTurbo">
-
-    <div class="grid">
-      <div class="stat-card">
-        <div class="value" id="total-pedidos">–</div>
-        <div class="label">Pedidos expressos (últimas horas)</div>
-      </div>
-      <div class="stat-card">
-        <div class="value" id="total-ml">–</div>
-        <div class="label">Mercado Livre</div>
-      </div>
-      <div class="stat-card">
-        <div class="value" id="total-shopee">–</div>
-        <div class="label">Shopee (Entrega Turbo)</div>
-      </div>
-      <div class="stat-card">
-        <div class="value" id="hist-total">–</div>
-        <div class="label">Total no histórico acumulado</div>
-      </div>
-      <div class="stat-card">
-        <div class="value" id="hist-ticket-medio">–</div>
-        <div class="label">Ticket médio (histórico)</div>
-      </div>
+    <div class="grid-stats">
+      <div class="stat-card"><div class="value" id="total-pedidos">–</div><div class="label">Pedidos expressos (últimas horas)</div></div>
+      <div class="stat-card"><div class="value" id="total-ml">–</div><div class="label">Mercado Livre</div></div>
+      <div class="stat-card"><div class="value" id="total-shopee">–</div><div class="label">Shopee (Entrega Turbo)</div></div>
     </div>
-
-    <div class="secao-titulo">Análise do histórico acumulado</div>
-    <div class="grid-charts">
-      <div class="chart-card">
-        <h2>Pedidos por horário do dia</h2>
-        <div class="chart-wrap"><canvas id="chartHora"></canvas></div>
-      </div>
-      <div class="chart-card">
-        <h2>Pedidos por dia da semana</h2>
-        <div class="chart-wrap"><canvas id="chartDiaSemana"></canvas></div>
-      </div>
-      <div class="chart-card">
-        <h2>Por loja</h2>
-        <div class="chart-wrap"><canvas id="chartLoja"></canvas></div>
-      </div>
-      <div class="chart-card">
-        <h2>Por marketplace</h2>
-        <div class="chart-wrap"><canvas id="chartMarketplace"></canvas></div>
-      </div>
-      <div class="chart-card">
-        <h2>Top estados (destino)</h2>
-        <div class="chart-wrap"><canvas id="chartEstados"></canvas></div>
-      </div>
-      <div class="chart-card">
-        <h2>Top itens vendidos</h2>
-        <div class="chart-wrap"><canvas id="chartItens"></canvas></div>
-      </div>
-    </div>
-
-    <div class="secao-titulo">Pedidos em aberto agora</div>
     <table>
-      <thead>
-        <tr>
-          <th>Marketplace</th>
-          <th>Conta/Loja</th>
-          <th>Pedido</th>
-          <th>Data</th>
-          <th>Valor</th>
-          <th>Itens</th>
-        </tr>
-      </thead>
+      <thead><tr><th>Marketplace</th><th>Conta/Loja</th><th>Pedido</th><th>Data</th><th>Valor</th><th>Itens</th></tr></thead>
       <tbody id="tabela-pedidos"></tbody>
     </table>
-
   </div>
 
   <!-- ABA: FLEX -->
   <div id="painelFlex" class="oculto">
 
-    <div class="grid">
-      <div class="stat-card">
-        <div class="value" id="flex-total-periodo">–</div>
-        <div class="label">Total acumulado no período</div>
+    <div class="grid-top3">
+      <div class="card">
+        <div class="card-head">Eficiência de coleta</div>
+        <div class="card-body">
+          <svg viewBox="0 0 200 115" style="width:100%; max-width:220px; display:block; margin:0 auto;">
+            <path d="M 20,100 A 80,80 0 0,1 60,30.72" fill="none" stroke="var(--red)" stroke-width="22" stroke-linecap="round"/>
+            <path d="M 60,30.72 A 80,80 0 0,1 140,30.72" fill="none" stroke="var(--yellow)" stroke-width="22" stroke-linecap="round"/>
+            <path d="M 140,30.72 A 80,80 0 0,1 180,100" fill="none" stroke="var(--teal)" stroke-width="22" stroke-linecap="round"/>
+            <line id="gaugeAgulha" x1="100" y1="100" x2="20" y2="100" stroke="#2d3436" stroke-width="4" stroke-linecap="round"/>
+            <circle cx="100" cy="100" r="7" fill="#2d3436"/>
+          </svg>
+          <div class="gauge-numero" id="gaugeEficienciaValor">0%</div>
+          <div class="gauge-ref">pedidos já coletados ou entregues</div>
+        </div>
       </div>
-      <div class="stat-card">
-        <div class="value status-coletado" id="flex-entregues">–</div>
-        <div class="label">Pedidos entregues</div>
+
+      <div class="card">
+        <div class="card-head">Status de entrega</div>
+        <div class="card-body">
+          <div class="donut-wrap" style="justify-content:center;">
+            <div class="donut-canvas-wrap">
+              <canvas id="chartStatusEntrega"></canvas>
+              <div class="donut-center-texto">
+                <div class="valor" id="statusEntregaPct">0%</div>
+                <div class="rotulo">entregues</div>
+              </div>
+            </div>
+          </div>
+          <div id="statusEntregaLegenda" style="margin-top:10px; font-size:12px; color:var(--muted); text-align:center;"></div>
+        </div>
       </div>
-      <div class="stat-card">
-        <div class="value" id="flex-coletados-nao-entregues" style="color: var(--flex);">–</div>
-        <div class="label">Coletados e não entregues</div>
-      </div>
-      <div class="stat-card">
-        <div class="value status-aguardando" id="flex-a-coletar">–</div>
-        <div class="label">Pedidos a coletar</div>
-      </div>
-      <div class="stat-card">
-        <div class="value" id="flex-hist-ticket-medio">–</div>
-        <div class="label">Ticket médio (período)</div>
+
+      <div class="card">
+        <div class="card-head">Entregas por destino</div>
+        <div class="card-body">
+          <div class="donut-wrap">
+            <div class="donut-canvas-wrap" style="width:110px; height:110px;">
+              <canvas id="chartDestino"></canvas>
+            </div>
+            <div class="legenda-lista" id="legendaDestino"></div>
+          </div>
+        </div>
       </div>
     </div>
 
-    <div class="chart-card" style="margin-bottom: 24px;">
-      <h2>Risco de estouro do prazo de coleta (pedidos a coletar)</h2>
-      <div style="text-align: center; padding: 12px 0;">
-        <div id="flexGaugeValor" style="font-size: 40px; font-weight: 700;">0%</div>
-        <div id="flexGaugeRef" style="font-size: 13px; color: var(--muted); margin-top: 4px;">Nenhum pedido a coletar no momento</div>
+    <div class="grid-bottom">
+      <div class="card">
+        <div class="card-body">
+          <div class="icon-stat">
+            <div class="icone">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#17a389" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+            </div>
+            <div>
+              <div class="valor" id="statTicketMedio">–</div>
+              <div class="rotulo">Ticket médio</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-body">
+          <div class="icon-stat">
+            <div class="icone">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#17a389" stroke-width="2"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M3 11h18M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+            </div>
+            <div>
+              <div class="valor" id="statItensPorPedido">–</div>
+              <div class="rotulo">Itens por pedido</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head">Pedidos por horário do dia</div>
+        <div class="card-body">
+          <div class="chart-wrap-grande"><canvas id="chartFlexHora"></canvas></div>
+        </div>
       </div>
     </div>
 
-    <div class="secao-titulo">Análise do período (Flex)</div>
-    <div class="grid-charts">
-      <div class="chart-card">
-        <h2>Pedidos Flex por horário do dia</h2>
-        <div class="chart-wrap"><canvas id="chartFlexHora"></canvas></div>
+    <div class="grid-stats">
+      <div class="stat-card"><div class="value" id="flex-total-periodo">–</div><div class="label">Total no período</div></div>
+      <div class="stat-card"><div class="value status-coletado" id="flex-entregues">–</div><div class="label">Entregues</div></div>
+      <div class="stat-card"><div class="value status-transito" id="flex-coletados-nao-entregues">–</div><div class="label">Coletados, não entregues</div></div>
+      <div class="stat-card"><div class="value status-aguardando" id="flex-a-coletar">–</div><div class="label">A coletar</div></div>
+    </div>
+
+    <div class="secao-titulo">Análise complementar</div>
+    <div class="grid-bottom">
+      <div class="card">
+        <div class="card-head">Por dia da semana</div>
+        <div class="card-body"><div class="chart-wrap-grande" style="height:180px;"><canvas id="chartFlexDiaSemana"></canvas></div></div>
       </div>
-      <div class="chart-card">
-        <h2>Pedidos Flex por dia da semana</h2>
-        <div class="chart-wrap"><canvas id="chartFlexDiaSemana"></canvas></div>
+      <div class="card">
+        <div class="card-head">Por loja</div>
+        <div class="card-body"><div class="chart-wrap-grande" style="height:180px;"><canvas id="chartFlexLoja"></canvas></div></div>
       </div>
-      <div class="chart-card">
-        <h2>Por loja</h2>
-        <div class="chart-wrap"><canvas id="chartFlexLoja"></canvas></div>
-      </div>
-      <div class="chart-card">
-        <h2>Top itens vendidos (Flex)</h2>
-        <div class="chart-wrap"><canvas id="chartFlexItens"></canvas></div>
+      <div class="card">
+        <div class="card-head">Top itens vendidos</div>
+        <div class="card-body"><div class="chart-wrap-grande" style="height:180px;"><canvas id="chartFlexItens"></canvas></div></div>
       </div>
     </div>
 
     <div class="secao-titulo">Processo de expedição Flex agora (venda e coleta)</div>
     <table>
-      <thead>
-        <tr>
-          <th>Conta/Loja</th>
-          <th>Pedido</th>
-          <th>Data da venda</th>
-          <th>Valor</th>
-          <th>Itens</th>
-          <th>Status</th>
-        </tr>
-      </thead>
+      <thead><tr><th>Conta/Loja</th><th>Pedido</th><th>Data da venda</th><th>Valor</th><th>Itens</th><th>Status</th></tr></thead>
       <tbody id="tabela-flex"></tbody>
     </table>
-
   </div>
 
   <!-- ABA: TODOS OS PEDIDOS -->
   <div id="painelTodos" class="oculto">
-
     <div class="periodo-controle">
       <label>Forma de entrega
         <select id="filtroFormaEntrega" onchange="carregarTodos()">
@@ -248,121 +267,127 @@
       </label>
     </div>
 
-    <div class="grid">
-      <div class="stat-card">
-        <div class="value" id="todos-total">–</div>
-        <div class="label">Total no período (com filtro aplicado)</div>
-      </div>
-      <div class="stat-card">
-        <div class="value" id="todos-ticket-medio">–</div>
-        <div class="label">Ticket médio</div>
-      </div>
+    <div class="grid-stats">
+      <div class="stat-card"><div class="value" id="todos-total">–</div><div class="label">Total no período (com filtro aplicado)</div></div>
+      <div class="stat-card"><div class="value" id="todos-ticket-medio">–</div><div class="label">Ticket médio</div></div>
     </div>
 
     <div class="secao-titulo">Análise do período</div>
-    <div class="grid-charts">
-      <div class="chart-card">
-        <h2>Por horário do dia</h2>
-        <div class="chart-wrap"><canvas id="chartTodosHora"></canvas></div>
+    <div class="grid-bottom">
+      <div class="card">
+        <div class="card-head">Por horário do dia</div>
+        <div class="card-body"><div class="chart-wrap-grande" style="height:180px;"><canvas id="chartTodosHora"></canvas></div></div>
       </div>
-      <div class="chart-card">
-        <h2>Por dia da semana</h2>
-        <div class="chart-wrap"><canvas id="chartTodosDiaSemana"></canvas></div>
+      <div class="card">
+        <div class="card-head">Por dia da semana</div>
+        <div class="card-body"><div class="chart-wrap-grande" style="height:180px;"><canvas id="chartTodosDiaSemana"></canvas></div></div>
       </div>
-      <div class="chart-card">
-        <h2>Por forma de entrega</h2>
-        <div class="chart-wrap"><canvas id="chartTodosFormaEntrega"></canvas></div>
+      <div class="card">
+        <div class="card-head">Por forma de entrega</div>
+        <div class="card-body"><div class="chart-wrap-grande" style="height:180px;"><canvas id="chartTodosFormaEntrega"></canvas></div></div>
       </div>
-      <div class="chart-card">
-        <h2>Por loja</h2>
-        <div class="chart-wrap"><canvas id="chartTodosLoja"></canvas></div>
+    </div>
+    <div class="grid-bottom">
+      <div class="card">
+        <div class="card-head">Por loja</div>
+        <div class="card-body"><div class="chart-wrap-grande" style="height:180px;"><canvas id="chartTodosLoja"></canvas></div></div>
       </div>
-      <div class="chart-card">
-        <h2>Top estados (destino)</h2>
-        <div class="chart-wrap"><canvas id="chartTodosEstados"></canvas></div>
+      <div class="card">
+        <div class="card-head">Top estados (destino)</div>
+        <div class="card-body"><div class="chart-wrap-grande" style="height:180px;"><canvas id="chartTodosEstados"></canvas></div></div>
       </div>
-      <div class="chart-card">
-        <h2>Top itens vendidos</h2>
-        <div class="chart-wrap"><canvas id="chartTodosItens"></canvas></div>
+      <div class="card">
+        <div class="card-head">Top itens vendidos</div>
+        <div class="card-body"><div class="chart-wrap-grande" style="height:180px;"><canvas id="chartTodosItens"></canvas></div></div>
       </div>
     </div>
 
     <div class="secao-titulo">Pedidos (mais recentes primeiro, até 300 exibidos)</div>
     <table>
-      <thead>
-        <tr>
-          <th>Conta/Loja</th>
-          <th>Pedido</th>
-          <th>Data</th>
-          <th>Forma de entrega</th>
-          <th>Valor</th>
-          <th>Itens</th>
-        </tr>
-      </thead>
+      <thead><tr><th>Conta/Loja</th><th>Pedido</th><th>Data</th><th>Forma de entrega</th><th>Valor</th><th>Itens</th></tr></thead>
       <tbody id="tabela-todos"></tbody>
     </table>
-
   </div>
-
 
 <script>
   const CORES = {
-    accent: '#ffb020', ml: '#ffe600', shopee: '#ee4d2d', flex: '#4d9bff', ok: '#17b897',
-    muted: '#8a90a2', grid: 'rgba(255,255,255,0.06)'
+    teal: '#17a389', yellow: '#f2c94c', gray: '#bdc3c7', blue: '#2f80ed', red: '#eb5757',
+    ml: '#f2b90c', shopee: '#ee4d2d', muted: '#7f8c96', grid: 'rgba(0,0,0,0.06)'
   };
+  const PALETA_MULTI = [CORES.teal, CORES.blue, CORES.yellow, CORES.gray, CORES.red, '#9b59b6', '#2ecc71'];
+
   if (typeof Chart !== 'undefined') {
     Chart.defaults.color = CORES.muted;
     Chart.defaults.font.size = 11;
   }
 
-  // Ainda não existem pedidos "Turbo" reais (Shopee Entrega Turbo pendente
-  // de aprovação; Mercado Livre não tem uma modalidade "Turbo" própria).
-  // Por isso a aba é desativada por enquanto — reative trocando para true
-  // assim que houver dados reais de Turbo para mostrar.
-  const TURBO_ATIVO = false;
+  const TURBO_ATIVO = false; // ainda não existem pedidos Turbo reais; aba desativada por enquanto
 
   let charts = {};
-
   let periodoAtual = { de: null, ate: null };
 
-  function formatarDataInput(d) {
-    return d.toISOString().slice(0, 10);
+  function criarOuAtualizarChart(id, config) {
+    if (typeof Chart === 'undefined') return;
+    if (charts[id]) { charts[id].data = config.data; charts[id].options = config.options; charts[id].update(); return; }
+    const el = document.getElementById(id);
+    if (!el) return;
+    charts[id] = new Chart(el.getContext('2d'), config);
   }
 
-  function definirPeriodo(tipo) {
-    const hoje = new Date();
-    let de;
-    if (tipo === 'mes') {
-      de = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
-    } else if (tipo === '7dias') {
-      de = new Date(hoje.getTime() - 7 * 24 * 60 * 60 * 1000);
-    } else if (tipo === '30dias') {
-      de = new Date(hoje.getTime() - 30 * 24 * 60 * 60 * 1000);
-    } else {
-      de = new Date(2020, 0, 1); // "tudo" — bem no passado
+  function baseBarOptions() {
+    return {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: CORES.muted } },
+        y: { grid: { color: CORES.grid }, ticks: { color: CORES.muted }, beginAtZero: true }
+      }
+    };
+  }
+
+  function agregarPorHora(pedidos) {
+    const c = new Array(24).fill(0);
+    pedidos.forEach(p => { c[new Date(p.date_created).getHours()]++; });
+    return c;
+  }
+  function agregarPorDiaSemana(pedidos) {
+    const c = new Array(7).fill(0);
+    pedidos.forEach(p => { c[new Date(p.date_created).getDay()]++; });
+    return c;
+  }
+  function contarPor(pedidos, chave) {
+    const mapa = {};
+    pedidos.forEach(p => { const v = p[chave] || 'Não identificado'; mapa[v] = (mapa[v] || 0) + 1; });
+    return mapa;
+  }
+  function topN(mapa, n) { return Object.entries(mapa).sort((a, b) => b[1] - a[1]).slice(0, n); }
+  function contarItens(pedidos, n) {
+    const mapa = {};
+    pedidos.forEach(p => (p.itens || []).forEach(i => { mapa[i.titulo] = (mapa[i.titulo] || 0) + (i.quantidade || 1); }));
+    return topN(mapa, n);
+  }
+  function ticketMedio(pedidos) {
+    if (!pedidos.length) return null;
+    return pedidos.reduce((a, p) => a + (Number(p.total_amount) || 0), 0) / pedidos.length;
+  }
+
+  // ---------- GAUGE (velocímetro) ----------
+  function renderGauge(pct) {
+    const p = Math.max(0, Math.min(100, pct));
+    const anguloGraus = 180 - (p / 100) * 180;
+    const rad = anguloGraus * Math.PI / 180;
+    const x2 = 100 + 70 * Math.cos(rad);
+    const y2 = 100 - 70 * Math.sin(rad);
+    const agulha = document.getElementById('gaugeAgulha');
+    if (agulha) { agulha.setAttribute('x2', x2.toFixed(1)); agulha.setAttribute('y2', y2.toFixed(1)); }
+    const valorEl = document.getElementById('gaugeEficienciaValor');
+    if (valorEl) {
+      valorEl.textContent = Math.round(p) + '%';
+      valorEl.style.color = p >= 66 ? CORES.teal : (p >= 33 ? '#a3810c' : CORES.red);
     }
-    document.getElementById('periodoDe').value = formatarDataInput(de);
-    document.getElementById('periodoAte').value = formatarDataInput(hoje);
-    document.querySelectorAll('.periodo-btn').forEach(b => b.classList.remove('periodo-ativo'));
-    event.target.classList.add('periodo-ativo');
-    aplicarPeriodoManual();
   }
 
-  function limparDestaquePeriodo() {
-    document.querySelectorAll('.periodo-btn').forEach(b => b.classList.remove('periodo-ativo'));
-  }
-
-  function aplicarPeriodoManual() {
-    const de = document.getElementById('periodoDe').value;
-    const ate = document.getElementById('periodoAte').value;
-    periodoAtual = { de, ate };
-    // Nenhum botão rápido corresponde a um intervalo digitado manualmente —
-    // remove o destaque visual deles para não sugerir um período errado.
-    document.querySelectorAll('.periodo-btn').forEach(b => b.classList.remove('periodo-ativo'));
-    carregarAnalytics();
-    carregarTodos();
-  }
-
+  // ---------- ABA SWITCHING ----------
   function mudarAba(aba) {
     const painelTurbo = document.getElementById('painelTurbo');
     const painelFlex = document.getElementById('painelFlex');
@@ -371,250 +396,141 @@
     const btnFlex = document.getElementById('abaBtnFlex');
     const btnTodos = document.getElementById('abaBtnTodos');
 
-    painelTurbo.className = 'oculto';
-    painelFlex.className = 'oculto';
-    painelTodos.className = 'oculto';
-    btnTurbo.className = 'aba-btn';
-    btnFlex.className = 'aba-btn';
-    btnTodos.className = 'aba-btn';
+    painelTurbo.className = 'oculto'; painelFlex.className = 'oculto'; painelTodos.className = 'oculto';
+    btnTurbo.className = 'aba-btn'; btnFlex.className = 'aba-btn'; btnTodos.className = 'aba-btn';
 
-    if (aba === 'flex') {
-      painelFlex.className = '';
-      btnFlex.className = 'aba-btn ativa flex-ativa';
-    } else if (aba === 'todos') {
-      painelTodos.className = '';
-      btnTodos.className = 'aba-btn ativa';
-      carregarTodos();
-    } else {
-      painelTurbo.className = '';
-      btnTurbo.className = 'aba-btn ativa';
-    }
+    if (aba === 'flex') { painelFlex.className = ''; btnFlex.className = 'aba-btn ativa'; }
+    else if (aba === 'todos') { painelTodos.className = ''; btnTodos.className = 'aba-btn ativa'; carregarTodos(); }
+    else { painelTurbo.className = ''; btnTurbo.className = 'aba-btn ativa'; }
   }
 
-  function criarOuAtualizarChart(id, config) {
-    if (typeof Chart === 'undefined') return; // biblioteca de gráficos indisponível — segue sem quebrar o resto da página
-    if (charts[id]) {
-      charts[id].data = config.data;
-      charts[id].update();
-      return;
-    }
-    const ctx = document.getElementById(id).getContext('2d');
-    charts[id] = new Chart(ctx, config);
+  // ---------- PERÍODO ----------
+  function formatarDataInput(d) { return d.toISOString().slice(0, 10); }
+
+  function definirPeriodo(tipo) {
+    const hoje = new Date();
+    let de;
+    if (tipo === 'mes') de = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    else if (tipo === '7dias') de = new Date(hoje.getTime() - 7 * 86400000);
+    else if (tipo === '30dias') de = new Date(hoje.getTime() - 30 * 86400000);
+    else de = new Date(2020, 0, 1);
+    document.getElementById('periodoDe').value = formatarDataInput(de);
+    document.getElementById('periodoAte').value = formatarDataInput(hoje);
+    document.querySelectorAll('.periodo-btn').forEach(b => b.classList.remove('periodo-ativo'));
+    if (event && event.target) event.target.classList.add('periodo-ativo');
+    aplicarPeriodoManual();
   }
 
-  function baseBarOptions() {
-    return {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { grid: { color: CORES.grid }, ticks: { color: CORES.muted } },
-        y: { grid: { color: CORES.grid }, ticks: { color: CORES.muted }, beginAtZero: true }
-      }
-    };
+  function limparDestaquePeriodo() {
+    document.querySelectorAll('.periodo-btn').forEach(b => b.classList.remove('periodo-ativo'));
   }
 
-  function agregarPorHora(pedidos) {
-    const contagem = new Array(24).fill(0);
-    pedidos.forEach(p => { contagem[new Date(p.date_created).getHours()]++; });
-    return contagem;
+  function ativarPeriodoEspecifico() {
+    limparDestaquePeriodo();
+    document.getElementById('btnPeriodoEspecifico').classList.add('periodo-ativo');
   }
 
-  function agregarPorDiaSemana(pedidos) {
-    const contagem = new Array(7).fill(0);
-    pedidos.forEach(p => { contagem[new Date(p.date_created).getDay()]++; });
-    return contagem;
+  function aplicarPeriodoManual() {
+    periodoAtual = { de: document.getElementById('periodoDe').value, ate: document.getElementById('periodoAte').value };
+    ativarPeriodoEspecifico();
+    carregarAnalytics();
+    carregarTodos();
   }
 
-  function contarPor(pedidos, chave) {
-    const mapa = {};
-    pedidos.forEach(p => {
-      const valor = p[chave] || 'Não identificado';
-      mapa[valor] = (mapa[valor] || 0) + 1;
-    });
-    return mapa;
-  }
-
-  function topN(mapa, n) {
-    return Object.entries(mapa).sort((a, b) => b[1] - a[1]).slice(0, n);
-  }
-
-  function contarItens(pedidos, n) {
-    const mapa = {};
-    pedidos.forEach(p => {
-      (p.itens || []).forEach(item => {
-        mapa[item.titulo] = (mapa[item.titulo] || 0) + (item.quantidade || 1);
-      });
-    });
-    return topN(mapa, n);
-  }
-
-  function ticketMedio(pedidos) {
-    if (!pedidos.length) return null;
-    const soma = pedidos.reduce((acc, p) => acc + (Number(p.total_amount) || 0), 0);
-    return soma / pedidos.length;
-  }
-
-  // ---------- ABA TURBO ----------
-
-  function renderizarGraficosTurbo(pedidos) {
-    document.getElementById('hist-total').textContent = pedidos.length;
-
-    const media = ticketMedio(pedidos);
-    document.getElementById('hist-ticket-medio').textContent = media === null ? '-' : 'R$ ' + media.toFixed(2);
-    if (pedidos.length === 0) return;
-
-    criarOuAtualizarChart('chartHora', {
-      type: 'bar',
-      data: {
-        labels: Array.from({length: 24}, (_, i) => i + 'h'),
-        datasets: [{ data: agregarPorHora(pedidos), backgroundColor: CORES.accent, borderRadius: 4 }]
-      },
-      options: baseBarOptions()
-    });
-
-    const diasNomes = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-    criarOuAtualizarChart('chartDiaSemana', {
-      type: 'bar',
-      data: {
-        labels: diasNomes,
-        datasets: [{ data: agregarPorDiaSemana(pedidos), backgroundColor: CORES.ok, borderRadius: 4 }]
-      },
-      options: baseBarOptions()
-    });
-
-    const porLoja = contarPor(pedidos, 'conta');
-    criarOuAtualizarChart('chartLoja', {
-      type: 'doughnut',
-      data: {
-        labels: Object.keys(porLoja),
-        datasets: [{ data: Object.values(porLoja), backgroundColor: [CORES.accent, CORES.shopee, CORES.ok, CORES.ml] }]
-      },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: CORES.muted } } } }
-    });
-
-    const porMkt = contarPor(pedidos, 'marketplace');
-    const nomesMkt = { mercado_livre: 'Mercado Livre', shopee: 'Shopee' };
-    criarOuAtualizarChart('chartMarketplace', {
-      type: 'doughnut',
-      data: {
-        labels: Object.keys(porMkt).map(k => nomesMkt[k] || k),
-        datasets: [{ data: Object.values(porMkt), backgroundColor: [CORES.ml, CORES.shopee] }]
-      },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: CORES.muted } } } }
-    });
-
-    const estadosTop = topN(contarPor(pedidos, 'estado'), 10);
-    criarOuAtualizarChart('chartEstados', {
-      type: 'bar',
-      data: {
-        labels: estadosTop.map(e => e[0]),
-        datasets: [{ data: estadosTop.map(e => e[1]), backgroundColor: CORES.accent, borderRadius: 4 }]
-      },
-      options: { ...baseBarOptions(), indexAxis: 'y' }
-    });
-
-    const itensTop = contarItens(pedidos, 10);
-    criarOuAtualizarChart('chartItens', {
-      type: 'bar',
-      data: {
-        labels: itensTop.map(i => i[0].length > 30 ? i[0].slice(0, 30) + '…' : i[0]),
-        datasets: [{ data: itensTop.map(i => i[1]), backgroundColor: CORES.ok, borderRadius: 4 }]
-      },
-      options: { ...baseBarOptions(), indexAxis: 'y' }
-    });
+  function inicializarPeriodoPadrao() {
+    const hoje = new Date();
+    const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    document.getElementById('periodoDe').value = formatarDataInput(inicioMes);
+    document.getElementById('periodoAte').value = formatarDataInput(hoje);
+    periodoAtual = { de: formatarDataInput(inicioMes), ate: formatarDataInput(hoje) };
+    document.querySelectorAll('.periodo-btn')[0].classList.add('periodo-ativo');
   }
 
   // ---------- ABA FLEX ----------
-
   function renderizarGraficosFlex(pedidos) {
-    document.getElementById('flex-total-periodo').textContent = pedidos.length;
-
     const entregues = pedidos.filter(p => p.categoria === 'entregue');
     const coletadosNaoEntregues = pedidos.filter(p => p.categoria === 'coletado');
     const aCcoletar = pedidos.filter(p => p.categoria === 'aguardando' || !p.categoria);
 
+    document.getElementById('flex-total-periodo').textContent = pedidos.length;
     document.getElementById('flex-entregues').textContent = entregues.length;
     document.getElementById('flex-coletados-nao-entregues').textContent = coletadosNaoEntregues.length;
     document.getElementById('flex-a-coletar').textContent = aCcoletar.length;
 
     const media = ticketMedio(pedidos);
-    document.getElementById('flex-hist-ticket-medio').textContent = media === null ? '-' : 'R$ ' + media.toFixed(2);
+    document.getElementById('statTicketMedio').textContent = media === null ? '-' : 'R$ ' + media.toFixed(2);
 
-    // Velocímetro: risco de estouro do prazo de coleta, olhando o pedido
-    // "a coletar" mais próximo de estourar (maior fração do prazo consumida).
-    const PRAZO_COLETA_HORAS = 24; // mesmo valor assumido em lib/mlFlexOrders.js
-    const gaugeValorEl = document.getElementById('flexGaugeValor');
-    const gaugeRefEl = document.getElementById('flexGaugeRef');
+    const totalItens = pedidos.reduce((acc, p) => acc + (p.itens || []).reduce((a, i) => a + (i.quantidade || 1), 0), 0);
+    document.getElementById('statItensPorPedido').textContent = pedidos.length ? (totalItens / pedidos.length).toFixed(1) : '-';
 
-    if (aCcoletar.length === 0) {
-      gaugeValorEl.textContent = '0%';
-      gaugeValorEl.style.color = 'var(--ok)';
-      gaugeRefEl.textContent = 'Nenhum pedido a coletar no momento';
-    } else {
-      let piorFracao = 0;
-      let piorPedido = null;
-      const agora = Date.now();
-      aCcoletar.forEach(p => {
-        const horasDecorridas = (agora - new Date(p.date_created).getTime()) / (60 * 60 * 1000);
-        const fracao = Math.min(1.2, Math.max(0, horasDecorridas / PRAZO_COLETA_HORAS));
-        if (fracao > piorFracao) {
-          piorFracao = fracao;
-          piorPedido = p;
-        }
-      });
-      const percentual = Math.round(Math.min(100, piorFracao * 100));
-      gaugeValorEl.textContent = percentual + '%';
-      gaugeValorEl.style.color = percentual >= 80 ? 'var(--shopee)' : (percentual >= 55 ? 'var(--accent)' : 'var(--ok)');
-      gaugeRefEl.textContent = piorPedido
-        ? `Pedido #${piorPedido.order_id} — prazo de coleta mais apertado`
-        : '';
-    }
+    // Gauge: eficiência de coleta = (entregues + coletados) / total
+    const eficiencia = pedidos.length ? ((entregues.length + coletadosNaoEntregues.length) / pedidos.length) * 100 : 0;
+    renderGauge(eficiencia);
+
+    // Donut status de entrega (entregues vs resto)
+    const pctEntregues = pedidos.length ? Math.round((entregues.length / pedidos.length) * 100) : 0;
+    document.getElementById('statusEntregaPct').textContent = pctEntregues + '%';
+    document.getElementById('statusEntregaLegenda').innerHTML =
+      `<span style="color:${CORES.teal}; font-weight:700;">● Entregues: ${entregues.length}</span> &nbsp;&nbsp; <span style="color:${CORES.gray}; font-weight:700;">● Demais: ${pedidos.length - entregues.length}</span>`;
+
+    criarOuAtualizarChart('chartStatusEntrega', {
+      type: 'doughnut',
+      data: { labels: ['Entregues', 'Demais'], datasets: [{ data: [entregues.length, pedidos.length - entregues.length], backgroundColor: [CORES.teal, '#eef0f2'], borderWidth: 0 }] },
+      options: { responsive: true, maintainAspectRatio: false, cutout: '72%', plugins: { legend: { display: false } } }
+    });
+
+    // Donut destino (top estados)
+    const estadosTop = topN(contarPor(pedidos, 'estado'), 5);
+    criarOuAtualizarChart('chartDestino', {
+      type: 'doughnut',
+      data: { labels: estadosTop.map(e => e[0]), datasets: [{ data: estadosTop.map(e => e[1]), backgroundColor: PALETA_MULTI, borderWidth: 0 }] },
+      options: { responsive: true, maintainAspectRatio: false, cutout: '60%', plugins: { legend: { display: false } } }
+    });
+    const totalEstados = estadosTop.reduce((a, e) => a + e[1], 0) || 1;
+    document.getElementById('legendaDestino').innerHTML = estadosTop.map((e, i) => `
+      <div class="legenda-item">
+        <span><span class="legenda-dot" style="background:${PALETA_MULTI[i % PALETA_MULTI.length]}"></span><span class="legenda-nome">${e[0]}</span></span>
+        <span class="legenda-valor">${Math.round((e[1] / totalEstados) * 100)}%</span>
+      </div>`).join('');
 
     if (pedidos.length === 0) return;
 
+    // Gráfico misto: barras = pedidos por hora, linha = ticket médio por hora
+    const porHora = agregarPorHora(pedidos);
+    const ticketPorHora = new Array(24).fill(0).map((_, h) => {
+      const doHora = pedidos.filter(p => new Date(p.date_created).getHours() === h);
+      return doHora.length ? doHora.reduce((a, p) => a + (Number(p.total_amount) || 0), 0) / doHora.length : null;
+    });
     criarOuAtualizarChart('chartFlexHora', {
-      type: 'bar',
       data: {
-        labels: Array.from({length: 24}, (_, i) => i + 'h'),
-        datasets: [{ data: agregarPorHora(pedidos), backgroundColor: CORES.flex, borderRadius: 4 }]
+        labels: Array.from({ length: 24 }, (_, i) => i + 'h'),
+        datasets: [
+          { type: 'bar', label: 'Pedidos', data: porHora, backgroundColor: CORES.teal, borderRadius: 4, yAxisID: 'y' },
+          { type: 'line', label: 'Ticket médio', data: ticketPorHora, borderColor: CORES.blue, borderDash: [4, 3], tension: 0.3, yAxisID: 'y1', spanGaps: true, pointRadius: 2 }
+        ]
       },
-      options: baseBarOptions()
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } } },
+        scales: {
+          x: { grid: { display: false } },
+          y: { position: 'left', grid: { color: CORES.grid }, beginAtZero: true, title: { display: true, text: 'Pedidos' } },
+          y1: { position: 'right', grid: { display: false }, beginAtZero: true, title: { display: true, text: 'R$' } }
+        }
+      }
     });
 
     const diasNomes = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-    criarOuAtualizarChart('chartFlexDiaSemana', {
-      type: 'bar',
-      data: {
-        labels: diasNomes,
-        datasets: [{ data: agregarPorDiaSemana(pedidos), backgroundColor: CORES.ok, borderRadius: 4 }]
-      },
-      options: baseBarOptions()
-    });
+    criarOuAtualizarChart('chartFlexDiaSemana', { type: 'bar', data: { labels: diasNomes, datasets: [{ data: agregarPorDiaSemana(pedidos), backgroundColor: CORES.blue, borderRadius: 4 }] }, options: baseBarOptions() });
 
     const porLoja = contarPor(pedidos, 'conta');
-    criarOuAtualizarChart('chartFlexLoja', {
-      type: 'doughnut',
-      data: {
-        labels: Object.keys(porLoja),
-        datasets: [{ data: Object.values(porLoja), backgroundColor: [CORES.flex, CORES.accent, CORES.ok] }]
-      },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: CORES.muted } } } }
-    });
+    criarOuAtualizarChart('chartFlexLoja', { type: 'doughnut', data: { labels: Object.keys(porLoja), datasets: [{ data: Object.values(porLoja), backgroundColor: PALETA_MULTI, borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } } } } });
 
-    const itensTop = contarItens(pedidos, 10);
-    criarOuAtualizarChart('chartFlexItens', {
-      type: 'bar',
-      data: {
-        labels: itensTop.map(i => i[0].length > 30 ? i[0].slice(0, 30) + '…' : i[0]),
-        datasets: [{ data: itensTop.map(i => i[1]), backgroundColor: CORES.flex, borderRadius: 4 }]
-      },
-      options: { ...baseBarOptions(), indexAxis: 'y' }
-    });
+    const itensTop = contarItens(pedidos, 8);
+    criarOuAtualizarChart('chartFlexItens', { type: 'bar', data: { labels: itensTop.map(i => i[0].length > 24 ? i[0].slice(0, 24) + '…' : i[0]), datasets: [{ data: itensTop.map(i => i[1]), backgroundColor: CORES.yellow, borderRadius: 4 }] }, options: { ...baseBarOptions(), indexAxis: 'y' } });
   }
 
-  // ---------- ABA TODOS OS PEDIDOS ----------
-
+  // ---------- ABA TODOS ----------
   async function carregarTodos() {
     try {
       const params = new URLSearchParams();
@@ -626,8 +542,6 @@
       const resp = await fetch('/api/analytics-todos-data?' + params.toString());
       const dados = await resp.json();
 
-      // Popula o <select> com as formas de entrega reais encontradas,
-      // preservando a seleção atual do usuário.
       const select = document.getElementById('filtroFormaEntrega');
       const valorSelecionado = select.value;
       const opcoes = ['todas', ...(dados.formas_entrega_disponiveis || [])];
@@ -640,84 +554,24 @@
       document.getElementById('todos-ticket-medio').textContent = media === null ? '-' : 'R$ ' + media.toFixed(2);
 
       if (pedidos.length > 0) {
-        criarOuAtualizarChart('chartTodosHora', {
-          type: 'bar',
-          data: {
-            labels: Array.from({length: 24}, (_, i) => i + 'h'),
-            datasets: [{ data: agregarPorHora(pedidos), backgroundColor: CORES.accent, borderRadius: 4 }]
-          },
-          options: baseBarOptions()
-        });
-
+        criarOuAtualizarChart('chartTodosHora', { type: 'bar', data: { labels: Array.from({ length: 24 }, (_, i) => i + 'h'), datasets: [{ data: agregarPorHora(pedidos), backgroundColor: CORES.teal, borderRadius: 4 }] }, options: baseBarOptions() });
         const diasNomes = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-        criarOuAtualizarChart('chartTodosDiaSemana', {
-          type: 'bar',
-          data: {
-            labels: diasNomes,
-            datasets: [{ data: agregarPorDiaSemana(pedidos), backgroundColor: CORES.ok, borderRadius: 4 }]
-          },
-          options: baseBarOptions()
-        });
-
+        criarOuAtualizarChart('chartTodosDiaSemana', { type: 'bar', data: { labels: diasNomes, datasets: [{ data: agregarPorDiaSemana(pedidos), backgroundColor: CORES.blue, borderRadius: 4 }] }, options: baseBarOptions() });
         const porForma = contarPor(pedidos, 'forma_entrega');
-        criarOuAtualizarChart('chartTodosFormaEntrega', {
-          type: 'doughnut',
-          data: {
-            labels: Object.keys(porForma),
-            datasets: [{ data: Object.values(porForma), backgroundColor: [CORES.flex, CORES.shopee, CORES.accent, CORES.ok, CORES.ml] }]
-          },
-          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: CORES.muted } } } }
-        });
-
+        criarOuAtualizarChart('chartTodosFormaEntrega', { type: 'doughnut', data: { labels: Object.keys(porForma), datasets: [{ data: Object.values(porForma), backgroundColor: PALETA_MULTI, borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } } } } });
         const porLoja = contarPor(pedidos, 'conta');
-        criarOuAtualizarChart('chartTodosLoja', {
-          type: 'doughnut',
-          data: {
-            labels: Object.keys(porLoja),
-            datasets: [{ data: Object.values(porLoja), backgroundColor: [CORES.accent, CORES.shopee, CORES.ok, CORES.ml] }]
-          },
-          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: CORES.muted } } } }
-        });
-
+        criarOuAtualizarChart('chartTodosLoja', { type: 'doughnut', data: { labels: Object.keys(porLoja), datasets: [{ data: Object.values(porLoja), backgroundColor: PALETA_MULTI, borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } } } } });
         const estadosTop = topN(contarPor(pedidos, 'estado'), 10);
-        criarOuAtualizarChart('chartTodosEstados', {
-          type: 'bar',
-          data: {
-            labels: estadosTop.map(e => e[0]),
-            datasets: [{ data: estadosTop.map(e => e[1]), backgroundColor: CORES.accent, borderRadius: 4 }]
-          },
-          options: { ...baseBarOptions(), indexAxis: 'y' }
-        });
-
+        criarOuAtualizarChart('chartTodosEstados', { type: 'bar', data: { labels: estadosTop.map(e => e[0]), datasets: [{ data: estadosTop.map(e => e[1]), backgroundColor: CORES.teal, borderRadius: 4 }] }, options: { ...baseBarOptions(), indexAxis: 'y' } });
         const itensTop = contarItens(pedidos, 10);
-        criarOuAtualizarChart('chartTodosItens', {
-          type: 'bar',
-          data: {
-            labels: itensTop.map(i => i[0].length > 30 ? i[0].slice(0, 30) + '…' : i[0]),
-            datasets: [{ data: itensTop.map(i => i[1]), backgroundColor: CORES.ok, borderRadius: 4 }]
-          },
-          options: { ...baseBarOptions(), indexAxis: 'y' }
-        });
+        criarOuAtualizarChart('chartTodosItens', { type: 'bar', data: { labels: itensTop.map(i => i[0].length > 30 ? i[0].slice(0, 30) + '…' : i[0]), datasets: [{ data: itensTop.map(i => i[1]), backgroundColor: CORES.yellow, borderRadius: 4 }] }, options: { ...baseBarOptions(), indexAxis: 'y' } });
       }
 
       const tbodyTodos = document.getElementById('tabela-todos');
-      if (!pedidos.length) {
-        tbodyTodos.innerHTML = '<tr><td colspan="6" class="empty">Nenhum pedido encontrado no período/filtro.</td></tr>';
-      } else {
-        tbodyTodos.innerHTML = pedidos.slice(0, 300).map(p => `
-          <tr>
-            <td>${p.conta || '-'}</td>
-            <td>${p.order_id}</td>
-            <td>${new Date(p.date_created).toLocaleString('pt-BR')}</td>
-            <td>${p.forma_entrega || '-'}</td>
-            <td>${p.total_amount ? 'R$ ' + Number(p.total_amount).toFixed(2) : '-'}</td>
-            <td>${(p.itens || []).map(i => `${i.quantidade}x ${i.titulo}`).join('<br>')}</td>
-          </tr>
-        `).join('');
-      }
-    } catch (e) {
-      // silencioso — se falhar, os cards/gráficos simplesmente não atualizam
-    }
+      tbodyTodos.innerHTML = !pedidos.length
+        ? '<tr><td colspan="6" class="empty">Nenhum pedido encontrado no período/filtro.</td></tr>'
+        : pedidos.slice(0, 300).map(p => `<tr><td>${p.conta || '-'}</td><td>${p.order_id}</td><td>${new Date(p.date_created).toLocaleString('pt-BR')}</td><td>${p.forma_entrega || '-'}</td><td>${p.total_amount ? 'R$ ' + Number(p.total_amount).toFixed(2) : '-'}</td><td>${(p.itens || []).map(i => `${i.quantidade}x ${i.titulo}`).join('<br>')}</td></tr>`).join('');
+    } catch (e) { /* silencioso */ }
   }
 
   async function carregarAnalytics() {
@@ -727,94 +581,47 @@
       if (periodoAtual.ate) params.set('ate', periodoAtual.ate);
       const resp = await fetch('/api/analytics-data?' + params.toString());
       const dados = await resp.json();
-      renderizarGraficosTurbo(dados.pedidos || []);
       renderizarGraficosFlex(dados.pedidosFlex || []);
-
       const label = document.getElementById('periodoLabel');
       if (dados.periodo) {
-        const de = new Date(dados.periodo.de).toLocaleDateString('pt-BR');
-        const ate = new Date(dados.periodo.ate).toLocaleDateString('pt-BR');
-        label.textContent = `Período: ${de} até ${ate}`;
+        label.textContent = `Período: ${new Date(dados.periodo.de).toLocaleDateString('pt-BR')} até ${new Date(dados.periodo.ate).toLocaleDateString('pt-BR')}`;
       }
-    } catch (e) {
-      // silencioso — se falhar, os cards/gráficos simplesmente não atualizam
-    }
+    } catch (e) { /* silencioso */ }
   }
 
   async function carregar() {
     try {
       const resp = await fetch('/api/dashboard-data');
       const dados = await resp.json();
-
       const atualizadoEm = document.getElementById('atualizado-em');
-      if (dados.atualizado_em) {
-        atualizadoEm.textContent = 'Última atualização: ' + new Date(dados.atualizado_em).toLocaleString('pt-BR');
-      } else {
-        atualizadoEm.textContent = dados.aviso || 'Sem dados ainda.';
-      }
+      atualizadoEm.textContent = dados.atualizado_em ? 'Última atualização: ' + new Date(dados.atualizado_em).toLocaleString('pt-BR') : (dados.aviso || 'Sem dados ainda.');
 
       const pedidos = dados.pedidos || [];
       document.getElementById('total-pedidos').textContent = pedidos.length;
       document.getElementById('total-ml').textContent = pedidos.filter(p => p.marketplace === 'mercado_livre').length;
       document.getElementById('total-shopee').textContent = pedidos.filter(p => p.marketplace === 'shopee').length;
-
       const tbody = document.getElementById('tabela-pedidos');
-      if (!pedidos.length) {
-        tbody.innerHTML = '<tr><td colspan="6" class="empty">Nenhum pedido expresso encontrado no período.</td></tr>';
-      } else {
-        tbody.innerHTML = pedidos.map(p => `
-          <tr>
-            <td><span class="badge ${p.marketplace === 'mercado_livre' ? 'badge-ml' : 'badge-shopee'}">
-              ${p.marketplace === 'mercado_livre' ? 'Mercado Livre' : 'Shopee'}
-            </span></td>
-            <td>${p.conta || p.loja || '-'}</td>
-            <td>${p.order_id}</td>
-            <td>${new Date(p.date_created).toLocaleString('pt-BR')}</td>
-            <td>${p.total_amount ? 'R$ ' + Number(p.total_amount).toFixed(2) : '-'}</td>
-            <td>${(p.itens || []).map(i => `${i.quantidade}x ${i.titulo}`).join('<br>')}</td>
-          </tr>
-        `).join('');
-      }
+      tbody.innerHTML = !pedidos.length
+        ? '<tr><td colspan="6" class="empty">Nenhum pedido expresso encontrado no período.</td></tr>'
+        : pedidos.map(p => `<tr><td><span class="badge ${p.marketplace === 'mercado_livre' ? 'badge-ml' : 'badge-shopee'}">${p.marketplace === 'mercado_livre' ? 'Mercado Livre' : 'Shopee'}</span></td><td>${p.conta || p.loja || '-'}</td><td>${p.order_id}</td><td>${new Date(p.date_created).toLocaleString('pt-BR')}</td><td>${p.total_amount ? 'R$ ' + Number(p.total_amount).toFixed(2) : '-'}</td><td>${(p.itens || []).map(i => `${i.quantidade}x ${i.titulo}`).join('<br>')}</td></tr>`).join('');
 
       const pedidosFlex = dados.pedidosFlex || [];
-
       const tbodyFlex = document.getElementById('tabela-flex');
-      if (!pedidosFlex.length) {
-        tbodyFlex.innerHTML = '<tr><td colspan="6" class="empty">Nenhum pedido Flex no momento.</td></tr>';
-      } else {
-        tbodyFlex.innerHTML = pedidosFlex.map(p => `
-          <tr>
-            <td>${p.conta || '-'}</td>
-            <td>${p.order_id}</td>
-            <td>${new Date(p.date_created).toLocaleString('pt-BR')}</td>
-            <td>${p.total_amount ? 'R$ ' + Number(p.total_amount).toFixed(2) : '-'}</td>
-            <td>${(p.itens || []).map(i => `${i.quantidade}x ${i.titulo}`).join('<br>')}</td>
-            <td>${p.coletado ? '<span class="status-coletado">Coletado</span>' : '<span class="status-aguardando">Aguardando coleta</span>'}</td>
-          </tr>
-        `).join('');
-      }
+      tbodyFlex.innerHTML = !pedidosFlex.length
+        ? '<tr><td colspan="6" class="empty">Nenhum pedido Flex no momento.</td></tr>'
+        : pedidosFlex.map(p => `<tr><td>${p.conta || '-'}</td><td>${p.order_id}</td><td>${new Date(p.date_created).toLocaleString('pt-BR')}</td><td>${p.total_amount ? 'R$ ' + Number(p.total_amount).toFixed(2) : '-'}</td><td>${(p.itens || []).map(i => `${i.quantidade}x ${i.titulo}`).join('<br>')}</td><td>${p.coletado ? '<span class="status-coletado">Coletado</span>' : '<span class="status-aguardando">Aguardando coleta</span>'}</td></tr>`).join('');
     } catch (e) {
       document.getElementById('atualizado-em').textContent = 'Erro ao carregar dados: ' + e.message;
     }
   }
 
-  function inicializarPeriodoPadrao() {
-    const hoje = new Date();
-    const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
-    document.getElementById('periodoDe').value = formatarDataInput(inicioMes);
-    document.getElementById('periodoAte').value = formatarDataInput(hoje);
-    periodoAtual = { de: formatarDataInput(inicioMes), ate: formatarDataInput(hoje) };
-    document.querySelectorAll('.periodo-btn')[0].classList.add('periodo-ativo');
-  }
-
   inicializarPeriodoPadrao();
   carregar();
   carregarAnalytics();
-  setInterval(carregar, 30000); // atualiza a cada 30s - só lê Redis, é barato (CPU ~zero por chamada)
-  setInterval(carregarAnalytics, 60000); // histórico muda com menos frequência
+  setInterval(carregar, 30000);
+  setInterval(carregarAnalytics, 60000);
 
   if (!TURBO_ATIVO) {
-    document.querySelector('.abas').style.display = 'none';
     mudarAba('flex');
   }
 </script>
