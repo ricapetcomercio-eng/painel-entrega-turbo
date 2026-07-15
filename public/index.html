@@ -199,6 +199,35 @@
         <div class="card-body">
           <div class="icon-stat">
             <div class="icone">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#17a389" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+            </div>
+            <div>
+              <div class="valor" id="statTempoAteColeta">–</div>
+              <div class="rotulo">Tempo médio até coleta</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-body">
+          <div class="icon-stat">
+            <div class="icone">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2f80ed" stroke-width="2"><path d="M3 12l4-8h10l4 8M3 12v6a1 1 0 001 1h1a2 2 0 004 0h6a2 2 0 004 0h1a1 1 0 001-1v-6M3 12h18"/></svg>
+            </div>
+            <div>
+              <div class="valor" id="statTempoAteEntrega">–</div>
+              <div class="rotulo">Tempo médio até entrega</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-bottom">
+      <div class="card">
+        <div class="card-body">
+          <div class="icon-stat">
+            <div class="icone">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#17a389" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
             </div>
             <div>
@@ -299,19 +328,15 @@
         <div class="card-body"><div class="chart-wrap-grande" style="height:180px;"><canvas id="chartTodosLoja"></canvas></div></div>
       </div>
       <div class="card">
-        <div class="card-head">Top estados (destino)</div>
-        <div class="card-body"><div class="chart-wrap-grande" style="height:180px;"><canvas id="chartTodosEstados"></canvas></div></div>
+        <div class="card-head" style="display:flex; align-items:center; justify-content:space-between;">
+          <span id="tituloEstadosCidades">Top estados (destino)</span>
+          <button id="btnVoltarEstados" onclick="voltarParaEstados()" style="display:none; background:none; border:none; color:var(--blue); font-size:11px; font-weight:700; cursor:pointer; text-transform:none; letter-spacing:0;">← Voltar</button>
+        </div>
+        <div class="card-body"><div class="chart-wrap-grande" style="height:300px;"><canvas id="chartTodosEstados"></canvas></div></div>
       </div>
       <div class="card">
         <div class="card-head">Top itens vendidos</div>
         <div class="card-body"><div class="chart-wrap-grande" style="height:180px;"><canvas id="chartTodosItens"></canvas></div></div>
-      </div>
-    </div>
-
-    <div class="grid-bottom">
-      <div class="card">
-        <div class="card-head">Top cidades (destino)</div>
-        <div class="card-body"><div class="chart-wrap-grande" style="height:400px;"><canvas id="chartTodosCidades"></canvas></div></div>
       </div>
     </div>
 
@@ -499,6 +524,24 @@
     const totalItens = pedidos.reduce((acc, p) => acc + (p.itens || []).reduce((a, i) => a + (i.quantidade || 1), 0), 0);
     document.getElementById('statItensPorPedido').textContent = pedidos.length ? (totalItens / pedidos.length).toFixed(1) : '-';
 
+    function formatarHoras(horas) {
+      if (horas === null || horas === undefined || isNaN(horas)) return '-';
+      if (horas < 24) return horas.toFixed(1) + 'h';
+      return (horas / 24).toFixed(1) + ' dias';
+    }
+
+    const comTempoColeta = pedidos.filter(p => typeof p.horas_ate_coleta === 'number');
+    const mediaColeta = comTempoColeta.length
+      ? comTempoColeta.reduce((a, p) => a + p.horas_ate_coleta, 0) / comTempoColeta.length
+      : null;
+    document.getElementById('statTempoAteColeta').textContent = formatarHoras(mediaColeta);
+
+    const comTempoEntrega = pedidos.filter(p => typeof p.horas_ate_entrega === 'number');
+    const mediaEntrega = comTempoEntrega.length
+      ? comTempoEntrega.reduce((a, p) => a + p.horas_ate_entrega, 0) / comTempoEntrega.length
+      : null;
+    document.getElementById('statTempoAteEntrega').textContent = formatarHoras(mediaEntrega);
+
     // Gauge: eficiência de coleta = (entregues + coletados) / total
     const eficiencia = pedidos.length ? ((entregues.length + coletadosNaoEntregues.length) / pedidos.length) * 100 : 0;
     renderGauge(eficiencia);
@@ -651,6 +694,50 @@
     }
   }
 
+  function voltarParaEstados() {
+    filtroEstado = null;
+    carregarTodos();
+  }
+
+  function renderizarGraficoEstadosOuCidades(pedidosCompletos, pedidosFiltrados) {
+    const titulo = document.getElementById('tituloEstadosCidades');
+    const btnVoltar = document.getElementById('btnVoltarEstados');
+
+    if (!filtroEstado) {
+      // Modo "Top estados" — clicar num estado entra no modo "Top cidades" dele
+      titulo.textContent = 'Top estados (destino)';
+      btnVoltar.style.display = 'none';
+
+      const estadosTop = topN(contarPor(pedidosCompletos, 'estado'), 10);
+      criarOuAtualizarChart('chartTodosEstados', {
+        type: 'bar',
+        data: { labels: estadosTop.map(e => e[0]), datasets: [{ data: estadosTop.map(e => e[1]), backgroundColor: CORES.teal, borderRadius: 4 }] },
+        options: {
+          ...baseBarOptions(),
+          indexAxis: 'y',
+          onClick: (evt, elementos, chart) => {
+            if (!elementos.length) return;
+            const idx = elementos[0].index;
+            filtroEstado = chart.data.labels[idx];
+            carregarTodos();
+          },
+          onHover: (evt, elementos) => { evt.native.target.style.cursor = elementos.length ? 'pointer' : 'default'; }
+        }
+      });
+    } else {
+      // Modo "Top cidades" dentro do estado selecionado
+      titulo.textContent = `Top cidades em ${filtroEstado}`;
+      btnVoltar.style.display = 'inline-block';
+
+      const cidadesTop = topN(contarPor(pedidosFiltrados, 'cidade'), 10);
+      criarOuAtualizarChart('chartTodosEstados', {
+        type: 'bar',
+        data: { labels: cidadesTop.map(c => c[0]), datasets: [{ data: cidadesTop.map(c => c[1]), backgroundColor: CORES.blue, borderRadius: 4 }] },
+        options: { ...baseBarOptions(), indexAxis: 'y' }
+      });
+    }
+  }
+
   // ---------- ABA TODOS ----------
   async function carregarTodos() {
     try {
@@ -699,28 +786,10 @@
         criarOuAtualizarChart('chartTodosFormaEntrega', { type: 'doughnut', data: { labels: Object.keys(porForma), datasets: [{ data: Object.values(porForma), backgroundColor: PALETA_MULTI, borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } }, datalabels: { color: '#fff', font: { weight: 'bold', size: 11 }, formatter: (v) => v } } } });
         const porLoja = contarPor(pedidos, 'conta');
         criarOuAtualizarChart('chartTodosLoja', { type: 'doughnut', data: { labels: Object.keys(porLoja), datasets: [{ data: Object.values(porLoja), backgroundColor: PALETA_MULTI, borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } }, datalabels: { color: '#fff', font: { weight: 'bold', size: 11 }, formatter: (v) => v } } } });
-        const estadosTop = topN(contarPor(pedidosCompletos, 'estado'), 10);
-        criarOuAtualizarChart('chartTodosEstados', {
-          type: 'bar',
-          data: { labels: estadosTop.map(e => e[0]), datasets: [{ data: estadosTop.map(e => e[1]), backgroundColor: CORES.teal, borderRadius: 4 }] },
-          options: {
-            ...baseBarOptions(),
-            indexAxis: 'y',
-            onClick: (evt, elementos, chart) => {
-              if (!elementos.length) return;
-              const idx = elementos[0].index;
-              const estadoClicado = chart.data.labels[idx];
-              filtroEstado = filtroEstado === estadoClicado ? null : estadoClicado;
-              carregarTodos();
-            },
-            onHover: (evt, elementos) => { evt.native.target.style.cursor = elementos.length ? 'pointer' : 'default'; }
-          }
-        });
+        renderizarGraficoEstadosOuCidades(pedidosCompletos, pedidos);
+
         const itensTop = contarItens(pedidos, 10);
         criarOuAtualizarChart('chartTodosItens', { type: 'bar', data: { labels: itensTop.map(i => i[0].length > 30 ? i[0].slice(0, 30) + '…' : i[0]), datasets: [{ data: itensTop.map(i => i[1]), backgroundColor: CORES.yellow, borderRadius: 4 }] }, options: { ...baseBarOptions(), indexAxis: 'y' } });
-
-        const cidadesTop = topN(contarPor(pedidos, 'cidade'), 12);
-        criarOuAtualizarChart('chartTodosCidades', { type: 'bar', data: { labels: cidadesTop.map(c => c[0]), datasets: [{ data: cidadesTop.map(c => c[1]), backgroundColor: CORES.blue, borderRadius: 4 }] }, options: { ...baseBarOptions(), indexAxis: 'y' } });
       }
 
       const tbodyTodos = document.getElementById('tabela-todos');
