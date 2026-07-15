@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Painel Entrega Turbo/Expressa — Ricapet & Thapets</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <style>
   :root {
     --bg: #0f1117;
@@ -233,8 +233,10 @@
     accent: '#ffb020', ml: '#ffe600', shopee: '#ee4d2d', flex: '#4d9bff', ok: '#17b897',
     muted: '#8a90a2', grid: 'rgba(255,255,255,0.06)'
   };
-  Chart.defaults.color = CORES.muted;
-  Chart.defaults.font.size = 11;
+  if (typeof Chart !== 'undefined') {
+    Chart.defaults.color = CORES.muted;
+    Chart.defaults.font.size = 11;
+  }
 
   let charts = {};
 
@@ -290,6 +292,7 @@
   }
 
   function criarOuAtualizarChart(id, config) {
+    if (typeof Chart === 'undefined') return; // biblioteca de gráficos indisponível — segue sem quebrar o resto da página
     if (charts[id]) {
       charts[id].data = config.data;
       charts[id].update();
@@ -493,58 +496,62 @@
   }
 
   async function carregar() {
-    const resp = await fetch('/api/dashboard-data');
-    const dados = await resp.json();
+    try {
+      const resp = await fetch('/api/dashboard-data');
+      const dados = await resp.json();
 
-    const atualizadoEm = document.getElementById('atualizado-em');
-    if (dados.atualizado_em) {
-      atualizadoEm.textContent = 'Última atualização: ' + new Date(dados.atualizado_em).toLocaleString('pt-BR');
-    } else {
-      atualizadoEm.textContent = dados.aviso || 'Sem dados ainda.';
-    }
+      const atualizadoEm = document.getElementById('atualizado-em');
+      if (dados.atualizado_em) {
+        atualizadoEm.textContent = 'Última atualização: ' + new Date(dados.atualizado_em).toLocaleString('pt-BR');
+      } else {
+        atualizadoEm.textContent = dados.aviso || 'Sem dados ainda.';
+      }
 
-    const pedidos = dados.pedidos || [];
-    document.getElementById('total-pedidos').textContent = pedidos.length;
-    document.getElementById('total-ml').textContent = pedidos.filter(p => p.marketplace === 'mercado_livre').length;
-    document.getElementById('total-shopee').textContent = pedidos.filter(p => p.marketplace === 'shopee').length;
+      const pedidos = dados.pedidos || [];
+      document.getElementById('total-pedidos').textContent = pedidos.length;
+      document.getElementById('total-ml').textContent = pedidos.filter(p => p.marketplace === 'mercado_livre').length;
+      document.getElementById('total-shopee').textContent = pedidos.filter(p => p.marketplace === 'shopee').length;
 
-    const tbody = document.getElementById('tabela-pedidos');
-    if (!pedidos.length) {
-      tbody.innerHTML = '<tr><td colspan="6" class="empty">Nenhum pedido expresso encontrado no período.</td></tr>';
-    } else {
-      tbody.innerHTML = pedidos.map(p => `
-        <tr>
-          <td><span class="badge ${p.marketplace === 'mercado_livre' ? 'badge-ml' : 'badge-shopee'}">
-            ${p.marketplace === 'mercado_livre' ? 'Mercado Livre' : 'Shopee'}
-          </span></td>
-          <td>${p.conta || p.loja || '-'}</td>
-          <td>${p.order_id}</td>
-          <td>${new Date(p.date_created).toLocaleString('pt-BR')}</td>
-          <td>${p.total_amount ? 'R$ ' + Number(p.total_amount).toFixed(2) : '-'}</td>
-          <td>${(p.itens || []).map(i => `${i.quantidade}x ${i.titulo}`).join('<br>')}</td>
-        </tr>
-      `).join('');
-    }
+      const tbody = document.getElementById('tabela-pedidos');
+      if (!pedidos.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="empty">Nenhum pedido expresso encontrado no período.</td></tr>';
+      } else {
+        tbody.innerHTML = pedidos.map(p => `
+          <tr>
+            <td><span class="badge ${p.marketplace === 'mercado_livre' ? 'badge-ml' : 'badge-shopee'}">
+              ${p.marketplace === 'mercado_livre' ? 'Mercado Livre' : 'Shopee'}
+            </span></td>
+            <td>${p.conta || p.loja || '-'}</td>
+            <td>${p.order_id}</td>
+            <td>${new Date(p.date_created).toLocaleString('pt-BR')}</td>
+            <td>${p.total_amount ? 'R$ ' + Number(p.total_amount).toFixed(2) : '-'}</td>
+            <td>${(p.itens || []).map(i => `${i.quantidade}x ${i.titulo}`).join('<br>')}</td>
+          </tr>
+        `).join('');
+      }
 
-    const pedidosFlex = dados.pedidosFlex || [];
-    document.getElementById('flex-total-atual').textContent = pedidosFlex.length;
-    document.getElementById('flex-coletados-atual').textContent = pedidosFlex.filter(p => p.coletado).length;
-    document.getElementById('flex-aguardando-atual').textContent = pedidosFlex.filter(p => !p.coletado).length;
+      const pedidosFlex = dados.pedidosFlex || [];
+      document.getElementById('flex-total-atual').textContent = pedidosFlex.length;
+      document.getElementById('flex-coletados-atual').textContent = pedidosFlex.filter(p => p.coletado).length;
+      document.getElementById('flex-aguardando-atual').textContent = pedidosFlex.filter(p => !p.coletado).length;
 
-    const tbodyFlex = document.getElementById('tabela-flex');
-    if (!pedidosFlex.length) {
-      tbodyFlex.innerHTML = '<tr><td colspan="6" class="empty">Nenhum pedido Flex no momento.</td></tr>';
-    } else {
-      tbodyFlex.innerHTML = pedidosFlex.map(p => `
-        <tr>
-          <td>${p.conta || '-'}</td>
-          <td>${p.order_id}</td>
-          <td>${new Date(p.date_created).toLocaleString('pt-BR')}</td>
-          <td>${p.total_amount ? 'R$ ' + Number(p.total_amount).toFixed(2) : '-'}</td>
-          <td>${(p.itens || []).map(i => `${i.quantidade}x ${i.titulo}`).join('<br>')}</td>
-          <td>${p.coletado ? '<span class="status-coletado">Coletado</span>' : '<span class="status-aguardando">Aguardando coleta</span>'}</td>
-        </tr>
-      `).join('');
+      const tbodyFlex = document.getElementById('tabela-flex');
+      if (!pedidosFlex.length) {
+        tbodyFlex.innerHTML = '<tr><td colspan="6" class="empty">Nenhum pedido Flex no momento.</td></tr>';
+      } else {
+        tbodyFlex.innerHTML = pedidosFlex.map(p => `
+          <tr>
+            <td>${p.conta || '-'}</td>
+            <td>${p.order_id}</td>
+            <td>${new Date(p.date_created).toLocaleString('pt-BR')}</td>
+            <td>${p.total_amount ? 'R$ ' + Number(p.total_amount).toFixed(2) : '-'}</td>
+            <td>${(p.itens || []).map(i => `${i.quantidade}x ${i.titulo}`).join('<br>')}</td>
+            <td>${p.coletado ? '<span class="status-coletado">Coletado</span>' : '<span class="status-aguardando">Aguardando coleta</span>'}</td>
+          </tr>
+        `).join('');
+      }
+    } catch (e) {
+      document.getElementById('atualizado-em').textContent = 'Erro ao carregar dados: ' + e.message;
     }
   }
 
