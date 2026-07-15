@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Painel Entrega Turbo/Expressa — Ricapet & Thapets</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 <style>
   :root {
     --bg: #0f1117;
@@ -14,6 +15,8 @@
     --accent: #ffb020;
     --ml: #ffe600;
     --shopee: #ee4d2d;
+    --flex: #4d9bff;
+    --ok: #17b897;
   }
   * { box-sizing: border-box; }
   body {
@@ -24,76 +27,421 @@
     padding: 24px;
   }
   h1 { font-size: 20px; margin: 0 0 4px; }
-  .subtitle { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-bottom: 24px; }
+  h2 { font-size: 14px; margin: 0; color: var(--text); font-weight: 600; }
+  .subtitle { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+  .abas { display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid var(--border); }
+  .aba-btn {
+    background: none; border: none; color: var(--muted); font-size: 14px;
+    font-weight: 600; padding: 10px 18px; cursor: pointer; border-bottom: 2px solid transparent;
+  }
+  .aba-btn.ativa { color: var(--text); border-bottom: 2px solid var(--accent); }
+  .aba-btn.ativa.flex-ativa { border-bottom-color: var(--flex); }
+  .oculto { display: none; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px; }
+  .grid-charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 16px; margin-bottom: 24px; }
   .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
   .stat-card .value { font-size: 28px; font-weight: 700; }
   .stat-card .label { color: var(--muted); font-size: 13px; }
+  .chart-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+  .chart-card .chart-wrap { position: relative; height: 240px; margin-top: 12px; }
   table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 10px; overflow: hidden; }
   th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 13px; }
   th { color: var(--muted); font-weight: 600; text-transform: uppercase; font-size: 11px; }
   .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
   .badge-ml { background: rgba(255,230,0,0.15); color: var(--ml); }
   .badge-shopee { background: rgba(238,77,45,0.15); color: var(--shopee); }
+  .badge-flex { background: rgba(77,155,255,0.15); color: var(--flex); }
+  .status-coletado { color: var(--ok); font-weight: 600; }
+  .status-aguardando { color: var(--muted); font-weight: 600; }
   .empty { text-align: center; padding: 40px; color: var(--muted); }
+  .secao-titulo { font-size: 15px; font-weight: 600; margin: 32px 0 12px; color: var(--text); }
 </style>
 </head>
 <body>
   <h1>🚀 Painel Entrega Turbo / Expressa</h1>
   <div class="subtitle" id="atualizado-em">Carregando...</div>
 
-  <div class="grid">
-    <div class="stat-card">
-      <div class="value" id="total-pedidos">–</div>
-      <div class="label">Pedidos expressos (últimas horas)</div>
-    </div>
-    <div class="stat-card">
-      <div class="value" id="total-ml">–</div>
-      <div class="label">Mercado Livre</div>
-    </div>
-    <div class="stat-card">
-      <div class="value" id="total-shopee">–</div>
-      <div class="label">Shopee (Entrega Turbo)</div>
-    </div>
+  <div class="abas">
+    <button class="aba-btn ativa" id="abaBtnTurbo" onclick="mudarAba('turbo')">Turbo / Expressa</button>
+    <button class="aba-btn" id="abaBtnFlex" onclick="mudarAba('flex')">Flex</button>
   </div>
 
-  <table>
-    <thead>
-      <tr>
-        <th>Marketplace</th>
-        <th>Conta/Loja</th>
-        <th>Pedido</th>
-        <th>Data</th>
-        <th>Valor</th>
-        <th>Itens</th>
-      </tr>
-    </thead>
-    <tbody id="tabela-pedidos"></tbody>
-  </table>
+  <!-- ABA: TURBO / EXPRESSA -->
+  <div id="painelTurbo">
 
-  <script>
-    async function carregar() {
-      const resp = await fetch('/api/dashboard-data');
+    <div class="grid">
+      <div class="stat-card">
+        <div class="value" id="total-pedidos">–</div>
+        <div class="label">Pedidos expressos (últimas horas)</div>
+      </div>
+      <div class="stat-card">
+        <div class="value" id="total-ml">–</div>
+        <div class="label">Mercado Livre</div>
+      </div>
+      <div class="stat-card">
+        <div class="value" id="total-shopee">–</div>
+        <div class="label">Shopee (Entrega Turbo)</div>
+      </div>
+      <div class="stat-card">
+        <div class="value" id="hist-total">–</div>
+        <div class="label">Total no histórico acumulado</div>
+      </div>
+      <div class="stat-card">
+        <div class="value" id="hist-ticket-medio">–</div>
+        <div class="label">Ticket médio (histórico)</div>
+      </div>
+    </div>
+
+    <div class="secao-titulo">Análise do histórico acumulado</div>
+    <div class="grid-charts">
+      <div class="chart-card">
+        <h2>Pedidos por horário do dia</h2>
+        <div class="chart-wrap"><canvas id="chartHora"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h2>Pedidos por dia da semana</h2>
+        <div class="chart-wrap"><canvas id="chartDiaSemana"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h2>Por loja</h2>
+        <div class="chart-wrap"><canvas id="chartLoja"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h2>Por marketplace</h2>
+        <div class="chart-wrap"><canvas id="chartMarketplace"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h2>Top estados (destino)</h2>
+        <div class="chart-wrap"><canvas id="chartEstados"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h2>Top itens vendidos</h2>
+        <div class="chart-wrap"><canvas id="chartItens"></canvas></div>
+      </div>
+    </div>
+
+    <div class="secao-titulo">Pedidos em aberto agora</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Marketplace</th>
+          <th>Conta/Loja</th>
+          <th>Pedido</th>
+          <th>Data</th>
+          <th>Valor</th>
+          <th>Itens</th>
+        </tr>
+      </thead>
+      <tbody id="tabela-pedidos"></tbody>
+    </table>
+
+  </div>
+
+  <!-- ABA: FLEX -->
+  <div id="painelFlex" class="oculto">
+
+    <div class="grid">
+      <div class="stat-card">
+        <div class="value" id="flex-total-atual">–</div>
+        <div class="label">Pedidos Flex ativos agora</div>
+      </div>
+      <div class="stat-card">
+        <div class="value status-coletado" id="flex-coletados-atual">–</div>
+        <div class="label">Coletados</div>
+      </div>
+      <div class="stat-card">
+        <div class="value status-aguardando" id="flex-aguardando-atual">–</div>
+        <div class="label">Aguardando coleta</div>
+      </div>
+      <div class="stat-card">
+        <div class="value" id="flex-hist-total">–</div>
+        <div class="label">Total no histórico acumulado</div>
+      </div>
+      <div class="stat-card">
+        <div class="value" id="flex-hist-ticket-medio">–</div>
+        <div class="label">Ticket médio (histórico)</div>
+      </div>
+    </div>
+
+    <div class="secao-titulo">Análise do histórico acumulado (Flex)</div>
+    <div class="grid-charts">
+      <div class="chart-card">
+        <h2>Pedidos Flex por horário do dia</h2>
+        <div class="chart-wrap"><canvas id="chartFlexHora"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h2>Pedidos Flex por dia da semana</h2>
+        <div class="chart-wrap"><canvas id="chartFlexDiaSemana"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h2>Por loja</h2>
+        <div class="chart-wrap"><canvas id="chartFlexLoja"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h2>Top itens vendidos (Flex)</h2>
+        <div class="chart-wrap"><canvas id="chartFlexItens"></canvas></div>
+      </div>
+    </div>
+
+    <div class="secao-titulo">Processo de expedição Flex agora (venda e coleta)</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Conta/Loja</th>
+          <th>Pedido</th>
+          <th>Data da venda</th>
+          <th>Valor</th>
+          <th>Itens</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="tabela-flex"></tbody>
+    </table>
+
+  </div>
+
+<script>
+  const CORES = {
+    accent: '#ffb020', ml: '#ffe600', shopee: '#ee4d2d', flex: '#4d9bff', ok: '#17b897',
+    muted: '#8a90a2', grid: 'rgba(255,255,255,0.06)'
+  };
+  Chart.defaults.color = CORES.muted;
+  Chart.defaults.font.size = 11;
+
+  let charts = {};
+
+  function mudarAba(aba) {
+    const painelTurbo = document.getElementById('painelTurbo');
+    const painelFlex = document.getElementById('painelFlex');
+    const btnTurbo = document.getElementById('abaBtnTurbo');
+    const btnFlex = document.getElementById('abaBtnFlex');
+
+    if (aba === 'flex') {
+      painelTurbo.className = 'oculto';
+      painelFlex.className = '';
+      btnTurbo.className = 'aba-btn';
+      btnFlex.className = 'aba-btn ativa flex-ativa';
+    } else {
+      painelTurbo.className = '';
+      painelFlex.className = 'oculto';
+      btnTurbo.className = 'aba-btn ativa';
+      btnFlex.className = 'aba-btn';
+    }
+  }
+
+  function criarOuAtualizarChart(id, config) {
+    if (charts[id]) {
+      charts[id].data = config.data;
+      charts[id].update();
+      return;
+    }
+    const ctx = document.getElementById(id).getContext('2d');
+    charts[id] = new Chart(ctx, config);
+  }
+
+  function baseBarOptions() {
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: CORES.grid }, ticks: { color: CORES.muted } },
+        y: { grid: { color: CORES.grid }, ticks: { color: CORES.muted }, beginAtZero: true }
+      }
+    };
+  }
+
+  function agregarPorHora(pedidos) {
+    const contagem = new Array(24).fill(0);
+    pedidos.forEach(p => { contagem[new Date(p.date_created).getHours()]++; });
+    return contagem;
+  }
+
+  function agregarPorDiaSemana(pedidos) {
+    const contagem = new Array(7).fill(0);
+    pedidos.forEach(p => { contagem[new Date(p.date_created).getDay()]++; });
+    return contagem;
+  }
+
+  function contarPor(pedidos, chave) {
+    const mapa = {};
+    pedidos.forEach(p => {
+      const valor = p[chave] || 'Não identificado';
+      mapa[valor] = (mapa[valor] || 0) + 1;
+    });
+    return mapa;
+  }
+
+  function topN(mapa, n) {
+    return Object.entries(mapa).sort((a, b) => b[1] - a[1]).slice(0, n);
+  }
+
+  function contarItens(pedidos, n) {
+    const mapa = {};
+    pedidos.forEach(p => {
+      (p.itens || []).forEach(item => {
+        mapa[item.titulo] = (mapa[item.titulo] || 0) + (item.quantidade || 1);
+      });
+    });
+    return topN(mapa, n);
+  }
+
+  function ticketMedio(pedidos) {
+    if (!pedidos.length) return null;
+    const soma = pedidos.reduce((acc, p) => acc + (Number(p.total_amount) || 0), 0);
+    return soma / pedidos.length;
+  }
+
+  // ---------- ABA TURBO ----------
+
+  function renderizarGraficosTurbo(pedidos) {
+    document.getElementById('hist-total').textContent = pedidos.length;
+
+    const media = ticketMedio(pedidos);
+    document.getElementById('hist-ticket-medio').textContent = media === null ? '-' : 'R$ ' + media.toFixed(2);
+    if (pedidos.length === 0) return;
+
+    criarOuAtualizarChart('chartHora', {
+      type: 'bar',
+      data: {
+        labels: Array.from({length: 24}, (_, i) => i + 'h'),
+        datasets: [{ data: agregarPorHora(pedidos), backgroundColor: CORES.accent, borderRadius: 4 }]
+      },
+      options: baseBarOptions()
+    });
+
+    const diasNomes = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    criarOuAtualizarChart('chartDiaSemana', {
+      type: 'bar',
+      data: {
+        labels: diasNomes,
+        datasets: [{ data: agregarPorDiaSemana(pedidos), backgroundColor: CORES.ok, borderRadius: 4 }]
+      },
+      options: baseBarOptions()
+    });
+
+    const porLoja = contarPor(pedidos, 'conta');
+    criarOuAtualizarChart('chartLoja', {
+      type: 'doughnut',
+      data: {
+        labels: Object.keys(porLoja),
+        datasets: [{ data: Object.values(porLoja), backgroundColor: [CORES.accent, CORES.shopee, CORES.ok, CORES.ml] }]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: CORES.muted } } } }
+    });
+
+    const porMkt = contarPor(pedidos, 'marketplace');
+    const nomesMkt = { mercado_livre: 'Mercado Livre', shopee: 'Shopee' };
+    criarOuAtualizarChart('chartMarketplace', {
+      type: 'doughnut',
+      data: {
+        labels: Object.keys(porMkt).map(k => nomesMkt[k] || k),
+        datasets: [{ data: Object.values(porMkt), backgroundColor: [CORES.ml, CORES.shopee] }]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: CORES.muted } } } }
+    });
+
+    const estadosTop = topN(contarPor(pedidos, 'estado'), 10);
+    criarOuAtualizarChart('chartEstados', {
+      type: 'bar',
+      data: {
+        labels: estadosTop.map(e => e[0]),
+        datasets: [{ data: estadosTop.map(e => e[1]), backgroundColor: CORES.accent, borderRadius: 4 }]
+      },
+      options: { ...baseBarOptions(), indexAxis: 'y' }
+    });
+
+    const itensTop = contarItens(pedidos, 10);
+    criarOuAtualizarChart('chartItens', {
+      type: 'bar',
+      data: {
+        labels: itensTop.map(i => i[0].length > 30 ? i[0].slice(0, 30) + '…' : i[0]),
+        datasets: [{ data: itensTop.map(i => i[1]), backgroundColor: CORES.ok, borderRadius: 4 }]
+      },
+      options: { ...baseBarOptions(), indexAxis: 'y' }
+    });
+  }
+
+  // ---------- ABA FLEX ----------
+
+  function renderizarGraficosFlex(pedidos) {
+    document.getElementById('flex-hist-total').textContent = pedidos.length;
+
+    const media = ticketMedio(pedidos);
+    document.getElementById('flex-hist-ticket-medio').textContent = media === null ? '-' : 'R$ ' + media.toFixed(2);
+    if (pedidos.length === 0) return;
+
+    criarOuAtualizarChart('chartFlexHora', {
+      type: 'bar',
+      data: {
+        labels: Array.from({length: 24}, (_, i) => i + 'h'),
+        datasets: [{ data: agregarPorHora(pedidos), backgroundColor: CORES.flex, borderRadius: 4 }]
+      },
+      options: baseBarOptions()
+    });
+
+    const diasNomes = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    criarOuAtualizarChart('chartFlexDiaSemana', {
+      type: 'bar',
+      data: {
+        labels: diasNomes,
+        datasets: [{ data: agregarPorDiaSemana(pedidos), backgroundColor: CORES.ok, borderRadius: 4 }]
+      },
+      options: baseBarOptions()
+    });
+
+    const porLoja = contarPor(pedidos, 'conta');
+    criarOuAtualizarChart('chartFlexLoja', {
+      type: 'doughnut',
+      data: {
+        labels: Object.keys(porLoja),
+        datasets: [{ data: Object.values(porLoja), backgroundColor: [CORES.flex, CORES.accent, CORES.ok] }]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: CORES.muted } } } }
+    });
+
+    const itensTop = contarItens(pedidos, 10);
+    criarOuAtualizarChart('chartFlexItens', {
+      type: 'bar',
+      data: {
+        labels: itensTop.map(i => i[0].length > 30 ? i[0].slice(0, 30) + '…' : i[0]),
+        datasets: [{ data: itensTop.map(i => i[1]), backgroundColor: CORES.flex, borderRadius: 4 }]
+      },
+      options: { ...baseBarOptions(), indexAxis: 'y' }
+    });
+  }
+
+  async function carregarAnalytics() {
+    try {
+      const resp = await fetch('/api/analytics-data');
       const dados = await resp.json();
+      renderizarGraficosTurbo(dados.pedidos || []);
+      renderizarGraficosFlex(dados.pedidosFlex || []);
+    } catch (e) {
+      // silencioso — se falhar, os cards/gráficos simplesmente não atualizam
+    }
+  }
 
-      const atualizadoEm = document.getElementById('atualizado-em');
-      if (dados.atualizado_em) {
-        atualizadoEm.textContent = 'Última atualização: ' + new Date(dados.atualizado_em).toLocaleString('pt-BR');
-      } else {
-        atualizadoEm.textContent = dados.aviso || 'Sem dados ainda.';
-      }
+  async function carregar() {
+    const resp = await fetch('/api/dashboard-data');
+    const dados = await resp.json();
 
-      const pedidos = dados.pedidos || [];
-      document.getElementById('total-pedidos').textContent = pedidos.length;
-      document.getElementById('total-ml').textContent = pedidos.filter(p => p.marketplace === 'mercado_livre').length;
-      document.getElementById('total-shopee').textContent = pedidos.filter(p => p.marketplace === 'shopee').length;
+    const atualizadoEm = document.getElementById('atualizado-em');
+    if (dados.atualizado_em) {
+      atualizadoEm.textContent = 'Última atualização: ' + new Date(dados.atualizado_em).toLocaleString('pt-BR');
+    } else {
+      atualizadoEm.textContent = dados.aviso || 'Sem dados ainda.';
+    }
 
-      const tbody = document.getElementById('tabela-pedidos');
-      if (!pedidos.length) {
-        tbody.innerHTML = '<tr><td colspan="6" class="empty">Nenhum pedido expresso encontrado no período.</td></tr>';
-        return;
-      }
+    const pedidos = dados.pedidos || [];
+    document.getElementById('total-pedidos').textContent = pedidos.length;
+    document.getElementById('total-ml').textContent = pedidos.filter(p => p.marketplace === 'mercado_livre').length;
+    document.getElementById('total-shopee').textContent = pedidos.filter(p => p.marketplace === 'shopee').length;
 
+    const tbody = document.getElementById('tabela-pedidos');
+    if (!pedidos.length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="empty">Nenhum pedido expresso encontrado no período.</td></tr>';
+    } else {
       tbody.innerHTML = pedidos.map(p => `
         <tr>
           <td><span class="badge ${p.marketplace === 'mercado_livre' ? 'badge-ml' : 'badge-shopee'}">
@@ -108,8 +456,32 @@
       `).join('');
     }
 
-    carregar();
-    setInterval(carregar, 30000); // atualiza a cada 30s - só lê Redis, é barato (CPU ~zero por chamada)
-  </script>
+    const pedidosFlex = dados.pedidosFlex || [];
+    document.getElementById('flex-total-atual').textContent = pedidosFlex.length;
+    document.getElementById('flex-coletados-atual').textContent = pedidosFlex.filter(p => p.coletado).length;
+    document.getElementById('flex-aguardando-atual').textContent = pedidosFlex.filter(p => !p.coletado).length;
+
+    const tbodyFlex = document.getElementById('tabela-flex');
+    if (!pedidosFlex.length) {
+      tbodyFlex.innerHTML = '<tr><td colspan="6" class="empty">Nenhum pedido Flex no momento.</td></tr>';
+    } else {
+      tbodyFlex.innerHTML = pedidosFlex.map(p => `
+        <tr>
+          <td>${p.conta || '-'}</td>
+          <td>${p.order_id}</td>
+          <td>${new Date(p.date_created).toLocaleString('pt-BR')}</td>
+          <td>${p.total_amount ? 'R$ ' + Number(p.total_amount).toFixed(2) : '-'}</td>
+          <td>${(p.itens || []).map(i => `${i.quantidade}x ${i.titulo}`).join('<br>')}</td>
+          <td>${p.coletado ? '<span class="status-coletado">Coletado</span>' : '<span class="status-aguardando">Aguardando coleta</span>'}</td>
+        </tr>
+      `).join('');
+    }
+  }
+
+  carregar();
+  carregarAnalytics();
+  setInterval(carregar, 30000); // atualiza a cada 30s - só lê Redis, é barato (CPU ~zero por chamada)
+  setInterval(carregarAnalytics, 60000); // histórico muda com menos frequência
+</script>
 </body>
 </html>
