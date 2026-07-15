@@ -65,6 +65,9 @@
     <label>Offset inicial (deixe 0 se for a primeira vez)</label>
     <input type="number" id="offsetInicial" value="0" />
 
+    <label>Dia inicial (deixe 0 se for a primeira vez)</label>
+    <input type="number" id="diaInicial" value="0" />
+
     <button id="btnIniciar">Iniciar backfill automático</button>
     <button id="btnParar" disabled style="background: var(--err); margin-left: 8px;">Parar</button>
 
@@ -96,6 +99,7 @@
     const dias = document.getElementById('dias').value;
     const secret = document.getElementById('secret').value.trim();
     let offset = parseInt(document.getElementById('offsetInicial').value, 10) || 0;
+    let dia = parseInt(document.getElementById('diaInicial').value, 10) || 0;
 
     if (!secret) { log('Preencha o CRON_SECRET.', 'err'); return; }
 
@@ -106,46 +110,58 @@
     document.getElementById('btnParar').disabled = false;
     parar = false;
 
-    let totalEstimado = null;
     let rodadas = 0;
+    let tentativasRateLimit = 0;
 
     log(`Iniciando backfill "${tipo}" para ${conta}, últimos ${dias} dias...`);
 
     while (!parar) {
       rodadas++;
-      const url = `${endpoint}?secret=${encodeURIComponent(secret)}&conta=${conta}&dias=${dias}&offset=${offset}`;
+      const url = `${endpoint}?secret=${encodeURIComponent(secret)}&conta=${conta}&dias=${dias}&dia=${dia}&offset=${offset}`;
       let dados;
       try {
         const resp = await fetch(url);
         dados = await resp.json();
         if (!resp.ok) {
-          log(`Erro na rodada ${rodadas}: ${JSON.stringify(dados)}`, 'err');
+          const mensagemErro = JSON.stringify(dados);
+          const ehRateLimit = mensagemErro.includes('429') || mensagemErro.includes('rate_limit');
+
+          if (ehRateLimit) {
+            tentativasRateLimit++;
+            const esperaSegundos = Math.min(60, 5 * tentativasRateLimit); // aumenta a espera a cada tentativa, até 60s
+            log(`Rate limit da API do ML (rodada ${rodadas}). Aguardando ${esperaSegundos}s antes de tentar de novo...`, 'err');
+            await new Promise(r => setTimeout(r, esperaSegundos * 1000));
+            rodadas--; // não conta como rodada de verdade, foi só uma tentativa
+            continue; // tenta de novo, sem avançar dia/offset
+          }
+
+          log(`Erro na rodada ${rodadas}: ${mensagemErro}`, 'err');
           break;
         }
+        tentativasRateLimit = 0; // sucesso, zera o contador de tentativas
       } catch (err) {
         log(`Erro de rede na rodada ${rodadas}: ${err.message}`, 'err');
         break;
       }
 
-      if (totalEstimado === null) totalEstimado = dados.total_estimado;
+      log(`Rodada ${rodadas}: processados ${dados.processados_nesta_execucao} | dia ${dados.dia_atual}/${dados.dias_totais} | offset no dia: ${dados.offset_no_dia}`);
 
-      log(`Rodada ${rodadas}: processados ${dados.processados_nesta_execucao}, offset agora em ${dados.offset_processado_ate} / ${totalEstimado}`);
-
-      const pct = totalEstimado > 0 ? Math.min(100, Math.round((dados.offset_processado_ate / totalEstimado) * 100)) : 0;
+      const pct = dados.dias_totais > 0 ? Math.min(100, Math.round((dados.dia_atual / dados.dias_totais) * 100)) : 0;
       document.getElementById('barra').style.width = pct + '%';
-      document.getElementById('statusTexto').textContent = `${dados.offset_processado_ate} / ${totalEstimado} (${pct}%)`;
+      document.getElementById('statusTexto').textContent = `Dia ${dados.dia_atual} / ${dados.dias_totais} (${pct}%) — offset atual: ${dados.offset_no_dia}`;
 
       if (dados.done) {
         log('Concluído! Backfill terminado.', 'ok');
         break;
       }
 
+      dia = dados.next_dia;
       offset = dados.next_offset;
-      // pequena pausa entre chamadas, gentileza com a API do ML
-      await new Promise(r => setTimeout(r, 300));
+      // pausa entre chamadas, gentileza com a API do ML
+      await new Promise(r => setTimeout(r, 500));
     }
 
-    if (parar) log('Parado manualmente. Anote o offset atual para continuar depois, se quiser.', 'err');
+    if (parar) log(`Parado manualmente. Dia atual: ${dia}, offset: ${offset} — anote para continuar depois, se quiser.`, 'err');
 
     document.getElementById('btnIniciar').disabled = false;
     document.getElementById('btnParar').disabled = true;
