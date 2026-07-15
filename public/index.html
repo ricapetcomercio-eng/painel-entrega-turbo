@@ -1,998 +1,863 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Concorrentes — Ricapet</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel Entrega Flex/Turbo — Ricapet & Thapets</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3@7.8.5/dist/d3.min.js"></script>
 <style>
   :root {
-    --bg: #F6F7F4;
-    --surface: #FFFFFF;
-    --surface-2: #F0F2ED;
-    --border: #E4E7E0;
-    --text: #1E2924;
-    --muted: #74827A;
-    --up: #1E9E74;
-    --up-bg: #E4F5EE;
-    --down: #D65F45;
-    --down-bg: #FBEAE5;
-    --you: #C98A2E;
-    --you-bg: #FBF1E0;
-    --shadow-sm: 0 1px 2px rgba(30, 41, 36, 0.05);
-    --shadow-md: 0 4px 16px rgba(30, 41, 36, 0.06);
+    --bg: #f2f4f6;
+    --card: #ffffff;
+    --border: #e6e9ed;
+    --text: #2d3436;
+    --muted: #7f8c96;
+    --teal: #17a389;
+    --teal-light: #d7f0ec;
+    --yellow: #f2c94c;
+    --gray: #bdc3c7;
+    --blue: #2f80ed;
+    --red: #eb5757;
   }
-
   * { box-sizing: border-box; }
-
   body {
     margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     background: var(--bg);
     color: var(--text);
-    font-family: 'Inter', sans-serif;
-    -webkit-font-smoothing: antialiased;
+    padding: 24px;
+  }
+  h1 { font-size: 21px; margin: 0 0 4px; }
+  h2 { font-size: 13px; margin: 0; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
+  .subtitle { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+
+  .abas { display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 1px solid var(--border); }
+  .aba-btn { background: none; border: none; color: var(--muted); font-size: 14px; font-weight: 700; padding: 10px 18px; cursor: pointer; border-bottom: 3px solid transparent; }
+  .aba-btn.ativa { color: var(--teal); border-bottom-color: var(--teal); }
+  .oculto { display: none; }
+
+  .periodo-controle {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    margin-bottom: 20px; padding: 10px 14px; background: var(--card);
+    border: 1px solid var(--border); border-radius: 10px; font-size: 12px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  }
+  .periodo-controle label { color: var(--muted); display: flex; align-items: center; gap: 4px; }
+  .periodo-controle select, .periodo-controle input[type="date"] {
+    background: #fff; border: 1px solid var(--border); color: var(--text);
+    border-radius: 6px; padding: 5px 8px; font-size: 12px;
+  }
+  .periodo-btn { background: #fff; border: 1px solid var(--border); color: var(--muted); border-radius: 6px; padding: 5px 10px; font-size: 12px; cursor: pointer; }
+  .periodo-btn.periodo-ativo { color: #fff; background: var(--teal); border-color: var(--teal); }
+  .periodo-aplicar { color: #fff; background: var(--blue); border-color: var(--blue); }
+  .periodo-label { color: var(--muted); margin-left: auto; }
+
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .card-head {
+    padding: 12px 16px; border-bottom: 1px solid var(--border);
+    font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em;
+  }
+  .card-body { padding: 16px; }
+
+  .grid-top3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 16px; }
+  .grid-bottom { display: grid; grid-template-columns: 1fr 1fr 2fr; gap: 16px; margin-bottom: 24px; }
+  @media (max-width: 900px) {
+    .grid-top3, .grid-bottom { grid-template-columns: 1fr; }
   }
 
-  .num { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+  .gauge-numero { font-size: 15px; font-weight: 700; text-align: center; margin-top: -6px; }
+  .gauge-ref { font-size: 11px; color: var(--muted); text-align: center; margin-top: 2px; }
 
-  header {
-    padding: 28px clamp(16px, 4vw, 48px) 20px;
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 12px;
-  }
+  .donut-wrap { display: flex; align-items: center; gap: 16px; }
+  .donut-canvas-wrap { position: relative; width: 140px; height: 140px; flex-shrink: 0; }
+  .donut-center-texto { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; }
+  .donut-center-texto .valor { font-size: 26px; font-weight: 800; }
+  .donut-center-texto .rotulo { font-size: 10px; color: var(--muted); }
 
-  header h1 {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 1.4rem;
-    font-weight: 700;
-    margin: 0;
-    letter-spacing: -0.02em;
-  }
+  .legenda-lista { flex: 1; font-size: 12px; }
+  .legenda-item { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid #f1f2f4; }
+  .legenda-item:last-child { border-bottom: none; }
+  .legenda-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+  .legenda-nome { color: var(--text); flex: 1; }
+  .legenda-valor { color: var(--muted); font-weight: 700; }
 
-  header h1 span { color: var(--muted); font-weight: 400; }
+  .icon-stat { display: flex; align-items: center; gap: 14px; padding: 6px 0; }
+  .icon-stat .icone { width: 46px; height: 46px; border-radius: 10px; background: var(--teal-light); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .icon-stat .valor { font-size: 24px; font-weight: 800; line-height: 1.1; }
+  .icon-stat .rotulo { font-size: 12px; color: var(--muted); }
 
-  nav.view-tabs {
-    display: flex;
-    gap: 4px;
-    padding: 0 clamp(16px, 4vw, 48px);
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-  }
+  .chart-wrap-grande { position: relative; height: 220px; }
 
-  nav.view-tabs button {
-    background: none;
-    border: none;
-    color: var(--muted);
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 0.85rem;
-    font-weight: 600;
-    padding: 12px 16px;
-    cursor: pointer;
-    border-bottom: 2px solid transparent;
-  }
+  table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 10px; overflow: hidden; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 13px; }
+  th { color: var(--muted); font-weight: 700; text-transform: uppercase; font-size: 11px; background: #fafbfc; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+  .badge-ml { background: #fff7d6; color: #a3810c; }
+  .badge-shopee { background: #ffe4dc; color: #ee4d2d; }
+  .status-coletado { color: var(--teal); font-weight: 700; }
+  .status-aguardando { color: var(--muted); font-weight: 700; }
+  .status-transito { color: var(--blue); font-weight: 700; }
+  .empty { text-align: center; padding: 40px; color: var(--muted); }
+  .secao-titulo { font-size: 15px; font-weight: 700; margin: 28px 0 12px; color: var(--text); }
 
-  nav.view-tabs button.active {
-    color: var(--text);
-    border-bottom-color: var(--you);
-  }
-
-  .hist-controls {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 16px;
-    font-size: 0.85rem;
-    color: var(--muted);
-  }
-
-  .hist-controls select {
-    background: var(--surface);
-    color: var(--text);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 6px 10px;
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 0.82rem;
-  }
-
-  .hist-table-wrap {
-    overflow-x: auto;
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    box-shadow: var(--shadow-sm);
-    background: var(--surface);
-  }
-
-  table.hist {
-    font-size: 0.78rem;
-  }
-
-  table.hist th, table.hist td {
-    white-space: nowrap;
-  }
-
-  table.hist th:first-child,
-  table.hist td:first-child {
-    position: sticky;
-    left: 0;
-    background: var(--surface);
-    z-index: 1;
-    max-width: 220px;
-    white-space: normal;
-  }
-
-  table.hist thead th:first-child { background: var(--surface-2); }
-
-  table.hist tr.you td:first-child { background: var(--you-bg); }
-
-  .status {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.78rem;
-    color: var(--muted);
-  }
-
-  .dot {
-    width: 7px; height: 7px; border-radius: 50%;
-    background: var(--up);
-    box-shadow: 0 0 0 0 rgba(30,158,116,0.6);
-    animation: pulse 2.2s infinite;
-  }
-
-  @keyframes pulse {
-    0%   { box-shadow: 0 0 0 0 rgba(30,158,116,0.45); }
-    70%  { box-shadow: 0 0 0 7px rgba(30,158,116,0); }
-    100% { box-shadow: 0 0 0 0 rgba(30,158,116,0); }
-  }
-
-  main {
-    padding: 24px clamp(16px, 4vw, 48px) 64px;
-    max-width: 1080px;
-    margin: 0 auto;
-  }
-
-  .cat-block {
-    margin-bottom: 40px;
-  }
-
-  .cat-title {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 0.95rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--muted);
-    margin: 0 0 12px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .tables-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 18px;
-  }
-
-  @media (max-width: 800px) {
-    .tables-row { grid-template-columns: 1fr; }
-  }
-
-  .table-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    box-shadow: var(--shadow-sm);
-    overflow: hidden;
-  }
-
-  .table-card h3 {
-    font-family: 'Space Grotesk', sans-serif;
-    margin: 0;
-    padding: 14px 18px;
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: var(--muted);
-    background: var(--surface-2);
-    border-bottom: 1px solid var(--border);
-  }
-
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.83rem;
-  }
-
-  th {
-    text-align: left;
-    padding: 10px 14px;
-    font-size: 0.68rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--muted);
-    font-weight: 600;
-    border-bottom: 1px solid var(--border);
-  }
-
-  td {
-    padding: 10px 14px;
-    border-bottom: 1px solid var(--border);
-    vertical-align: top;
-  }
-
-  tr:last-child td { border-bottom: none; }
-
-  tr.you td { background: var(--you-bg); }
-  tr.you td:first-child { box-shadow: inset 3px 0 0 var(--you); }
-
-  .empty, .loading, .error {
-    color: var(--muted);
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.85rem;
-    padding: 40px 0;
-    text-align: center;
-  }
-
-  .error { color: var(--down); }
-
-  .comp-pills {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    margin-bottom: 22px;
-  }
-
-  .comp-pills button {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    color: var(--muted);
-    padding: 8px 16px;
-    border-radius: 20px;
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 0.82rem;
-    font-weight: 600;
-    cursor: pointer;
-    box-shadow: var(--shadow-sm);
-    transition: all 0.15s ease;
-  }
-
-  .comp-pills button.active {
-    background: var(--you-bg);
-    border-color: var(--you);
-    color: #8A5D1E;
-  }
-
-  .comp-pills button:hover:not(.active) {
-    border-color: var(--muted);
-    color: var(--text);
-  }
-
-  .kpi-row {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 14px;
-    margin-bottom: 26px;
-  }
-
-  @media (max-width: 700px) {
-    .kpi-row { grid-template-columns: 1fr; }
-  }
-
-  .kpi-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 18px 20px;
-    box-shadow: var(--shadow-sm);
-    transition: box-shadow 0.15s ease, border-color 0.15s ease;
-  }
-
-  .kpi-card:hover {
-    box-shadow: var(--shadow-md);
-    border-color: var(--you);
-  }
-
-  .kpi-card .kpi-label {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 0.68rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--muted);
-    margin-bottom: 8px;
-  }
-
-  .kpi-card .kpi-value {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 1.5rem;
-    font-weight: 600;
-  }
-
-  .kpi-card .kpi-delta {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 0.76rem;
-    margin-top: 10px;
-    font-family: 'JetBrains Mono', monospace;
-    padding: 3px 9px;
-    border-radius: 20px;
-  }
-
-  .kpi-delta.up { color: var(--up); background: var(--up-bg); }
-  .kpi-delta.down { color: var(--down); background: var(--down-bg); }
-  .kpi-delta.flat { color: var(--muted); background: var(--surface-2); }
-
-  .trend {
-    display: inline-flex;
-    align-items: center;
-    gap: 3px;
-    font-size: 0.68rem;
-    font-weight: 600;
-    margin-left: 6px;
-    font-family: 'JetBrains Mono', monospace;
-    padding: 2px 7px;
-    border-radius: 20px;
-  }
-
-  .trend.up { color: var(--up); background: var(--up-bg); }
-  .trend.down { color: var(--down); background: var(--down-bg); }
-  .trend.flat { color: var(--muted); background: var(--surface-2); }
-
-  td.produto-cell {
-    max-width: 320px;
-    white-space: normal;
-  }
-
-  .produto-linha {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-
-  .produto-thumb {
-    width: 36px;
-    height: 36px;
-    border-radius: 6px;
-    object-fit: cover;
-    background: var(--surface-2);
-    border: 1px solid var(--border);
-    flex-shrink: 0;
-  }
-
-  .produto-link {
-    color: inherit;
-    text-decoration: none;
-  }
-
-  .produto-link:hover {
-    color: var(--accent, #1e5eff);
-    text-decoration: underline;
-  }
-
-  .spark {
-    display: inline-block;
-    vertical-align: middle;
-    margin-left: 8px;
-  }
-
-  .spark-wrap.up { color: var(--up); }
-  .spark-wrap.down { color: var(--down); }
-  .spark-wrap.flat { color: var(--muted); }
-
-  .table-card h3 {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .prod-table tbody tr:hover td {
-    background: var(--surface-2);
-  }
-
-  .metric-tabs {
-    display: flex;
-    gap: 4px;
-    margin: 4px 0 16px;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .metric-tabs button {
-    background: none;
-    border: none;
-    color: var(--muted);
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 0.8rem;
-    font-weight: 600;
-    padding: 8px 14px;
-    cursor: pointer;
-    border-bottom: 2px solid transparent;
-  }
-
-  .metric-tabs button.active {
-    color: var(--text);
-    border-bottom-color: var(--you);
-  }
+  .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+  .stat-card .value { font-size: 24px; font-weight: 800; }
+  .stat-card .label { color: var(--muted); font-size: 12px; }
+  .grid-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 20px; }
 </style>
 </head>
 <body>
+  <h1>Painel de Logística — Flex / Turbo</h1>
+  <div class="subtitle" id="atualizado-em">Carregando...</div>
 
-<header>
-  <h1>Concorrentes <span>/ Ricapet</span></h1>
-  <div class="status">
-    <span class="dot"></span>
-    <span id="lastUpdated">carregando…</span>
+  <div class="abas">
+    <button class="aba-btn ativa" id="abaBtnTurbo" onclick="mudarAba('turbo')">Turbo / Expressa</button>
+    <button class="aba-btn" id="abaBtnFlex" onclick="mudarAba('flex')">Flex</button>
+    <button class="aba-btn" id="abaBtnTodos" onclick="mudarAba('todos')">Todos os pedidos</button>
   </div>
-</header>
 
-<nav class="view-tabs">
-  <button id="tabAtual" class="active" onclick="mostrarView('atual')">Snapshot atual</button>
-  <button id="tabHistorico" onclick="mostrarView('historico')">Histórico</button>
-  <button id="tabConcorrentes" onclick="mostrarView('concorrentes')">Concorrentes</button>
-</nav>
+  <div class="periodo-controle">
+    <button class="periodo-btn" onclick="definirPeriodo('mes')">Este mês</button>
+    <button class="periodo-btn" onclick="definirPeriodo('7dias')">Últimos 7 dias</button>
+    <button class="periodo-btn" onclick="definirPeriodo('30dias')">Últimos 30 dias</button>
+    <button class="periodo-btn" onclick="definirPeriodo('tudo')">Tudo</button>
+    <button class="periodo-btn" id="btnPeriodoEspecifico" onclick="ativarPeriodoEspecifico()">Período específico</button>
+    <label>De <input type="date" id="periodoDe" onchange="ativarPeriodoEspecifico()"></label>
+    <label>Até <input type="date" id="periodoAte" onchange="ativarPeriodoEspecifico()"></label>
+    <button class="periodo-btn periodo-aplicar" onclick="aplicarPeriodoManual()">Aplicar</button>
+    <span id="periodoLabel" class="periodo-label"></span>
+  </div>
 
-<main id="content">
-  <div class="loading">buscando último snapshot…</div>
-</main>
+  <!-- ABA: TURBO / EXPRESSA -->
+  <div id="painelTurbo">
+    <div class="grid-stats">
+      <div class="stat-card"><div class="value" id="total-pedidos">–</div><div class="label">Pedidos expressos (últimas horas)</div></div>
+      <div class="stat-card"><div class="value" id="total-ml">–</div><div class="label">Mercado Livre</div></div>
+      <div class="stat-card"><div class="value" id="total-shopee">–</div><div class="label">Shopee (Entrega Turbo)</div></div>
+    </div>
+    <table>
+      <thead><tr><th>Marketplace</th><th>Conta/Loja</th><th>Pedido</th><th>Data</th><th>Valor</th><th>Itens</th></tr></thead>
+      <tbody id="tabela-pedidos"></tbody>
+    </table>
+  </div>
+
+  <!-- ABA: FLEX -->
+  <div id="painelFlex" class="oculto">
+
+    <div class="grid-top3">
+      <div class="card">
+        <div class="card-head">Eficiência de coleta</div>
+        <div class="card-body">
+          <svg viewBox="0 0 200 115" style="width:100%; max-width:220px; display:block; margin:0 auto;">
+            <path d="M 20,100 A 80,80 0 0,1 60,30.72" fill="none" stroke="var(--red)" stroke-width="22" stroke-linecap="round"/>
+            <path d="M 60,30.72 A 80,80 0 0,1 140,30.72" fill="none" stroke="var(--yellow)" stroke-width="22" stroke-linecap="round"/>
+            <path d="M 140,30.72 A 80,80 0 0,1 180,100" fill="none" stroke="var(--teal)" stroke-width="22" stroke-linecap="round"/>
+            <line id="gaugeAgulha" x1="100" y1="100" x2="20" y2="100" stroke="#2d3436" stroke-width="4" stroke-linecap="round"/>
+            <circle cx="100" cy="100" r="7" fill="#2d3436"/>
+          </svg>
+          <div class="gauge-numero" id="gaugeEficienciaValor">0%</div>
+          <div class="gauge-ref">pedidos já coletados ou entregues</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">Status de entrega</div>
+        <div class="card-body">
+          <div class="donut-wrap" style="justify-content:center;">
+            <div class="donut-canvas-wrap">
+              <canvas id="chartStatusEntrega"></canvas>
+              <div class="donut-center-texto">
+                <div class="valor" id="statusEntregaPct">0%</div>
+                <div class="rotulo">entregues</div>
+              </div>
+            </div>
+          </div>
+          <div id="statusEntregaLegenda" style="margin-top:10px; font-size:12px; color:var(--muted); text-align:center;"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">Entregas por destino</div>
+        <div class="card-body">
+          <div class="donut-wrap">
+            <div class="donut-canvas-wrap" style="width:110px; height:110px;">
+              <canvas id="chartDestino"></canvas>
+            </div>
+            <div class="legenda-lista" id="legendaDestino"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-bottom">
+      <div class="card">
+        <div class="card-body">
+          <div class="icon-stat">
+            <div class="icone">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#17a389" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+            </div>
+            <div>
+              <div class="valor" id="statTempoAteColeta">–</div>
+              <div class="rotulo">Tempo médio até coleta</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-body">
+          <div class="icon-stat">
+            <div class="icone">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2f80ed" stroke-width="2"><path d="M3 12l4-8h10l4 8M3 12v6a1 1 0 001 1h1a2 2 0 004 0h6a2 2 0 004 0h1a1 1 0 001-1v-6M3 12h18"/></svg>
+            </div>
+            <div>
+              <div class="valor" id="statTempoAteEntrega">–</div>
+              <div class="rotulo">Tempo médio até entrega</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-bottom">
+      <div class="card">
+        <div class="card-body">
+          <div class="icon-stat">
+            <div class="icone">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#17a389" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+            </div>
+            <div>
+              <div class="valor" id="statTicketMedio">–</div>
+              <div class="rotulo">Ticket médio</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-body">
+          <div class="icon-stat">
+            <div class="icone">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#17a389" stroke-width="2"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M3 11h18M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+            </div>
+            <div>
+              <div class="valor" id="statItensPorPedido">–</div>
+              <div class="rotulo">Itens por pedido</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head">Pedidos por horário do dia</div>
+        <div class="card-body">
+          <div class="chart-wrap-grande"><canvas id="chartFlexHora"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-stats">
+      <div class="stat-card"><div class="value" id="flex-total-periodo">–</div><div class="label">Total no período</div></div>
+      <div class="stat-card"><div class="value status-coletado" id="flex-entregues">–</div><div class="label">Entregues</div></div>
+      <div class="stat-card"><div class="value status-transito" id="flex-coletados-nao-entregues">–</div><div class="label">Coletados, não entregues</div></div>
+      <div class="stat-card"><div class="value status-aguardando" id="flex-a-coletar">–</div><div class="label">A coletar</div></div>
+    </div>
+
+    <div class="secao-titulo">Análise complementar</div>
+    <div class="grid-bottom">
+      <div class="card">
+        <div class="card-head">Por dia da semana</div>
+        <div class="card-body"><div class="chart-wrap-grande" style="height:180px;"><canvas id="chartFlexDiaSemana"></canvas></div></div>
+      </div>
+      <div class="card">
+        <div class="card-head">Por loja</div>
+        <div class="card-body"><div class="chart-wrap-grande" style="height:180px;"><canvas id="chartFlexLoja"></canvas></div></div>
+      </div>
+      <div class="card">
+        <div class="card-head">Top itens vendidos</div>
+        <div class="card-body"><div class="chart-wrap-grande" style="height:180px;"><canvas id="chartFlexItens"></canvas></div></div>
+      </div>
+    </div>
+
+    <div class="secao-titulo">Processo de expedição Flex agora (venda e coleta)</div>
+    <table>
+      <thead><tr><th>Conta/Loja</th><th>Pedido</th><th>Data da venda</th><th>Valor</th><th>Itens</th><th>Status</th></tr></thead>
+      <tbody id="tabela-flex"></tbody>
+    </table>
+  </div>
+
+  <!-- ABA: TODOS OS PEDIDOS -->
+  <div id="painelTodos" class="oculto">
+    <div class="periodo-controle">
+      <label>Forma de entrega
+        <select id="filtroFormaEntrega" onchange="carregarTodos()">
+          <option value="todas">Todas</option>
+        </select>
+      </label>
+      <span id="chipEstadoFiltro" style="display:none; background:var(--teal-light); color:#0F6E56; padding:4px 10px; border-radius:999px; font-weight:700; font-size:12px;">
+        Estado: <span id="chipEstadoNome"></span>
+        <button onclick="limparFiltroEstado()" style="background:none; border:none; color:#0F6E56; cursor:pointer; font-weight:700; margin-left:4px;">✕</button>
+      </span>
+    </div>
+
+    <div class="grid-stats">
+      <div class="stat-card"><div class="value" id="todos-total">–</div><div class="label">Total no período (com filtro aplicado)</div></div>
+      <div class="stat-card"><div class="value" id="todos-ticket-medio">–</div><div class="label">Ticket médio</div></div>
+    </div>
+
+    <div class="secao-titulo">Análise do período</div>
+    <div class="grid-bottom">
+      <div class="card">
+        <div class="card-head">Por horário do dia</div>
+        <div class="card-body"><div class="chart-wrap-grande" style="height:180px;"><canvas id="chartTodosHora"></canvas></div></div>
+      </div>
+      <div class="card">
+        <div class="card-head">Por dia da semana</div>
+        <div class="card-body"><div class="chart-wrap-grande" style="height:180px;"><canvas id="chartTodosDiaSemana"></canvas></div></div>
+      </div>
+      <div class="card">
+        <div class="card-head">Por forma de entrega</div>
+        <div class="card-body"><div class="chart-wrap-grande" style="height:180px;"><canvas id="chartTodosFormaEntrega"></canvas></div></div>
+      </div>
+    </div>
+    <div class="grid-bottom">
+      <div class="card">
+        <div class="card-head">Por loja</div>
+        <div class="card-body"><div class="chart-wrap-grande" style="height:180px;"><canvas id="chartTodosLoja"></canvas></div></div>
+      </div>
+      <div class="card">
+        <div class="card-head" style="display:flex; align-items:center; justify-content:space-between;">
+          <span id="tituloEstadosCidades">Top estados (destino)</span>
+          <button id="btnVoltarEstados" onclick="voltarParaEstados()" style="display:none; background:none; border:none; color:var(--blue); font-size:11px; font-weight:700; cursor:pointer; text-transform:none; letter-spacing:0;">← Voltar</button>
+        </div>
+        <div class="card-body"><div class="chart-wrap-grande" style="height:300px;"><canvas id="chartTodosEstados"></canvas></div></div>
+      </div>
+      <div class="card">
+        <div class="card-head">Top itens vendidos</div>
+        <div class="card-body"><div class="chart-wrap-grande" style="height:180px;"><canvas id="chartTodosItens"></canvas></div></div>
+      </div>
+    </div>
+
+    <div class="secao-titulo">Mapa de pedidos por estado</div>
+    <div class="card" style="margin-bottom:24px;">
+      <div class="card-head">Clique num estado para filtrar</div>
+      <div class="card-body">
+        <div id="mapaBrasilWrap" style="position:relative;">
+          <div id="mapaBrasilLoading" style="text-align:center; padding:40px; color:var(--muted); font-size:13px;">Carregando mapa...</div>
+          <svg id="mapaBrasilSvg" viewBox="0 0 480 480" style="width:100%; max-width:480px; display:block; margin:0 auto;"></svg>
+          <div id="mapaBrasilLegenda" style="display:flex; align-items:center; gap:8px; justify-content:center; margin-top:8px; font-size:11px; color:var(--muted);"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="secao-titulo">Pedidos (mais recentes primeiro, até 300 exibidos)</div>
+    <table>
+      <thead><tr><th>Conta/Loja</th><th>Pedido</th><th>Data</th><th>Forma de entrega</th><th>Estado</th><th>Cidade</th><th>Valor</th><th>Itens</th></tr></thead>
+      <tbody id="tabela-todos"></tbody>
+    </table>
+  </div>
 
 <script>
-let historicoCache = null;
-
-function mostrarView(view) {
-  document.getElementById('tabAtual').classList.toggle('active', view === 'atual');
-  document.getElementById('tabHistorico').classList.toggle('active', view === 'historico');
-  document.getElementById('tabConcorrentes').classList.toggle('active', view === 'concorrentes');
-  if (view === 'atual') {
-    loadData();
-  } else if (view === 'historico') {
-    loadHistorico();
-  } else {
-    loadConcorrentes();
-  }
-}
-
-async function loadData() {
-  const el = document.getElementById('content');
-  const statusEl = document.getElementById('lastUpdated');
-  el.innerHTML = '<div class="loading">buscando último snapshot…</div>';
-
-  try {
-    const res = await fetch('/api/concorrentes');
-    if (!res.ok) {
-      if (res.status === 404) {
-        el.innerHTML = '<div class="empty">Nenhum dado coletado ainda. Rode o scraper local pra popular o painel.</div>';
-        statusEl.textContent = 'sem dados';
-        return;
-      }
-      throw new Error('erro ' + res.status);
-    }
-    const data = await res.json();
-    render(data);
-  } catch (err) {
-    el.innerHTML = '<div class="error">Falha ao carregar: ' + err.message + '</div>';
-    statusEl.textContent = 'erro';
-  }
-}
-
-function fmtDate(iso) {
-  const d = new Date(iso);
-  return d.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
-}
-
-function fmtDiaCurto(diaISO) {
-  // diaISO no formato YYYY-MM-DD -> DD/MM
-  const [ano, mes, dia] = diaISO.split('-');
-  return `${dia}/${mes}`;
-}
-
-function renderTable(rows) {
-  if (!rows || rows.length === 0) {
-    return '<div class="empty" style="padding:20px;">sem linhas</div>';
-  }
-  const headers = Object.keys(rows[0]).filter(h => !h.startsWith('_'));
-  const isYouRow = (row) => row['_voce'] === true;
-
-  let html = '<table><thead><tr>';
-  headers.forEach(h => html += `<th>${h}</th>`);
-  html += '</tr></thead><tbody>';
-
-  rows.forEach(row => {
-    const cls = isYouRow(row) ? ' class="you"' : '';
-    html += `<tr${cls}>`;
-    headers.forEach(h => {
-      const val = row[h] ?? '';
-      const numeric = /^[+\-]?\s?R?\$?\s?[\d.,]+%?$/.test(val);
-      html += `<td class="${numeric ? 'num' : ''}">${val}</td>`;
-    });
-    html += '</tr>';
-  });
-
-  html += '</tbody></table>';
-  return html;
-}
-
-function render(data) {
-  const el = document.getElementById('content');
-  const statusEl = document.getElementById('lastUpdated');
-  statusEl.textContent = 'atualizado em ' + fmtDate(data.coletado_em);
-
-  if (!data.categorias || data.categorias.length === 0) {
-    el.innerHTML = '<div class="empty">Snapshot vazio.</div>';
-    return;
-  }
-
-  let html = '';
-  data.categorias.forEach(cat => {
-    html += `<div class="cat-block">
-      <h2 class="cat-title">${cat.subcategoria}</h2>
-      <div class="tables-row">
-        <div class="table-card">
-          <h3>Sua posição</h3>
-          ${renderTable(cat.sua_posicao)}
-        </div>
-        <div class="table-card">
-          <h3>Melhores vendedores</h3>
-          ${renderTable(cat.melhores_vendedores)}
-        </div>
-      </div>
-    </div>`;
-  });
-
-  el.innerHTML = html;
-}
-
-async function loadHistorico() {
-  const el = document.getElementById('content');
-  const statusEl = document.getElementById('lastUpdated');
-  el.innerHTML = '<div class="loading">buscando histórico…</div>';
-
-  try {
-    if (!historicoCache) {
-      const res = await fetch('/api/concorrentes?action=historico');
-      if (!res.ok) throw new Error('erro ' + res.status);
-      historicoCache = await res.json();
-    }
-    renderHistorico(historicoCache);
-    statusEl.textContent = historicoCache.datas.length + ' dia(s) registrados';
-  } catch (err) {
-    el.innerHTML = '<div class="error">Falha ao carregar histórico: ' + err.message + '</div>';
-    statusEl.textContent = 'erro';
-  }
-}
-
-function renderHistorico(data) {
-  const el = document.getElementById('content');
-  const { datas, subcategorias } = data;
-
-  if (!datas || datas.length === 0) {
-    el.innerHTML = '<div class="empty">Ainda não há histórico suficiente (precisa de pelo menos 1 dia coletado).</div>';
-    return;
-  }
-
-  const nomesSub = Object.keys(subcategorias);
-  if (nomesSub.length === 0) {
-    el.innerHTML = '<div class="empty">Sem dados de posição no histórico.</div>';
-    return;
-  }
-
-  let html = '';
-  nomesSub.forEach((subNome, idx) => {
-    const vendedores = subcategorias[subNome];
-    const nomesVendedor = Object.keys(vendedores);
-
-    // ordena pela posição mais recente (menor primeiro), você sempre no topo
-    const ultimaData = datas[datas.length - 1];
-    nomesVendedor.sort((a, b) => {
-      const posA = parseInt(vendedores[a][ultimaData], 10);
-      const posB = parseInt(vendedores[b][ultimaData], 10);
-      if (isNaN(posA)) return 1;
-      if (isNaN(posB)) return -1;
-      return posA - posB;
-    });
-
-    const selectId = `sel-${idx}`;
-
-    html += `<div class="cat-block">
-      <h2 class="cat-title">${subNome}</h2>
-      <div class="hist-controls">
-        <span>${nomesVendedor.length} vendedor(es) · ${datas.length} dia(s)</span>
-      </div>
-      <div class="hist-table-wrap">
-        <table class="hist">
-          <thead><tr><th>Vendedor</th>`;
-
-    datas.forEach(d => html += `<th class="num">${fmtDiaCurto(d)}</th>`);
-    html += '</tr></thead><tbody>';
-
-    nomesVendedor.forEach(nome => {
-      const ehVoce = /RICAPET|VOC[EÊ]/i.test(nome);
-      html += `<tr${ehVoce ? ' class="you"' : ''}><td>${nome}</td>`;
-      datas.forEach(d => {
-        const pos = vendedores[nome][d];
-        html += `<td class="num">${pos !== undefined ? pos : '—'}</td>`;
-      });
-      html += '</tr>';
-    });
-
-    html += '</tbody></table></div></div>';
-  });
-
-  el.innerHTML = html;
-}
-
-let concorrentesSnapshotCache = null;
-let concorrentesHistoricoCache = null;
-let concorrenteAtivoNome = null;
-let metricaAtivaConcorrente = 'vendas_brutas';
-
-const METRICAS_CONCORRENTE = [
-  { key: 'vendas_brutas', label: 'Vendas brutas' },
-  { key: 'quantidade_de_vendas', label: 'Quantidade' },
-  { key: 'visitas', label: 'Visitas' },
-  { key: 'conversao', label: 'Conversão' },
-];
-
-function selecionarMetricaConcorrente(key) {
-  metricaAtivaConcorrente = key;
-  renderPainelConcorrentes();
-}
-
-async function loadConcorrentes() {
-  const el = document.getElementById('content');
-  const statusEl = document.getElementById('lastUpdated');
-  el.innerHTML = '<div class="loading">buscando dados dos concorrentes…</div>';
-
-  try {
-    if (!concorrentesSnapshotCache) {
-      const res = await fetch('/api/concorrentes');
-      if (res.ok) concorrentesSnapshotCache = await res.json();
-    }
-    if (!concorrentesHistoricoCache) {
-      const res2 = await fetch('/api/concorrentes?action=historico_concorrentes');
-      if (res2.ok) concorrentesHistoricoCache = await res2.json();
-    }
-    renderPainelConcorrentes();
-    if (concorrentesHistoricoCache) {
-      statusEl.textContent = concorrentesHistoricoCache.datas.length + ' dia(s) registrados';
-    }
-  } catch (err) {
-    el.innerHTML = '<div class="error">Falha ao carregar concorrentes: ' + err.message + '</div>';
-    statusEl.textContent = 'erro';
-  }
-}
-
-function selecionarConcorrente(nome) {
-  concorrenteAtivoNome = nome;
-  renderPainelConcorrentes();
-}
-
-// Converte texto tipo "+ R$ 16.600" ou "10,7%" ou "+ 240" em número
-function parseNumero(str) {
-  if (str === undefined || str === null) return null;
-  let s = String(str).trim();
-  if (s === '' || s === '—') return null;
-  const negativo = /^-/.test(s);
-  s = s.replace(/^[+\-]\s?/, '');
-  s = s.replace(/R\$\s?/g, '').replace(/%/g, '');
-  s = s.replace(/\./g, '').replace(/,/g, '.');
-  const n = parseFloat(s);
-  if (isNaN(n)) return null;
-  return negativo ? -n : n;
-}
-
-function calcDelta(valorAntigo, valorNovo) {
-  if (valorAntigo === null || valorNovo === null) return null;
-  if (valorAntigo === 0) return valorNovo === 0 ? 0 : null;
-  return ((valorNovo - valorAntigo) / valorAntigo) * 100;
-}
-
-function trendHTML(delta, eraZero) {
-  if (delta === null) {
-    return eraZero ? '<span class="trend up">▲ novo</span>' : '';
-  }
-  const arrow = delta > 0.5 ? '▲' : delta < -0.5 ? '▼' : '▪';
-  const cls = delta > 0.5 ? 'up' : delta < -0.5 ? 'down' : 'flat';
-  const texto = (delta > 0 ? '+' : '') + delta.toFixed(1) + '%';
-  return `<span class="trend ${cls}">${arrow} ${texto}</span>`;
-}
-
-function buildBuscaMercadoLivreUrl(nome) {
-  // remove o sufixo "(2)", "(3)" etc. que usamos só para diferenciar
-  // produtos com nome duplicado no mesmo concorrente
-  const nomeBase = nome.replace(/\s*\(\d+\)\s*$/, '');
-  const slug = nomeBase
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remove acentos
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .trim()
-    .replace(/\s+/g, '-');
-  return `https://lista.mercadolivre.com.br/${encodeURIComponent(slug)}`;
-}
-
-function renderTabelaMetrica(nomesProdutoHist, produtosHist, datas, metricKey) {
-  const nomes = [...nomesProdutoHist];
-  const ultimaData = datas[datas.length - 1];
-  nomes.sort((a, b) => {
-    const va = parseNumero((produtosHist[a][ultimaData] || {})[metricKey]);
-    const vb = parseNumero((produtosHist[b][ultimaData] || {})[metricKey]);
-    return (vb || 0) - (va || 0);
-  });
-
-  let html = '<div class="hist-table-wrap"><table class="hist"><thead><tr><th>Produto</th>';
-  datas.forEach(d => html += `<th class="num">${fmtDiaCurto(d)}</th>`);
-  html += '</tr></thead><tbody>';
-
-  nomes.forEach(nome => {
-    // procura a imagem mais recente disponível (do dia mais novo pro mais antigo)
-    let imagemUrl = null;
-    for (let i = datas.length - 1; i >= 0; i--) {
-      const reg = (produtosHist[nome] || {})[datas[i]];
-      if (reg && reg.imagem) { imagemUrl = reg.imagem; break; }
-    }
-    const thumbHtml = imagemUrl
-      ? `<img class="produto-thumb" src="${imagemUrl}" alt="" loading="lazy" onerror="this.style.display='none'">`
-      : `<div class="produto-thumb"></div>`;
-    // o Mercado Livre não expõe um link direto do anúncio nessa tabela de
-    // métricas, então linkamos para a busca pelo nome do produto (sem o
-    // sufixo "(2)", "(3)" que usamos aqui só para diferenciar duplicatas)
-    const linkUrl = buildBuscaMercadoLivreUrl(nome);
-    const nomeHtml = `<a class="produto-link" href="${linkUrl}" target="_blank" rel="noopener noreferrer">${nome}</a>`;
-
-    html += `<tr><td class="produto-cell"><div class="produto-linha">${thumbHtml}${nomeHtml}</div></td>`;
-    let valorAnterior = null;
-    datas.forEach(d => {
-      const registro = (produtosHist[nome] || {})[d];
-      const bruto = registro ? registro[metricKey] : undefined;
-      const valorNum = parseNumero(bruto);
-      let seta = '';
-      if (valorAnterior !== null) {
-        seta = trendHTML(calcDelta(valorAnterior, valorNum), valorAnterior === 0);
-      }
-      html += `<td class="num">${bruto !== undefined && bruto !== null ? bruto : '—'}${seta}</td>`;
-      if (valorNum !== null) valorAnterior = valorNum;
-    });
-    html += '</tr>';
-  });
-
-  html += '</tbody></table></div>';
-  return html;
-}
-
-function sparklineSVG(valores, width, height) {
-  width = width || 90;
-  height = height || 26;
-  const vals = valores.filter(v => v !== null && v !== undefined);
-  if (vals.length < 2) return '';
-  const max = Math.max(...vals);
-  const min = Math.min(...vals);
-  const range = (max - min) || 1;
-  const stepX = width / (valores.length - 1);
-  let ultimoY = height / 2;
-  const pontos = valores.map((v, i) => {
-    const x = i * stepX;
-    const y = (v === null || v === undefined) ? ultimoY : height - ((v - min) / range) * height;
-    ultimoY = y;
-    return `${x.toFixed(1)},${y.toFixed(1)}`;
-  }).join(' ');
-  return `<svg class="spark" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" preserveAspectRatio="none">
-    <polyline points="${pontos}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  </svg>`;
-}
-
-function acharChave(obj, testFn) {
-  return Object.keys(obj).find(testFn) || null;
-}
-
-function extrairMetricasSnapshot(produto) {
-  const vendasKey = acharChave(produto, k => k.toLowerCase().includes('venda') && k.toLowerCase().includes('brut'));
-  const qtdKey = acharChave(produto, k => k.toLowerCase().includes('quantidade'));
-  const visitasKey = acharChave(produto, k => k.toLowerCase().includes('visita'));
-  const conversaoKey = acharChave(produto, k => k.toLowerCase().includes('convers'));
-  const anuncioKey = acharChave(produto, k => k.toLowerCase().includes('núncio') || k.toLowerCase().includes('anuncio'));
-
-  return {
-    nome: anuncioKey ? produto[anuncioKey] : Object.values(produto)[0],
-    vendas_brutas: vendasKey ? produto[vendasKey] : null,
-    quantidade_de_vendas: qtdKey ? produto[qtdKey] : null,
-    visitas: visitasKey ? produto[visitasKey] : null,
-    conversao: conversaoKey ? produto[conversaoKey] : null,
-    imagem: produto._imagem || null,
+  const CORES = {
+    teal: '#17a389', yellow: '#f2c94c', gray: '#bdc3c7', blue: '#2f80ed', red: '#eb5757',
+    ml: '#f2b90c', shopee: '#ee4d2d', muted: '#7f8c96', grid: 'rgba(0,0,0,0.06)'
   };
-}
+  const PALETA_MULTI = [CORES.teal, CORES.blue, CORES.yellow, CORES.gray, CORES.red, '#9b59b6', '#2ecc71'];
 
-function kpiCard(label, valorHoje, valorOntem, temOntem, prefixo, serie) {
-  let deltaHtml = '<div class="kpi-delta flat">aguardando 2º dia p/ comparar</div>';
-  let corTendencia = 'flat';
-  if (temOntem) {
-    const delta = calcDelta(valorOntem, valorHoje);
-    if (delta === null) {
-      deltaHtml = '<div class="kpi-delta up">▲ novo</div>';
-      corTendencia = 'up';
+  if (typeof Chart !== 'undefined') {
+    Chart.defaults.color = CORES.muted;
+    Chart.defaults.font.size = 11;
+    if (typeof ChartDataLabels !== 'undefined') Chart.register(ChartDataLabels);
+  }
+
+  const TURBO_ATIVO = false; // ainda não existem pedidos Turbo reais; aba desativada por enquanto
+
+  let charts = {};
+  let periodoAtual = { de: null, ate: null };
+  let filtroEstado = null;
+
+  function criarOuAtualizarChart(id, config) {
+    if (typeof Chart === 'undefined') return;
+    if (charts[id]) { charts[id].data = config.data; charts[id].options = config.options; charts[id].update(); return; }
+    const el = document.getElementById(id);
+    if (!el) return;
+    charts[id] = new Chart(el.getContext('2d'), config);
+  }
+
+  function baseBarOptions() {
+    return {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        datalabels: {
+          color: '#2d3436',
+          font: { weight: 'bold', size: 11 },
+          anchor: 'end',
+          align: 'end',
+          formatter: (v) => (v === null || v === 0) ? '' : v
+        }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: CORES.muted } },
+        y: { grid: { color: CORES.grid }, ticks: { color: CORES.muted }, beginAtZero: true }
+      }
+    };
+  }
+
+  function agregarPorHora(pedidos) {
+    const c = new Array(24).fill(0);
+    pedidos.forEach(p => { c[new Date(p.date_created).getHours()]++; });
+    return c;
+  }
+  function agregarPorDiaSemana(pedidos) {
+    const c = new Array(7).fill(0);
+    pedidos.forEach(p => { c[new Date(p.date_created).getDay()]++; });
+    return c;
+  }
+  function contarPor(pedidos, chave) {
+    const mapa = {};
+    pedidos.forEach(p => { const v = p[chave] || 'Não identificado'; mapa[v] = (mapa[v] || 0) + 1; });
+    return mapa;
+  }
+  function topN(mapa, n) { return Object.entries(mapa).sort((a, b) => b[1] - a[1]).slice(0, n); }
+  function contarItens(pedidos, n) {
+    const mapa = {};
+    pedidos.forEach(p => (p.itens || []).forEach(i => { mapa[i.titulo] = (mapa[i.titulo] || 0) + (i.quantidade || 1); }));
+    return topN(mapa, n);
+  }
+  function ticketMedio(pedidos) {
+    if (!pedidos.length) return null;
+    return pedidos.reduce((a, p) => a + (Number(p.total_amount) || 0), 0) / pedidos.length;
+  }
+
+  // ---------- GAUGE (velocímetro) ----------
+  function renderGauge(pct) {
+    const p = Math.max(0, Math.min(100, pct));
+    const anguloGraus = 180 - (p / 100) * 180;
+    const rad = anguloGraus * Math.PI / 180;
+    const x2 = 100 + 70 * Math.cos(rad);
+    const y2 = 100 - 70 * Math.sin(rad);
+    const agulha = document.getElementById('gaugeAgulha');
+    if (agulha) { agulha.setAttribute('x2', x2.toFixed(1)); agulha.setAttribute('y2', y2.toFixed(1)); }
+    const valorEl = document.getElementById('gaugeEficienciaValor');
+    if (valorEl) {
+      valorEl.textContent = Math.round(p) + '%';
+      valorEl.style.color = p >= 66 ? CORES.teal : (p >= 33 ? '#a3810c' : CORES.red);
+    }
+  }
+
+  // ---------- ABA SWITCHING ----------
+  function mudarAba(aba) {
+    const painelTurbo = document.getElementById('painelTurbo');
+    const painelFlex = document.getElementById('painelFlex');
+    const painelTodos = document.getElementById('painelTodos');
+    const btnTurbo = document.getElementById('abaBtnTurbo');
+    const btnFlex = document.getElementById('abaBtnFlex');
+    const btnTodos = document.getElementById('abaBtnTodos');
+
+    painelTurbo.className = 'oculto'; painelFlex.className = 'oculto'; painelTodos.className = 'oculto';
+    btnTurbo.className = 'aba-btn'; btnFlex.className = 'aba-btn'; btnTodos.className = 'aba-btn';
+
+    if (aba === 'flex') { painelFlex.className = ''; btnFlex.className = 'aba-btn ativa'; }
+    else if (aba === 'todos') { painelTodos.className = ''; btnTodos.className = 'aba-btn ativa'; carregarTodos(); }
+    else { painelTurbo.className = ''; btnTurbo.className = 'aba-btn ativa'; }
+  }
+
+  // ---------- PERÍODO ----------
+  function formatarDataInput(d) { return d.toISOString().slice(0, 10); }
+
+  function definirPeriodo(tipo) {
+    const hoje = new Date();
+    let de;
+    if (tipo === 'mes') de = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    else if (tipo === '7dias') de = new Date(hoje.getTime() - 7 * 86400000);
+    else if (tipo === '30dias') de = new Date(hoje.getTime() - 30 * 86400000);
+    else de = new Date(2020, 0, 1);
+    document.getElementById('periodoDe').value = formatarDataInput(de);
+    document.getElementById('periodoAte').value = formatarDataInput(hoje);
+    document.querySelectorAll('.periodo-btn').forEach(b => b.classList.remove('periodo-ativo'));
+    if (event && event.target) event.target.classList.add('periodo-ativo');
+    aplicarPeriodoManual();
+  }
+
+  function limparDestaquePeriodo() {
+    document.querySelectorAll('.periodo-btn').forEach(b => b.classList.remove('periodo-ativo'));
+  }
+
+  function ativarPeriodoEspecifico() {
+    limparDestaquePeriodo();
+    document.getElementById('btnPeriodoEspecifico').classList.add('periodo-ativo');
+  }
+
+  function aplicarPeriodoManual() {
+    periodoAtual = { de: document.getElementById('periodoDe').value, ate: document.getElementById('periodoAte').value };
+    ativarPeriodoEspecifico();
+    carregarAnalytics();
+    carregarTodos();
+  }
+
+  function inicializarPeriodoPadrao() {
+    const hoje = new Date();
+    const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    document.getElementById('periodoDe').value = formatarDataInput(inicioMes);
+    document.getElementById('periodoAte').value = formatarDataInput(hoje);
+    periodoAtual = { de: formatarDataInput(inicioMes), ate: formatarDataInput(hoje) };
+    document.querySelectorAll('.periodo-btn')[0].classList.add('periodo-ativo');
+  }
+
+  // ---------- ABA FLEX ----------
+  function renderizarGraficosFlex(pedidos) {
+    const entregues = pedidos.filter(p => p.categoria === 'entregue');
+    const coletadosNaoEntregues = pedidos.filter(p => p.categoria === 'coletado');
+    const aCcoletar = pedidos.filter(p => p.categoria === 'aguardando' || !p.categoria);
+
+    document.getElementById('flex-total-periodo').textContent = pedidos.length;
+    document.getElementById('flex-entregues').textContent = entregues.length;
+    document.getElementById('flex-coletados-nao-entregues').textContent = coletadosNaoEntregues.length;
+    document.getElementById('flex-a-coletar').textContent = aCcoletar.length;
+
+    const media = ticketMedio(pedidos);
+    document.getElementById('statTicketMedio').textContent = media === null ? '-' : 'R$ ' + media.toFixed(2);
+
+    const totalItens = pedidos.reduce((acc, p) => acc + (p.itens || []).reduce((a, i) => a + (i.quantidade || 1), 0), 0);
+    document.getElementById('statItensPorPedido').textContent = pedidos.length ? (totalItens / pedidos.length).toFixed(1) : '-';
+
+    function formatarHoras(horas) {
+      if (horas === null || horas === undefined || isNaN(horas)) return '-';
+      if (horas < 24) return horas.toFixed(1) + 'h';
+      return (horas / 24).toFixed(1) + ' dias';
+    }
+
+    const comTempoColeta = pedidos.filter(p => typeof p.horas_ate_coleta === 'number');
+    const mediaColeta = comTempoColeta.length
+      ? comTempoColeta.reduce((a, p) => a + p.horas_ate_coleta, 0) / comTempoColeta.length
+      : null;
+    document.getElementById('statTempoAteColeta').textContent = formatarHoras(mediaColeta);
+
+    const comTempoEntrega = pedidos.filter(p => typeof p.horas_ate_entrega === 'number');
+    const mediaEntrega = comTempoEntrega.length
+      ? comTempoEntrega.reduce((a, p) => a + p.horas_ate_entrega, 0) / comTempoEntrega.length
+      : null;
+    document.getElementById('statTempoAteEntrega').textContent = formatarHoras(mediaEntrega);
+
+    // Gauge: eficiência de coleta = (entregues + coletados) / total
+    const eficiencia = pedidos.length ? ((entregues.length + coletadosNaoEntregues.length) / pedidos.length) * 100 : 0;
+    renderGauge(eficiencia);
+
+    // Donut status de entrega (entregues vs resto)
+    const pctEntregues = pedidos.length ? Math.round((entregues.length / pedidos.length) * 100) : 0;
+    document.getElementById('statusEntregaPct').textContent = pctEntregues + '%';
+    document.getElementById('statusEntregaLegenda').innerHTML =
+      `<span style="color:${CORES.teal}; font-weight:700;">● Entregues: ${entregues.length}</span> &nbsp;&nbsp; <span style="color:${CORES.gray}; font-weight:700;">● Demais: ${pedidos.length - entregues.length}</span>`;
+
+    criarOuAtualizarChart('chartStatusEntrega', {
+      type: 'doughnut',
+      data: { labels: ['Entregues', 'Demais'], datasets: [{ data: [entregues.length, pedidos.length - entregues.length], backgroundColor: [CORES.teal, '#eef0f2'], borderWidth: 0 }] },
+      options: { responsive: true, maintainAspectRatio: false, cutout: '72%', plugins: { legend: { display: false } } }
+    });
+
+    // Donut destino (top estados)
+    const estadosTop = topN(contarPor(pedidos, 'estado'), 5);
+    criarOuAtualizarChart('chartDestino', {
+      type: 'doughnut',
+      data: { labels: estadosTop.map(e => e[0]), datasets: [{ data: estadosTop.map(e => e[1]), backgroundColor: PALETA_MULTI, borderWidth: 0 }] },
+      options: { responsive: true, maintainAspectRatio: false, cutout: '60%', plugins: { legend: { display: false } } }
+    });
+    const totalEstados = estadosTop.reduce((a, e) => a + e[1], 0) || 1;
+    document.getElementById('legendaDestino').innerHTML = estadosTop.map((e, i) => `
+      <div class="legenda-item">
+        <span><span class="legenda-dot" style="background:${PALETA_MULTI[i % PALETA_MULTI.length]}"></span><span class="legenda-nome">${e[0]}</span></span>
+        <span class="legenda-valor">${Math.round((e[1] / totalEstados) * 100)}%</span>
+      </div>`).join('');
+
+    if (pedidos.length === 0) return;
+
+    // Gráfico misto: barras = pedidos por hora, linha = ticket médio por hora
+    const porHora = agregarPorHora(pedidos);
+    const ticketPorHora = new Array(24).fill(0).map((_, h) => {
+      const doHora = pedidos.filter(p => new Date(p.date_created).getHours() === h);
+      return doHora.length ? doHora.reduce((a, p) => a + (Number(p.total_amount) || 0), 0) / doHora.length : null;
+    });
+    criarOuAtualizarChart('chartFlexHora', {
+      data: {
+        labels: Array.from({ length: 24 }, (_, i) => i + 'h'),
+        datasets: [
+          { type: 'bar', label: 'Pedidos', data: porHora, backgroundColor: CORES.teal, borderRadius: 4, yAxisID: 'y',
+            datalabels: { color: '#2d3436', font: { weight: 'bold', size: 10 }, anchor: 'end', align: 'top', formatter: (v) => v === 0 ? '' : v } },
+          { type: 'line', label: 'Ticket médio', data: ticketPorHora, borderColor: CORES.blue, borderDash: [4, 3], tension: 0.3, yAxisID: 'y1', spanGaps: true, pointRadius: 2,
+            datalabels: { display: false } }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } } },
+        scales: {
+          x: { grid: { display: false } },
+          y: { position: 'left', grid: { color: CORES.grid }, beginAtZero: true, title: { display: true, text: 'Pedidos' } },
+          y1: { position: 'right', grid: { display: false }, beginAtZero: true, title: { display: true, text: 'R$' } }
+        }
+      }
+    });
+
+    const diasNomes = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    criarOuAtualizarChart('chartFlexDiaSemana', { type: 'bar', data: { labels: diasNomes, datasets: [{ data: agregarPorDiaSemana(pedidos), backgroundColor: CORES.blue, borderRadius: 4 }] }, options: baseBarOptions() });
+
+    const porLoja = contarPor(pedidos, 'conta');
+    criarOuAtualizarChart('chartFlexLoja', { type: 'doughnut', data: { labels: Object.keys(porLoja), datasets: [{ data: Object.values(porLoja), backgroundColor: PALETA_MULTI, borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } }, datalabels: { color: '#fff', font: { weight: 'bold', size: 11 }, formatter: (v) => v } } } });
+
+    const itensTop = contarItens(pedidos, 8);
+    criarOuAtualizarChart('chartFlexItens', { type: 'bar', data: { labels: itensTop.map(i => i[0].length > 24 ? i[0].slice(0, 24) + '…' : i[0]), datasets: [{ data: itensTop.map(i => i[1]), backgroundColor: CORES.yellow, borderRadius: 4 }] }, options: { ...baseBarOptions(), indexAxis: 'y' } });
+  }
+
+  // ---------- MAPA DO BRASIL (D3) ----------
+  let geoBrasilFeatures = null;
+  let geoBrasilCarregando = false;
+
+  async function garantirGeoBrasil() {
+    if (geoBrasilFeatures || geoBrasilCarregando) return;
+    geoBrasilCarregando = true;
+    try {
+      const resp = await fetch('https://raw.githubusercontent.com/codeforamerica/click_that_hood/master/public/data/brazil-states.geojson');
+      const geo = await resp.json();
+      geoBrasilFeatures = geo.features;
+      montarMapaBrasil();
+    } catch (e) {
+      document.getElementById('mapaBrasilLoading').textContent = 'Não foi possível carregar o mapa.';
+    } finally {
+      geoBrasilCarregando = false;
+    }
+  }
+
+  function montarMapaBrasil() {
+    if (typeof d3 === 'undefined' || !geoBrasilFeatures) return;
+    document.getElementById('mapaBrasilLoading').style.display = 'none';
+
+    const svg = d3.select('#mapaBrasilSvg');
+    svg.selectAll('*').remove();
+
+    const projection = d3.geoMercator().fitSize([480, 480], { type: 'FeatureCollection', features: geoBrasilFeatures });
+    const path = d3.geoPath(projection);
+
+    svg.selectAll('path')
+      .data(geoBrasilFeatures)
+      .join('path')
+      .attr('d', path)
+      .attr('data-estado', d => d.properties.name)
+      .attr('stroke', '#ffffff')
+      .attr('stroke-width', 1)
+      .attr('fill', '#eef0f2')
+      .style('cursor', 'pointer')
+      .append('title');
+
+    svg.selectAll('path').on('click', (evento, d) => {
+      const estadoClicado = d.properties.name;
+      filtroEstado = filtroEstado === estadoClicado ? null : estadoClicado;
+      carregarTodos();
+    });
+
+    renderizarMapaBrasil(ultimoPedidosParaMapa || []);
+  }
+
+  let ultimoPedidosParaMapa = [];
+
+  function renderizarMapaBrasil(pedidos) {
+    ultimoPedidosParaMapa = pedidos;
+    if (typeof d3 === 'undefined' || !geoBrasilFeatures) return;
+
+    const contagem = contarPor(pedidos, 'estado');
+    const valores = Object.values(contagem);
+    const max = valores.length ? Math.max(...valores) : 0;
+
+    const escalaCor = d3.scaleLinear().domain([0, max || 1]).range(['#d7f0ec', '#0F6E56']);
+
+    const svg = d3.select('#mapaBrasilSvg');
+    svg.selectAll('path')
+      .attr('fill', d => {
+        const qtd = contagem[d.properties.name] || 0;
+        return qtd === 0 ? '#eef0f2' : escalaCor(qtd);
+      })
+      .attr('stroke', d => filtroEstado === d.properties.name ? '#2d3436' : '#ffffff')
+      .attr('stroke-width', d => filtroEstado === d.properties.name ? 2.5 : 1)
+      .select('title')
+      .text(d => `${d.properties.name}: ${contagem[d.properties.name] || 0} pedidos`);
+
+    const legenda = document.getElementById('mapaBrasilLegenda');
+    if (max > 0) {
+      legenda.innerHTML = `
+        <span>0</span>
+        <span style="display:inline-block; width:80px; height:10px; background:linear-gradient(to right, #d7f0ec, #0F6E56); border-radius:4px;"></span>
+        <span>${max}</span>`;
     } else {
-      const cls = delta > 0.5 ? 'up' : delta < -0.5 ? 'down' : 'flat';
-      const arrow = delta > 0.5 ? '▲' : delta < -0.5 ? '▼' : '▪';
-      deltaHtml = `<div class="kpi-delta ${cls}">${arrow} ${(delta > 0 ? '+' : '')}${delta.toFixed(1)}% vs dia anterior</div>`;
-      corTendencia = cls;
+      legenda.innerHTML = '<span>Sem dados no período/filtro</span>';
     }
   }
-  const sparkHtml = serie && serie.length >= 2
-    ? `<span class="spark-wrap ${corTendencia}">${sparklineSVG(serie)}</span>`
-    : '';
-  return `<div class="kpi-card">
-    <div class="kpi-label">${label}</div>
-    <div class="kpi-value" style="display:flex;align-items:center;justify-content:space-between;">
-      <span>${prefixo}${Math.round(valorHoje).toLocaleString('pt-BR')}</span>
-      ${sparkHtml}
-    </div>
-    ${deltaHtml}
-  </div>`;
-}
 
-function renderPainelConcorrentes() {
-  const el = document.getElementById('content');
-  const snapshot = concorrentesSnapshotCache;
-  const historico = concorrentesHistoricoCache;
-  const concorrentesAtuais = (snapshot && snapshot.concorrentes) || [];
-  const historicoMap = (historico && historico.concorrentes) || {};
-  const datas = (historico && historico.datas) || [];
-
-  const nomes = Array.from(new Set([
-    ...concorrentesAtuais.map(c => c.nome),
-    ...Object.keys(historicoMap),
-  ]));
-
-  if (nomes.length === 0) {
-    el.innerHTML = '<div class="empty">Nenhum concorrente coletado ainda.</div>';
-    return;
+  function voltarParaEstados() {
+    filtroEstado = null;
+    carregarTodos();
   }
 
-  if (!concorrenteAtivoNome || !nomes.includes(concorrenteAtivoNome)) {
-    concorrenteAtivoNome = nomes[0];
-  }
+  function renderizarGraficoEstadosOuCidades(pedidosCompletos, pedidosFiltrados) {
+    const titulo = document.getElementById('tituloEstadosCidades');
+    const btnVoltar = document.getElementById('btnVoltarEstados');
 
-  let pillsHtml = '<div class="comp-pills">';
-  nomes.forEach(n => {
-    const ativo = n === concorrenteAtivoNome ? ' active' : '';
-    const nomeEscapado = n.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
-    pillsHtml += `<button class="${ativo}" data-nome="${nomeEscapado}">${n}</button>`;
-  });
-  pillsHtml += '</div>';
+    if (!filtroEstado) {
+      // Modo "Top estados" — clicar num estado entra no modo "Top cidades" dele
+      titulo.textContent = 'Top estados (destino)';
+      btnVoltar.style.display = 'none';
 
-  const nome = concorrenteAtivoNome;
-  const compAtual = concorrentesAtuais.find(c => c.nome === nome);
-  const produtosAtuaisBrutos = compAtual ? compAtual.produtos : [];
-  const produtosHist = historicoMap[nome] || {};
-  const nomesProdutoHist = Object.keys(produtosHist);
+      const estadosTop = topN(contarPor(pedidosCompletos, 'estado'), 10);
+      criarOuAtualizarChart('chartTodosEstados', {
+        type: 'bar',
+        data: { labels: estadosTop.map(e => e[0]), datasets: [{ data: estadosTop.map(e => e[1]), backgroundColor: CORES.teal, borderRadius: 4 }] },
+        options: {
+          ...baseBarOptions(),
+          indexAxis: 'y',
+          onClick: (evt, elementos, chart) => {
+            if (!elementos.length) return;
+            const idx = elementos[0].index;
+            filtroEstado = chart.data.labels[idx];
+            carregarTodos();
+          },
+          onHover: (evt, elementos) => { evt.native.target.style.cursor = elementos.length ? 'pointer' : 'default'; }
+        }
+      });
+    } else {
+      // Modo "Top cidades" dentro do estado selecionado
+      titulo.textContent = `Top cidades em ${filtroEstado}`;
+      btnVoltar.style.display = 'inline-block';
 
-  const ultimaData = datas[datas.length - 1];
-  const penultimaData = datas.length > 1 ? datas[datas.length - 2] : null;
-  const temOntem = !!penultimaData;
-
-  let produtos;
-  if (nomesProdutoHist.length > 0 && ultimaData) {
-    produtos = nomesProdutoHist.map(p => ({
-      nome: p,
-      hoje: produtosHist[p][ultimaData] || {},
-      ontem: penultimaData ? (produtosHist[p][penultimaData] || null) : null,
-    }));
-  } else {
-    produtos = produtosAtuaisBrutos.map(p => {
-      const m = extrairMetricasSnapshot(p);
-      return { nome: m.nome, hoje: m, ontem: null };
-    });
-  }
-
-  // calcula delta de vendas brutas pra ordenar por crescimento
-  produtos.forEach(p => {
-    const vHoje = parseNumero(p.hoje.vendas_brutas);
-    const vOntem = p.ontem ? parseNumero(p.ontem.vendas_brutas) : null;
-    p._vHoje = vHoje || 0;
-    p._delta = (vOntem !== null && vHoje !== null) ? calcDelta(vOntem, vHoje) : null;
-  });
-  produtos.sort((a, b) => {
-    if (a._delta === null && b._delta === null) return b._vHoje - a._vHoje;
-    if (a._delta === null) return 1;
-    if (b._delta === null) return -1;
-    return b._delta - a._delta;
-  });
-
-  // KPIs agregados do concorrente inteiro (+ séries diárias pros sparklines)
-  let somaVendasHoje = 0, somaVendasOntem = 0;
-  let somaQtdHoje = 0, somaQtdOntem = 0;
-  let somaVisitasHoje = 0, somaVisitasOntem = 0;
-  produtos.forEach(p => {
-    somaVendasHoje += parseNumero(p.hoje.vendas_brutas) || 0;
-    somaQtdHoje += parseNumero(p.hoje.quantidade_de_vendas) || 0;
-    somaVisitasHoje += parseNumero(p.hoje.visitas) || 0;
-    if (p.ontem) {
-      somaVendasOntem += parseNumero(p.ontem.vendas_brutas) || 0;
-      somaQtdOntem += parseNumero(p.ontem.quantidade_de_vendas) || 0;
-      somaVisitasOntem += parseNumero(p.ontem.visitas) || 0;
+      const cidadesTop = topN(contarPor(pedidosFiltrados, 'cidade'), 10);
+      criarOuAtualizarChart('chartTodosEstados', {
+        type: 'bar',
+        data: { labels: cidadesTop.map(c => c[0]), datasets: [{ data: cidadesTop.map(c => c[1]), backgroundColor: CORES.blue, borderRadius: 4 }] },
+        options: { ...baseBarOptions(), indexAxis: 'y' }
+      });
     }
-  });
-
-  const serieVendas = datas.map(d => {
-    let soma = 0;
-    nomesProdutoHist.forEach(p => { soma += parseNumero((produtosHist[p][d] || {}).vendas_brutas) || 0; });
-    return soma;
-  });
-  const serieQtd = datas.map(d => {
-    let soma = 0;
-    nomesProdutoHist.forEach(p => { soma += parseNumero((produtosHist[p][d] || {}).quantidade_de_vendas) || 0; });
-    return soma;
-  });
-  const serieVisitas = datas.map(d => {
-    let soma = 0;
-    nomesProdutoHist.forEach(p => { soma += parseNumero((produtosHist[p][d] || {}).visitas) || 0; });
-    return soma;
-  });
-
-  let html = pillsHtml;
-  html += `<div class="kpi-row">
-    ${kpiCard('Vendas brutas (soma)', somaVendasHoje, somaVendasOntem, temOntem, 'R$ ', serieVendas)}
-    ${kpiCard('Quantidade de vendas (soma)', somaQtdHoje, somaQtdOntem, temOntem, '', serieQtd)}
-    ${kpiCard('Visitas (soma)', somaVisitasHoje, somaVisitasOntem, temOntem, '', serieVisitas)}
-  </div>`;
-
-  // monta uma estrutura produtosHist "efetiva" mesmo se só houver 1 dia
-  // (usa o snapshot atual como único dia, pra reaproveitar a mesma tabela)
-  let produtosHistEfetivo = produtosHist;
-  let datasEfetivas = datas;
-  let nomesProdutoEfetivo = nomesProdutoHist;
-  if (nomesProdutoHist.length === 0 && produtosAtuaisBrutos.length > 0) {
-    const hojeLabel = new Date().toISOString().slice(0, 10);
-    produtosHistEfetivo = {};
-    produtosAtuaisBrutos.forEach(p => {
-      const m = extrairMetricasSnapshot(p);
-      produtosHistEfetivo[m.nome] = { [hojeLabel]: m };
-    });
-    datasEfetivas = [hojeLabel];
-    nomesProdutoEfetivo = Object.keys(produtosHistEfetivo);
   }
 
-  let metricTabsHtml = '<div class="metric-tabs">';
-  METRICAS_CONCORRENTE.forEach(m => {
-    const ativo = m.key === metricaAtivaConcorrente ? ' active' : '';
-    metricTabsHtml += `<button class="${ativo}" data-metrica="${m.key}">${m.label}</button>`;
-  });
-  metricTabsHtml += '</div>';
+  // ---------- ABA TODOS ----------
+  async function carregarTodos() {
+    try {
+      const params = new URLSearchParams();
+      if (periodoAtual.de) params.set('de', periodoAtual.de);
+      if (periodoAtual.ate) params.set('ate', periodoAtual.ate);
+      const formaAtual = document.getElementById('filtroFormaEntrega').value;
+      if (formaAtual) params.set('forma_entrega', formaAtual);
+      // Não envia o filtro de estado ao servidor: buscamos sempre a lista
+      // completa (só período + forma de entrega) para o mapa poder mostrar
+      // a distribuição de TODOS os estados, mesmo com um estado selecionado.
+      // O filtro de estado é aplicado aqui no navegador.
 
-  const metricaAtual = METRICAS_CONCORRENTE.find(m => m.key === metricaAtivaConcorrente) || METRICAS_CONCORRENTE[0];
+      const resp = await fetch('/api/analytics-todos-data?' + params.toString());
+      const dados = await resp.json();
 
-  html += `<div class="table-card" style="background:transparent;border:none;">
-    <h3 style="background:none;border:none;padding:0 0 4px;">Produtos por dia — ${metricaAtual.label} · ordem cronológica</h3>
-    ${metricTabsHtml}
-    ${renderTabelaMetrica(nomesProdutoEfetivo, produtosHistEfetivo, datasEfetivas, metricaAtivaConcorrente)}
-  </div>`;
+      const select = document.getElementById('filtroFormaEntrega');
+      const valorSelecionado = select.value;
+      const opcoes = ['todas', ...(dados.formas_entrega_disponiveis || [])];
+      select.innerHTML = opcoes.map(o => `<option value="${o}">${o === 'todas' ? 'Todas' : o}</option>`).join('');
+      if (opcoes.includes(valorSelecionado)) select.value = valorSelecionado;
 
-  if (!temOntem) {
-    html += '<p style="color:var(--muted);font-size:0.82rem;margin-top:16px;">As setas de crescimento/queda em cada célula aparecem a partir do 2º dia de coleta.</p>';
+      const chip = document.getElementById('chipEstadoFiltro');
+      if (filtroEstado) {
+        chip.style.display = 'inline-block';
+        document.getElementById('chipEstadoNome').textContent = filtroEstado;
+      } else {
+        chip.style.display = 'none';
+      }
+
+      const pedidosCompletos = dados.pedidos || [];
+      const pedidos = filtroEstado ? pedidosCompletos.filter(p => p.estado === filtroEstado) : pedidosCompletos;
+
+      garantirGeoBrasil();
+      renderizarMapaBrasil(pedidosCompletos);
+
+      document.getElementById('todos-total').textContent = pedidos.length;
+      const media = ticketMedio(pedidos);
+      document.getElementById('todos-ticket-medio').textContent = media === null ? '-' : 'R$ ' + media.toFixed(2);
+
+      if (pedidos.length > 0) {
+        criarOuAtualizarChart('chartTodosHora', { type: 'bar', data: { labels: Array.from({ length: 24 }, (_, i) => i + 'h'), datasets: [{ data: agregarPorHora(pedidos), backgroundColor: CORES.teal, borderRadius: 4 }] }, options: baseBarOptions() });
+        const diasNomes = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+        criarOuAtualizarChart('chartTodosDiaSemana', { type: 'bar', data: { labels: diasNomes, datasets: [{ data: agregarPorDiaSemana(pedidos), backgroundColor: CORES.blue, borderRadius: 4 }] }, options: baseBarOptions() });
+        const porForma = contarPor(pedidos, 'forma_entrega');
+        criarOuAtualizarChart('chartTodosFormaEntrega', { type: 'doughnut', data: { labels: Object.keys(porForma), datasets: [{ data: Object.values(porForma), backgroundColor: PALETA_MULTI, borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } }, datalabels: { color: '#fff', font: { weight: 'bold', size: 11 }, formatter: (v) => v } } } });
+        const porLoja = contarPor(pedidos, 'conta');
+        criarOuAtualizarChart('chartTodosLoja', { type: 'doughnut', data: { labels: Object.keys(porLoja), datasets: [{ data: Object.values(porLoja), backgroundColor: PALETA_MULTI, borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } }, datalabels: { color: '#fff', font: { weight: 'bold', size: 11 }, formatter: (v) => v } } } });
+        renderizarGraficoEstadosOuCidades(pedidosCompletos, pedidos);
+
+        const itensTop = contarItens(pedidos, 10);
+        criarOuAtualizarChart('chartTodosItens', { type: 'bar', data: { labels: itensTop.map(i => i[0].length > 30 ? i[0].slice(0, 30) + '…' : i[0]), datasets: [{ data: itensTop.map(i => i[1]), backgroundColor: CORES.yellow, borderRadius: 4 }] }, options: { ...baseBarOptions(), indexAxis: 'y' } });
+      }
+
+      const tbodyTodos = document.getElementById('tabela-todos');
+      tbodyTodos.innerHTML = !pedidos.length
+        ? '<tr><td colspan="8" class="empty">Nenhum pedido encontrado no período/filtro.</td></tr>'
+        : pedidos.slice(0, 300).map(p => `<tr><td>${p.conta || '-'}</td><td>${p.order_id}</td><td>${new Date(p.date_created).toLocaleString('pt-BR')}</td><td>${p.forma_entrega || '-'}</td><td>${p.estado || '-'}</td><td>${p.cidade || '-'}</td><td>${p.total_amount ? 'R$ ' + Number(p.total_amount).toFixed(2) : '-'}</td><td>${(p.itens || []).map(i => `${i.quantidade}x ${i.titulo}`).join('<br>')}</td></tr>`).join('');
+    } catch (e) { /* silencioso */ }
   }
 
-  el.innerHTML = html;
+  function limparFiltroEstado() {
+    filtroEstado = null;
+    carregarTodos();
+  }
 
-  // Rola a tabela de histórico até o final (dia mais recente), em vez de
-  // deixar o usuário precisar arrastar do primeiro dia até o último.
-  el.querySelectorAll('.hist-table-wrap').forEach(wrap => {
-    wrap.scrollLeft = wrap.scrollWidth;
-  });
+  async function carregarAnalytics() {
+    try {
+      const params = new URLSearchParams();
+      if (periodoAtual.de) params.set('de', periodoAtual.de);
+      if (periodoAtual.ate) params.set('ate', periodoAtual.ate);
+      // A aba Flex agora lê do MESMO histórico unificado da aba "Todos os
+      // pedidos" (fixando o filtro de forma de entrega em Flex), em vez de
+      // um histórico separado — evita as duas fontes ficarem dessincronizadas.
+      params.set('forma_entrega', 'Mercado Envios Flex');
+      const resp = await fetch('/api/analytics-todos-data?' + params.toString());
+      const dados = await resp.json();
+      renderizarGraficosFlex(dados.pedidos || []);
+      const label = document.getElementById('periodoLabel');
+      if (dados.periodo) {
+        label.textContent = `Período: ${new Date(dados.periodo.de).toLocaleDateString('pt-BR')} até ${new Date(dados.periodo.ate).toLocaleDateString('pt-BR')}`;
+      }
+    } catch (e) { /* silencioso */ }
+  }
 
-  el.querySelectorAll('.comp-pills button').forEach(btn => {
-    btn.addEventListener('click', () => selecionarConcorrente(btn.dataset.nome));
-  });
-  el.querySelectorAll('.metric-tabs button').forEach(btn => {
-    btn.addEventListener('click', () => selecionarMetricaConcorrente(btn.dataset.metrica));
-  });
-}
+  async function carregar() {
+    try {
+      const resp = await fetch('/api/dashboard-data');
+      const dados = await resp.json();
+      const atualizadoEm = document.getElementById('atualizado-em');
+      atualizadoEm.textContent = dados.atualizado_em ? 'Última atualização: ' + new Date(dados.atualizado_em).toLocaleString('pt-BR') : (dados.aviso || 'Sem dados ainda.');
 
-loadData();
+      const pedidos = dados.pedidos || [];
+      document.getElementById('total-pedidos').textContent = pedidos.length;
+      document.getElementById('total-ml').textContent = pedidos.filter(p => p.marketplace === 'mercado_livre').length;
+      document.getElementById('total-shopee').textContent = pedidos.filter(p => p.marketplace === 'shopee').length;
+      const tbody = document.getElementById('tabela-pedidos');
+      tbody.innerHTML = !pedidos.length
+        ? '<tr><td colspan="6" class="empty">Nenhum pedido expresso encontrado no período.</td></tr>'
+        : pedidos.map(p => `<tr><td><span class="badge ${p.marketplace === 'mercado_livre' ? 'badge-ml' : 'badge-shopee'}">${p.marketplace === 'mercado_livre' ? 'Mercado Livre' : 'Shopee'}</span></td><td>${p.conta || p.loja || '-'}</td><td>${p.order_id}</td><td>${new Date(p.date_created).toLocaleString('pt-BR')}</td><td>${p.total_amount ? 'R$ ' + Number(p.total_amount).toFixed(2) : '-'}</td><td>${(p.itens || []).map(i => `${i.quantidade}x ${i.titulo}`).join('<br>')}</td></tr>`).join('');
+
+      const pedidosFlex = dados.pedidosFlex || [];
+      const tbodyFlex = document.getElementById('tabela-flex');
+      tbodyFlex.innerHTML = !pedidosFlex.length
+        ? '<tr><td colspan="6" class="empty">Nenhum pedido Flex no momento.</td></tr>'
+        : pedidosFlex.map(p => `<tr><td>${p.conta || '-'}</td><td>${p.order_id}</td><td>${new Date(p.date_created).toLocaleString('pt-BR')}</td><td>${p.total_amount ? 'R$ ' + Number(p.total_amount).toFixed(2) : '-'}</td><td>${(p.itens || []).map(i => `${i.quantidade}x ${i.titulo}`).join('<br>')}</td><td>${p.coletado ? '<span class="status-coletado">Coletado</span>' : '<span class="status-aguardando">Aguardando coleta</span>'}</td></tr>`).join('');
+    } catch (e) {
+      document.getElementById('atualizado-em').textContent = 'Erro ao carregar dados: ' + e.message;
+    }
+  }
+
+  inicializarPeriodoPadrao();
+  carregar();
+  carregarAnalytics();
+  setInterval(carregar, 30000);
+  setInterval(carregarAnalytics, 60000);
+
+  if (!TURBO_ATIVO) {
+    mudarAba('flex');
+  }
 </script>
-
 </body>
 </html>
