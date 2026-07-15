@@ -170,28 +170,36 @@
 
     <div class="grid">
       <div class="stat-card">
-        <div class="value" id="flex-total-atual">–</div>
-        <div class="label">Pedidos Flex ativos agora</div>
+        <div class="value" id="flex-total-periodo">–</div>
+        <div class="label">Total acumulado no período</div>
       </div>
       <div class="stat-card">
-        <div class="value status-coletado" id="flex-coletados-atual">–</div>
-        <div class="label">Coletados</div>
+        <div class="value status-coletado" id="flex-entregues">–</div>
+        <div class="label">Pedidos entregues</div>
       </div>
       <div class="stat-card">
-        <div class="value status-aguardando" id="flex-aguardando-atual">–</div>
-        <div class="label">Aguardando coleta</div>
+        <div class="value" id="flex-coletados-nao-entregues" style="color: var(--flex);">–</div>
+        <div class="label">Coletados e não entregues</div>
       </div>
       <div class="stat-card">
-        <div class="value" id="flex-hist-total">–</div>
-        <div class="label">Total no histórico acumulado</div>
+        <div class="value status-aguardando" id="flex-a-coletar">–</div>
+        <div class="label">Pedidos a coletar</div>
       </div>
       <div class="stat-card">
         <div class="value" id="flex-hist-ticket-medio">–</div>
-        <div class="label">Ticket médio (histórico)</div>
+        <div class="label">Ticket médio (período)</div>
       </div>
     </div>
 
-    <div class="secao-titulo">Análise do histórico acumulado (Flex)</div>
+    <div class="chart-card" style="margin-bottom: 24px;">
+      <h2>Risco de estouro do prazo de coleta (pedidos a coletar)</h2>
+      <div style="text-align: center; padding: 12px 0;">
+        <div id="flexGaugeValor" style="font-size: 40px; font-weight: 700;">0%</div>
+        <div id="flexGaugeRef" style="font-size: 13px; color: var(--muted); margin-top: 4px;">Nenhum pedido a coletar no momento</div>
+      </div>
+    </div>
+
+    <div class="secao-titulo">Análise do período (Flex)</div>
     <div class="grid-charts">
       <div class="chart-card">
         <h2>Pedidos Flex por horário do dia</h2>
@@ -227,6 +235,7 @@
     </table>
 
   </div>
+
 
 <script>
   const CORES = {
@@ -434,10 +443,49 @@
   // ---------- ABA FLEX ----------
 
   function renderizarGraficosFlex(pedidos) {
-    document.getElementById('flex-hist-total').textContent = pedidos.length;
+    document.getElementById('flex-total-periodo').textContent = pedidos.length;
+
+    const entregues = pedidos.filter(p => p.categoria === 'entregue');
+    const coletadosNaoEntregues = pedidos.filter(p => p.categoria === 'coletado');
+    const aCcoletar = pedidos.filter(p => p.categoria === 'aguardando' || !p.categoria);
+
+    document.getElementById('flex-entregues').textContent = entregues.length;
+    document.getElementById('flex-coletados-nao-entregues').textContent = coletadosNaoEntregues.length;
+    document.getElementById('flex-a-coletar').textContent = aCcoletar.length;
 
     const media = ticketMedio(pedidos);
     document.getElementById('flex-hist-ticket-medio').textContent = media === null ? '-' : 'R$ ' + media.toFixed(2);
+
+    // Velocímetro: risco de estouro do prazo de coleta, olhando o pedido
+    // "a coletar" mais próximo de estourar (maior fração do prazo consumida).
+    const PRAZO_COLETA_HORAS = 24; // mesmo valor assumido em lib/mlFlexOrders.js
+    const gaugeValorEl = document.getElementById('flexGaugeValor');
+    const gaugeRefEl = document.getElementById('flexGaugeRef');
+
+    if (aCcoletar.length === 0) {
+      gaugeValorEl.textContent = '0%';
+      gaugeValorEl.style.color = 'var(--ok)';
+      gaugeRefEl.textContent = 'Nenhum pedido a coletar no momento';
+    } else {
+      let piorFracao = 0;
+      let piorPedido = null;
+      const agora = Date.now();
+      aCcoletar.forEach(p => {
+        const horasDecorridas = (agora - new Date(p.date_created).getTime()) / (60 * 60 * 1000);
+        const fracao = Math.min(1.2, Math.max(0, horasDecorridas / PRAZO_COLETA_HORAS));
+        if (fracao > piorFracao) {
+          piorFracao = fracao;
+          piorPedido = p;
+        }
+      });
+      const percentual = Math.round(Math.min(100, piorFracao * 100));
+      gaugeValorEl.textContent = percentual + '%';
+      gaugeValorEl.style.color = percentual >= 80 ? 'var(--shopee)' : (percentual >= 55 ? 'var(--accent)' : 'var(--ok)');
+      gaugeRefEl.textContent = piorPedido
+        ? `Pedido #${piorPedido.order_id} — prazo de coleta mais apertado`
+        : '';
+    }
+
     if (pedidos.length === 0) return;
 
     criarOuAtualizarChart('chartFlexHora', {
@@ -537,9 +585,6 @@
       }
 
       const pedidosFlex = dados.pedidosFlex || [];
-      document.getElementById('flex-total-atual').textContent = pedidosFlex.length;
-      document.getElementById('flex-coletados-atual').textContent = pedidosFlex.filter(p => p.coletado).length;
-      document.getElementById('flex-aguardando-atual').textContent = pedidosFlex.filter(p => !p.coletado).length;
 
       const tbodyFlex = document.getElementById('tabela-flex');
       if (!pedidosFlex.length) {
