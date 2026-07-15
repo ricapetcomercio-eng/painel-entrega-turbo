@@ -6,6 +6,7 @@
 <title>Painel Entrega Flex/Turbo — Ricapet & Thapets</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3@7.8.5/dist/d3.min.js"></script>
 <style>
   :root {
     --bg: #f2f4f6;
@@ -266,6 +267,10 @@
           <option value="todas">Todas</option>
         </select>
       </label>
+      <span id="chipEstadoFiltro" style="display:none; background:var(--teal-light); color:#0F6E56; padding:4px 10px; border-radius:999px; font-weight:700; font-size:12px;">
+        Estado: <span id="chipEstadoNome"></span>
+        <button onclick="limparFiltroEstado()" style="background:none; border:none; color:#0F6E56; cursor:pointer; font-weight:700; margin-left:4px;">✕</button>
+      </span>
     </div>
 
     <div class="grid-stats">
@@ -303,6 +308,18 @@
       </div>
     </div>
 
+    <div class="secao-titulo">Mapa de pedidos por estado</div>
+    <div class="card" style="margin-bottom:24px;">
+      <div class="card-head">Clique num estado para filtrar</div>
+      <div class="card-body">
+        <div id="mapaBrasilWrap" style="position:relative;">
+          <div id="mapaBrasilLoading" style="text-align:center; padding:40px; color:var(--muted); font-size:13px;">Carregando mapa...</div>
+          <svg id="mapaBrasilSvg" viewBox="0 0 480 480" style="width:100%; max-width:480px; display:block; margin:0 auto;"></svg>
+          <div id="mapaBrasilLegenda" style="display:flex; align-items:center; gap:8px; justify-content:center; margin-top:8px; font-size:11px; color:var(--muted);"></div>
+        </div>
+      </div>
+    </div>
+
     <div class="secao-titulo">Pedidos (mais recentes primeiro, até 300 exibidos)</div>
     <table>
       <thead><tr><th>Conta/Loja</th><th>Pedido</th><th>Data</th><th>Forma de entrega</th><th>Valor</th><th>Itens</th></tr></thead>
@@ -327,6 +344,7 @@
 
   let charts = {};
   let periodoAtual = { de: null, ate: null };
+  let filtroEstado = null;
 
   function criarOuAtualizarChart(id, config) {
     if (typeof Chart === 'undefined') return;
@@ -543,6 +561,89 @@
     criarOuAtualizarChart('chartFlexItens', { type: 'bar', data: { labels: itensTop.map(i => i[0].length > 24 ? i[0].slice(0, 24) + '…' : i[0]), datasets: [{ data: itensTop.map(i => i[1]), backgroundColor: CORES.yellow, borderRadius: 4 }] }, options: { ...baseBarOptions(), indexAxis: 'y' } });
   }
 
+  // ---------- MAPA DO BRASIL (D3) ----------
+  let geoBrasilFeatures = null;
+  let geoBrasilCarregando = false;
+
+  async function garantirGeoBrasil() {
+    if (geoBrasilFeatures || geoBrasilCarregando) return;
+    geoBrasilCarregando = true;
+    try {
+      const resp = await fetch('https://raw.githubusercontent.com/codeforamerica/click_that_hood/master/public/data/brazil-states.geojson');
+      const geo = await resp.json();
+      geoBrasilFeatures = geo.features;
+      montarMapaBrasil();
+    } catch (e) {
+      document.getElementById('mapaBrasilLoading').textContent = 'Não foi possível carregar o mapa.';
+    } finally {
+      geoBrasilCarregando = false;
+    }
+  }
+
+  function montarMapaBrasil() {
+    if (typeof d3 === 'undefined' || !geoBrasilFeatures) return;
+    document.getElementById('mapaBrasilLoading').style.display = 'none';
+
+    const svg = d3.select('#mapaBrasilSvg');
+    svg.selectAll('*').remove();
+
+    const projection = d3.geoMercator().fitSize([480, 480], { type: 'FeatureCollection', features: geoBrasilFeatures });
+    const path = d3.geoPath(projection);
+
+    svg.selectAll('path')
+      .data(geoBrasilFeatures)
+      .join('path')
+      .attr('d', path)
+      .attr('data-estado', d => d.properties.name)
+      .attr('stroke', '#ffffff')
+      .attr('stroke-width', 1)
+      .attr('fill', '#eef0f2')
+      .style('cursor', 'pointer')
+      .append('title');
+
+    svg.selectAll('path').on('click', (evento, d) => {
+      const estadoClicado = d.properties.name;
+      filtroEstado = filtroEstado === estadoClicado ? null : estadoClicado;
+      carregarTodos();
+    });
+
+    renderizarMapaBrasil(ultimoPedidosParaMapa || []);
+  }
+
+  let ultimoPedidosParaMapa = [];
+
+  function renderizarMapaBrasil(pedidos) {
+    ultimoPedidosParaMapa = pedidos;
+    if (typeof d3 === 'undefined' || !geoBrasilFeatures) return;
+
+    const contagem = contarPor(pedidos, 'estado');
+    const valores = Object.values(contagem);
+    const max = valores.length ? Math.max(...valores) : 0;
+
+    const escalaCor = d3.scaleLinear().domain([0, max || 1]).range(['#d7f0ec', '#0F6E56']);
+
+    const svg = d3.select('#mapaBrasilSvg');
+    svg.selectAll('path')
+      .attr('fill', d => {
+        const qtd = contagem[d.properties.name] || 0;
+        return qtd === 0 ? '#eef0f2' : escalaCor(qtd);
+      })
+      .attr('stroke', d => filtroEstado === d.properties.name ? '#2d3436' : '#ffffff')
+      .attr('stroke-width', d => filtroEstado === d.properties.name ? 2.5 : 1)
+      .select('title')
+      .text(d => `${d.properties.name}: ${contagem[d.properties.name] || 0} pedidos`);
+
+    const legenda = document.getElementById('mapaBrasilLegenda');
+    if (max > 0) {
+      legenda.innerHTML = `
+        <span>0</span>
+        <span style="display:inline-block; width:80px; height:10px; background:linear-gradient(to right, #d7f0ec, #0F6E56); border-radius:4px;"></span>
+        <span>${max}</span>`;
+    } else {
+      legenda.innerHTML = '<span>Sem dados no período/filtro</span>';
+    }
+  }
+
   // ---------- ABA TODOS ----------
   async function carregarTodos() {
     try {
@@ -551,6 +652,10 @@
       if (periodoAtual.ate) params.set('ate', periodoAtual.ate);
       const formaAtual = document.getElementById('filtroFormaEntrega').value;
       if (formaAtual) params.set('forma_entrega', formaAtual);
+      // Não envia o filtro de estado ao servidor: buscamos sempre a lista
+      // completa (só período + forma de entrega) para o mapa poder mostrar
+      // a distribuição de TODOS os estados, mesmo com um estado selecionado.
+      // O filtro de estado é aplicado aqui no navegador.
 
       const resp = await fetch('/api/analytics-todos-data?' + params.toString());
       const dados = await resp.json();
@@ -561,7 +666,20 @@
       select.innerHTML = opcoes.map(o => `<option value="${o}">${o === 'todas' ? 'Todas' : o}</option>`).join('');
       if (opcoes.includes(valorSelecionado)) select.value = valorSelecionado;
 
-      const pedidos = dados.pedidos || [];
+      const chip = document.getElementById('chipEstadoFiltro');
+      if (filtroEstado) {
+        chip.style.display = 'inline-block';
+        document.getElementById('chipEstadoNome').textContent = filtroEstado;
+      } else {
+        chip.style.display = 'none';
+      }
+
+      const pedidosCompletos = dados.pedidos || [];
+      const pedidos = filtroEstado ? pedidosCompletos.filter(p => p.estado === filtroEstado) : pedidosCompletos;
+
+      garantirGeoBrasil();
+      renderizarMapaBrasil(pedidosCompletos);
+
       document.getElementById('todos-total').textContent = pedidos.length;
       const media = ticketMedio(pedidos);
       document.getElementById('todos-ticket-medio').textContent = media === null ? '-' : 'R$ ' + media.toFixed(2);
@@ -574,8 +692,23 @@
         criarOuAtualizarChart('chartTodosFormaEntrega', { type: 'doughnut', data: { labels: Object.keys(porForma), datasets: [{ data: Object.values(porForma), backgroundColor: PALETA_MULTI, borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } }, datalabels: { color: '#fff', font: { weight: 'bold', size: 11 }, formatter: (v) => v } } } });
         const porLoja = contarPor(pedidos, 'conta');
         criarOuAtualizarChart('chartTodosLoja', { type: 'doughnut', data: { labels: Object.keys(porLoja), datasets: [{ data: Object.values(porLoja), backgroundColor: PALETA_MULTI, borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } }, datalabels: { color: '#fff', font: { weight: 'bold', size: 11 }, formatter: (v) => v } } } });
-        const estadosTop = topN(contarPor(pedidos, 'estado'), 10);
-        criarOuAtualizarChart('chartTodosEstados', { type: 'bar', data: { labels: estadosTop.map(e => e[0]), datasets: [{ data: estadosTop.map(e => e[1]), backgroundColor: CORES.teal, borderRadius: 4 }] }, options: { ...baseBarOptions(), indexAxis: 'y' } });
+        const estadosTop = topN(contarPor(pedidosCompletos, 'estado'), 10);
+        criarOuAtualizarChart('chartTodosEstados', {
+          type: 'bar',
+          data: { labels: estadosTop.map(e => e[0]), datasets: [{ data: estadosTop.map(e => e[1]), backgroundColor: CORES.teal, borderRadius: 4 }] },
+          options: {
+            ...baseBarOptions(),
+            indexAxis: 'y',
+            onClick: (evt, elementos, chart) => {
+              if (!elementos.length) return;
+              const idx = elementos[0].index;
+              const estadoClicado = chart.data.labels[idx];
+              filtroEstado = filtroEstado === estadoClicado ? null : estadoClicado;
+              carregarTodos();
+            },
+            onHover: (evt, elementos) => { evt.native.target.style.cursor = elementos.length ? 'pointer' : 'default'; }
+          }
+        });
         const itensTop = contarItens(pedidos, 10);
         criarOuAtualizarChart('chartTodosItens', { type: 'bar', data: { labels: itensTop.map(i => i[0].length > 30 ? i[0].slice(0, 30) + '…' : i[0]), datasets: [{ data: itensTop.map(i => i[1]), backgroundColor: CORES.yellow, borderRadius: 4 }] }, options: { ...baseBarOptions(), indexAxis: 'y' } });
       }
@@ -585,6 +718,11 @@
         ? '<tr><td colspan="6" class="empty">Nenhum pedido encontrado no período/filtro.</td></tr>'
         : pedidos.slice(0, 300).map(p => `<tr><td>${p.conta || '-'}</td><td>${p.order_id}</td><td>${new Date(p.date_created).toLocaleString('pt-BR')}</td><td>${p.forma_entrega || '-'}</td><td>${p.total_amount ? 'R$ ' + Number(p.total_amount).toFixed(2) : '-'}</td><td>${(p.itens || []).map(i => `${i.quantidade}x ${i.titulo}`).join('<br>')}</td></tr>`).join('');
     } catch (e) { /* silencioso */ }
+  }
+
+  function limparFiltroEstado() {
+    filtroEstado = null;
+    carregarTodos();
   }
 
   async function carregarAnalytics() {
