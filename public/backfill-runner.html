@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Backfill automático — uso único</title>
+<style>
+  :root {
+    --bg: #0f1117; --card: #171a23; --border: #262b38; --text: #e6e8ec;
+    --muted: #8a90a2; --ok: #17b897; --err: #e53e3e;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg); color: var(--text); padding: 24px; max-width: 720px;
+  }
+  h1 { font-size: 20px; }
+  p { color: var(--muted); font-size: 14px; line-height: 1.5; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-top: 20px; }
+  label { display: block; margin-bottom: 6px; font-size: 13px; color: var(--muted); }
+  select, input[type="text"], input[type="number"] {
+    width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text);
+    border-radius: 6px; padding: 8px; margin-bottom: 16px; font-size: 14px;
+  }
+  button {
+    background: var(--ok); color: #06251d; border: none; border-radius: 8px;
+    padding: 10px 20px; font-weight: 700; cursor: pointer; font-size: 14px;
+  }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .barra-wrap { background: var(--bg); border-radius: 8px; height: 22px; margin: 16px 0; overflow: hidden; border: 1px solid var(--border); }
+  .barra { background: var(--ok); height: 100%; width: 0%; transition: width 0.3s; }
+  #log { white-space: pre-wrap; font-family: monospace; font-size: 12px; margin-top: 16px; color: var(--muted); max-height: 300px; overflow-y: auto; }
+  #log .ok { color: var(--ok); }
+  #log .err { color: var(--err); }
+</style>
+</head>
+<body>
+  <h1>Backfill automático do histórico (uso único)</h1>
+  <p>
+    Essa página chama o endpoint de backfill repetidamente, sozinha, até
+    processar todos os pedidos do período. Pode fechar e reabrir a página
+    se parar no meio — ela continua de onde parou perguntando pelo offset,
+    mas o mais simples é só deixar rodando até o fim.
+  </p>
+
+  <div class="card">
+    <label>Tipo de backfill</label>
+    <select id="tipo">
+      <option value="todos">Todos os pedidos (qualquer forma de entrega)</option>
+      <option value="flex">Somente Flex</option>
+    </select>
+
+    <label>Conta / loja</label>
+    <select id="conta">
+      <option value="ricapet">ricapet</option>
+      <option value="thapets">thapets</option>
+    </select>
+
+    <label>Dias retroativos</label>
+    <input type="number" id="dias" value="30" />
+
+    <label>CRON_SECRET</label>
+    <input type="text" id="secret" placeholder="cole aqui o secret" />
+
+    <label>Offset inicial (deixe 0 se for a primeira vez)</label>
+    <input type="number" id="offsetInicial" value="0" />
+
+    <button id="btnIniciar">Iniciar backfill automático</button>
+    <button id="btnParar" disabled style="background: var(--err); margin-left: 8px;">Parar</button>
+
+    <div class="barra-wrap"><div class="barra" id="barra"></div></div>
+    <div id="statusTexto" style="font-size: 13px; color: var(--muted);"></div>
+
+    <div id="log"></div>
+  </div>
+
+<script>
+  let parar = false;
+
+  function log(msg, cls) {
+    const el = document.getElementById('log');
+    const div = document.createElement('div');
+    if (cls) div.className = cls;
+    div.textContent = msg;
+    el.appendChild(div);
+    el.scrollTop = el.scrollHeight;
+  }
+
+  document.getElementById('btnParar').addEventListener('click', () => {
+    parar = true;
+  });
+
+  document.getElementById('btnIniciar').addEventListener('click', async () => {
+    const tipo = document.getElementById('tipo').value;
+    const conta = document.getElementById('conta').value;
+    const dias = document.getElementById('dias').value;
+    const secret = document.getElementById('secret').value.trim();
+    let offset = parseInt(document.getElementById('offsetInicial').value, 10) || 0;
+
+    if (!secret) { log('Preencha o CRON_SECRET.', 'err'); return; }
+
+    const endpoint = tipo === 'flex' ? '/api/backfill-flex-api' : '/api/backfill-todos-api';
+
+    document.getElementById('log').innerHTML = '';
+    document.getElementById('btnIniciar').disabled = true;
+    document.getElementById('btnParar').disabled = false;
+    parar = false;
+
+    let totalEstimado = null;
+    let rodadas = 0;
+
+    log(`Iniciando backfill "${tipo}" para ${conta}, últimos ${dias} dias...`);
+
+    while (!parar) {
+      rodadas++;
+      const url = `${endpoint}?secret=${encodeURIComponent(secret)}&conta=${conta}&dias=${dias}&offset=${offset}`;
+      let dados;
+      try {
+        const resp = await fetch(url);
+        dados = await resp.json();
+        if (!resp.ok) {
+          log(`Erro na rodada ${rodadas}: ${JSON.stringify(dados)}`, 'err');
+          break;
+        }
+      } catch (err) {
+        log(`Erro de rede na rodada ${rodadas}: ${err.message}`, 'err');
+        break;
+      }
+
+      if (totalEstimado === null) totalEstimado = dados.total_estimado;
+
+      log(`Rodada ${rodadas}: processados ${dados.processados_nesta_execucao}, offset agora em ${dados.offset_processado_ate} / ${totalEstimado}`);
+
+      const pct = totalEstimado > 0 ? Math.min(100, Math.round((dados.offset_processado_ate / totalEstimado) * 100)) : 0;
+      document.getElementById('barra').style.width = pct + '%';
+      document.getElementById('statusTexto').textContent = `${dados.offset_processado_ate} / ${totalEstimado} (${pct}%)`;
+
+      if (dados.done) {
+        log('Concluído! Backfill terminado.', 'ok');
+        break;
+      }
+
+      offset = dados.next_offset;
+      // pequena pausa entre chamadas, gentileza com a API do ML
+      await new Promise(r => setTimeout(r, 300));
+    }
+
+    if (parar) log('Parado manualmente. Anote o offset atual para continuar depois, se quiser.', 'err');
+
+    document.getElementById('btnIniciar').disabled = false;
+    document.getElementById('btnParar').disabled = true;
+  });
+</script>
+</body>
+</html>
