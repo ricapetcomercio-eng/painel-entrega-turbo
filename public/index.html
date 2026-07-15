@@ -36,6 +36,23 @@
   }
   .aba-btn.ativa { color: var(--text); border-bottom: 2px solid var(--accent); }
   .aba-btn.ativa.flex-ativa { border-bottom-color: var(--flex); }
+  .periodo-controle {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    margin-bottom: 20px; padding: 10px 14px; background: var(--card);
+    border: 1px solid var(--border); border-radius: 10px; font-size: 12px;
+  }
+  .periodo-controle label { color: var(--muted); display: flex; align-items: center; gap: 4px; }
+  .periodo-controle input[type="date"] {
+    background: var(--bg); border: 1px solid var(--border); color: var(--text);
+    border-radius: 6px; padding: 4px 6px; font-size: 12px;
+  }
+  .periodo-btn {
+    background: var(--bg); border: 1px solid var(--border); color: var(--muted);
+    border-radius: 6px; padding: 5px 10px; font-size: 12px; cursor: pointer;
+  }
+  .periodo-btn.periodo-ativo { color: var(--text); border-color: var(--accent); }
+  .periodo-aplicar { color: var(--text); border-color: var(--ok); }
+  .periodo-label { color: var(--muted); margin-left: auto; }
   .oculto { display: none; }
   .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px; }
   .grid-charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 16px; margin-bottom: 24px; }
@@ -64,6 +81,17 @@
   <div class="abas">
     <button class="aba-btn ativa" id="abaBtnTurbo" onclick="mudarAba('turbo')">Turbo / Expressa</button>
     <button class="aba-btn" id="abaBtnFlex" onclick="mudarAba('flex')">Flex</button>
+  </div>
+
+  <div class="periodo-controle">
+    <button class="periodo-btn" onclick="definirPeriodo('mes')">Este mês</button>
+    <button class="periodo-btn" onclick="definirPeriodo('7dias')">Últimos 7 dias</button>
+    <button class="periodo-btn" onclick="definirPeriodo('30dias')">Últimos 30 dias</button>
+    <button class="periodo-btn" onclick="definirPeriodo('tudo')">Tudo</button>
+    <label>De <input type="date" id="periodoDe"></label>
+    <label>Até <input type="date" id="periodoAte"></label>
+    <button class="periodo-btn periodo-aplicar" onclick="aplicarPeriodoManual()">Aplicar</button>
+    <span id="periodoLabel" class="periodo-label"></span>
   </div>
 
   <!-- ABA: TURBO / EXPRESSA -->
@@ -209,6 +237,38 @@
   Chart.defaults.font.size = 11;
 
   let charts = {};
+
+  let periodoAtual = { de: null, ate: null };
+
+  function formatarDataInput(d) {
+    return d.toISOString().slice(0, 10);
+  }
+
+  function definirPeriodo(tipo) {
+    const hoje = new Date();
+    let de;
+    if (tipo === 'mes') {
+      de = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    } else if (tipo === '7dias') {
+      de = new Date(hoje.getTime() - 7 * 24 * 60 * 60 * 1000);
+    } else if (tipo === '30dias') {
+      de = new Date(hoje.getTime() - 30 * 24 * 60 * 60 * 1000);
+    } else {
+      de = new Date(2020, 0, 1); // "tudo" — bem no passado
+    }
+    document.getElementById('periodoDe').value = formatarDataInput(de);
+    document.getElementById('periodoAte').value = formatarDataInput(hoje);
+    document.querySelectorAll('.periodo-btn').forEach(b => b.classList.remove('periodo-ativo'));
+    event.target.classList.add('periodo-ativo');
+    aplicarPeriodoManual();
+  }
+
+  function aplicarPeriodoManual() {
+    const de = document.getElementById('periodoDe').value;
+    const ate = document.getElementById('periodoAte').value;
+    periodoAtual = { de, ate };
+    carregarAnalytics();
+  }
 
   function mudarAba(aba) {
     const painelTurbo = document.getElementById('painelTurbo');
@@ -413,10 +473,20 @@
 
   async function carregarAnalytics() {
     try {
-      const resp = await fetch('/api/analytics-data');
+      const params = new URLSearchParams();
+      if (periodoAtual.de) params.set('de', periodoAtual.de);
+      if (periodoAtual.ate) params.set('ate', periodoAtual.ate);
+      const resp = await fetch('/api/analytics-data?' + params.toString());
       const dados = await resp.json();
       renderizarGraficosTurbo(dados.pedidos || []);
       renderizarGraficosFlex(dados.pedidosFlex || []);
+
+      const label = document.getElementById('periodoLabel');
+      if (dados.periodo) {
+        const de = new Date(dados.periodo.de).toLocaleDateString('pt-BR');
+        const ate = new Date(dados.periodo.ate).toLocaleDateString('pt-BR');
+        label.textContent = `Período: ${de} até ${ate}`;
+      }
     } catch (e) {
       // silencioso — se falhar, os cards/gráficos simplesmente não atualizam
     }
@@ -478,6 +548,16 @@
     }
   }
 
+  function inicializarPeriodoPadrao() {
+    const hoje = new Date();
+    const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    document.getElementById('periodoDe').value = formatarDataInput(inicioMes);
+    document.getElementById('periodoAte').value = formatarDataInput(hoje);
+    periodoAtual = { de: formatarDataInput(inicioMes), ate: formatarDataInput(hoje) };
+    document.querySelectorAll('.periodo-btn')[0].classList.add('periodo-ativo');
+  }
+
+  inicializarPeriodoPadrao();
   carregar();
   carregarAnalytics();
   setInterval(carregar, 30000); // atualiza a cada 30s - só lê Redis, é barato (CPU ~zero por chamada)
