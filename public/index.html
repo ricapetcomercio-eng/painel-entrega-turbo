@@ -182,6 +182,7 @@
   </div>
 
   <div class="periodo-controle">
+    <button class="periodo-btn" onclick="definirUltimas24h(event)">Últimas 24 horas</button>
     <button class="periodo-btn" onclick="definirPeriodo('mes', event)">Este mês</button>
     <button class="periodo-btn" onclick="definirPeriodo('7dias', event)">Últimos 7 dias</button>
     <button class="periodo-btn" onclick="definirPeriodo('30dias', event)">Últimos 30 dias</button>
@@ -562,6 +563,24 @@
     document.querySelectorAll('.periodo-btn').forEach(b => b.classList.remove('periodo-ativo'));
     if (evt && evt.target) evt.target.classList.add('periodo-ativo');
     buscarComPeriodoAtual();
+  }
+
+  function definirUltimas24h(evt) {
+    const agora = new Date();
+    const desde = new Date(agora.getTime() - 24 * 60 * 60 * 1000);
+    // Envia timestamp completo (com hora) para o back-end, em vez de só a
+    // data — assim a janela é rolante de verdade (últimas 24h a partir de
+    // agora), igual ao filtro "Últimas 24 horas" do próprio Mercado Livre,
+    // em vez de arredondar para o dia calendário inteiro.
+    periodoAtual = { de: desde.toISOString(), ate: agora.toISOString() };
+    // Os campos de data só guardam dia (sem hora), então aqui é só um
+    // reflexo aproximado visual — a janela real usada na busca é a de cima.
+    document.getElementById('periodoDe').value = formatarDataInput(desde);
+    document.getElementById('periodoAte').value = formatarDataInput(agora);
+    document.querySelectorAll('.periodo-btn').forEach(b => b.classList.remove('periodo-ativo'));
+    if (evt && evt.target) evt.target.classList.add('periodo-ativo');
+    carregarAnalytics();
+    carregarTodos();
   }
 
   function limparDestaquePeriodo() {
