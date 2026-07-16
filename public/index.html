@@ -182,8 +182,8 @@
   </div>
 
   <div class="periodo-controle">
-    <button class="periodo-btn" onclick="definirUltimas24h(event)">Últimas 24 horas</button>
-    <button class="periodo-btn" onclick="definirPeriodo('mes', event)">Este mês</button>
+    <button class="periodo-btn" id="btnUltimas24h" onclick="definirUltimas24h(event)">Últimas 24 horas</button>
+    <button class="periodo-btn" id="btnEsteMes" onclick="definirPeriodo('mes', event)">Este mês</button>
     <button class="periodo-btn" onclick="definirPeriodo('7dias', event)">Últimos 7 dias</button>
     <button class="periodo-btn" onclick="definirPeriodo('30dias', event)">Últimos 30 dias</button>
     <button class="periodo-btn" onclick="definirPeriodo('tudo', event)">Tudo</button>
@@ -604,12 +604,14 @@
   }
 
   function inicializarPeriodoPadrao() {
-    const hoje = new Date();
-    const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
-    document.getElementById('periodoDe').value = formatarDataInput(inicioMes);
-    document.getElementById('periodoAte').value = formatarDataInput(hoje);
-    periodoAtual = { de: formatarDataInput(inicioMes), ate: formatarDataInput(hoje) };
-    document.querySelectorAll('.periodo-btn')[0].classList.add('periodo-ativo');
+    // Abre sempre em "Últimas 24 horas" — janela rolante (agora menos 24h),
+    // igual ao filtro padrão que o Mercado Livre usa, para comparação direta.
+    const agora = new Date();
+    const desde = new Date(agora.getTime() - 24 * 60 * 60 * 1000);
+    document.getElementById('periodoDe').value = formatarDataInput(desde);
+    document.getElementById('periodoAte').value = formatarDataInput(agora);
+    periodoAtual = { de: desde.toISOString(), ate: agora.toISOString() };
+    document.getElementById('btnUltimas24h').classList.add('periodo-ativo');
   }
 
   // ---------- ABA FLEX ----------
