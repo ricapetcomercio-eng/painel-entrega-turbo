@@ -171,9 +171,9 @@
   <div class="subtitle" id="atualizado-em">Carregando...</div>
 
   <div class="abas">
-    <button class="aba-btn ativa" id="abaBtnTurbo" onclick="mudarAba('turbo')">Turbo / Expressa</button>
-    <button class="aba-btn" id="abaBtnFlex" onclick="mudarAba('flex')">Flex</button>
     <button class="aba-btn" id="abaBtnTodos" onclick="mudarAba('todos')">Todos os pedidos</button>
+    <button class="aba-btn" id="abaBtnFlex" onclick="mudarAba('flex')">Flex</button>
+    <button class="aba-btn ativa" id="abaBtnTurbo" onclick="mudarAba('turbo')">Turbo / Expressa</button>
   </div>
 
   <div class="periodo-controle">
@@ -936,9 +936,7 @@
   setInterval(carregar, 30000);
   setInterval(carregarAnalytics, 60000);
 
-  if (!TURBO_ATIVO) {
-    mudarAba('flex');
-  }
+  mudarAba('todos');
 </script>
 </body>
 </html>
