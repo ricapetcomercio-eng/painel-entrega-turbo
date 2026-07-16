@@ -7,6 +7,7 @@
 
 const crypto = require('crypto');
 const { getRedis } = require('../lib/redis');
+const { fetchViaFixie } = require('../lib/shopeeAuth');
 
 const AMBIENTE = (process.env.SHOPEE_AMBIENTE || 'sandbox').toLowerCase();
 const HOST = AMBIENTE === 'producao'
@@ -45,7 +46,7 @@ module.exports = async (req, res) => {
 
     const url = `${HOST}${path}?partner_id=${partnerId}&timestamp=${timestamp}&sign=${sign}`;
 
-    const resp = await fetch(url, {
+    const resp = await fetchViaFixie(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
