@@ -883,19 +883,22 @@
       const media = ticketMedio(pedidos);
       document.getElementById('todos-ticket-medio').textContent = media === null ? '-' : 'R$ ' + media.toFixed(2);
 
-      if (pedidos.length > 0) {
-        criarOuAtualizarChart('chartTodosHora', { type: 'bar', data: { labels: Array.from({ length: 24 }, (_, i) => i + 'h'), datasets: [{ data: agregarPorHora(pedidos), backgroundColor: CORES.teal, borderRadius: 4 }] }, options: baseBarOptions() });
-        const diasNomes = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-        criarOuAtualizarChart('chartTodosDiaSemana', { type: 'bar', data: { labels: diasNomes, datasets: [{ data: agregarPorDiaSemana(pedidos), backgroundColor: CORES.blue, borderRadius: 4 }] }, options: baseBarOptions() });
-        const porForma = contarPor(pedidos, 'forma_entrega');
-        criarOuAtualizarChart('chartTodosFormaEntrega', { type: 'doughnut', data: { labels: Object.keys(porForma), datasets: [{ data: Object.values(porForma), backgroundColor: PALETA_MULTI, borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } }, datalabels: { color: '#fff', font: { weight: 'bold', size: 11 }, formatter: (v) => v } } } });
-        const porLoja = contarPor(pedidos, 'conta');
-        criarOuAtualizarChart('chartTodosLoja', { type: 'doughnut', data: { labels: Object.keys(porLoja), datasets: [{ data: Object.values(porLoja), backgroundColor: PALETA_MULTI, borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } }, datalabels: { color: '#fff', font: { weight: 'bold', size: 11 }, formatter: (v) => v } } } });
-        renderizarGraficoEstadosOuCidades(pedidosCompletos, pedidos);
+      // Sempre redesenha os gráficos com os dados do filtro atual — mesmo
+      // que vazios. Antes, quando o período filtrado não tinha nenhum
+      // pedido, os gráficos ficavam com os dados do filtro ANTERIOR na
+      // tela (sobra visual), dando a falsa impressão de que "Total: 0"
+      // coexistia com centenas de pedidos nos gráficos.
+      criarOuAtualizarChart('chartTodosHora', { type: 'bar', data: { labels: Array.from({ length: 24 }, (_, i) => i + 'h'), datasets: [{ data: agregarPorHora(pedidos), backgroundColor: CORES.teal, borderRadius: 4 }] }, options: baseBarOptions() });
+      const diasNomes = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+      criarOuAtualizarChart('chartTodosDiaSemana', { type: 'bar', data: { labels: diasNomes, datasets: [{ data: agregarPorDiaSemana(pedidos), backgroundColor: CORES.blue, borderRadius: 4 }] }, options: baseBarOptions() });
+      const porForma = contarPor(pedidos, 'forma_entrega');
+      criarOuAtualizarChart('chartTodosFormaEntrega', { type: 'doughnut', data: { labels: Object.keys(porForma), datasets: [{ data: Object.values(porForma), backgroundColor: PALETA_MULTI, borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } }, datalabels: { color: '#fff', font: { weight: 'bold', size: 11 }, formatter: (v) => v } } } });
+      const porLoja = contarPor(pedidos, 'conta');
+      criarOuAtualizarChart('chartTodosLoja', { type: 'doughnut', data: { labels: Object.keys(porLoja), datasets: [{ data: Object.values(porLoja), backgroundColor: PALETA_MULTI, borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } }, datalabels: { color: '#fff', font: { weight: 'bold', size: 11 }, formatter: (v) => v } } } });
+      renderizarGraficoEstadosOuCidades(pedidosCompletos, pedidos);
 
-        const itensTop = contarItens(pedidos, 10);
-        criarOuAtualizarChart('chartTodosItens', { type: 'bar', data: { labels: itensTop.map(i => i[0].length > 30 ? i[0].slice(0, 30) + '…' : i[0]), datasets: [{ data: itensTop.map(i => i[1]), backgroundColor: CORES.yellow, borderRadius: 4 }] }, options: { ...baseBarOptions(), indexAxis: 'y' } });
-      }
+      const itensTop = contarItens(pedidos, 10);
+      criarOuAtualizarChart('chartTodosItens', { type: 'bar', data: { labels: itensTop.map(i => i[0].length > 30 ? i[0].slice(0, 30) + '…' : i[0]), datasets: [{ data: itensTop.map(i => i[1]), backgroundColor: CORES.yellow, borderRadius: 4 }] }, options: { ...baseBarOptions(), indexAxis: 'y' } });
 
       const tbodyTodos = document.getElementById('tabela-todos');
       tbodyTodos.innerHTML = !pedidos.length
