@@ -48,6 +48,7 @@
     <select id="tipo">
       <option value="todos">Todos os pedidos (qualquer forma de entrega)</option>
       <option value="flex">Somente Flex</option>
+      <option value="shopee-todos">Shopee - Todos os pedidos</option>
     </select>
 
     <label>Conta / loja</label>
@@ -62,8 +63,8 @@
     <label>CRON_SECRET</label>
     <input type="text" id="secret" placeholder="cole aqui o secret" />
 
-    <label>Offset inicial (deixe 0 se for a primeira vez)</label>
-    <input type="number" id="offsetInicial" value="0" />
+    <label>Offset inicial (deixe em branco/0 se for a primeira vez — para Shopee, aqui vai o "cursor" retornado)</label>
+    <input type="text" id="offsetInicial" value="0" />
 
     <label>Dia inicial (deixe 0 se for a primeira vez)</label>
     <input type="number" id="diaInicial" value="0" />
@@ -98,12 +99,13 @@
     const conta = document.getElementById('conta').value;
     const dias = document.getElementById('dias').value;
     const secret = document.getElementById('secret').value.trim();
-    let offset = parseInt(document.getElementById('offsetInicial').value, 10) || 0;
+    let offsetRaw = document.getElementById('offsetInicial').value.trim();
+    let offset = tipo === 'shopee-todos' ? offsetRaw : (parseInt(offsetRaw, 10) || 0);
     let dia = parseInt(document.getElementById('diaInicial').value, 10) || 0;
 
     if (!secret) { log('Preencha o CRON_SECRET.', 'err'); return; }
 
-    const endpoint = tipo === 'flex' ? '/api/backfill-flex-api' : '/api/backfill-todos-api';
+    const endpoint = tipo === 'flex' ? '/api/backfill-flex-api' : tipo === 'shopee-todos' ? '/api/backfill-shopee-todos' : '/api/backfill-todos-api';
 
     document.getElementById('log').innerHTML = '';
     document.getElementById('btnIniciar').disabled = true;
