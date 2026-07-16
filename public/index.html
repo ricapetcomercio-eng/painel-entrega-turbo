@@ -895,7 +895,16 @@
       criarOuAtualizarChart('chartTodosDiaSemana', { type: 'bar', data: { labels: diasNomes, datasets: [{ data: agregarPorDiaSemana(pedidos), backgroundColor: CORES.blue, borderRadius: 4 }] }, options: baseBarOptions() });
       const porForma = contarPor(pedidos, 'forma_entrega');
       criarOuAtualizarChart('chartTodosFormaEntrega', { type: 'doughnut', data: { labels: Object.keys(porForma), datasets: [{ data: Object.values(porForma), backgroundColor: PALETA_MULTI, borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } }, datalabels: { color: '#fff', font: { weight: 'bold', size: 11 }, formatter: (v) => v } } } });
-      const porLoja = contarPor(pedidos, 'conta');
+      // "conta" sozinho não distingue Mercado Livre de Shopee (as duas usam
+      // o mesmo nome de loja, ex: "thapets"), então o gráfico misturava os
+      // dois marketplaces numa fatia só. Aqui juntamos loja + marketplace
+      // só para esse gráfico específico, sem alterar o campo original.
+      const rotuloMarketplace = { mercado_livre: 'Mercado Livre', shopee: 'Shopee' };
+      const pedidosComLojaEMarketplace = pedidos.map(p => ({
+        ...p,
+        conta_marketplace: `${p.conta || '-'} · ${rotuloMarketplace[p.marketplace] || p.marketplace || '-'}`,
+      }));
+      const porLoja = contarPor(pedidosComLojaEMarketplace, 'conta_marketplace');
       criarOuAtualizarChart('chartTodosLoja', { type: 'doughnut', data: { labels: Object.keys(porLoja), datasets: [{ data: Object.values(porLoja), backgroundColor: PALETA_MULTI, borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } }, datalabels: { color: '#fff', font: { weight: 'bold', size: 11 }, formatter: (v) => v } } } });
       renderizarGraficoEstadosOuCidades(pedidosCompletos, pedidos);
 
@@ -905,7 +914,7 @@
       const tbodyTodos = document.getElementById('tabela-todos');
       tbodyTodos.innerHTML = !pedidos.length
         ? '<tr><td colspan="8" class="empty">Nenhum pedido encontrado no período/filtro.</td></tr>'
-        : pedidos.slice(0, 300).map(p => `<tr><td>${p.conta || '-'}</td><td>${p.order_id}</td><td>${new Date(p.date_created).toLocaleString('pt-BR')}</td><td>${p.forma_entrega || '-'}</td><td>${p.estado || '-'}</td><td>${p.cidade || '-'}</td><td>${p.total_amount ? 'R$ ' + Number(p.total_amount).toFixed(2) : '-'}</td><td>${(p.itens || []).map(i => `${i.quantidade}x ${i.titulo}`).join('<br>')}</td></tr>`).join('');
+        : pedidos.slice(0, 300).map(p => `<tr><td>${p.conta || '-'}<br><span style="color:var(--muted);font-size:11px;">${p.marketplace === 'mercado_livre' ? 'Mercado Livre' : p.marketplace === 'shopee' ? 'Shopee' : '-'}</span></td><td>${p.order_id}</td><td>${new Date(p.date_created).toLocaleString('pt-BR')}</td><td>${p.forma_entrega || '-'}</td><td>${p.estado || '-'}</td><td>${p.cidade || '-'}</td><td>${p.total_amount ? 'R$ ' + Number(p.total_amount).toFixed(2) : '-'}</td><td>${(p.itens || []).map(i => `${i.quantidade}x ${i.titulo}`).join('<br>')}</td></tr>`).join('');
     } catch (e) { /* silencioso */ }
   }
 
