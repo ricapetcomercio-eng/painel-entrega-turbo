@@ -22,10 +22,21 @@ function calcularIntervaloPadrao() {
   return { de: inicioMes, ate: agora };
 }
 
+function parseData(valor, horaPadrao) {
+  if (!valor) return null;
+  // Se já vier com hora embutida (ex: "2026-07-16T11:58:00.000Z"), é uma
+  // janela rolante (como "últimas 24 horas") — usa exatamente como veio,
+  // sem arredondar para início/fim do dia.
+  if (valor.includes('T')) return new Date(valor);
+  // Caso contrário, é só uma data (YYYY-MM-DD) — comportamento original,
+  // dia inteiro (00:00:00 até 23:59:59).
+  return new Date(valor + horaPadrao);
+}
+
 function parseIntervalo(query) {
   if (!query.de && !query.ate) return calcularIntervaloPadrao();
-  const de = query.de ? new Date(query.de + 'T00:00:00') : new Date(0);
-  const ate = query.ate ? new Date(query.ate + 'T23:59:59') : new Date();
+  const de = parseData(query.de, 'T00:00:00') || new Date(0);
+  const ate = parseData(query.ate, 'T23:59:59') || new Date();
   return { de, ate };
 }
 
