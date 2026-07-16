@@ -6,16 +6,16 @@
 // Faz o trabalho pesado (chama ML e Shopee, processa) e grava o resultado
 // pronto no Redis. O painel (dashboard-data.js) só lê esse resultado.
 //
-// IMPORTANTE (histórico de bug): antes, o Flex era reprocessado do zero a
-// cada execução (janela de 48h inteira, pedido por pedido) — com muitos
-// pedidos na janela, o orçamento de tempo estourava antes de terminar,
-// descartando pedidos silenciosamente (pareciam "sumir" do painel).
-// Agora a estratégia é:
-//   1) buscar só os pedidos NOVOS desde a última execução (rápido);
-//   2) reverificar só os pedidos que AINDA estavam "aguardando" na última
-//      leitura (grupo bem menor que a janela inteira);
-//   3) montar o snapshot ao vivo lendo do próprio histórico já salvo no
-//      Redis (barato), em vez de rebuscar tudo na API do ML de novo.
+// HISTÓRICO DE BUGS JÁ CORRIGIDOS (pra não repetir):
+//   1) Reprocessar a janela de 48h inteira a cada execução estourava o
+//      tempo e descartava pedidos silenciosamente.
+//   2) A correção incremental (só pedidos novos) não guardava o PROGRESSO
+//      entre execuções — sempre recomeçava do zero e nunca avançava se a
+//      janela inicial fosse maior que o orçamento de tempo de uma execução.
+//   3) Processar um pedido de cada vez (com pausa) era seguro contra rate
+//      limit, mas devagar demais pro volume real — pedidos novos chegavam
+//      mais rápido do que conseguíamos processar. Agora processa em LOTES
+//      PARALELOS (várias chamadas ao mesmo tempo, com pausa entre lotes).
 
 const { getRedis } = require('../lib/redis');
 const { SELLER_IDS } = require('../lib/mlOrders');
@@ -28,17 +28,34 @@ const { registrarHistoricoTodos } = require('../lib/historicoTodos');
 const HORAS_RETROATIVAS = 6; // janela de busca padrão (Shopee Turbo)
 const HORAS_JANELA_FLEX = 48; // "coleta só amanhã" — precisa de folga
 
-// Intervalo mínimo entre execuções reais, mesmo que a rota seja chamada
-// com mais frequência (ex: 2 schedulers disparando quase juntos, ou teste
-// manual repetido). Protege o teto de CPU do Vercel independente de quem
-// ou quantas vezes chamar a rota.
 const INTERVALO_MINIMO_MS = 2 * 60 * 1000; // 2 minutos
 
-// Histórico do Turbo (Shopee) — lista simples, congela no 1º status visto
-// (aceitável: Shopee ainda não está com Turbo funcionando de verdade).
 const LIMITE_HISTORICO = 5000;
 const HISTORICO_KEY = 'entrega_turbo:historico_pedidos';
 const HISTORICO_IDS_KEY = 'entrega_turbo:historico_ids_vistos';
+
+// Processamento em lotes paralelos — bem mais rápido que um por um, ainda
+// gentil com a API do ML (pausa entre lotes, poucas chamadas simultâneas).
+const CONCORRENCIA = 4;
+const PAUSA_ENTRE_LOTES_MS = 200;
+
+async function processarEmLotes(itens, tempoOrcamentoMs, processarItem) {
+  const inicio = Date.now();
+  const resultados = [];
+  let i = 0;
+  while (i < itens.length && Date.now() - inicio < tempoOrcamentoMs) {
+    const lote = itens.slice(i, i + CONCORRENCIA);
+    const respostas = await Promise.allSettled(lote.map(processarItem));
+    respostas.forEach((r) => {
+      if (r.status === 'fulfilled' && r.value) resultados.push(r.value);
+    });
+    i += lote.length;
+    if (i < itens.length && Date.now() - inicio < tempoOrcamentoMs) {
+      await new Promise((r) => setTimeout(r, PAUSA_ENTRE_LOTES_MS));
+    }
+  }
+  return { resultados, processados: i };
+}
 
 async function registrarNoHistorico(redis, pedidos, historicoKey, idsKey, extrator) {
   for (const pedido of pedidos) {
@@ -53,81 +70,123 @@ async function registrarNoHistorico(redis, pedidos, historicoKey, idsKey, extrat
   await redis.expire(idsKey, 60 * 60 * 24 * 30);
 }
 
-// -------- Histórico geral ("Todos os pedidos") — incremental --------
-const TEMPO_MAXIMO_TODOS_MS = 3000;
+// -------- Histórico geral ("Todos os pedidos") — incremental, em lotes --------
+const TEMPO_MAXIMO_TODOS_MS = 4000;
 
 async function coletarNovosParaHistoricoTodos(redis, conta, erros) {
-  const chaveTs = `entrega_turbo:ultima_coleta_todos_ts:${conta}`;
-  const desdeSalvo = await redis.get(chaveTs);
-  const desde = desdeSalvo ? new Date(desdeSalvo) : new Date(Date.now() - HORAS_JANELA_FLEX * 60 * 60 * 1000);
-  const ate = new Date();
-
-  const inicioExecucao = Date.now();
-  let offset = 0;
-  let total = null;
-  const pedidosParaGravar = [];
+  const chaveUltimaCompleta = `entrega_turbo:todos_ultima_completa_ts:${conta}`;
+  const chaveJanelaDesde = `entrega_turbo:todos_janela_desde:${conta}`;
+  const chaveJanelaAte = `entrega_turbo:todos_janela_ate:${conta}`;
+  const chaveJanelaOffset = `entrega_turbo:todos_janela_offset:${conta}`;
 
   try {
+    let desde = await redis.get(chaveJanelaDesde);
+    let ate = await redis.get(chaveJanelaAte);
+    let offset = (await redis.get(chaveJanelaOffset)) || 0;
+
+    if (!desde || !ate) {
+      const ultimaCompleta = await redis.get(chaveUltimaCompleta);
+      desde = ultimaCompleta || new Date(Date.now() - HORAS_JANELA_FLEX * 60 * 60 * 1000).toISOString();
+      ate = new Date().toISOString();
+      offset = 0;
+      await redis.set(chaveJanelaDesde, desde);
+      await redis.set(chaveJanelaAte, ate);
+      await redis.set(chaveJanelaOffset, 0);
+    }
+
+    const inicioExecucao = Date.now();
+    let total = null;
+    const pedidosParaGravar = [];
+
     while (Date.now() - inicioExecucao < TEMPO_MAXIMO_TODOS_MS) {
-      const pagina = await buscarPedidosPeriodo(conta, desde.toISOString(), ate.toISOString(), offset, 50);
+      const pagina = await buscarPedidosPeriodo(conta, desde, ate, offset, 50);
       if (total === null) total = pagina.total;
       if (pagina.results.length === 0) break;
 
-      for (const pedido of pagina.results) {
-        if (Date.now() - inicioExecucao >= TEMPO_MAXIMO_TODOS_MS) break;
+      const tempoRestante = TEMPO_MAXIMO_TODOS_MS - (Date.now() - inicioExecucao);
+      const { resultados, processados } = await processarEmLotes(pagina.results, tempoRestante, async (pedido) => {
         const shipmentId = pedido.shipping && pedido.shipping.id;
         const detalhes = await buscarDetalhesShipment(conta, shipmentId);
-        pedidosParaGravar.push(montarPedidoGenerico(conta, pedido, shipmentId, detalhes));
-        offset++;
-      }
+        return montarPedidoGenerico(conta, pedido, shipmentId, detalhes);
+      });
+      pedidosParaGravar.push(...resultados);
+      offset += processados;
+
+      if (processados < pagina.results.length) break; // orçamento acabou no meio da página
       if (total !== null && offset >= total) break;
     }
 
     await registrarHistoricoTodos(redis, pedidosParaGravar);
 
     if (total === null || offset >= total) {
-      await redis.set(chaveTs, ate.toISOString());
+      await redis.set(chaveUltimaCompleta, ate);
+      await redis.del(chaveJanelaDesde);
+      await redis.del(chaveJanelaAte);
+      await redis.del(chaveJanelaOffset);
+    } else {
+      await redis.set(chaveJanelaOffset, offset);
     }
   } catch (err) {
     erros.push({ fonte: `historico_todos:${conta}`, mensagem: err.message });
   }
 }
 
-// -------- Flex — incremental (novos) + reverificação (pendentes) --------
-const TEMPO_MAXIMO_FLEX_NOVOS_MS = 3000;
-const TEMPO_MAXIMO_FLEX_RECHECK_MS = 3000;
+// -------- Flex — incremental (novos) + reverificação (pendentes), em lotes --------
+const TEMPO_MAXIMO_FLEX_NOVOS_MS = 4000;
+const TEMPO_MAXIMO_FLEX_RECHECK_MS = 4000;
 
 async function coletarNovosFlex(redis, conta, erros) {
-  const chaveTs = `entrega_turbo:ultima_coleta_flex_ts:${conta}`;
-  const desdeSalvo = await redis.get(chaveTs);
-  const desde = desdeSalvo ? new Date(desdeSalvo) : new Date(Date.now() - HORAS_JANELA_FLEX * 60 * 60 * 1000);
-  const ate = new Date();
-
-  const inicioExecucao = Date.now();
-  let offset = 0;
-  let total = null;
-  const pedidosParaGravar = [];
+  const chaveUltimaCompleta = `entrega_turbo:flex_ultima_completa_ts:${conta}`;
+  const chaveJanelaDesde = `entrega_turbo:flex_janela_desde:${conta}`;
+  const chaveJanelaAte = `entrega_turbo:flex_janela_ate:${conta}`;
+  const chaveJanelaOffset = `entrega_turbo:flex_janela_offset:${conta}`;
 
   try {
+    let desde = await redis.get(chaveJanelaDesde);
+    let ate = await redis.get(chaveJanelaAte);
+    let offset = (await redis.get(chaveJanelaOffset)) || 0;
+
+    if (!desde || !ate) {
+      const ultimaCompleta = await redis.get(chaveUltimaCompleta);
+      desde = ultimaCompleta || new Date(Date.now() - HORAS_JANELA_FLEX * 60 * 60 * 1000).toISOString();
+      ate = new Date().toISOString();
+      offset = 0;
+      await redis.set(chaveJanelaDesde, desde);
+      await redis.set(chaveJanelaAte, ate);
+      await redis.set(chaveJanelaOffset, 0);
+    }
+
+    const inicioExecucao = Date.now();
+    let total = null;
+    const pedidosParaGravar = [];
+
     while (Date.now() - inicioExecucao < TEMPO_MAXIMO_FLEX_NOVOS_MS) {
-      const pagina = await buscarPedidosPeriodo(conta, desde.toISOString(), ate.toISOString(), offset, 50);
+      const pagina = await buscarPedidosPeriodo(conta, desde, ate, offset, 50);
       if (total === null) total = pagina.total;
       if (pagina.results.length === 0) break;
 
-      for (const pedido of pagina.results) {
-        if (Date.now() - inicioExecucao >= TEMPO_MAXIMO_FLEX_NOVOS_MS) break;
+      const tempoRestante = TEMPO_MAXIMO_FLEX_NOVOS_MS - (Date.now() - inicioExecucao);
+      const { resultados, processados } = await processarEmLotes(pagina.results, tempoRestante, async (pedido) => {
         const shipmentId = pedido.shipping && pedido.shipping.id;
         const info = await verificarFlex(conta, shipmentId);
-        offset++;
-        if (info) pedidosParaGravar.push(montarPedidoFlex(conta, pedido, shipmentId, info));
-      }
+        return info ? montarPedidoFlex(conta, pedido, shipmentId, info) : null;
+      });
+      pedidosParaGravar.push(...resultados);
+      offset += processados;
+
+      if (processados < pagina.results.length) break;
       if (total !== null && offset >= total) break;
     }
 
     await registrarHistoricoFlex(redis, pedidosParaGravar);
 
     if (total === null || offset >= total) {
-      await redis.set(chaveTs, ate.toISOString());
+      await redis.set(chaveUltimaCompleta, ate);
+      await redis.del(chaveJanelaDesde);
+      await redis.del(chaveJanelaAte);
+      await redis.del(chaveJanelaOffset);
+    } else {
+      await redis.set(chaveJanelaOffset, offset);
     }
   } catch (err) {
     erros.push({ fonte: `flex_novos:${conta}`, mensagem: err.message });
@@ -135,24 +194,21 @@ async function coletarNovosFlex(redis, conta, erros) {
 }
 
 async function reverificarPendentesFlex(redis, erros) {
-  const inicioExecucao = Date.now();
   try {
     const recentes = await listarRecentes(redis, HORAS_JANELA_FLEX);
     const pendentes = recentes.filter((p) => (p.categoria || 'aguardando') === 'aguardando' && p.shipment_id);
 
-    const atualizados = [];
-    for (const pedido of pendentes) {
-      if (Date.now() - inicioExecucao >= TEMPO_MAXIMO_FLEX_RECHECK_MS) break;
+    const { resultados } = await processarEmLotes(pendentes, TEMPO_MAXIMO_FLEX_RECHECK_MS, async (pedido) => {
       try {
-        const atualizado = await reverificarStatusPedido(pedido);
-        if (atualizado) atualizados.push(atualizado);
+        return await reverificarStatusPedido(pedido);
       } catch (err) {
         erros.push({ fonte: `flex_recheck:${pedido.order_id}`, mensagem: err.message });
+        return null;
       }
-    }
+    });
 
-    if (atualizados.length > 0) {
-      await registrarHistoricoFlex(redis, atualizados);
+    if (resultados.length > 0) {
+      await registrarHistoricoFlex(redis, resultados);
     }
   } catch (err) {
     erros.push({ fonte: 'flex_recheck_geral', mensagem: err.message });
@@ -186,7 +242,6 @@ module.exports = async (req, res) => {
   const erros = [];
   let pedidosShopee = [];
 
-  // Turbo real = Shopee Entrega Turbo (ainda pendente de aprovação/uso)
   for (const loja of ['ricapet', 'thapets']) {
     try {
       const pedidos = await coletarPedidosTurbo(loja, HORAS_RETROATIVAS);
@@ -211,7 +266,6 @@ module.exports = async (req, res) => {
     erros,
   };
 
-  // Flex: 1) busca novos, 2) reverifica pendentes, 3) monta snapshot do histórico
   for (const conta of Object.keys(SELLER_IDS)) {
     await coletarNovosFlex(redis, conta, erros);
   }
