@@ -135,7 +135,7 @@ module.exports = async (req, res) => {
 
   for (const conta of Object.keys(SELLER_IDS)) {
     try {
-      const pedidos = await coletarPedidosExpressos(conta, HORAS_RETROATIVAS_FLEX);
+      const pedidos = await coletarPedidosExpressos(conta, HORAS_RETROATIVAS_FLEX, erros);
       pedidosML = pedidosML.concat(pedidos);
     } catch (err) {
       erros.push({ fonte: `ml:${conta}`, mensagem: err.message });
@@ -144,7 +144,7 @@ module.exports = async (req, res) => {
 
   for (const conta of Object.keys(SELLER_IDS)) {
     try {
-      const pedidos = await coletarPedidosFlex(conta, HORAS_RETROATIVAS_FLEX);
+      const pedidos = await coletarPedidosFlex(conta, HORAS_RETROATIVAS_FLEX, erros);
       pedidosFlex = pedidosFlex.concat(pedidos);
     } catch (err) {
       erros.push({ fonte: `ml_flex:${conta}`, mensagem: err.message });
