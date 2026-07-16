@@ -15,6 +15,9 @@ const { getRedis } = require('../lib/redis');
 const { coletarPedidosExpressos, SELLER_IDS } = require('../lib/mlOrders');
 const { coletarPedidosTurbo } = require('../lib/shopeeOrders');
 const { coletarPedidosFlex } = require('../lib/mlFlexOrders');
+const { registrarHistoricoFlex } = require('../lib/historicoFlex');
+const { buscarPedidosPeriodo, buscarDetalhesShipment, montarPedidoGenerico } = require('../lib/mlAllOrders');
+const { registrarHistoricoTodos } = require('../lib/historicoTodos');
 
 const HORAS_RETROATIVAS = 6; // janela de busca padrão (Shopee Turbo)
 
@@ -35,46 +38,8 @@ const INTERVALO_MINIMO_MS = 2 * 60 * 1000; // 2 minutos
 const LIMITE_HISTORICO = 5000;
 const HISTORICO_KEY = 'entrega_turbo:historico_pedidos';
 const HISTORICO_IDS_KEY = 'entrega_turbo:historico_ids_vistos';
-// Histórico do Flex: usamos um HASH (order_id -> registro), não uma lista.
-// Diferente do Turbo (que é só "visto uma vez, nunca muda"), o Flex muda de
-// status ao longo do tempo (aguardando -> coletado -> entregue), então
-// cada execução SOBRESCREVE o registro do pedido com o status mais atual,
-// em vez de ignorar pedidos já vistos.
-const HISTORICO_FLEX_HASH_KEY = 'entrega_turbo:historico_flex_hash';
-const HISTORICO_FLEX_ZSET_KEY = 'entrega_turbo:historico_flex_zset'; // p/ podar registros antigos
-const DIAS_RETENCAO_HISTORICO_FLEX = 60;
-
-async function registrarHistoricoFlex(redis, pedidos) {
-  if (pedidos.length === 0) return;
-
-  const campos = {};
-  const zaddArgs = [];
-  for (const pedido of pedidos) {
-    const idUnico = `mercado_livre:${pedido.order_id}`;
-    campos[idUnico] = {
-      marketplace: pedido.marketplace,
-      conta: pedido.conta || null,
-      order_id: pedido.order_id,
-      date_created: pedido.date_created,
-      total_amount: pedido.total_amount,
-      coletado: pedido.coletado,
-      categoria: pedido.categoria || (pedido.coletado ? 'coletado' : 'aguardando'),
-      itens: pedido.itens || [],
-    };
-    zaddArgs.push({ score: new Date(pedido.date_created).getTime(), member: idUnico });
-  }
-
-  await redis.hset(HISTORICO_FLEX_HASH_KEY, campos);
-  await redis.zadd(HISTORICO_FLEX_ZSET_KEY, ...zaddArgs);
-
-  // Poda registros mais antigos que o limite de retenção
-  const limiteAntigo = Date.now() - DIAS_RETENCAO_HISTORICO_FLEX * 24 * 60 * 60 * 1000;
-  const idsAntigos = await redis.zrange(HISTORICO_FLEX_ZSET_KEY, 0, limiteAntigo, { byScore: true });
-  if (idsAntigos.length > 0) {
-    await redis.hdel(HISTORICO_FLEX_HASH_KEY, ...idsAntigos);
-    await redis.zrem(HISTORICO_FLEX_ZSET_KEY, ...idsAntigos);
-  }
-}
+// Histórico do Flex agora vive em lib/historicoFlex.js (compartilhado com
+// o backfill via API).
 
 async function registrarNoHistorico(redis, pedidos, historicoKey, idsKey, extrator) {
   for (const pedido of pedidos) {
@@ -89,6 +54,53 @@ async function registrarNoHistorico(redis, pedidos, historicoKey, idsKey, extrat
   await redis.ltrim(historicoKey, 0, LIMITE_HISTORICO - 1);
   // Renova o TTL do set de ids vistos (30 dias) para não crescer para sempre
   await redis.expire(idsKey, 60 * 60 * 24 * 30);
+}
+
+// Coleta contínua pro histórico geral ("Todos os pedidos" / Flex): busca só
+// os pedidos NOVOS desde a última execução bem-sucedida, em vez de
+// reprocessar tudo (que seria pesado demais a cada 1-2 minutos). Se não der
+// tempo de processar a janela inteira dentro do orçamento, NÃO avança o
+// marcador — a próxima execução tenta de novo essa mesma janela, sem
+// arriscar perder pedido nenhum.
+const TEMPO_MAXIMO_TODOS_MS = 4000;
+
+async function coletarNovosParaHistoricoTodos(redis, conta, erros) {
+  const chaveTs = `entrega_turbo:ultima_coleta_todos_ts:${conta}`;
+  const desdeSalvo = await redis.get(chaveTs);
+  const desde = desdeSalvo ? new Date(desdeSalvo) : new Date(Date.now() - HORAS_RETROATIVAS_FLEX * 60 * 60 * 1000);
+  const ate = new Date();
+
+  const inicioExecucao = Date.now();
+  let offset = 0;
+  let total = null;
+  const pedidosParaGravar = [];
+
+  try {
+    while (Date.now() - inicioExecucao < TEMPO_MAXIMO_TODOS_MS) {
+      const pagina = await buscarPedidosPeriodo(conta, desde.toISOString(), ate.toISOString(), offset, 50);
+      if (total === null) total = pagina.total;
+      if (pagina.results.length === 0) break;
+
+      for (const pedido of pagina.results) {
+        if (Date.now() - inicioExecucao >= TEMPO_MAXIMO_TODOS_MS) break;
+        const shipmentId = pedido.shipping && pedido.shipping.id;
+        const detalhes = await buscarDetalhesShipment(conta, shipmentId);
+        pedidosParaGravar.push(montarPedidoGenerico(conta, pedido, shipmentId, detalhes));
+        offset++;
+      }
+      if (total !== null && offset >= total) break;
+    }
+
+    await registrarHistoricoTodos(redis, pedidosParaGravar);
+
+    if (total === null || offset >= total) {
+      // processou a janela inteira dentro do orçamento — avança o marcador
+      await redis.set(chaveTs, ate.toISOString());
+    }
+    // senão, não avança: a próxima execução (em 1-2 min) tenta de novo
+  } catch (err) {
+    erros.push({ fonte: `historico_todos:${conta}`, mensagem: err.message });
+  }
 }
 
 module.exports = async (req, res) => {
@@ -196,6 +208,10 @@ module.exports = async (req, res) => {
     await registrarHistoricoFlex(redis, pedidosFlex);
   } catch (err) {
     erros.push({ fonte: 'historico_flex', mensagem: err.message });
+  }
+
+  for (const conta of Object.keys(SELLER_IDS)) {
+    await coletarNovosParaHistoricoTodos(redis, conta, erros);
   }
 
   res.status(200).json({
