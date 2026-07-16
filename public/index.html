@@ -109,9 +109,57 @@
   .stat-card .value { font-size: 24px; font-weight: 800; }
   .stat-card .label { color: var(--muted); font-size: 12px; }
   .grid-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 20px; }
+
+  /* ---- Menu lateral ---- */
+  body { padding: 0; display: flex; }
+  .sidebar {
+    width: 232px; flex-shrink: 0; height: 100vh; position: sticky; top: 0;
+    background: var(--card); border-right: 1px solid var(--border);
+    padding: 20px 14px; box-sizing: border-box; overflow-y: auto;
+  }
+  .sidebar-titulo {
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--muted); padding: 0 10px; margin-bottom: 10px;
+  }
+  .sidebar-link {
+    display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px;
+    color: var(--text); text-decoration: none; font-size: 13px; font-weight: 600; margin-bottom: 4px;
+    transition: background 0.15s;
+  }
+  .sidebar-link:hover { background: #f4f5f7; }
+  .sidebar-link.ativo { background: var(--teal-light); color: #0F6E56; }
+  .sidebar-link.ativo svg { stroke: #0F6E56; }
+  .sidebar-link svg { flex-shrink: 0; }
+  .sidebar-separador { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+  .sidebar-externo-icone { margin-left: auto; opacity: 0.5; }
+  .conteudo-principal { flex: 1; min-width: 0; padding: 24px; }
 </style>
 </head>
 <body>
+  <nav class="sidebar">
+    <div class="sidebar-titulo">Painéis Ricapet</div>
+
+    <a class="sidebar-link ativo" href="/index.html">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+      Entrega Flex / Turbo
+    </a>
+
+    <a class="sidebar-link" href="https://ricapet-concorrencia.vercel.app" target="_blank" rel="noopener">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 15l4-6 3 3 5-7"/></svg>
+      Análise de Concorrência
+      <svg class="sidebar-externo-icone" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><path d="M15 3h6v6"/><path d="M10 14L21 3"/></svg>
+    </a>
+
+    <a class="sidebar-link" href="https://painel-estoque-adesivo-three.vercel.app/" target="_blank" rel="noopener">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8L12 3 3 8l9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>
+      Estoque Adesivo
+      <svg class="sidebar-externo-icone" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><path d="M15 3h6v6"/><path d="M10 14L21 3"/></svg>
+    </a>
+
+    <hr class="sidebar-separador">
+  </nav>
+
+  <div class="conteudo-principal">
   <h1>Painel de Logística — Flex / Turbo</h1>
   <div class="subtitle" id="atualizado-em">Carregando...</div>
 
@@ -358,6 +406,8 @@
       <tbody id="tabela-todos"></tbody>
     </table>
   </div>
+
+  </div><!-- fecha .conteudo-principal -->
 
 <script>
   const CORES = {
