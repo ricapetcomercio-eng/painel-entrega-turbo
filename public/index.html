@@ -122,10 +122,10 @@
   </div>
 
   <div class="periodo-controle">
-    <button class="periodo-btn" onclick="definirPeriodo('mes')">Este mês</button>
-    <button class="periodo-btn" onclick="definirPeriodo('7dias')">Últimos 7 dias</button>
-    <button class="periodo-btn" onclick="definirPeriodo('30dias')">Últimos 30 dias</button>
-    <button class="periodo-btn" onclick="definirPeriodo('tudo')">Tudo</button>
+    <button class="periodo-btn" onclick="definirPeriodo('mes', event)">Este mês</button>
+    <button class="periodo-btn" onclick="definirPeriodo('7dias', event)">Últimos 7 dias</button>
+    <button class="periodo-btn" onclick="definirPeriodo('30dias', event)">Últimos 30 dias</button>
+    <button class="periodo-btn" onclick="definirPeriodo('tudo', event)">Tudo</button>
     <button class="periodo-btn" id="btnPeriodoEspecifico" onclick="ativarPeriodoEspecifico()">Período específico</button>
     <label>De <input type="date" id="periodoDe" onchange="ativarPeriodoEspecifico()"></label>
     <label>Até <input type="date" id="periodoAte" onchange="ativarPeriodoEspecifico()"></label>
@@ -468,7 +468,7 @@
   // ---------- PERÍODO ----------
   function formatarDataInput(d) { return d.toISOString().slice(0, 10); }
 
-  function definirPeriodo(tipo) {
+  function definirPeriodo(tipo, evt) {
     const hoje = new Date();
     let de;
     if (tipo === 'mes') de = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
@@ -478,8 +478,8 @@
     document.getElementById('periodoDe').value = formatarDataInput(de);
     document.getElementById('periodoAte').value = formatarDataInput(hoje);
     document.querySelectorAll('.periodo-btn').forEach(b => b.classList.remove('periodo-ativo'));
-    if (event && event.target) event.target.classList.add('periodo-ativo');
-    aplicarPeriodoManual();
+    if (evt && evt.target) evt.target.classList.add('periodo-ativo');
+    buscarComPeriodoAtual();
   }
 
   function limparDestaquePeriodo() {
@@ -491,11 +491,15 @@
     document.getElementById('btnPeriodoEspecifico').classList.add('periodo-ativo');
   }
 
-  function aplicarPeriodoManual() {
+  function buscarComPeriodoAtual() {
     periodoAtual = { de: document.getElementById('periodoDe').value, ate: document.getElementById('periodoAte').value };
-    ativarPeriodoEspecifico();
     carregarAnalytics();
     carregarTodos();
+  }
+
+  function aplicarPeriodoManual() {
+    ativarPeriodoEspecifico();
+    buscarComPeriodoAtual();
   }
 
   function inicializarPeriodoPadrao() {
