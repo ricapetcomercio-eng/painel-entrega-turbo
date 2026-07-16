@@ -16,10 +16,17 @@
 //      limit, mas devagar demais pro volume real — pedidos novos chegavam
 //      mais rápido do que conseguíamos processar. Agora processa em LOTES
 //      PARALELOS (várias chamadas ao mesmo tempo, com pausa entre lotes).
+//   4) O histórico geral ("Todos os pedidos") só cobria Mercado Livre —
+//      Shopee ficava de fora porque lib/historicoTodos.js gravava tudo com
+//      marketplace fixo em "mercado_livre". Generalizado, e agora a Shopee
+//      também alimenta esse histórico com seu próprio coletor incremental
+//      (usando cursor, já que a paginação da Shopee não é por offset).
 
 const { getRedis } = require('../lib/redis');
 const { SELLER_IDS } = require('../lib/mlOrders');
 const { coletarPedidosTurbo } = require('../lib/shopeeOrders');
+const { buscarPedidosPeriodo: buscarPedidosPeriodoShopee, buscarDetalhesCompletos: buscarDetalhesCompletosShopee, montarPedidoGenericoShopee } = require('../lib/shopeeOrders');
+const { LOJAS: LOJAS_SHOPEE } = require('../lib/shopeeAuth');
 const { buscarPedidosPeriodo, verificarFlex, montarPedidoFlex, reverificarStatusPedido } = require('../lib/mlFlexOrders');
 const { registrarHistoricoFlex, listarRecentes } = require('../lib/historicoFlex');
 const { buscarDetalhesShipment, montarPedidoGenerico } = require('../lib/mlAllOrders');
@@ -27,6 +34,7 @@ const { registrarHistoricoTodos } = require('../lib/historicoTodos');
 
 const HORAS_RETROATIVAS = 6; // janela de busca padrão (Shopee Turbo)
 const HORAS_JANELA_FLEX = 48; // "coleta só amanhã" — precisa de folga
+const HORAS_JANELA_SHOPEE_TODOS = 48; // mesma folga usada no restante do backfill
 
 const INTERVALO_MINIMO_MS = 2 * 60 * 1000; // 2 minutos
 
@@ -70,7 +78,7 @@ async function registrarNoHistorico(redis, pedidos, historicoKey, idsKey, extrat
   await redis.expire(idsKey, 60 * 60 * 24 * 30);
 }
 
-// -------- Histórico geral ("Todos os pedidos") — incremental, em lotes --------
+// -------- Histórico geral ("Todos os pedidos") — Mercado Livre, incremental, em lotes --------
 const TEMPO_MAXIMO_TODOS_MS = 4000;
 
 async function coletarNovosParaHistoricoTodos(redis, conta, erros) {
@@ -128,6 +136,70 @@ async function coletarNovosParaHistoricoTodos(redis, conta, erros) {
     }
   } catch (err) {
     erros.push({ fonte: `historico_todos:${conta}`, mensagem: err.message });
+  }
+}
+
+// -------- Histórico geral ("Todos os pedidos") — Shopee, incremental, em lotes --------
+// Mesmo espírito do coletor acima (Mercado Livre), mas adaptado à paginação
+// da Shopee, que usa CURSOR opaco em vez de offset numérico.
+const TEMPO_MAXIMO_TODOS_SHOPEE_MS = 4000;
+
+async function coletarNovosParaHistoricoTodosShopee(redis, loja, erros) {
+  const chaveUltimaCompleta = `entrega_turbo:todos_shopee_ultima_completa_ts:${loja}`;
+  const chaveJanelaDesde = `entrega_turbo:todos_shopee_janela_desde:${loja}`;
+  const chaveJanelaAte = `entrega_turbo:todos_shopee_janela_ate:${loja}`;
+  const chaveJanelaCursor = `entrega_turbo:todos_shopee_janela_cursor:${loja}`;
+
+  try {
+    let desde = await redis.get(chaveJanelaDesde);
+    let ate = await redis.get(chaveJanelaAte);
+    let cursor = await redis.get(chaveJanelaCursor);
+
+    if (!desde || !ate) {
+      const ultimaCompleta = await redis.get(chaveUltimaCompleta);
+      const desdeMs = ultimaCompleta
+        ? new Date(ultimaCompleta).getTime()
+        : Date.now() - HORAS_JANELA_SHOPEE_TODOS * 60 * 60 * 1000;
+      desde = Math.floor(desdeMs / 1000); // Shopee usa epoch em segundos
+      ate = Math.floor(Date.now() / 1000);
+      cursor = null;
+      await redis.set(chaveJanelaDesde, desde);
+      await redis.set(chaveJanelaAte, ate);
+      await redis.del(chaveJanelaCursor);
+    } else {
+      desde = Number(desde);
+      ate = Number(ate);
+    }
+
+    const inicioExecucao = Date.now();
+    const pedidosParaGravar = [];
+    let terminouJanela = false;
+
+    while (Date.now() - inicioExecucao < TEMPO_MAXIMO_TODOS_SHOPEE_MS) {
+      const pagina = await buscarPedidosPeriodoShopee(loja, desde, ate, cursor, 50);
+      if (pagina.results.length === 0) { terminouJanela = true; break; }
+
+      const orderSnList = pagina.results.map((p) => p.order_sn);
+      const detalhes = await buscarDetalhesCompletosShopee(loja, orderSnList);
+      for (const pedido of detalhes) {
+        pedidosParaGravar.push(montarPedidoGenericoShopee(loja, pedido));
+      }
+
+      cursor = pagina.nextCursor;
+      if (!pagina.more || !cursor) { terminouJanela = true; break; }
+      await redis.set(chaveJanelaCursor, cursor);
+    }
+
+    await registrarHistoricoTodos(redis, pedidosParaGravar);
+
+    if (terminouJanela) {
+      await redis.set(chaveUltimaCompleta, new Date(ate * 1000).toISOString());
+      await redis.del(chaveJanelaDesde);
+      await redis.del(chaveJanelaAte);
+      await redis.del(chaveJanelaCursor);
+    }
+  } catch (err) {
+    erros.push({ fonte: `historico_todos_shopee:${loja}`, mensagem: err.message });
   }
 }
 
@@ -301,6 +373,10 @@ module.exports = async (req, res) => {
 
   for (const conta of Object.keys(SELLER_IDS)) {
     await coletarNovosParaHistoricoTodos(redis, conta, erros);
+  }
+
+  for (const loja of LOJAS_SHOPEE) {
+    await coletarNovosParaHistoricoTodosShopee(redis, loja, erros);
   }
 
   res.status(200).json({
