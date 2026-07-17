@@ -49,6 +49,11 @@ const INTERVALO_MINIMO_SHOPEE_MS = 15 * 60 * 1000; // 15 minutos
 // e economiza chamadas à API do ML.
 const INTERVALO_MINIMO_DEVOLUCOES_MS = 30 * 60 * 1000; // 30 minutos
 const DIAS_JANELA_DEVOLUCOES = 60; // cobre pedidos com prazo de reclamação em aberto
+// "Todos os pedidos" do ML é dado de BI/dashboard, não precisa do ritmo
+// rápido do Flex (que alimenta a TV da expedição em tempo real). Rodando
+// mais devagar, sobra mais orçamento de chamadas pro ML antes de bater
+// em rate limit (429).
+const INTERVALO_MINIMO_TODOS_ML_MS = 5 * 60 * 1000; // 5 minutos
 
 const LIMITE_HISTORICO = 5000;
 const HISTORICO_KEY = 'entrega_turbo:historico_pedidos';
@@ -433,8 +438,14 @@ module.exports = async (req, res) => {
   };
   await redis.set('entrega_turbo:ultima_coleta_flex', resultadoFlex);
 
-  for (const conta of Object.keys(SELLER_IDS)) {
-    await coletarNovosParaHistoricoTodos(redis, conta, erros);
+  // -------- Todos os pedidos (ML): throttle próprio, roda no máximo a cada 5 min --------
+  const ultimaExecucaoTodosML = await redis.get('entrega_turbo:ultima_execucao_todos_ml_ts');
+  const deveRodarTodosML = !ultimaExecucaoTodosML || (agora - ultimaExecucaoTodosML >= INTERVALO_MINIMO_TODOS_ML_MS);
+  if (deveRodarTodosML) {
+    await redis.set('entrega_turbo:ultima_execucao_todos_ml_ts', agora);
+    for (const conta of Object.keys(SELLER_IDS)) {
+      await coletarNovosParaHistoricoTodos(redis, conta, erros);
+    }
   }
 
   // -------- Devoluções: enriquece pedidos já coletados, throttle próprio --------
