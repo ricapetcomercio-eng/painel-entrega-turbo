@@ -110,6 +110,22 @@
   .stat-card .label { color: var(--muted); font-size: 12px; }
   .grid-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 20px; }
 
+  .kpi-delta { font-size: 11px; font-weight: 700; margin-top: 4px; color: var(--muted); }
+  .kpi-delta.up { color: #1a9c6b; }
+  .kpi-delta.down { color: var(--red); }
+
+  .grid-evolucao { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+  @media (max-width: 900px) { .grid-evolucao { grid-template-columns: 1fr; } }
+
+  .grid-comparativos { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 24px; }
+  .comparativo-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+  .comparativo-titulo { font-size: 13px; font-weight: 700; margin-bottom: 10px; color: var(--text); }
+  .comparativo-linha { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .comparativo-linha:last-child { border-bottom: none; }
+  .comparativo-linha .rotulo { color: var(--muted); }
+  .comparativo-linha .valores { display: flex; gap: 10px; align-items: baseline; }
+  .comparativo-linha .valores .anterior { color: var(--muted); font-size: 12px; }
+
   /* ---- Menu lateral (oculto, aparece ao passar o mouse) ---- */
   body { padding: 0; }
   .sidebar {
@@ -176,9 +192,10 @@
   <div class="subtitle" id="atualizado-em">Carregando...</div>
 
   <div class="abas">
+    <button class="aba-btn" id="abaBtnExecutivo" onclick="mudarAba('executivo')">Executivo</button>
     <button class="aba-btn" id="abaBtnTodos" onclick="mudarAba('todos')">Todos os pedidos</button>
     <button class="aba-btn" id="abaBtnFlex" onclick="mudarAba('flex')">Flex</button>
-    <button class="aba-btn ativa" id="abaBtnTurbo" onclick="mudarAba('turbo')">Turbo / Expressa</button>
+    <button class="aba-btn" id="abaBtnTurbo" onclick="mudarAba('turbo')">Turbo / Expressa</button>
   </div>
 
   <div class="periodo-controle">
@@ -194,8 +211,68 @@
     <span id="periodoLabel" class="periodo-label"></span>
   </div>
 
+  <!-- ABA: EXECUTIVO -->
+  <div id="painelExecutivo">
+    <div class="grid-stats">
+      <div class="stat-card">
+        <div class="value" id="execFaturamento">–</div>
+        <div class="label">Faturamento Total</div>
+        <div class="kpi-delta" id="execFaturamentoDelta">–</div>
+      </div>
+      <div class="stat-card">
+        <div class="value" id="execPedidos">–</div>
+        <div class="label">Quantidade de Pedidos</div>
+        <div class="kpi-delta" id="execPedidosDelta">–</div>
+      </div>
+      <div class="stat-card">
+        <div class="value" id="execTicket">–</div>
+        <div class="label">Ticket Médio</div>
+        <div class="kpi-delta" id="execTicketDelta">–</div>
+      </div>
+      <div class="stat-card">
+        <div class="value" id="execTempoColeta">–</div>
+        <div class="label">Tempo Médio até Coleta</div>
+        <div class="kpi-delta" id="execTempoColetaDelta">–</div>
+      </div>
+      <div class="stat-card">
+        <div class="value" id="execTempoEntrega">–</div>
+        <div class="label">Tempo Médio até Entrega</div>
+        <div class="kpi-delta" id="execTempoEntregaDelta">–</div>
+      </div>
+    </div>
+    <div style="color:var(--muted); font-size:11px; margin: -12px 0 16px;">
+      Comparação com o período de mesma duração imediatamente anterior ao filtro selecionado acima.
+      Tempo até coleta/entrega considera apenas pedidos do Mercado Livre com esse dado disponível.
+    </div>
+
+    <div class="secao-titulo">Evolução das vendas</div>
+    <div class="grid-evolucao">
+      <div class="card"><div class="card-header"><h2>Faturamento por dia</h2></div><div class="card-body"><div class="chart-wrap-grande" style="height:220px;"><canvas id="chartExecFaturamentoDia"></canvas></div></div></div>
+      <div class="card"><div class="card-header"><h2>Pedidos por dia</h2></div><div class="card-body"><div class="chart-wrap-grande" style="height:220px;"><canvas id="chartExecPedidosDia"></canvas></div></div></div>
+    </div>
+
+    <div class="secao-titulo">Comparativos</div>
+    <div class="grid-comparativos">
+      <div class="comparativo-card">
+        <div class="comparativo-titulo">Hoje x Ontem</div>
+        <div class="comparativo-linha"><span class="rotulo">Faturamento</span><span class="valores"><b id="compDiaAtualFat">–</b><span class="anterior" id="compDiaAnteriorFat">–</span><span class="kpi-delta" id="compDiaDeltaFat">–</span></span></div>
+        <div class="comparativo-linha"><span class="rotulo">Pedidos</span><span class="valores"><b id="compDiaAtualPed">–</b><span class="anterior" id="compDiaAnteriorPed">–</span><span class="kpi-delta" id="compDiaDeltaPed">–</span></span></div>
+      </div>
+      <div class="comparativo-card">
+        <div class="comparativo-titulo">Esta Semana x Semana Passada</div>
+        <div class="comparativo-linha"><span class="rotulo">Faturamento</span><span class="valores"><b id="compSemanaAtualFat">–</b><span class="anterior" id="compSemanaAnteriorFat">–</span><span class="kpi-delta" id="compSemanaDeltaFat">–</span></span></div>
+        <div class="comparativo-linha"><span class="rotulo">Pedidos</span><span class="valores"><b id="compSemanaAtualPed">–</b><span class="anterior" id="compSemanaAnteriorPed">–</span><span class="kpi-delta" id="compSemanaDeltaPed">–</span></span></div>
+      </div>
+      <div class="comparativo-card">
+        <div class="comparativo-titulo">Este Mês x Mês Anterior</div>
+        <div class="comparativo-linha"><span class="rotulo">Faturamento</span><span class="valores"><b id="compMesAtualFat">–</b><span class="anterior" id="compMesAnteriorFat">–</span><span class="kpi-delta" id="compMesDeltaFat">–</span></span></div>
+        <div class="comparativo-linha"><span class="rotulo">Pedidos</span><span class="valores"><b id="compMesAtualPed">–</b><span class="anterior" id="compMesAnteriorPed">–</span><span class="kpi-delta" id="compMesDeltaPed">–</span></span></div>
+      </div>
+    </div>
+  </div>
+
   <!-- ABA: TURBO / EXPRESSA -->
-  <div id="painelTurbo">
+  <div id="painelTurbo" class="oculto">
     <div class="grid-stats">
       <div class="stat-card"><div class="value" id="total-pedidos">–</div><div class="label">Pedidos expressos (últimas horas)</div></div>
       <div class="stat-card"><div class="value" id="total-ml">–</div><div class="label">Mercado Livre</div></div>
@@ -515,6 +592,166 @@
     return pedidos.reduce((a, p) => a + (Number(p.total_amount) || 0), 0) / pedidos.length;
   }
 
+  // ---------- EXECUTIVO (Fase 1: sem custo/margem, só o que já temos) ----------
+  function baseLineOptions() {
+    return {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, datalabels: { display: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: CORES.muted, maxRotation: 0, autoSkip: true, maxTicksLimit: 10 } },
+        y: { grid: { color: CORES.grid }, ticks: { color: CORES.muted }, beginAtZero: true }
+      }
+    };
+  }
+
+  function agregarPorDia(pedidos) {
+    const mapaFaturamento = {};
+    const mapaPedidos = {};
+    pedidos.forEach(p => {
+      const dia = new Date(p.date_created).toISOString().slice(0, 10);
+      mapaFaturamento[dia] = (mapaFaturamento[dia] || 0) + (Number(p.total_amount) || 0);
+      mapaPedidos[dia] = (mapaPedidos[dia] || 0) + 1;
+    });
+    const dias = Object.keys(mapaFaturamento).sort();
+    return {
+      dias,
+      faturamento: dias.map(d => Math.round(mapaFaturamento[d] * 100) / 100),
+      pedidos: dias.map(d => mapaPedidos[d]),
+    };
+  }
+
+  function calcularKPIs(pedidos) {
+    const faturamento = pedidos.reduce((a, p) => a + (Number(p.total_amount) || 0), 0);
+    const totalPedidos = pedidos.length;
+    const ticket = totalPedidos ? faturamento / totalPedidos : null;
+    // Tempo até coleta/entrega só existe para pedidos do Mercado Livre com
+    // shipment já verificado — Shopee ainda não traz esse dado no histórico
+    // geral, então a média aqui reflete só a fatia que tem essa informação.
+    const comColeta = pedidos.filter(p => typeof p.horas_ate_coleta === 'number');
+    const tempoColeta = comColeta.length ? comColeta.reduce((a, p) => a + p.horas_ate_coleta, 0) / comColeta.length : null;
+    const comEntrega = pedidos.filter(p => typeof p.horas_ate_entrega === 'number');
+    const tempoEntrega = comEntrega.length ? comEntrega.reduce((a, p) => a + p.horas_ate_entrega, 0) / comEntrega.length : null;
+    return { faturamento, totalPedidos, ticket, tempoColeta, tempoEntrega };
+  }
+
+  // menorEMelhor: para métricas onde CAIR é bom (ex: tempo até entrega),
+  // inverte a cor do indicador (queda vira verde, alta vira vermelho).
+  function renderKpiCard(valorId, deltaId, valorFormatado, atual, anterior, menorEMelhor) {
+    const valorEl = document.getElementById(valorId);
+    if (valorEl) valorEl.textContent = valorFormatado;
+    const deltaEl = document.getElementById(deltaId);
+    if (!deltaEl) return;
+    if (anterior === null || anterior === undefined || anterior === 0 || atual === null || atual === undefined) {
+      deltaEl.textContent = 'sem dado no período anterior';
+      deltaEl.className = 'kpi-delta';
+      return;
+    }
+    const variacao = ((atual - anterior) / anterior) * 100;
+    const seta = variacao >= 0 ? '▲' : '▼';
+    const positivo = menorEMelhor ? variacao <= 0 : variacao >= 0;
+    deltaEl.textContent = `${seta} ${Math.abs(variacao).toFixed(1)}% vs período anterior`;
+    deltaEl.className = positivo ? 'kpi-delta up' : 'kpi-delta down';
+  }
+
+  async function buscarPedidosPeriodoGenerico(deISO, ateISO) {
+    try {
+      const params = new URLSearchParams();
+      if (deISO) params.set('de', deISO);
+      if (ateISO) params.set('ate', ateISO);
+      const resp = await fetch('/api/analytics-todos-data?' + params.toString());
+      const dados = await resp.json();
+      return dados.pedidos || [];
+    } catch (e) { return []; }
+  }
+
+  async function buscarResumoPeriodo(de, ate) {
+    const pedidos = await buscarPedidosPeriodoGenerico(de.toISOString(), ate.toISOString());
+    const faturamento = pedidos.reduce((a, p) => a + (Number(p.total_amount) || 0), 0);
+    return { faturamento, pedidos: pedidos.length };
+  }
+
+  function formatarMoeda(v) { return 'R$ ' + Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+
+  async function renderComparativo(idPrefix, deAtual, ateAtual, deAnterior, ateAnterior) {
+    const [atual, anterior] = await Promise.all([
+      buscarResumoPeriodo(deAtual, ateAtual),
+      buscarResumoPeriodo(deAnterior, ateAnterior),
+    ]);
+    const deltaFat = anterior.faturamento > 0 ? ((atual.faturamento - anterior.faturamento) / anterior.faturamento) * 100 : null;
+    const deltaPed = anterior.pedidos > 0 ? ((atual.pedidos - anterior.pedidos) / anterior.pedidos) * 100 : null;
+
+    const setId = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+    const setDelta = (id, delta) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (delta === null) { el.textContent = '–'; el.className = 'kpi-delta'; return; }
+      el.textContent = `${delta >= 0 ? '▲' : '▼'} ${Math.abs(delta).toFixed(1)}%`;
+      el.className = delta >= 0 ? 'kpi-delta up' : 'kpi-delta down';
+    };
+
+    setId(idPrefix + 'AtualFat', formatarMoeda(atual.faturamento));
+    setId(idPrefix + 'AnteriorFat', formatarMoeda(anterior.faturamento));
+    setDelta(idPrefix + 'DeltaFat', deltaFat);
+    setId(idPrefix + 'AtualPed', String(atual.pedidos));
+    setId(idPrefix + 'AnteriorPed', String(anterior.pedidos));
+    setDelta(idPrefix + 'DeltaPed', deltaPed);
+  }
+
+  async function carregarExecutivo() {
+    try {
+      // KPIs do período selecionado no filtro global, comparado com o
+      // período de mesma duração imediatamente anterior.
+      const deAtual = periodoAtual.de ? new Date(periodoAtual.de) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const ateAtual = periodoAtual.ate ? new Date(periodoAtual.ate) : new Date();
+      const duracaoMs = Math.max(1, ateAtual.getTime() - deAtual.getTime());
+      const deAnterior = new Date(deAtual.getTime() - duracaoMs);
+      const ateAnterior = new Date(deAtual.getTime());
+
+      const [pedidosAtual, pedidosAnterior] = await Promise.all([
+        buscarPedidosPeriodoGenerico(deAtual.toISOString(), ateAtual.toISOString()),
+        buscarPedidosPeriodoGenerico(deAnterior.toISOString(), ateAnterior.toISOString()),
+      ]);
+
+      const kpiAtual = calcularKPIs(pedidosAtual);
+      const kpiAnterior = calcularKPIs(pedidosAnterior);
+
+      renderKpiCard('execFaturamento', 'execFaturamentoDelta', formatarMoeda(kpiAtual.faturamento), kpiAtual.faturamento, kpiAnterior.faturamento);
+      renderKpiCard('execPedidos', 'execPedidosDelta', String(kpiAtual.totalPedidos), kpiAtual.totalPedidos, kpiAnterior.totalPedidos);
+      renderKpiCard('execTicket', 'execTicketDelta', kpiAtual.ticket === null ? '-' : formatarMoeda(kpiAtual.ticket), kpiAtual.ticket, kpiAnterior.ticket);
+      renderKpiCard('execTempoColeta', 'execTempoColetaDelta', kpiAtual.tempoColeta === null ? '-' : kpiAtual.tempoColeta.toFixed(1) + 'h', kpiAtual.tempoColeta, kpiAnterior.tempoColeta, true);
+      renderKpiCard('execTempoEntrega', 'execTempoEntregaDelta', kpiAtual.tempoEntrega === null ? '-' : kpiAtual.tempoEntrega.toFixed(1) + 'h', kpiAtual.tempoEntrega, kpiAnterior.tempoEntrega, true);
+
+      const evolucao = agregarPorDia(pedidosAtual);
+      const rotulosDias = evolucao.dias.map(d => d.slice(8, 10) + '/' + d.slice(5, 7));
+      criarOuAtualizarChart('chartExecFaturamentoDia', { type: 'line', data: { labels: rotulosDias, datasets: [{ data: evolucao.faturamento, borderColor: CORES.teal, backgroundColor: 'rgba(23,163,137,0.12)', fill: true, tension: 0.3, pointRadius: 2 }] }, options: baseLineOptions() });
+      criarOuAtualizarChart('chartExecPedidosDia', { type: 'line', data: { labels: rotulosDias, datasets: [{ data: evolucao.pedidos, borderColor: CORES.blue, backgroundColor: 'rgba(47,128,237,0.12)', fill: true, tension: 0.3, pointRadius: 2 }] }, options: baseLineOptions() });
+
+      // Comparativos fixos (hoje/ontem, semana/semana passada, mês/mês
+      // anterior) — independem do filtro de período selecionado acima, e
+      // usam sempre a mesma janela de tempo decorrida até agora, para
+      // comparar "maçã com maçã" (ex: hoje até as 14h vs ontem até as 14h).
+      const agora = new Date();
+      const hojeInicio = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
+      const ontemInicio = new Date(hojeInicio.getTime() - 24 * 60 * 60 * 1000);
+      const ontemFimEquivalente = new Date(ontemInicio.getTime() + (agora.getTime() - hojeInicio.getTime()));
+      renderComparativo('compDia', hojeInicio, agora, ontemInicio, ontemFimEquivalente);
+
+      const diaSemana = agora.getDay();
+      const semanaInicio = new Date(hojeInicio.getTime() - diaSemana * 24 * 60 * 60 * 1000);
+      const semanaPassadaInicio = new Date(semanaInicio.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const semanaPassadaFimEquivalente = new Date(semanaPassadaInicio.getTime() + (agora.getTime() - semanaInicio.getTime()));
+      renderComparativo('compSemana', semanaInicio, agora, semanaPassadaInicio, semanaPassadaFimEquivalente);
+
+      // Mês anterior usa a mesma duração decorrida em milissegundos (não
+      // exatamente "mesmo dia do mês", já que os meses têm tamanhos
+      // diferentes) — aproximação razoável para uma comparação rápida.
+      const mesInicio = new Date(agora.getFullYear(), agora.getMonth(), 1);
+      const mesPassadoInicio = new Date(agora.getFullYear(), agora.getMonth() - 1, 1);
+      const mesPassadoFimEquivalente = new Date(mesPassadoInicio.getTime() + (agora.getTime() - mesInicio.getTime()));
+      renderComparativo('compMes', mesInicio, agora, mesPassadoInicio, mesPassadoFimEquivalente);
+    } catch (e) { /* silencioso */ }
+  }
+
   // ---------- GAUGE (velocímetro) ----------
   function renderGauge(pct) {
     const p = Math.max(0, Math.min(100, pct));
@@ -536,15 +773,18 @@
     const painelTurbo = document.getElementById('painelTurbo');
     const painelFlex = document.getElementById('painelFlex');
     const painelTodos = document.getElementById('painelTodos');
+    const painelExecutivo = document.getElementById('painelExecutivo');
     const btnTurbo = document.getElementById('abaBtnTurbo');
     const btnFlex = document.getElementById('abaBtnFlex');
     const btnTodos = document.getElementById('abaBtnTodos');
+    const btnExecutivo = document.getElementById('abaBtnExecutivo');
 
-    painelTurbo.className = 'oculto'; painelFlex.className = 'oculto'; painelTodos.className = 'oculto';
-    btnTurbo.className = 'aba-btn'; btnFlex.className = 'aba-btn'; btnTodos.className = 'aba-btn';
+    painelTurbo.className = 'oculto'; painelFlex.className = 'oculto'; painelTodos.className = 'oculto'; painelExecutivo.className = 'oculto';
+    btnTurbo.className = 'aba-btn'; btnFlex.className = 'aba-btn'; btnTodos.className = 'aba-btn'; btnExecutivo.className = 'aba-btn';
 
     if (aba === 'flex') { painelFlex.className = ''; btnFlex.className = 'aba-btn ativa'; }
     else if (aba === 'todos') { painelTodos.className = ''; btnTodos.className = 'aba-btn ativa'; carregarTodos(); }
+    else if (aba === 'executivo') { painelExecutivo.className = ''; btnExecutivo.className = 'aba-btn ativa'; carregarExecutivo(); }
     else { painelTurbo.className = ''; btnTurbo.className = 'aba-btn ativa'; }
   }
 
@@ -581,6 +821,7 @@
     if (evt && evt.target) evt.target.classList.add('periodo-ativo');
     carregarAnalytics();
     carregarTodos();
+    carregarExecutivo();
   }
 
   function limparDestaquePeriodo() {
@@ -596,6 +837,7 @@
     periodoAtual = { de: document.getElementById('periodoDe').value, ate: document.getElementById('periodoAte').value };
     carregarAnalytics();
     carregarTodos();
+    carregarExecutivo();
   }
 
   function aplicarPeriodoManual() {
@@ -974,7 +1216,7 @@
   setInterval(carregar, 30000);
   setInterval(carregarAnalytics, 60000);
 
-  mudarAba('todos');
+  mudarAba('executivo');
 </script>
 </body>
 </html>
