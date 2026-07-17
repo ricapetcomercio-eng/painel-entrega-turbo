@@ -547,10 +547,8 @@
           <option value="todas">Todas</option>
         </select>
       </label>
-      <span id="chipEstadoFiltro" style="display:none; background:var(--teal-light); color:#0F6E56; padding:4px 10px; border-radius:999px; font-weight:700; font-size:12px;">
-        Estado: <span id="chipEstadoNome"></span>
-        <button onclick="limparFiltroEstado()" style="background:none; border:none; color:#0F6E56; cursor:pointer; font-weight:700; margin-left:4px;">✕</button>
-      </span>
+      <div id="chipsFiltroContainer" style="display:inline-flex; gap:8px; flex-wrap:wrap;"></div>
+      <button class="periodo-btn" onclick="limparTodosFiltrosDrill()" style="margin-left:auto;">Limpar filtros</button>
     </div>
 
     <div class="grid-stats">
@@ -676,6 +674,10 @@
   let charts = {};
   let periodoAtual = { de: null, ate: null };
   let filtroEstado = null;
+  let filtroCidade = null;
+  let filtroLoja = null; // "conta · Marketplace"
+  let filtroHoraDia = null; // { dia: 0-6, hora: 0-23 }
+  let filtroProdutoDrill = null; // título do produto
 
   function criarOuAtualizarChart(id, config) {
     if (typeof Chart === 'undefined') return;
@@ -875,15 +877,21 @@
 
     let thead = '<tr><th></th>' + Array.from({ length: 24 }, (_, h) => `<th>${h}h</th>`).join('') + '</tr>';
     let corpo = diasNomes.map((nomeDia, dia) => {
-      const celulas = matriz[dia].map(v => {
+      const celulas = matriz[dia].map((v, hora) => {
         const cor = corHeatmap(v, max);
         const corTexto = v / max > 0.55 ? '#fff' : 'var(--text)';
-        return `<td title="${nomeDia}, ${v} pedido(s)"><span class="heatmap-cell" style="background:${cor}; color:${corTexto}; font-size:9px; line-height:22px;">${v || ''}</span></td>`;
+        const clicavel = v > 0 ? `onclick="drillHeatmap(${dia}, ${hora})" style="cursor:pointer;"` : '';
+        return `<td title="${nomeDia}, ${v} pedido(s)${v > 0 ? ' — clique para detalhar' : ''}" ${clicavel}><span class="heatmap-cell" style="background:${cor}; color:${corTexto}; font-size:9px; line-height:22px;">${v || ''}</span></td>`;
       }).join('');
       return `<tr><th class="rotulo-dia">${nomeDia}</th>${celulas}</tr>`;
     }).join('');
 
     document.getElementById('tabelaHeatmap').innerHTML = thead + corpo;
+  }
+
+  function drillHeatmap(dia, hora) {
+    filtroHoraDia = { dia, hora };
+    mudarAba('todos');
   }
 
   async function carregarExecutivo() {
@@ -1024,6 +1032,13 @@
         options: {
           responsive: true, maintainAspectRatio: false,
           plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 10 } }, datalabels: { display: false } },
+          onClick: (evt, elementos) => {
+            if (!elementos.length) return;
+            const idx = elementos[0].index;
+            filtroProdutoDrill = top20[idx].titulo;
+            mudarAba('todos');
+          },
+          onHover: (evt, elementos) => { evt.native.target.style.cursor = elementos.length ? 'pointer' : 'default'; },
           scales: {
             x: { grid: { display: false }, ticks: { color: CORES.muted, maxRotation: 60, minRotation: 60, font: { size: 10 } } },
             y: { position: 'left', grid: { color: CORES.grid }, ticks: { color: CORES.muted }, beginAtZero: true },
@@ -1036,8 +1051,14 @@
       const LIMITE_TABELA = 50;
       tbody.innerHTML = !abc.linhas.length
         ? '<tr><td colspan="5" class="empty">Nenhum produto no período/filtro.</td></tr>'
-        : abc.linhas.slice(0, LIMITE_TABELA).map(l => `<tr><td>${l.titulo}</td><td>${l.qtd}</td><td>${l.pctParticipacao.toFixed(1)}%</td><td>${l.pctAcumulado.toFixed(1)}%</td><td><span class="classe-badge ${l.classe}">${l.classe}</span></td></tr>`).join('')
+        : abc.linhas.slice(0, LIMITE_TABELA).map((l, i) => `<tr data-idx="${i}" style="cursor:pointer;"><td>${l.titulo}</td><td>${l.qtd}</td><td>${l.pctParticipacao.toFixed(1)}%</td><td>${l.pctAcumulado.toFixed(1)}%</td><td><span class="classe-badge ${l.classe}">${l.classe}</span></td></tr>`).join('')
           + (abc.linhas.length > LIMITE_TABELA ? `<tr><td colspan="5" style="color:var(--muted); text-align:center;">Mostrando os ${LIMITE_TABELA} primeiros de ${abc.linhas.length} produtos.</td></tr>` : '');
+      tbody.querySelectorAll('tr[data-idx]').forEach(tr => {
+        tr.onclick = () => {
+          filtroProdutoDrill = abc.linhas[Number(tr.dataset.idx)].titulo;
+          mudarAba('todos');
+        };
+      });
 
       // Crescimento/queda — só considera produtos com volume mínimo em
       // algum dos dois períodos, para não poluir com variações de ruído
@@ -1375,6 +1396,7 @@
 
   function voltarParaEstados() {
     filtroEstado = null;
+    filtroCidade = null;
     carregarTodos();
   }
 
@@ -1412,12 +1434,54 @@
       criarOuAtualizarChart('chartTodosEstados', {
         type: 'bar',
         data: { labels: cidadesTop.map(c => c[0]), datasets: [{ data: cidadesTop.map(c => c[1]), backgroundColor: CORES.blue, borderRadius: 4 }] },
-        options: { ...baseBarOptions(), indexAxis: 'y' }
+        options: {
+          ...baseBarOptions(),
+          indexAxis: 'y',
+          onClick: (evt, elementos, chart) => {
+            if (!elementos.length) return;
+            const idx = elementos[0].index;
+            filtroCidade = chart.data.labels[idx];
+            carregarTodos();
+          },
+          onHover: (evt, elementos) => { evt.native.target.style.cursor = elementos.length ? 'pointer' : 'default'; }
+        }
       });
     }
   }
 
   // ---------- ABA TODOS ----------
+  const DIAS_NOMES_CURTOS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
+  function renderizarChipsFiltro() {
+    const container = document.getElementById('chipsFiltroContainer');
+    const chips = [];
+    const chip = (rotulo, valor, tipo) => `
+      <span style="display:inline-flex; align-items:center; gap:4px; background:var(--teal-light); color:#0F6E56; padding:4px 10px; border-radius:999px; font-weight:700; font-size:12px;">
+        ${rotulo}: ${valor}
+        <button onclick="removerFiltro('${tipo}')" style="background:none; border:none; color:#0F6E56; cursor:pointer; font-weight:700;">✕</button>
+      </span>`;
+    if (filtroEstado) chips.push(chip('Estado', filtroEstado, 'estado'));
+    if (filtroCidade) chips.push(chip('Cidade', filtroCidade, 'cidade'));
+    if (filtroLoja) chips.push(chip('Loja', filtroLoja, 'loja'));
+    if (filtroHoraDia) chips.push(chip('Horário', `${DIAS_NOMES_CURTOS[filtroHoraDia.dia]} ${filtroHoraDia.hora}h`, 'horadia'));
+    if (filtroProdutoDrill) chips.push(chip('Produto', truncarTitulo(filtroProdutoDrill, 30), 'produto'));
+    container.innerHTML = chips.join('');
+  }
+
+  function removerFiltro(tipo) {
+    if (tipo === 'estado') { filtroEstado = null; filtroCidade = null; } // cidade depende do estado
+    else if (tipo === 'cidade') filtroCidade = null;
+    else if (tipo === 'loja') filtroLoja = null;
+    else if (tipo === 'horadia') filtroHoraDia = null;
+    else if (tipo === 'produto') filtroProdutoDrill = null;
+    carregarTodos();
+  }
+
+  function limparTodosFiltrosDrill() {
+    filtroEstado = null; filtroCidade = null; filtroLoja = null; filtroHoraDia = null; filtroProdutoDrill = null;
+    carregarTodos();
+  }
+
   async function carregarTodos() {
     try {
       const params = new URLSearchParams();
@@ -1439,16 +1503,20 @@
       select.innerHTML = opcoes.map(o => `<option value="${o}">${o === 'todas' ? 'Todas' : o}</option>`).join('');
       if (opcoes.includes(valorSelecionado)) select.value = valorSelecionado;
 
-      const chip = document.getElementById('chipEstadoFiltro');
-      if (filtroEstado) {
-        chip.style.display = 'inline-block';
-        document.getElementById('chipEstadoNome').textContent = filtroEstado;
-      } else {
-        chip.style.display = 'none';
-      }
+      renderizarChipsFiltro();
 
       const pedidosCompletos = dados.pedidos || [];
-      const pedidos = filtroEstado ? pedidosCompletos.filter(p => p.estado === filtroEstado) : pedidosCompletos;
+      let pedidos = filtroEstado ? pedidosCompletos.filter(p => p.estado === filtroEstado) : pedidosCompletos;
+      if (filtroCidade) pedidos = pedidos.filter(p => p.cidade === filtroCidade);
+      if (filtroLoja) pedidos = pedidos.filter(p => {
+        const rotulo = `${p.conta || '-'} · ${p.marketplace === 'mercado_livre' ? 'Mercado Livre' : p.marketplace === 'shopee' ? 'Shopee' : '-'}`;
+        return rotulo === filtroLoja;
+      });
+      if (filtroHoraDia) pedidos = pedidos.filter(p => {
+        const d = new Date(p.date_created);
+        return d.getDay() === filtroHoraDia.dia && d.getHours() === filtroHoraDia.hora;
+      });
+      if (filtroProdutoDrill) pedidos = pedidos.filter(p => (p.itens || []).some(i => i.titulo === filtroProdutoDrill));
 
       garantirGeoBrasil();
       renderizarMapaBrasil(pedidosCompletos);
@@ -1466,7 +1534,7 @@
       const diasNomes = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
       criarOuAtualizarChart('chartTodosDiaSemana', { type: 'bar', data: { labels: diasNomes, datasets: [{ data: agregarPorDiaSemana(pedidos), backgroundColor: CORES.blue, borderRadius: 4 }] }, options: baseBarOptions() });
       const porForma = contarPor(pedidos, 'forma_entrega');
-      criarOuAtualizarChart('chartTodosFormaEntrega', { type: 'doughnut', data: { labels: Object.keys(porForma), datasets: [{ data: Object.values(porForma), backgroundColor: PALETA_MULTI, borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } }, datalabels: { color: '#fff', font: { weight: 'bold', size: 11 }, formatter: (v) => v } } } });
+      criarOuAtualizarChart('chartTodosFormaEntrega', { type: 'doughnut', data: { labels: Object.keys(porForma), datasets: [{ data: Object.values(porForma), backgroundColor: PALETA_MULTI, borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, onClick: (evt, elementos, chart) => { if (!elementos.length) return; const label = chart.data.labels[elementos[0].index]; document.getElementById('filtroFormaEntrega').value = label; carregarTodos(); }, onHover: (evt, elementos) => { evt.native.target.style.cursor = elementos.length ? 'pointer' : 'default'; }, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } }, datalabels: { color: '#fff', font: { weight: 'bold', size: 11 }, formatter: (v) => v } } } });
       // "conta" sozinho não distingue Mercado Livre de Shopee (as duas usam
       // o mesmo nome de loja, ex: "thapets"), então o gráfico misturava os
       // dois marketplaces numa fatia só. Aqui juntamos loja + marketplace
@@ -1477,7 +1545,7 @@
         conta_marketplace: `${p.conta || '-'} · ${rotuloMarketplace[p.marketplace] || p.marketplace || '-'}`,
       }));
       const porLoja = contarPor(pedidosComLojaEMarketplace, 'conta_marketplace');
-      criarOuAtualizarChart('chartTodosLoja', { type: 'doughnut', data: { labels: Object.keys(porLoja), datasets: [{ data: Object.values(porLoja), backgroundColor: PALETA_MULTI, borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } }, datalabels: { color: '#fff', font: { weight: 'bold', size: 11 }, formatter: (v) => v } } } });
+      criarOuAtualizarChart('chartTodosLoja', { type: 'doughnut', data: { labels: Object.keys(porLoja), datasets: [{ data: Object.values(porLoja), backgroundColor: PALETA_MULTI, borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, onClick: (evt, elementos, chart) => { if (!elementos.length) return; filtroLoja = chart.data.labels[elementos[0].index]; carregarTodos(); }, onHover: (evt, elementos) => { evt.native.target.style.cursor = elementos.length ? 'pointer' : 'default'; }, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } }, datalabels: { color: '#fff', font: { weight: 'bold', size: 11 }, formatter: (v) => v } } } });
       renderizarGraficoEstadosOuCidades(pedidosCompletos, pedidos);
 
       const itensTop = contarItens(pedidos, 10);
