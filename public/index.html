@@ -114,8 +114,7 @@
   .kpi-delta.up { color: #1a9c6b; }
   .kpi-delta.down { color: var(--red); }
 
-  .grid-evolucao { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
-  @media (max-width: 900px) { .grid-evolucao { grid-template-columns: 1fr; } }
+  .grid-evolucao { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin-bottom: 20px; }
 
   .grid-comparativos { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 24px; }
   .comparativo-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
@@ -272,6 +271,7 @@
     <div class="grid-evolucao">
       <div class="card"><div class="card-header"><h2>Faturamento por dia</h2></div><div class="card-body"><div class="chart-wrap-grande" style="height:220px;"><canvas id="chartExecFaturamentoDia"></canvas></div></div></div>
       <div class="card"><div class="card-header"><h2>Pedidos por dia</h2></div><div class="card-body"><div class="chart-wrap-grande" style="height:220px;"><canvas id="chartExecPedidosDia"></canvas></div></div></div>
+      <div class="card"><div class="card-header"><h2>Ticket Médio por dia</h2></div><div class="card-body"><div class="chart-wrap-grande" style="height:220px;"><canvas id="chartExecTicketDia"></canvas></div></div></div>
     </div>
 
     <div class="secao-titulo">Comparativos</div>
@@ -654,13 +654,13 @@
   }
 
   // ---------- EXECUTIVO (Fase 1: sem custo/margem, só o que já temos) ----------
-  function baseLineOptions() {
+  function baseLineOptions(prefixoEixoY) {
     return {
       responsive: true, maintainAspectRatio: false,
       plugins: { legend: { display: false }, datalabels: { display: false } },
       scales: {
         x: { grid: { display: false }, ticks: { color: CORES.muted, maxRotation: 0, autoSkip: true, maxTicksLimit: 10 } },
-        y: { grid: { color: CORES.grid }, ticks: { color: CORES.muted }, beginAtZero: true }
+        y: { grid: { color: CORES.grid }, ticks: { color: CORES.muted, callback: (v) => (prefixoEixoY || '') + v }, beginAtZero: true }
       }
     };
   }
@@ -678,6 +678,7 @@
       dias,
       faturamento: dias.map(d => Math.round(mapaFaturamento[d] * 100) / 100),
       pedidos: dias.map(d => mapaPedidos[d]),
+      ticketMedio: dias.map(d => mapaPedidos[d] ? Math.round((mapaFaturamento[d] / mapaPedidos[d]) * 100) / 100 : 0),
     };
   }
 
@@ -786,6 +787,7 @@
       const rotulosDias = evolucao.dias.map(d => d.slice(8, 10) + '/' + d.slice(5, 7));
       criarOuAtualizarChart('chartExecFaturamentoDia', { type: 'line', data: { labels: rotulosDias, datasets: [{ data: evolucao.faturamento, borderColor: CORES.teal, backgroundColor: 'rgba(23,163,137,0.12)', fill: true, tension: 0.3, pointRadius: 2 }] }, options: baseLineOptions() });
       criarOuAtualizarChart('chartExecPedidosDia', { type: 'line', data: { labels: rotulosDias, datasets: [{ data: evolucao.pedidos, borderColor: CORES.blue, backgroundColor: 'rgba(47,128,237,0.12)', fill: true, tension: 0.3, pointRadius: 2 }] }, options: baseLineOptions() });
+      criarOuAtualizarChart('chartExecTicketDia', { type: 'line', data: { labels: rotulosDias, datasets: [{ data: evolucao.ticketMedio, borderColor: CORES.yellow, backgroundColor: 'rgba(242,201,76,0.18)', fill: true, tension: 0.3, pointRadius: 2 }] }, options: baseLineOptions('R$ ') });
 
       // Comparativos fixos (hoje/ontem, semana/semana passada, mês/mês
       // anterior) — independem do filtro de período selecionado acima, e
