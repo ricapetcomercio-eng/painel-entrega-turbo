@@ -31,6 +31,7 @@ const { buscarPedidosPeriodo, verificarFlex, montarPedidoFlex, reverificarStatus
 const { registrarHistoricoFlex, listarRecentes } = require('../lib/historicoFlex');
 const { buscarDetalhesShipment, montarPedidoGenerico } = require('../lib/mlAllOrders');
 const { buscarDevolucoesPeriodo } = require('../lib/mlClaims');
+const { buscarDevolucoesPorPedido: buscarDevolucoesShopeePorPedido } = require('../lib/shopeeReturns');
 const { registrarHistoricoTodos, HISTORICO_TODOS_HASH_KEY } = require('../lib/historicoTodos');
 
 const HORAS_RETROATIVAS = 6; // janela de busca padrão (Shopee Turbo)
@@ -339,6 +340,32 @@ async function enriquecerDevolucoes(redis, conta, erros) {
   }
 }
 
+async function enriquecerDevolucoesShopee(redis, loja, erros) {
+  try {
+    const ateEpoch = Math.floor(Date.now() / 1000);
+    const desdeEpoch = ateEpoch - DIAS_JANELA_DEVOLUCOES * 24 * 60 * 60;
+    const devolucoesPorPedido = await buscarDevolucoesShopeePorPedido(loja, desdeEpoch, ateEpoch);
+
+    let atualizados = 0;
+    for (const [orderSn, info] of Object.entries(devolucoesPorPedido)) {
+      const idUnico = `shopee:${orderSn}`;
+      const registro = await redis.hget(HISTORICO_TODOS_HASH_KEY, idUnico);
+      if (!registro) continue;
+
+      registro.devolvido = true;
+      registro.devolucao_claim_id = info.return_sn;
+      registro.devolucao_status = info.status;
+      registro.devolucao_reason_id = info.reason;
+      await redis.hset(HISTORICO_TODOS_HASH_KEY, { [idUnico]: registro });
+      atualizados++;
+    }
+    return atualizados;
+  } catch (err) {
+    erros.push({ fonte: `devolucoes_shopee:${loja}`, mensagem: err.message });
+    return 0;
+  }
+}
+
 module.exports = async (req, res) => {
   const cronSecret = process.env.CRON_SECRET;
   const isVercelCron = req.headers['x-vercel-cron'] !== undefined;
@@ -455,6 +482,9 @@ module.exports = async (req, res) => {
     await redis.set('entrega_turbo:ultima_execucao_devolucoes_ts', agora);
     for (const conta of Object.keys(SELLER_IDS)) {
       await enriquecerDevolucoes(redis, conta, erros);
+    }
+    for (const loja of LOJAS_SHOPEE) {
+      await enriquecerDevolucoesShopee(redis, loja, erros);
     }
   }
 
