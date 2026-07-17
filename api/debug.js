@@ -43,12 +43,23 @@ async function debugShopeeReturns(req, res) {
   const loja = (req.query.loja || '').toLowerCase();
   if (!['ricapet', 'thapets'].includes(loja)) { res.status(400).json({ error: 'Use ?loja=ricapet ou ?loja=thapets' }); return; }
 
+  // ⚠️ Tentativa — a doc pública não confirma os parâmetros obrigatórios
+  // desse endpoint. "page_size" sozinho deu "parse data failed", então
+  // aqui testamos acrescentando intervalo de data + página, que é o
+  // padrão mais comum em APIs de listagem da Shopee (ex: get_order_list).
+  const dias = parseInt(req.query.dias, 10) || 30;
+  const createTimeFrom = Math.floor((Date.now() - dias * 24 * 60 * 60 * 1000) / 1000);
+  const createTimeTo = Math.floor(Date.now() / 1000);
+
   try {
-    const dados = await shopeeGet(loja, '/api/v2/returns/get_return_list', { page_size: 20 });
+    const dados = await shopeeGet(loja, '/api/v2/returns/get_return_list', {
+      page_no: 1,
+      page_size: 20,
+      create_time_from: createTimeFrom,
+      create_time_to: createTimeTo,
+    });
     res.status(200).json({ ok: true, tipo: 'shopee-returns', loja, resposta_bruta: dados });
   } catch (err) {
-    // "fetch failed" é um erro de rede genérico do Node — expõe err.cause
-    // (se existir) para saber se é problema do proxy Fixie, DNS, etc.
     throw new Error(`${err.message}${err.cause ? ' | cause: ' + JSON.stringify(err.cause, Object.getOwnPropertyNames(err.cause)) : ''}`);
   }
 }
