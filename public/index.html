@@ -126,6 +126,28 @@
   .comparativo-linha .valores { display: flex; gap: 10px; align-items: baseline; }
   .comparativo-linha .valores .anterior { color: var(--muted); font-size: 12px; }
 
+  .classe-badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 800; color: #fff; }
+  .classe-badge.A { background: #17a389; }
+  .classe-badge.B { background: #f2c94c; color: #4a3a00; }
+  .classe-badge.C { background: #bdc3c7; color: #333; }
+
+  .tabela-abc { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .tabela-abc th { text-align: left; color: var(--muted); font-size: 11px; text-transform: uppercase; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  .tabela-abc td { padding: 7px 10px; border-bottom: 1px solid var(--border); }
+  .tabela-abc tbody tr:hover { background: #fafbfc; }
+
+  .grid-produtos-mov { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+  @media (max-width: 900px) { .grid-produtos-mov { grid-template-columns: 1fr; } }
+  .mov-lista { list-style: none; margin: 0; padding: 0; }
+  .mov-lista li { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 13px; gap: 10px; }
+  .mov-lista li:last-child { border-bottom: none; }
+  .mov-lista .titulo-produto { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+  .mov-tag { font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 20px; white-space: nowrap; }
+  .mov-tag.up { color: #1a9c6b; background: #e3f7f0; }
+  .mov-tag.down { color: var(--red); background: #fdeaea; }
+  .mov-tag.novo { color: #2f80ed; background: #e8f0fd; }
+  .mov-tag.sumiu { color: var(--muted); background: #f0f1f3; }
+
   /* ---- Menu lateral (oculto, aparece ao passar o mouse) ---- */
   body { padding: 0; }
   .sidebar {
@@ -193,6 +215,7 @@
 
   <div class="abas">
     <button class="aba-btn" id="abaBtnExecutivo" onclick="mudarAba('executivo')">Executivo</button>
+    <button class="aba-btn" id="abaBtnProdutos" onclick="mudarAba('produtos')">Produtos</button>
     <button class="aba-btn" id="abaBtnTodos" onclick="mudarAba('todos')">Todos os pedidos</button>
     <button class="aba-btn" id="abaBtnFlex" onclick="mudarAba('flex')">Flex</button>
     <button class="aba-btn" id="abaBtnTurbo" onclick="mudarAba('turbo')">Turbo / Expressa</button>
@@ -267,6 +290,44 @@
         <div class="comparativo-titulo">Este Mês x Mês Anterior</div>
         <div class="comparativo-linha"><span class="rotulo">Faturamento</span><span class="valores"><b id="compMesAtualFat">–</b><span class="anterior" id="compMesAnteriorFat">–</span><span class="kpi-delta" id="compMesDeltaFat">–</span></span></div>
         <div class="comparativo-linha"><span class="rotulo">Pedidos</span><span class="valores"><b id="compMesAtualPed">–</b><span class="anterior" id="compMesAnteriorPed">–</span><span class="kpi-delta" id="compMesDeltaPed">–</span></span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ABA: PRODUTOS -->
+  <div id="painelProdutos" class="oculto">
+    <div style="color:var(--muted); font-size:11px; margin-bottom:12px;">
+      Curva ABC calculada por <b>quantidade vendida</b> — o histórico ainda não guarda o preço unitário de cada item, só o valor total do pedido, então ainda não é possível montar a curva por faturamento real. Usa o filtro de período no topo (aba "Todos os pedidos"/"Executivo").
+    </div>
+    <div class="grid-stats">
+      <div class="stat-card"><div class="value" id="prodDistintos">–</div><div class="label">Produtos distintos vendidos</div></div>
+      <div class="stat-card"><div class="value" id="prodUnidades">–</div><div class="label">Unidades totais vendidas</div></div>
+      <div class="stat-card"><div class="value" id="prodClasseA">–</div><div class="label">Produtos Classe A</div></div>
+      <div class="stat-card"><div class="value" id="prodClasseB">–</div><div class="label">Produtos Classe B</div></div>
+      <div class="stat-card"><div class="value" id="prodClasseC">–</div><div class="label">Produtos Classe C</div></div>
+    </div>
+
+    <div class="secao-titulo">Curva ABC (Pareto) — Top 20 por quantidade</div>
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-body"><div class="chart-wrap-grande" style="height:300px;"><canvas id="chartCurvaABC"></canvas></div></div>
+    </div>
+
+    <div class="secao-titulo">Produtos que mais cresceram / caíram</div>
+    <div style="color:var(--muted); font-size:11px; margin: -8px 0 12px;">
+      Compara a quantidade vendida no período filtrado com o período de mesma duração imediatamente anterior.
+    </div>
+    <div class="grid-produtos-mov">
+      <div class="card"><div class="card-header"><h2>Maiores altas / novos produtos</h2></div><div class="card-body"><ul class="mov-lista" id="listaProdutosAlta"></ul></div></div>
+      <div class="card"><div class="card-header"><h2>Maiores quedas / produtos sumidos</h2></div><div class="card-body"><ul class="mov-lista" id="listaProdutosQueda"></ul></div></div>
+    </div>
+
+    <div class="secao-titulo">Tabela completa (Curva ABC)</div>
+    <div class="card">
+      <div class="card-body" style="max-height:500px; overflow-y:auto;">
+        <table class="tabela-abc">
+          <thead><tr><th>Produto</th><th>Qtd.</th><th>% Participação</th><th>% Acumulado</th><th>Classe</th></tr></thead>
+          <tbody id="tabela-abc-corpo"></tbody>
+        </table>
       </div>
     </div>
   </div>
@@ -752,6 +813,137 @@
     } catch (e) { /* silencioso */ }
   }
 
+  // ---------- PRODUTOS (Curva ABC por quantidade + crescimento/queda) ----------
+  function agregarProdutosQuantidade(pedidos) {
+    const mapa = {};
+    pedidos.forEach(p => (p.itens || []).forEach(i => {
+      const chave = i.titulo || 'Não identificado';
+      mapa[chave] = (mapa[chave] || 0) + (Number(i.quantidade) || 1);
+    }));
+    return mapa;
+  }
+
+  function calcularCurvaABC(mapaQuantidade) {
+    const entradas = Object.entries(mapaQuantidade).sort((a, b) => b[1] - a[1]);
+    const total = entradas.reduce((s, [, q]) => s + q, 0);
+    let acumulado = 0;
+    const linhas = entradas.map(([titulo, qtd]) => {
+      acumulado += qtd;
+      const pctAcumulado = total ? (acumulado / total) * 100 : 0;
+      let classe = 'C';
+      if (pctAcumulado <= 80) classe = 'A';
+      else if (pctAcumulado <= 95) classe = 'B';
+      return { titulo, qtd, pctParticipacao: total ? (qtd / total) * 100 : 0, pctAcumulado, classe };
+    });
+    const resumo = { A: { count: 0, qtd: 0 }, B: { count: 0, qtd: 0 }, C: { count: 0, qtd: 0 } };
+    linhas.forEach(l => { resumo[l.classe].count++; resumo[l.classe].qtd += l.qtd; });
+    return { linhas, resumo, total };
+  }
+
+  function compararProdutos(mapaAtual, mapaAnterior) {
+    const chaves = new Set([...Object.keys(mapaAtual), ...Object.keys(mapaAnterior)]);
+    return [...chaves].map(titulo => {
+      const atual = mapaAtual[titulo] || 0;
+      const anterior = mapaAnterior[titulo] || 0;
+      const variacaoPct = anterior > 0 ? ((atual - anterior) / anterior) * 100 : null;
+      return { titulo, atual, anterior, variacaoPct, novo: anterior === 0 && atual > 0, sumiu: atual === 0 && anterior > 0 };
+    });
+  }
+
+  function truncarTitulo(t, n) { return t.length > n ? t.slice(0, n) + '…' : t; }
+
+  async function carregarProdutos() {
+    try {
+      const deAtual = periodoAtual.de ? new Date(periodoAtual.de) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const ateAtual = periodoAtual.ate ? new Date(periodoAtual.ate) : new Date();
+      const duracaoMs = Math.max(1, ateAtual.getTime() - deAtual.getTime());
+      const deAnterior = new Date(deAtual.getTime() - duracaoMs);
+      const ateAnterior = new Date(deAtual.getTime());
+
+      const [pedidosAtual, pedidosAnterior] = await Promise.all([
+        buscarPedidosPeriodoGenerico(deAtual.toISOString(), ateAtual.toISOString()),
+        buscarPedidosPeriodoGenerico(deAnterior.toISOString(), ateAnterior.toISOString()),
+      ]);
+
+      const mapaAtual = agregarProdutosQuantidade(pedidosAtual);
+      const mapaAnterior = agregarProdutosQuantidade(pedidosAnterior);
+      const abc = calcularCurvaABC(mapaAtual);
+
+      document.getElementById('prodDistintos').textContent = Object.keys(mapaAtual).length;
+      document.getElementById('prodUnidades').textContent = abc.total;
+      document.getElementById('prodClasseA').textContent = `${abc.resumo.A.count} (${abc.total ? (abc.resumo.A.qtd / abc.total * 100).toFixed(0) : 0}% do volume)`;
+      document.getElementById('prodClasseB').textContent = `${abc.resumo.B.count} (${abc.total ? (abc.resumo.B.qtd / abc.total * 100).toFixed(0) : 0}% do volume)`;
+      document.getElementById('prodClasseC').textContent = `${abc.resumo.C.count} (${abc.total ? (abc.resumo.C.qtd / abc.total * 100).toFixed(0) : 0}% do volume)`;
+
+      // Gráfico de Pareto: barras (quantidade) + linha (% acumulado), só
+      // com os 20 primeiros produtos para não poluir o gráfico — a tabela
+      // completa abaixo mostra todos.
+      const top20 = abc.linhas.slice(0, 20);
+      criarOuAtualizarChart('chartCurvaABC', {
+        type: 'bar',
+        data: {
+          labels: top20.map(l => truncarTitulo(l.titulo, 22)),
+          datasets: [
+            { type: 'bar', label: 'Quantidade', data: top20.map(l => l.qtd), backgroundColor: top20.map(l => l.classe === 'A' ? CORES.teal : l.classe === 'B' ? CORES.yellow : CORES.gray), yAxisID: 'y', order: 2 },
+            { type: 'line', label: '% Acumulado', data: top20.map(l => l.pctAcumulado), borderColor: CORES.red, backgroundColor: CORES.red, yAxisID: 'y1', tension: 0.2, pointRadius: 3, order: 1 },
+          ],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 10 } }, datalabels: { display: false } },
+          scales: {
+            x: { grid: { display: false }, ticks: { color: CORES.muted, maxRotation: 60, minRotation: 60, font: { size: 10 } } },
+            y: { position: 'left', grid: { color: CORES.grid }, ticks: { color: CORES.muted }, beginAtZero: true },
+            y1: { position: 'right', grid: { display: false }, ticks: { color: CORES.muted, callback: (v) => v + '%' }, min: 0, max: 100 },
+          },
+        },
+      });
+
+      const tbody = document.getElementById('tabela-abc-corpo');
+      const LIMITE_TABELA = 50;
+      tbody.innerHTML = !abc.linhas.length
+        ? '<tr><td colspan="5" class="empty">Nenhum produto no período/filtro.</td></tr>'
+        : abc.linhas.slice(0, LIMITE_TABELA).map(l => `<tr><td>${l.titulo}</td><td>${l.qtd}</td><td>${l.pctParticipacao.toFixed(1)}%</td><td>${l.pctAcumulado.toFixed(1)}%</td><td><span class="classe-badge ${l.classe}">${l.classe}</span></td></tr>`).join('')
+          + (abc.linhas.length > LIMITE_TABELA ? `<tr><td colspan="5" style="color:var(--muted); text-align:center;">Mostrando os ${LIMITE_TABELA} primeiros de ${abc.linhas.length} produtos.</td></tr>` : '');
+
+      // Crescimento/queda — só considera produtos com volume mínimo em
+      // algum dos dois períodos, para não poluir com variações de ruído
+      // tipo "de 1 para 3 unidades = +200%".
+      const comparativoProdutos = compararProdutos(mapaAtual, mapaAnterior);
+      const MIN_VOLUME = 3;
+      const altas = comparativoProdutos
+        .filter(l => l.variacaoPct !== null && l.variacaoPct > 0 && Math.max(l.atual, l.anterior) >= MIN_VOLUME)
+        .sort((a, b) => b.variacaoPct - a.variacaoPct)
+        .slice(0, 5);
+      const novos = comparativoProdutos
+        .filter(l => l.novo && l.atual >= MIN_VOLUME)
+        .sort((a, b) => b.atual - a.atual)
+        .slice(0, 5);
+      const quedas = comparativoProdutos
+        .filter(l => l.variacaoPct !== null && l.variacaoPct < 0 && Math.max(l.atual, l.anterior) >= MIN_VOLUME)
+        .sort((a, b) => a.variacaoPct - b.variacaoPct)
+        .slice(0, 5);
+      const sumidos = comparativoProdutos
+        .filter(l => l.sumiu && l.anterior >= MIN_VOLUME)
+        .sort((a, b) => b.anterior - a.anterior)
+        .slice(0, 5);
+
+      const listaAlta = document.getElementById('listaProdutosAlta');
+      const itensAlta = [
+        ...altas.map(l => `<li><span class="titulo-produto" title="${l.titulo}">${truncarTitulo(l.titulo, 40)}</span><span class="mov-tag up">▲ ${l.variacaoPct.toFixed(0)}%</span></li>`),
+        ...novos.map(l => `<li><span class="titulo-produto" title="${l.titulo}">${truncarTitulo(l.titulo, 40)}</span><span class="mov-tag novo">Novo · ${l.atual}un</span></li>`),
+      ];
+      listaAlta.innerHTML = itensAlta.length ? itensAlta.join('') : '<li style="color:var(--muted);">Nenhuma alta relevante no período.</li>';
+
+      const listaQueda = document.getElementById('listaProdutosQueda');
+      const itensQueda = [
+        ...quedas.map(l => `<li><span class="titulo-produto" title="${l.titulo}">${truncarTitulo(l.titulo, 40)}</span><span class="mov-tag down">▼ ${Math.abs(l.variacaoPct).toFixed(0)}%</span></li>`),
+        ...sumidos.map(l => `<li><span class="titulo-produto" title="${l.titulo}">${truncarTitulo(l.titulo, 40)}</span><span class="mov-tag sumiu">Sumiu · era ${l.anterior}un</span></li>`),
+      ];
+      listaQueda.innerHTML = itensQueda.length ? itensQueda.join('') : '<li style="color:var(--muted);">Nenhuma queda relevante no período.</li>';
+    } catch (e) { /* silencioso */ }
+  }
+
   // ---------- GAUGE (velocímetro) ----------
   function renderGauge(pct) {
     const p = Math.max(0, Math.min(100, pct));
@@ -774,17 +966,20 @@
     const painelFlex = document.getElementById('painelFlex');
     const painelTodos = document.getElementById('painelTodos');
     const painelExecutivo = document.getElementById('painelExecutivo');
+    const painelProdutos = document.getElementById('painelProdutos');
     const btnTurbo = document.getElementById('abaBtnTurbo');
     const btnFlex = document.getElementById('abaBtnFlex');
     const btnTodos = document.getElementById('abaBtnTodos');
     const btnExecutivo = document.getElementById('abaBtnExecutivo');
+    const btnProdutos = document.getElementById('abaBtnProdutos');
 
-    painelTurbo.className = 'oculto'; painelFlex.className = 'oculto'; painelTodos.className = 'oculto'; painelExecutivo.className = 'oculto';
-    btnTurbo.className = 'aba-btn'; btnFlex.className = 'aba-btn'; btnTodos.className = 'aba-btn'; btnExecutivo.className = 'aba-btn';
+    painelTurbo.className = 'oculto'; painelFlex.className = 'oculto'; painelTodos.className = 'oculto'; painelExecutivo.className = 'oculto'; painelProdutos.className = 'oculto';
+    btnTurbo.className = 'aba-btn'; btnFlex.className = 'aba-btn'; btnTodos.className = 'aba-btn'; btnExecutivo.className = 'aba-btn'; btnProdutos.className = 'aba-btn';
 
     if (aba === 'flex') { painelFlex.className = ''; btnFlex.className = 'aba-btn ativa'; }
     else if (aba === 'todos') { painelTodos.className = ''; btnTodos.className = 'aba-btn ativa'; carregarTodos(); }
     else if (aba === 'executivo') { painelExecutivo.className = ''; btnExecutivo.className = 'aba-btn ativa'; carregarExecutivo(); }
+    else if (aba === 'produtos') { painelProdutos.className = ''; btnProdutos.className = 'aba-btn ativa'; carregarProdutos(); }
     else { painelTurbo.className = ''; btnTurbo.className = 'aba-btn ativa'; }
   }
 
@@ -822,6 +1017,7 @@
     carregarAnalytics();
     carregarTodos();
     carregarExecutivo();
+    carregarProdutos();
   }
 
   function limparDestaquePeriodo() {
@@ -838,6 +1034,7 @@
     carregarAnalytics();
     carregarTodos();
     carregarExecutivo();
+    carregarProdutos();
   }
 
   function aplicarPeriodoManual() {
