@@ -30,7 +30,8 @@ const { LOJAS: LOJAS_SHOPEE } = require('../lib/shopeeAuth');
 const { buscarPedidosPeriodo, verificarFlex, montarPedidoFlex, reverificarStatusPedido } = require('../lib/mlFlexOrders');
 const { registrarHistoricoFlex, listarRecentes } = require('../lib/historicoFlex');
 const { buscarDetalhesShipment, montarPedidoGenerico } = require('../lib/mlAllOrders');
-const { registrarHistoricoTodos } = require('../lib/historicoTodos');
+const { buscarDevolucoesPeriodo } = require('../lib/mlClaims');
+const { registrarHistoricoTodos, HISTORICO_TODOS_HASH_KEY } = require('../lib/historicoTodos');
 
 const HORAS_RETROATIVAS = 6; // janela de busca padrão (Shopee Turbo)
 const HORAS_JANELA_FLEX = 48; // "coleta só amanhã" — precisa de folga
@@ -43,6 +44,11 @@ const INTERVALO_MINIMO_MS = 2 * 60 * 1000; // 2 minutos
 // proxy, então continua no ritmo normal — só a Shopee roda mais devagar,
 // controlada por este intervalo próprio.
 const INTERVALO_MINIMO_SHOPEE_MS = 15 * 60 * 1000; // 15 minutos
+// Devoluções mudam devagar (não é "pedido novo chegando"), então não
+// precisa rodar a cada execução — a cada 30min já é mais que suficiente
+// e economiza chamadas à API do ML.
+const INTERVALO_MINIMO_DEVOLUCOES_MS = 30 * 60 * 1000; // 30 minutos
+const DIAS_JANELA_DEVOLUCOES = 60; // cobre pedidos com prazo de reclamação em aberto
 
 const LIMITE_HISTORICO = 5000;
 const HISTORICO_KEY = 'entrega_turbo:historico_pedidos';
@@ -302,6 +308,32 @@ async function reverificarPendentesFlex(redis, erros) {
   }
 }
 
+async function enriquecerDevolucoes(redis, conta, erros) {
+  try {
+    const desde = new Date(Date.now() - DIAS_JANELA_DEVOLUCOES * 24 * 60 * 60 * 1000).toISOString();
+    const ate = new Date().toISOString();
+    const devolucoesPorPedido = await buscarDevolucoesPeriodo(conta, desde, ate);
+
+    let atualizados = 0;
+    for (const [orderId, info] of Object.entries(devolucoesPorPedido)) {
+      const idUnico = `mercado_livre:${orderId}`;
+      const registro = await redis.hget(HISTORICO_TODOS_HASH_KEY, idUnico);
+      if (!registro) continue; // pedido ainda não coletado no histórico geral — ignora por enquanto
+
+      registro.devolvido = true;
+      registro.devolucao_claim_id = info.claim_id;
+      registro.devolucao_status = info.status;
+      registro.devolucao_reason_id = info.reason_id;
+      await redis.hset(HISTORICO_TODOS_HASH_KEY, { [idUnico]: registro });
+      atualizados++;
+    }
+    return atualizados;
+  } catch (err) {
+    erros.push({ fonte: `devolucoes:${conta}`, mensagem: err.message });
+    return 0;
+  }
+}
+
 module.exports = async (req, res) => {
   const cronSecret = process.env.CRON_SECRET;
   const isVercelCron = req.headers['x-vercel-cron'] !== undefined;
@@ -403,6 +435,16 @@ module.exports = async (req, res) => {
 
   for (const conta of Object.keys(SELLER_IDS)) {
     await coletarNovosParaHistoricoTodos(redis, conta, erros);
+  }
+
+  // -------- Devoluções: enriquece pedidos já coletados, throttle próprio --------
+  const ultimaExecucaoDevolucoes = await redis.get('entrega_turbo:ultima_execucao_devolucoes_ts');
+  const deveRodarDevolucoes = !ultimaExecucaoDevolucoes || (agora - ultimaExecucaoDevolucoes >= INTERVALO_MINIMO_DEVOLUCOES_MS);
+  if (deveRodarDevolucoes) {
+    await redis.set('entrega_turbo:ultima_execucao_devolucoes_ts', agora);
+    for (const conta of Object.keys(SELLER_IDS)) {
+      await enriquecerDevolucoes(redis, conta, erros);
+    }
   }
 
   // Se a Shopee não rodou nesta execução, mantém o último total conhecido
