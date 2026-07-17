@@ -303,12 +303,18 @@
         <div class="label">SLA (dentro do prazo)</div>
         <div class="kpi-delta" id="execSLADelta">–</div>
       </div>
+      <div class="stat-card">
+        <div class="value" id="execDevolucoes">–</div>
+        <div class="label">Devoluções</div>
+        <div class="kpi-delta" id="execDevolucoesDelta">–</div>
+      </div>
     </div>
     <div style="color:var(--muted); font-size:11px; margin: -12px 0 16px;">
       Comparação com o período de mesma duração imediatamente anterior ao filtro selecionado acima.
       Tempo até coleta/entrega considera apenas pedidos do Mercado Livre com esse dado disponível.
       Cancelamentos passou a ser rastreado a partir de agora — pedidos coletados antes dessa mudança não têm esse dado (aparecem como "não cancelado" mesmo que tenham sido). Devoluções ainda não é rastreado (precisa de uma integração separada com a API de pós-venda de cada marketplace).
       Atrasados/SLA considera apenas pedidos do Mercado Livre com prazo de entrega disponível — Shopee ainda não tem esse dado capturado.
+      Devoluções considera apenas Mercado Livre (identificado via reclamações com ação de revisão de devolução) — Shopee ainda não é rastreado. Só conta pedidos já coletados no histórico no momento em que a devolução foi identificada.
     </div>
 
     <div class="secao-titulo">Evolução das vendas</div>
@@ -781,7 +787,9 @@
     const comPrazo = pedidos.filter(p => typeof p.atrasado === 'boolean');
     const atrasados = comPrazo.filter(p => p.atrasado === true).length;
     const taxaSLA = comPrazo.length ? ((comPrazo.length - atrasados) / comPrazo.length) * 100 : null;
-    return { faturamento, totalPedidos, ticket, tempoColeta, tempoEntrega, cancelados, taxaCancelamento, atrasados, taxaSLA, totalComPrazo: comPrazo.length };
+    const devolvidos = pedidos.filter(p => p.devolvido === true).length;
+    const taxaDevolucao = totalPedidos ? (devolvidos / totalPedidos) * 100 : null;
+    return { faturamento, totalPedidos, ticket, tempoColeta, tempoEntrega, cancelados, taxaCancelamento, atrasados, taxaSLA, totalComPrazo: comPrazo.length, devolvidos, taxaDevolucao };
   }
 
   // menorEMelhor: para métricas onde CAIR é bom (ex: tempo até entrega),
@@ -920,6 +928,7 @@
       renderKpiCard('execCancelamentos', 'execCancelamentosDelta', `${kpiAtual.cancelados} (${kpiAtual.taxaCancelamento === null ? '0' : kpiAtual.taxaCancelamento.toFixed(1)}%)`, kpiAtual.taxaCancelamento, kpiAnterior.taxaCancelamento, true);
       renderKpiCard('execAtrasados', 'execAtrasadosDelta', String(kpiAtual.atrasados), kpiAtual.atrasados, kpiAnterior.atrasados, true);
       renderKpiCard('execSLA', 'execSLADelta', kpiAtual.taxaSLA === null ? '-' : kpiAtual.taxaSLA.toFixed(1) + '%', kpiAtual.taxaSLA, kpiAnterior.taxaSLA);
+      renderKpiCard('execDevolucoes', 'execDevolucoesDelta', `${kpiAtual.devolvidos} (${kpiAtual.taxaDevolucao === null ? '0' : kpiAtual.taxaDevolucao.toFixed(1)}%)`, kpiAtual.taxaDevolucao, kpiAnterior.taxaDevolucao, true);
 
       const evolucao = agregarPorDia(pedidosAtual);
       renderizarHeatmap(pedidosAtual);
