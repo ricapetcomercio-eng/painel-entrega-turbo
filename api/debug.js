@@ -47,7 +47,9 @@ async function debugShopeeReturns(req, res) {
   // desse endpoint. "page_size" sozinho deu "parse data failed", então
   // aqui testamos acrescentando intervalo de data + página, que é o
   // padrão mais comum em APIs de listagem da Shopee (ex: get_order_list).
-  const dias = parseInt(req.query.dias, 10) || 30;
+  // ⚠️ Confirmado pela própria API: no máximo 15 dias entre
+  // create_time_from e create_time_to.
+  const dias = Math.min(parseInt(req.query.dias, 10) || 15, 15);
   const createTimeFrom = Math.floor((Date.now() - dias * 24 * 60 * 60 * 1000) / 1000);
   const createTimeTo = Math.floor(Date.now() / 1000);
 
