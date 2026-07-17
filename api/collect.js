@@ -115,7 +115,16 @@ async function coletarNovosParaHistoricoTodos(redis, conta, erros) {
       const { resultados, processados } = await processarEmLotes(pagina.results, tempoRestante, async (pedido) => {
         const shipmentId = pedido.shipping && pedido.shipping.id;
         const detalhes = await buscarDetalhesShipment(conta, shipmentId);
-        return montarPedidoGenerico(conta, pedido, shipmentId, detalhes);
+        const pedidoMontado = montarPedidoGenerico(conta, pedido, shipmentId, detalhes);
+        // ⚠️ TODO: validar contra um pedido cancelado real do ML se o valor
+        // exato é "cancelled" (documentado assim na API de Orders) — a API
+        // do ML também tem "invalid" para pedidos com erro de pagamento,
+        // que hoje NÃO conta como cancelado (só "cancelled" conta).
+        return {
+          ...pedidoMontado,
+          status_pedido: pedido.status || null,
+          cancelado: pedido.status === 'cancelled',
+        };
       });
       pedidosParaGravar.push(...resultados);
       offset += processados;
