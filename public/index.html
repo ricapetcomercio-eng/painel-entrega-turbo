@@ -162,6 +162,14 @@
   .mov-tag.novo { color: #2f80ed; background: #e8f0fd; }
   .mov-tag.sumiu { color: var(--muted); background: #f0f1f3; }
 
+  .alerta-card { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border-radius: 10px; margin-bottom: 8px; font-size: 13px; border-left: 4px solid; }
+  .alerta-card.vermelho { background: #fdeaea; border-left-color: var(--red); color: #7a1f1f; }
+  .alerta-card.amarelo { background: #fff8e6; border-left-color: var(--yellow); color: #7a5c00; }
+  body.tema-escuro .alerta-card.vermelho { background: #3a1f1f; color: #ff9d9d; }
+  body.tema-escuro .alerta-card.amarelo { background: #3a3319; color: #ffd97a; }
+  .alerta-icone { font-size: 16px; line-height: 1; }
+  .alerta-vazio { color: var(--muted); font-size: 13px; padding: 8px 0; }
+
   .heatmap-wrap { overflow-x: auto; }
   .heatmap-table { border-collapse: collapse; font-size: 10px; width: 100%; min-width: 720px; }
   .heatmap-table th { color: var(--muted); font-weight: 600; padding: 3px 2px; text-align: center; }
@@ -262,6 +270,9 @@
 
   <!-- ABA: EXECUTIVO -->
   <div id="painelExecutivo">
+    <div class="secao-titulo" style="margin-top:0;">Alertas Inteligentes</div>
+    <div id="alertasInteligentes" style="margin-bottom:20px;"></div>
+
     <div class="grid-stats">
       <div class="stat-card">
         <div class="value" id="execFaturamento">–</div>
@@ -902,6 +913,80 @@
     mudarAba('todos');
   }
 
+  // ---------- ALERTAS INTELIGENTES ----------
+  // Limiares — ajustáveis aqui conforme a operação for dando mais dado
+  // histórico pra calibrar o que é "normal" vs "alerta de verdade".
+  const LIMIAR_QUEDA_VENDAS_PCT = -20;
+  const LIMIAR_QUEDA_TICKET_PCT = -10;
+  const LIMIAR_AUMENTO_CANCELAMENTO_PP = 3; // pontos percentuais
+  const LIMIAR_AUMENTO_DEVOLUCAO_PP = 2;
+  const LIMIAR_SLA_MINIMO_PCT = 90;
+  const HORAS_ALERTA_PRAZO_PROXIMO = 3;
+
+  function gerarAlertas(kpiAtual, kpiAnterior, pedidosAtual) {
+    const alertas = [];
+
+    if (kpiAnterior.faturamento > 0) {
+      const variacaoVendas = ((kpiAtual.faturamento - kpiAnterior.faturamento) / kpiAnterior.faturamento) * 100;
+      if (variacaoVendas <= LIMIAR_QUEDA_VENDAS_PCT) {
+        alertas.push({ nivel: 'vermelho', icone: '🔴', texto: `Queda de vendas de ${Math.abs(variacaoVendas).toFixed(1)}% em relação ao período anterior.` });
+      }
+    }
+
+    if (kpiAnterior.ticket) {
+      const variacaoTicket = ((kpiAtual.ticket - kpiAnterior.ticket) / kpiAnterior.ticket) * 100;
+      if (variacaoTicket <= LIMIAR_QUEDA_TICKET_PCT) {
+        alertas.push({ nivel: 'amarelo', icone: '🟡', texto: `Ticket médio caiu ${Math.abs(variacaoTicket).toFixed(1)}% em relação ao período anterior.` });
+      }
+    }
+
+    if (kpiAnterior.taxaCancelamento !== null && kpiAtual.taxaCancelamento !== null) {
+      const diffCancelamento = kpiAtual.taxaCancelamento - kpiAnterior.taxaCancelamento;
+      if (diffCancelamento >= LIMIAR_AUMENTO_CANCELAMENTO_PP) {
+        alertas.push({ nivel: 'vermelho', icone: '🔴', texto: `Cancelamentos subiram ${diffCancelamento.toFixed(1)} pontos percentuais (${kpiAnterior.taxaCancelamento.toFixed(1)}% → ${kpiAtual.taxaCancelamento.toFixed(1)}%).` });
+      }
+    }
+
+    if (kpiAnterior.taxaDevolucao !== null && kpiAtual.taxaDevolucao !== null) {
+      const diffDevolucao = kpiAtual.taxaDevolucao - kpiAnterior.taxaDevolucao;
+      if (diffDevolucao >= LIMIAR_AUMENTO_DEVOLUCAO_PP) {
+        alertas.push({ nivel: 'vermelho', icone: '🔴', texto: `Devoluções subiram ${diffDevolucao.toFixed(1)} pontos percentuais (${kpiAnterior.taxaDevolucao.toFixed(1)}% → ${kpiAtual.taxaDevolucao.toFixed(1)}%).` });
+      }
+    }
+
+    if (kpiAtual.taxaSLA !== null && kpiAtual.taxaSLA < LIMIAR_SLA_MINIMO_PCT) {
+      alertas.push({ nivel: 'amarelo', icone: '🟡', texto: `SLA em ${kpiAtual.taxaSLA.toFixed(1)}%, abaixo da meta de ${LIMIAR_SLA_MINIMO_PCT}%.` });
+    }
+
+    // Pedidos ainda não entregues, com prazo vencendo em breve (só ML, que
+    // é o único com prazo_entrega capturado hoje).
+    const agoraMs = Date.now();
+    const pedidosProximosPrazo = pedidosAtual.filter(p => {
+      if (!p.prazo_entrega || p.entregue_em) return false;
+      const prazoMs = new Date(p.prazo_entrega).getTime();
+      const horasRestantes = (prazoMs - agoraMs) / (60 * 60 * 1000);
+      return horasRestantes > 0 && horasRestantes <= HORAS_ALERTA_PRAZO_PROXIMO;
+    });
+    if (pedidosProximosPrazo.length > 0) {
+      alertas.push({ nivel: 'amarelo', icone: '🟡', texto: `${pedidosProximosPrazo.length} pedido(s) com prazo de entrega vencendo nas próximas ${HORAS_ALERTA_PRAZO_PROXIMO}h.` });
+    }
+
+    if (kpiAtual.atrasados > 0) {
+      alertas.push({ nivel: 'vermelho', icone: '🔴', texto: `${kpiAtual.atrasados} pedido(s) já atrasado(s) em relação ao prazo de entrega.` });
+    }
+
+    return alertas;
+  }
+
+  function renderizarAlertas(alertas) {
+    const container = document.getElementById('alertasInteligentes');
+    if (!alertas.length) {
+      container.innerHTML = '<div class="alerta-vazio">Nenhum alerta no momento — operação dentro do esperado. (Margem/estoque não são monitorados ainda, por falta de dado de custo e catálogo.)</div>';
+      return;
+    }
+    container.innerHTML = alertas.map(a => `<div class="alerta-card ${a.nivel}"><span class="alerta-icone">${a.icone}</span><span>${a.texto}</span></div>`).join('');
+  }
+
   async function carregarExecutivo() {
     try {
       // KPIs do período selecionado no filtro global, comparado com o
@@ -919,6 +1004,7 @@
 
       const kpiAtual = calcularKPIs(pedidosAtual);
       const kpiAnterior = calcularKPIs(pedidosAnterior);
+      renderizarAlertas(gerarAlertas(kpiAtual, kpiAnterior, pedidosAtual));
 
       renderKpiCard('execFaturamento', 'execFaturamentoDelta', formatarMoeda(kpiAtual.faturamento), kpiAtual.faturamento, kpiAnterior.faturamento);
       renderKpiCard('execPedidos', 'execPedidosDelta', String(kpiAtual.totalPedidos), kpiAtual.totalPedidos, kpiAnterior.totalPedidos);
