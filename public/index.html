@@ -325,7 +325,7 @@
       Tempo até coleta/entrega considera apenas pedidos do Mercado Livre com esse dado disponível.
       Cancelamentos passou a ser rastreado a partir de agora — pedidos coletados antes dessa mudança não têm esse dado (aparecem como "não cancelado" mesmo que tenham sido). Devoluções ainda não é rastreado (precisa de uma integração separada com a API de pós-venda de cada marketplace).
       Atrasados/SLA considera apenas pedidos do Mercado Livre com prazo de entrega disponível — Shopee ainda não tem esse dado capturado.
-      Devoluções considera apenas Mercado Livre (identificado via reclamações com ação de revisão de devolução) — Shopee ainda não é rastreado. Só conta pedidos já coletados no histórico no momento em que a devolução foi identificada.
+      Devoluções considera Mercado Livre (via reclamações com ação de revisão de devolução) e Shopee (via API de devoluções, excluindo pedidos de devolução cancelados/retirados). Só conta pedidos já coletados no histórico no momento em que a devolução foi identificada.
     </div>
 
     <div class="secao-titulo">Evolução das vendas</div>
