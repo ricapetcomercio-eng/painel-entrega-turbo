@@ -37,6 +37,12 @@ const HORAS_JANELA_FLEX = 48; // "coleta só amanhã" — precisa de folga
 const HORAS_JANELA_SHOPEE_TODOS = 48; // mesma folga usada no restante do backfill
 
 const INTERVALO_MINIMO_MS = 2 * 60 * 1000; // 2 minutos
+// A Shopee (produção) exige proxy com IP fixo (Fixie), que tem cota
+// limitada de requisições/mês. Rodando no mesmo ritmo do ML (a cada
+// ~2min) estourava a cota rapidamente. O Mercado Livre não usa esse
+// proxy, então continua no ritmo normal — só a Shopee roda mais devagar,
+// controlada por este intervalo próprio.
+const INTERVALO_MINIMO_SHOPEE_MS = 15 * 60 * 1000; // 15 minutos
 
 const LIMITE_HISTORICO = 5000;
 const HISTORICO_KEY = 'entrega_turbo:historico_pedidos';
@@ -321,32 +327,64 @@ module.exports = async (req, res) => {
   await redis.set('entrega_turbo:ultima_execucao_ts', agora);
 
   const erros = [];
-  let pedidosShopee = [];
 
-  for (const loja of ['ricapet', 'thapets']) {
+  // -------- Shopee: throttle próprio, roda no máximo a cada 15 min --------
+  const ultimaExecucaoShopee = await redis.get('entrega_turbo:ultima_execucao_shopee_ts');
+  const deveRodarShopee = !ultimaExecucaoShopee || (agora - ultimaExecucaoShopee >= INTERVALO_MINIMO_SHOPEE_MS);
+
+  let totalShopeeTurbo = null; // null = não rodou nesta execução
+
+  if (deveRodarShopee) {
+    await redis.set('entrega_turbo:ultima_execucao_shopee_ts', agora);
+
+    let pedidosShopee = [];
+    for (const loja of ['ricapet', 'thapets']) {
+      try {
+        const pedidos = await coletarPedidosTurbo(loja, HORAS_RETROATIVAS);
+        pedidosShopee = pedidosShopee.concat(pedidos);
+      } catch (err) {
+        erros.push({ fonte: `shopee:${loja}`, mensagem: err.message });
+      }
+    }
+
+    const pedidosUnificados = pedidosShopee.map((pedido) => {
+      const horas = pedido.horas_prometidas || 4;
+      const deadline = new Date(
+        new Date(pedido.date_created).getTime() + horas * 60 * 60 * 1000
+      ).toISOString();
+      return { ...pedido, deadline };
+    });
+
+    const resultado = {
+      atualizado_em: new Date().toISOString(),
+      pedidos: pedidosUnificados.sort((a, b) => new Date(a.deadline) - new Date(b.deadline)),
+      total: pedidosShopee.length,
+      erros,
+    };
+    await redis.set('entrega_turbo:ultima_coleta', resultado);
+    totalShopeeTurbo = resultado.total;
+
     try {
-      const pedidos = await coletarPedidosTurbo(loja, HORAS_RETROATIVAS);
-      pedidosShopee = pedidosShopee.concat(pedidos);
+      await registrarNoHistorico(redis, pedidosUnificados, HISTORICO_KEY, HISTORICO_IDS_KEY, (pedido) => ({
+        marketplace: pedido.marketplace,
+        conta: pedido.conta || pedido.loja || null,
+        order_id: pedido.order_id,
+        date_created: pedido.date_created,
+        total_amount: pedido.total_amount,
+        estado: pedido.estado || null,
+        cidade: pedido.cidade || null,
+        itens: pedido.itens || [],
+      }));
     } catch (err) {
-      erros.push({ fonte: `shopee:${loja}`, mensagem: err.message });
+      erros.push({ fonte: 'historico', mensagem: err.message });
+    }
+
+    for (const loja of LOJAS_SHOPEE) {
+      await coletarNovosParaHistoricoTodosShopee(redis, loja, erros);
     }
   }
 
-  const pedidosUnificados = pedidosShopee.map((pedido) => {
-    const horas = pedido.horas_prometidas || 4;
-    const deadline = new Date(
-      new Date(pedido.date_created).getTime() + horas * 60 * 60 * 1000
-    ).toISOString();
-    return { ...pedido, deadline };
-  });
-
-  const resultado = {
-    atualizado_em: new Date().toISOString(),
-    pedidos: pedidosUnificados.sort((a, b) => new Date(a.deadline) - new Date(b.deadline)),
-    total: pedidosShopee.length,
-    erros,
-  };
-
+  // -------- Mercado Livre: roda toda vez (não usa proxy, sem limite de cota) --------
   for (const conta of Object.keys(SELLER_IDS)) {
     await coletarNovosFlex(redis, conta, erros);
   }
@@ -361,37 +399,25 @@ module.exports = async (req, res) => {
     coletados_nao_entregues: pedidosFlexAtuais.filter((p) => p.categoria === 'coletado').length,
     aguardando_coleta: pedidosFlexAtuais.filter((p) => (p.categoria || 'aguardando') === 'aguardando').length,
   };
-
-  await redis.set('entrega_turbo:ultima_coleta', resultado);
   await redis.set('entrega_turbo:ultima_coleta_flex', resultadoFlex);
-
-  try {
-    await registrarNoHistorico(redis, pedidosUnificados, HISTORICO_KEY, HISTORICO_IDS_KEY, (pedido) => ({
-      marketplace: pedido.marketplace,
-      conta: pedido.conta || pedido.loja || null,
-      order_id: pedido.order_id,
-      date_created: pedido.date_created,
-      total_amount: pedido.total_amount,
-      estado: pedido.estado || null,
-      cidade: pedido.cidade || null,
-      itens: pedido.itens || [],
-    }));
-  } catch (err) {
-    erros.push({ fonte: 'historico', mensagem: err.message });
-  }
 
   for (const conta of Object.keys(SELLER_IDS)) {
     await coletarNovosParaHistoricoTodos(redis, conta, erros);
   }
 
-  for (const loja of LOJAS_SHOPEE) {
-    await coletarNovosParaHistoricoTodosShopee(redis, loja, erros);
+  // Se a Shopee não rodou nesta execução, mantém o último total conhecido
+  // (lido do Redis) em vez de reportar 0 — evita a falsa impressão de que
+  // a coleta zerou só porque essa execução pulou a Shopee de propósito.
+  if (totalShopeeTurbo === null) {
+    const ultimaColetaSalva = await redis.get('entrega_turbo:ultima_coleta');
+    totalShopeeTurbo = (ultimaColetaSalva && ultimaColetaSalva.total) || 0;
   }
 
   res.status(200).json({
     ok: true,
-    total_coletado: resultado.total,
+    total_coletado: totalShopeeTurbo,
     total_coletado_flex: resultadoFlex.total,
+    shopee_rodou_nesta_execucao: deveRodarShopee,
     erros,
   });
 };
