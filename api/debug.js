@@ -29,8 +29,11 @@ async function debugMlClaims(req, res) {
   const accessToken = await getMLAccessToken(conta);
   const desde = new Date(Date.now() - dias * 24 * 60 * 60 * 1000).toISOString();
   const ate = new Date().toISOString();
+  // A API rejeita buscar só por "range" — exige pelo menos mais um filtro
+  // junto (o exemplo oficial usa status=opened). Buscando por "opened"
+  // pega reclamações/devoluções ainda em andamento nesse período.
   const dados = await mlFetch(
-    `/post-purchase/v1/claims/search?range=date_created:after:${encodeURIComponent(desde)},before:${encodeURIComponent(ate)}`,
+    `/post-purchase/v1/claims/search?status=opened&range=date_created:after:${encodeURIComponent(desde)},before:${encodeURIComponent(ate)}`,
     accessToken
   );
   res.status(200).json({ ok: true, tipo: 'ml-claims', conta, periodo: { desde, ate }, resposta_bruta: dados });
@@ -40,8 +43,14 @@ async function debugShopeeReturns(req, res) {
   const loja = (req.query.loja || '').toLowerCase();
   if (!['ricapet', 'thapets'].includes(loja)) { res.status(400).json({ error: 'Use ?loja=ricapet ou ?loja=thapets' }); return; }
 
-  const dados = await shopeeGet(loja, '/api/v2/returns/get_return_list', { page_size: 20 });
-  res.status(200).json({ ok: true, tipo: 'shopee-returns', loja, resposta_bruta: dados });
+  try {
+    const dados = await shopeeGet(loja, '/api/v2/returns/get_return_list', { page_size: 20 });
+    res.status(200).json({ ok: true, tipo: 'shopee-returns', loja, resposta_bruta: dados });
+  } catch (err) {
+    // "fetch failed" é um erro de rede genérico do Node — expõe err.cause
+    // (se existir) para saber se é problema do proxy Fixie, DNS, etc.
+    throw new Error(`${err.message}${err.cause ? ' | cause: ' + JSON.stringify(err.cause, Object.getOwnPropertyNames(err.cause)) : ''}`);
+  }
 }
 
 module.exports = async (req, res) => {
