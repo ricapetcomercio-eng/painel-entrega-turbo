@@ -21,6 +21,21 @@
     --blue: #2f80ed;
     --red: #eb5757;
   }
+  body.tema-escuro {
+    --bg: #12151c;
+    --card: #1b1f29;
+    --border: #2a2f3b;
+    --text: #e6e8ec;
+    --muted: #9099ab;
+    --teal-light: #123a30;
+  }
+  body.tema-escuro .sidebar-link:hover { background: #232837; }
+  body.tema-escuro .sidebar-link.ativo { color: #4fd8b8; }
+  body.tema-escuro .sidebar-link.ativo svg { stroke: #4fd8b8; }
+  body.tema-escuro .periodo-controle select, body.tema-escuro .periodo-controle input[type="date"], body.tema-escuro .periodo-btn { background: var(--card); color: var(--text); }
+  body.tema-escuro .comparativo-linha { border-bottom-color: var(--border); }
+  body.tema-escuro .tabela-abc tbody tr:hover { background: #232837; }
+  body.tema-escuro .mov-lista li { border-bottom-color: var(--border); }
   * { box-sizing: border-box; }
   body {
     margin: 0;
@@ -147,6 +162,13 @@
   .mov-tag.novo { color: #2f80ed; background: #e8f0fd; }
   .mov-tag.sumiu { color: var(--muted); background: #f0f1f3; }
 
+  .heatmap-wrap { overflow-x: auto; }
+  .heatmap-table { border-collapse: collapse; font-size: 10px; width: 100%; min-width: 720px; }
+  .heatmap-table th { color: var(--muted); font-weight: 600; padding: 3px 2px; text-align: center; }
+  .heatmap-table th.rotulo-dia { text-align: right; padding-right: 8px; }
+  .heatmap-table td { width: 26px; height: 22px; text-align: center; border-radius: 3px; cursor: default; }
+  .heatmap-table td .heatmap-cell { display: block; width: 100%; height: 100%; border-radius: 3px; }
+
   /* ---- Menu lateral (oculto, aparece ao passar o mouse) ---- */
   body { padding: 0; }
   .sidebar {
@@ -209,8 +231,13 @@
   <iframe id="painelExternoFrame" class="oculto" style="width:100%; height:100vh; border:none;"></iframe>
 
   <div id="painelNativoWrap">
-  <h1>Painel de Logística — Flex / Turbo</h1>
-  <div class="subtitle" id="atualizado-em">Carregando...</div>
+  <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+    <div>
+      <h1>Painel de Logística — Flex / Turbo</h1>
+      <div class="subtitle" id="atualizado-em">Carregando...</div>
+    </div>
+    <button class="periodo-btn" id="btnAlternarTema" onclick="alternarTema()" style="white-space:nowrap;">🌙 Modo escuro</button>
+  </div>
 
   <div class="abas">
     <button class="aba-btn" id="abaBtnExecutivo" onclick="mudarAba('executivo')">Executivo</button>
@@ -272,6 +299,14 @@
       <div class="card"><div class="card-header"><h2>Faturamento por dia</h2></div><div class="card-body"><div class="chart-wrap-grande" style="height:220px;"><canvas id="chartExecFaturamentoDia"></canvas></div></div></div>
       <div class="card"><div class="card-header"><h2>Pedidos por dia</h2></div><div class="card-body"><div class="chart-wrap-grande" style="height:220px;"><canvas id="chartExecPedidosDia"></canvas></div></div></div>
       <div class="card"><div class="card-header"><h2>Ticket Médio por dia</h2></div><div class="card-body"><div class="chart-wrap-grande" style="height:220px;"><canvas id="chartExecTicketDia"></canvas></div></div></div>
+    </div>
+
+    <div class="secao-titulo">Heatmap de Vendas — Hora × Dia da Semana</div>
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-body">
+        <div class="heatmap-wrap"><table class="heatmap-table" id="tabelaHeatmap"></table></div>
+        <div style="color:var(--muted); font-size:11px; margin-top:8px;">Quanto mais escuro, mais pedidos naquele horário/dia. Passe o mouse sobre uma célula para ver o total.</div>
+      </div>
     </div>
 
     <div class="secao-titulo">Comparativos</div>
@@ -581,14 +616,40 @@
     document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('ativo'));
     document.getElementById('linkPainelNativo').classList.add('ativo');
   }
+  function corMuted() { return document.body.classList.contains('tema-escuro') ? '#a8b0bd' : '#7f8c96'; }
+  function corGrid() { return document.body.classList.contains('tema-escuro') ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'; }
+
+  function alternarTema() {
+    const escuro = document.body.classList.toggle('tema-escuro');
+    localStorage.setItem('painel_entrega_turbo_tema', escuro ? 'escuro' : 'claro');
+    document.getElementById('btnAlternarTema').textContent = escuro ? '☀️ Modo claro' : '🌙 Modo escuro';
+    if (typeof Chart !== 'undefined') Chart.defaults.color = corMuted();
+    // Redesenha os gráficos já criados para pegarem as cores do novo tema —
+    // os grids/eixos usam CORES.muted/CORES.grid, que já são "getters"
+    // dinâmicos, mas o Chart.js só recalcula ao reconstruir as options.
+    carregarExecutivo();
+    carregarProdutos();
+    carregarTodos();
+    carregarAnalytics();
+  }
+
+  function inicializarTema() {
+    if (localStorage.getItem('painel_entrega_turbo_tema') === 'escuro') {
+      document.body.classList.add('tema-escuro');
+      document.getElementById('btnAlternarTema').textContent = '☀️ Modo claro';
+    }
+  }
+
   const CORES = {
     teal: '#17a389', yellow: '#f2c94c', gray: '#bdc3c7', blue: '#2f80ed', red: '#eb5757',
-    ml: '#f2b90c', shopee: '#ee4d2d', muted: '#7f8c96', grid: 'rgba(0,0,0,0.06)'
+    ml: '#f2b90c', shopee: '#ee4d2d',
+    get muted() { return corMuted(); },
+    get grid() { return corGrid(); },
   };
   const PALETA_MULTI = [CORES.teal, CORES.blue, CORES.yellow, CORES.gray, CORES.red, '#9b59b6', '#2ecc71'];
 
   if (typeof Chart !== 'undefined') {
-    Chart.defaults.color = CORES.muted;
+    Chart.defaults.color = corMuted();
     Chart.defaults.font.size = 11;
     if (typeof ChartDataLabels !== 'undefined') Chart.register(ChartDataLabels);
   }
@@ -759,6 +820,47 @@
     setDelta(idPrefix + 'DeltaPed', deltaPed);
   }
 
+  // ---------- HEATMAP Hora × Dia da Semana ----------
+  function agregarHeatmapHoraDia(pedidos) {
+    // matriz[diaSemana][hora] = quantidade de pedidos
+    const matriz = Array.from({ length: 7 }, () => new Array(24).fill(0));
+    pedidos.forEach(p => {
+      const d = new Date(p.date_created);
+      matriz[d.getDay()][d.getHours()]++;
+    });
+    return matriz;
+  }
+
+  function corHeatmap(valor, max) {
+    if (!max || valor === 0) return document.body.classList.contains('tema-escuro') ? '#232837' : '#f2f4f6';
+    const intensidade = Math.min(1, valor / max);
+    // Interpola entre o teal claro e o teal forte, conforme a intensidade
+    const r1 = 215, g1 = 240, b1 = 236; // teal-light aproximado
+    const r2 = 23, g2 = 163, b2 = 137; // teal forte
+    const r = Math.round(r1 + (r2 - r1) * intensidade);
+    const g = Math.round(g1 + (g2 - g1) * intensidade);
+    const b = Math.round(b1 + (b2 - b1) * intensidade);
+    return `rgb(${r},${g},${b})`;
+  }
+
+  function renderizarHeatmap(pedidos) {
+    const matriz = agregarHeatmapHoraDia(pedidos);
+    const diasNomes = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    const max = Math.max(1, ...matriz.flat());
+
+    let thead = '<tr><th></th>' + Array.from({ length: 24 }, (_, h) => `<th>${h}h</th>`).join('') + '</tr>';
+    let corpo = diasNomes.map((nomeDia, dia) => {
+      const celulas = matriz[dia].map(v => {
+        const cor = corHeatmap(v, max);
+        const corTexto = v / max > 0.55 ? '#fff' : 'var(--text)';
+        return `<td title="${nomeDia}, ${v} pedido(s)"><span class="heatmap-cell" style="background:${cor}; color:${corTexto}; font-size:9px; line-height:22px;">${v || ''}</span></td>`;
+      }).join('');
+      return `<tr><th class="rotulo-dia">${nomeDia}</th>${celulas}</tr>`;
+    }).join('');
+
+    document.getElementById('tabelaHeatmap').innerHTML = thead + corpo;
+  }
+
   async function carregarExecutivo() {
     try {
       // KPIs do período selecionado no filtro global, comparado com o
@@ -784,6 +886,7 @@
       renderKpiCard('execTempoEntrega', 'execTempoEntregaDelta', kpiAtual.tempoEntrega === null ? '-' : kpiAtual.tempoEntrega.toFixed(1) + 'h', kpiAtual.tempoEntrega, kpiAnterior.tempoEntrega, true);
 
       const evolucao = agregarPorDia(pedidosAtual);
+      renderizarHeatmap(pedidosAtual);
       const rotulosDias = evolucao.dias.map(d => d.slice(8, 10) + '/' + d.slice(5, 7));
       criarOuAtualizarChart('chartExecFaturamentoDia', { type: 'line', data: { labels: rotulosDias, datasets: [{ data: evolucao.faturamento, borderColor: CORES.teal, backgroundColor: 'rgba(23,163,137,0.12)', fill: true, tension: 0.3, pointRadius: 2 }] }, options: baseLineOptions() });
       criarOuAtualizarChart('chartExecPedidosDia', { type: 'line', data: { labels: rotulosDias, datasets: [{ data: evolucao.pedidos, borderColor: CORES.blue, backgroundColor: 'rgba(47,128,237,0.12)', fill: true, tension: 0.3, pointRadius: 2 }] }, options: baseLineOptions() });
@@ -1409,6 +1512,7 @@
     }
   }
 
+  inicializarTema();
   inicializarPeriodoPadrao();
   carregar();
   carregarAnalytics();
