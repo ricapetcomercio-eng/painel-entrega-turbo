@@ -288,10 +288,16 @@
         <div class="label">Tempo Médio até Entrega</div>
         <div class="kpi-delta" id="execTempoEntregaDelta">–</div>
       </div>
+      <div class="stat-card">
+        <div class="value" id="execCancelamentos">–</div>
+        <div class="label">Cancelamentos</div>
+        <div class="kpi-delta" id="execCancelamentosDelta">–</div>
+      </div>
     </div>
     <div style="color:var(--muted); font-size:11px; margin: -12px 0 16px;">
       Comparação com o período de mesma duração imediatamente anterior ao filtro selecionado acima.
       Tempo até coleta/entrega considera apenas pedidos do Mercado Livre com esse dado disponível.
+      Cancelamentos passou a ser rastreado a partir de agora — pedidos coletados antes dessa mudança não têm esse dado (aparecem como "não cancelado" mesmo que tenham sido). Devoluções ainda não é rastreado (precisa de uma integração separada com a API de pós-venda de cada marketplace).
     </div>
 
     <div class="secao-titulo">Evolução das vendas</div>
@@ -754,7 +760,9 @@
     const tempoColeta = comColeta.length ? comColeta.reduce((a, p) => a + p.horas_ate_coleta, 0) / comColeta.length : null;
     const comEntrega = pedidos.filter(p => typeof p.horas_ate_entrega === 'number');
     const tempoEntrega = comEntrega.length ? comEntrega.reduce((a, p) => a + p.horas_ate_entrega, 0) / comEntrega.length : null;
-    return { faturamento, totalPedidos, ticket, tempoColeta, tempoEntrega };
+    const cancelados = pedidos.filter(p => p.cancelado === true).length;
+    const taxaCancelamento = totalPedidos ? (cancelados / totalPedidos) * 100 : null;
+    return { faturamento, totalPedidos, ticket, tempoColeta, tempoEntrega, cancelados, taxaCancelamento };
   }
 
   // menorEMelhor: para métricas onde CAIR é bom (ex: tempo até entrega),
@@ -884,6 +892,7 @@
       renderKpiCard('execTicket', 'execTicketDelta', kpiAtual.ticket === null ? '-' : formatarMoeda(kpiAtual.ticket), kpiAtual.ticket, kpiAnterior.ticket);
       renderKpiCard('execTempoColeta', 'execTempoColetaDelta', kpiAtual.tempoColeta === null ? '-' : kpiAtual.tempoColeta.toFixed(1) + 'h', kpiAtual.tempoColeta, kpiAnterior.tempoColeta, true);
       renderKpiCard('execTempoEntrega', 'execTempoEntregaDelta', kpiAtual.tempoEntrega === null ? '-' : kpiAtual.tempoEntrega.toFixed(1) + 'h', kpiAtual.tempoEntrega, kpiAnterior.tempoEntrega, true);
+      renderKpiCard('execCancelamentos', 'execCancelamentosDelta', `${kpiAtual.cancelados} (${kpiAtual.taxaCancelamento === null ? '0' : kpiAtual.taxaCancelamento.toFixed(1)}%)`, kpiAtual.taxaCancelamento, kpiAnterior.taxaCancelamento, true);
 
       const evolucao = agregarPorDia(pedidosAtual);
       renderizarHeatmap(pedidosAtual);
