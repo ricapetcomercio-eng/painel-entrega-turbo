@@ -12,7 +12,6 @@
 // Shopee, string ou vazio — até vir "done": true):
 //   /api/backfill-shopee-todos?secret=SEU_SECRET&conta=thapets&dias=30&dia=0&offset=
 
-const { getRedis } = require('../lib/redis');
 const { buscarPedidosPeriodo, buscarDetalhesCompletos, montarPedidoGenericoShopee } = require('../lib/shopeeOrders');
 const { registrarHistoricoTodos } = require('../lib/historicoTodos');
 
@@ -56,7 +55,6 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const redis = getRedis();
     const pedidosParaGravar = [];
     let processadosNestaExecucao = 0;
     let diasProcessados = 0;
@@ -93,7 +91,7 @@ module.exports = async (req, res) => {
       await new Promise((r) => setTimeout(r, PAUSA_ENTRE_CHAMADAS_MS));
     }
 
-    const { gravados } = await registrarHistoricoTodos(redis, pedidosParaGravar);
+    const { gravados } = await registrarHistoricoTodos(pedidosParaGravar);
     const done = diaAtual >= dias;
 
     res.status(200).json({

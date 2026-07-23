@@ -11,7 +11,6 @@
 // retornados, até vir "done": true):
 //   /api/backfill-flex-api?secret=SEU_SECRET&conta=ricapet&dias=30&dia=0&offset=0
 
-const { getRedis } = require('../lib/redis');
 const { buscarPedidosPeriodo, verificarFlex, montarPedidoFlex } = require('../lib/mlFlexOrders');
 const { registrarHistoricoFlex } = require('../lib/historicoFlex');
 
@@ -37,7 +36,6 @@ module.exports = async (req, res) => {
     return;
   }
 
-  const redis = getRedis();
   const hoje = new Date();
   const inicioJanela = new Date(hoje);
   inicioJanela.setDate(inicioJanela.getDate() - dias);
@@ -86,7 +84,7 @@ module.exports = async (req, res) => {
       }
     }
 
-    const { gravados } = await registrarHistoricoFlex(redis, pedidosParaGravar);
+    const { gravados } = await registrarHistoricoFlex(pedidosParaGravar);
     const done = diaAtual >= dias;
 
     res.status(200).json({
