@@ -11,6 +11,93 @@
 
 const { getMLAccessToken } = require('../lib/mlAuth');
 const { shopeeGet } = require('../lib/shopeeAuth');
+const { getDb } = require('../lib/db');
+
+const TABELAS_SQL = [
+  `CREATE TABLE IF NOT EXISTS kv_simples (
+    chave TEXT PRIMARY KEY,
+    valor TEXT,
+    atualizado_em INTEGER
+  )`,
+  `CREATE TABLE IF NOT EXISTS shopee_tokens (
+    loja TEXT PRIMARY KEY,
+    access_token TEXT,
+    refresh_token TEXT,
+    shop_id TEXT,
+    expires_at INTEGER
+  )`,
+  `CREATE TABLE IF NOT EXISTS historico_flex (
+    id_unico TEXT PRIMARY KEY,
+    marketplace TEXT,
+    conta TEXT,
+    order_id TEXT,
+    date_created TEXT,
+    date_created_ts INTEGER,
+    total_amount REAL,
+    shipment_id TEXT,
+    coletado INTEGER,
+    categoria TEXT,
+    status_envio TEXT,
+    coletado_em TEXT,
+    entregue_em TEXT,
+    horas_ate_coleta REAL,
+    horas_ate_entrega REAL,
+    itens TEXT
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_historico_flex_data ON historico_flex(date_created_ts)`,
+  `CREATE TABLE IF NOT EXISTS historico_todos (
+    id_unico TEXT PRIMARY KEY,
+    marketplace TEXT,
+    conta TEXT,
+    order_id TEXT,
+    date_created TEXT,
+    date_created_ts INTEGER,
+    total_amount REAL,
+    forma_entrega TEXT,
+    status_envio TEXT,
+    status_pedido TEXT,
+    cancelado INTEGER,
+    estado TEXT,
+    cidade TEXT,
+    categoria TEXT,
+    coletado INTEGER,
+    coletado_em TEXT,
+    entregue_em TEXT,
+    horas_ate_coleta REAL,
+    horas_ate_entrega REAL,
+    prazo_entrega TEXT,
+    atrasado INTEGER,
+    devolvido INTEGER,
+    devolucao_claim_id TEXT,
+    devolucao_status TEXT,
+    devolucao_reason_id TEXT,
+    itens TEXT
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_historico_todos_data ON historico_todos(date_created_ts)`,
+  `CREATE TABLE IF NOT EXISTS historico_turbo (
+    id_unico TEXT PRIMARY KEY,
+    marketplace TEXT,
+    conta TEXT,
+    order_id TEXT,
+    date_created TEXT,
+    date_created_ts INTEGER,
+    total_amount REAL,
+    estado TEXT,
+    cidade TEXT,
+    itens TEXT
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_historico_turbo_data ON historico_turbo(date_created_ts)`,
+];
+
+async function debugCriarTabelas(req, res) {
+  const db = getDb();
+  const criadas = [];
+  for (const sql of TABELAS_SQL) {
+    await db.execute(sql);
+    criadas.push(sql.split('\n')[0].trim());
+  }
+  res.status(200).json({ ok: true, tipo: 'criar-tabelas', comandos_executados: criadas.length, detalhe: criadas });
+}
 
 async function mlFetch(path, accessToken) {
   const resp = await fetch(`https://api.mercadolibre.com${path}`, {
@@ -76,7 +163,8 @@ module.exports = async (req, res) => {
   try {
     if (req.query.tipo === 'ml-claims') return await debugMlClaims(req, res);
     if (req.query.tipo === 'shopee-returns') return await debugShopeeReturns(req, res);
-    res.status(400).json({ error: 'Use ?tipo=ml-claims ou ?tipo=shopee-returns' });
+    if (req.query.tipo === 'criar-tabelas') return await debugCriarTabelas(req, res);
+    res.status(400).json({ error: 'Use ?tipo=ml-claims, ?tipo=shopee-returns ou ?tipo=criar-tabelas' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
