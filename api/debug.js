@@ -12,6 +12,7 @@
 const { getMLAccessToken } = require('../lib/mlAuth');
 const { shopeeGet } = require('../lib/shopeeAuth');
 const { getDb } = require('../lib/db');
+const { getRedis } = require('../lib/redis');
 
 const TABELAS_SQL = [
   `CREATE TABLE IF NOT EXISTS kv_simples (
@@ -106,6 +107,160 @@ async function debugCriarTabelas(req, res) {
   res.status(200).json({ ok: true, tipo: 'criar-tabelas', comandos_executados: criadas.length, detalhe: criadas });
 }
 
+// -------- Migração única: Redis antigo (compartilhado) -> Turso --------
+// Só pode rodar depois que a cota do Redis resetar (14/08) — o limite de
+// 500 mil requisições/mês conta LEITURA também, não só escrita, então
+// nem dá pra testar isso antes do reset.
+//
+// Resumível: se demorar demais numa chamada só, chame de novo passando os
+// offsets retornados em "proximo" — continua de onde parou em cada tabela.
+const LIMITE_TEMPO_MIGRACAO_MS = 8000;
+const TAMANHO_LOTE_MIGRACAO = 200;
+
+function paraInteiroBooleanoMigracao(v) {
+  if (v === true) return 1;
+  if (v === false) return 0;
+  return null;
+}
+
+async function migrarHistoricoFlex(redis, db, offsetInicial) {
+  const HISTORICO_FLEX_HASH_KEY = 'entrega_turbo:historico_flex_hash';
+  const todos = await redis.hgetall(HISTORICO_FLEX_HASH_KEY);
+  const entradas = Object.values(todos || {});
+  const lote = entradas.slice(offsetInicial, offsetInicial + TAMANHO_LOTE_MIGRACAO);
+
+  const statements = lote.map((pedido) => {
+    const idUnico = `mercado_livre:${pedido.order_id}`;
+    const dateCreatedTs = new Date(pedido.date_created).getTime();
+    const coletadoInt = paraInteiroBooleanoMigracao(pedido.coletado);
+    return {
+      sql: `INSERT OR IGNORE INTO historico_flex (
+              id_unico, marketplace, conta, order_id, date_created, date_created_ts,
+              total_amount, shipment_id, coletado, categoria, coletado_em, entregue_em,
+              horas_ate_coleta, horas_ate_entrega, itens
+            ) VALUES (?, 'mercado_livre', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [
+        idUnico, pedido.conta || null, String(pedido.order_id), pedido.date_created, dateCreatedTs,
+        pedido.total_amount, pedido.shipment_id || null, coletadoInt, pedido.categoria || null,
+        pedido.coletado_em || null, pedido.entregue_em || null,
+        typeof pedido.horas_ate_coleta === 'number' ? pedido.horas_ate_coleta : null,
+        typeof pedido.horas_ate_entrega === 'number' ? pedido.horas_ate_entrega : null,
+        JSON.stringify(pedido.itens || []),
+      ],
+    };
+  });
+
+  if (statements.length > 0) await db.batch(statements, 'write');
+  return { processados: lote.length, total_disponivel: entradas.length };
+}
+
+async function migrarHistoricoTodos(redis, db, offsetInicial) {
+  const HISTORICO_TODOS_HASH_KEY = 'entrega_turbo:historico_todos_hash';
+  const todos = await redis.hgetall(HISTORICO_TODOS_HASH_KEY);
+  const entradas = Object.values(todos || {});
+  const lote = entradas.slice(offsetInicial, offsetInicial + TAMANHO_LOTE_MIGRACAO);
+
+  const statements = lote.map((pedido) => {
+    const marketplace = pedido.marketplace || 'mercado_livre';
+    const idUnico = `${marketplace}:${pedido.order_id}`;
+    const dateCreatedTs = new Date(pedido.date_created).getTime();
+    return {
+      sql: `INSERT OR IGNORE INTO historico_todos (
+              id_unico, marketplace, conta, order_id, date_created, date_created_ts,
+              total_amount, forma_entrega, status_envio, status_pedido, cancelado,
+              estado, cidade, categoria, coletado, coletado_em, entregue_em,
+              horas_ate_coleta, horas_ate_entrega, prazo_entrega, atrasado,
+              devolvido, devolucao_claim_id, devolucao_status, devolucao_reason_id, itens
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [
+        idUnico, marketplace, pedido.conta || null, String(pedido.order_id), pedido.date_created, dateCreatedTs,
+        pedido.total_amount, pedido.forma_entrega || 'Não identificado', pedido.status_envio || null,
+        pedido.status_pedido || null, paraInteiroBooleanoMigracao(pedido.cancelado) || 0,
+        pedido.estado || null, pedido.cidade || null, pedido.categoria || null,
+        paraInteiroBooleanoMigracao(pedido.coletado),
+        pedido.coletado_em || null, pedido.entregue_em || null,
+        typeof pedido.horas_ate_coleta === 'number' ? pedido.horas_ate_coleta : null,
+        typeof pedido.horas_ate_entrega === 'number' ? pedido.horas_ate_entrega : null,
+        pedido.prazo_entrega || null,
+        paraInteiroBooleanoMigracao(pedido.atrasado),
+        paraInteiroBooleanoMigracao(pedido.devolvido) || 0,
+        pedido.devolucao_claim_id || null, pedido.devolucao_status || null, pedido.devolucao_reason_id || null,
+        JSON.stringify(pedido.itens || []),
+      ],
+    };
+  });
+
+  if (statements.length > 0) await db.batch(statements, 'write');
+  return { processados: lote.length, total_disponivel: entradas.length };
+}
+
+async function migrarHistoricoTurbo(redis, db, offsetInicial) {
+  const HISTORICO_KEY = 'entrega_turbo:historico_pedidos';
+  const todos = await redis.lrange(HISTORICO_KEY, 0, -1);
+  const lote = todos.slice(offsetInicial, offsetInicial + TAMANHO_LOTE_MIGRACAO);
+
+  const statements = lote.map((pedido) => {
+    const idUnico = `${pedido.marketplace}:${pedido.order_id}`;
+    const dateCreatedTs = new Date(pedido.date_created).getTime();
+    return {
+      sql: `INSERT OR IGNORE INTO historico_turbo
+              (id_unico, marketplace, conta, order_id, date_created, date_created_ts, total_amount, estado, cidade, itens)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [
+        idUnico, pedido.marketplace, pedido.conta || null, String(pedido.order_id), pedido.date_created,
+        dateCreatedTs, pedido.total_amount, pedido.estado || null, pedido.cidade || null,
+        JSON.stringify(pedido.itens || []),
+      ],
+    };
+  });
+
+  if (statements.length > 0) await db.batch(statements, 'write');
+  return { processados: lote.length, total_disponivel: todos.length };
+}
+
+async function debugMigrarRedisTurso(req, res) {
+  const redis = getRedis();
+  const db = getDb();
+
+  const offsetFlex = parseInt(req.query.offset_flex, 10) || 0;
+  const offsetTodos = parseInt(req.query.offset_todos, 10) || 0;
+  const offsetTurbo = parseInt(req.query.offset_turbo, 10) || 0;
+
+  const inicio = Date.now();
+  const resultado = {};
+
+  if (Date.now() - inicio < LIMITE_TEMPO_MIGRACAO_MS) {
+    resultado.flex = await migrarHistoricoFlex(redis, db, offsetFlex);
+  }
+  if (Date.now() - inicio < LIMITE_TEMPO_MIGRACAO_MS) {
+    resultado.todos = await migrarHistoricoTodos(redis, db, offsetTodos);
+  }
+  if (Date.now() - inicio < LIMITE_TEMPO_MIGRACAO_MS) {
+    resultado.turbo = await migrarHistoricoTurbo(redis, db, offsetTurbo);
+  }
+
+  const proximoOffsetFlex = offsetFlex + (resultado.flex ? resultado.flex.processados : 0);
+  const proximoOffsetTodos = offsetTodos + (resultado.todos ? resultado.todos.processados : 0);
+  const proximoOffsetTurbo = offsetTurbo + (resultado.turbo ? resultado.turbo.processados : 0);
+
+  const done =
+    resultado.flex && proximoOffsetFlex >= resultado.flex.total_disponivel &&
+    resultado.todos && proximoOffsetTodos >= resultado.todos.total_disponivel &&
+    resultado.turbo && proximoOffsetTurbo >= resultado.turbo.total_disponivel;
+
+  res.status(200).json({
+    ok: true,
+    tipo: 'migrar-redis-turso',
+    done,
+    resultado,
+    proximo: done ? null : {
+      offset_flex: proximoOffsetFlex,
+      offset_todos: proximoOffsetTodos,
+      offset_turbo: proximoOffsetTurbo,
+    },
+  });
+}
+
 async function mlFetch(path, accessToken) {
   const resp = await fetch(`https://api.mercadolibre.com${path}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
@@ -171,7 +326,8 @@ module.exports = async (req, res) => {
     if (req.query.tipo === 'ml-claims') return await debugMlClaims(req, res);
     if (req.query.tipo === 'shopee-returns') return await debugShopeeReturns(req, res);
     if (req.query.tipo === 'criar-tabelas') return await debugCriarTabelas(req, res);
-    res.status(400).json({ error: 'Use ?tipo=ml-claims, ?tipo=shopee-returns ou ?tipo=criar-tabelas' });
+    if (req.query.tipo === 'migrar-redis-turso') return await debugMigrarRedisTurso(req, res);
+    res.status(400).json({ error: 'Use ?tipo=ml-claims, ?tipo=shopee-returns, ?tipo=criar-tabelas ou ?tipo=migrar-redis-turso' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
