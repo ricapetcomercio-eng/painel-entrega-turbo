@@ -5,6 +5,7 @@
   "description": "Painel de pedidos com entrega expressa (ML poucas horas / Shopee Entrega Turbo) - Ricapet e Thapets",
   "dependencies": {
     "@upstash/redis": "^1.34.0",
+    "@libsql/client": "^0.14.0",
     "undici": "^6.19.8"
   }
 }
