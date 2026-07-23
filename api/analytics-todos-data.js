@@ -5,16 +5,11 @@
 //   ?de=YYYY-MM-DD&ate=YYYY-MM-DD&forma_entrega=Mercado%20Envios%20Flex&estado=São%20Paulo
 // forma_entrega/estado omitidos ou "todas"/"todos" = sem filtro.
 //
-// IMPORTANTE: com o histórico crescendo (dezenas de milhares de pedidos),
-// buscar o HASH inteiro (hgetall) a cada chamada fica pesado demais e pode
-// até estourar limite de tamanho de resposta do Redis/Vercel. Por isso,
-// usamos o ZSET (indexado por data) para pegar só os IDs do período pedido,
-// e buscamos só esses registros específicos (hmget), não o hash inteiro.
+// Migrado do Redis (ZSET+HASH) para Turso — a consulta por período agora é
+// um SELECT direto com WHERE, sem precisar do padrão de score/paginação
+// manual que o Redis exigia.
 
-const { getRedis } = require('../lib/redis');
-
-const HISTORICO_TODOS_HASH_KEY = 'entrega_turbo:historico_todos_hash';
-const HISTORICO_TODOS_ZSET_KEY = 'entrega_turbo:historico_todos_zset';
+const { buscarPorPeriodo } = require('../lib/historicoTodos');
 
 function calcularIntervaloPadrao() {
   const agora = new Date();
@@ -42,26 +37,11 @@ function parseIntervalo(query) {
 
 module.exports = async (req, res) => {
   try {
-    const redis = getRedis();
     const { de, ate } = parseIntervalo(req.query || {});
     const formaEntregaFiltro = req.query.forma_entrega;
     const estadoFiltro = req.query.estado;
 
-    // 1) Pega só os IDs cujo timestamp está dentro do período pedido.
-    const ids = await redis.zrange(HISTORICO_TODOS_ZSET_KEY, de.getTime(), ate.getTime(), { byScore: true });
-
-    // 2) Busca só esses registros específicos, não o hash inteiro.
-    let pedidos = [];
-    if (ids.length > 0) {
-      const TAMANHO_LOTE = 500; // hmget também tem limite prático por chamada
-      for (let i = 0; i < ids.length; i += TAMANHO_LOTE) {
-        const lote = ids.slice(i, i + TAMANHO_LOTE);
-        const valores = await redis.hmget(HISTORICO_TODOS_HASH_KEY, ...lote);
-        if (valores) {
-          pedidos.push(...Object.values(valores).filter(Boolean));
-        }
-      }
-    }
+    let pedidos = await buscarPorPeriodo(de.getTime(), ate.getTime());
 
     // Calcula as formas de entrega e estados disponíveis ANTES dos filtros
     // específicos, para popular os controles da tela com valores reais.

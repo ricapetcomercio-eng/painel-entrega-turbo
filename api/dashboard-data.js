@@ -1,13 +1,12 @@
 // api/dashboard-data.js
-// Rota chamada PELO FRONTEND. Só lê o resultado já pronto do Redis —
-// não chama ML/Shopee, não processa nada pesado. CPU quase zero por chamada.
+// Rota chamada PELO FRONTEND. Só lê o resultado já pronto (Turso) — não
+// chama ML/Shopee, não processa nada pesado. CPU quase zero por chamada.
 
-const { getRedis } = require('../lib/redis');
+const { kvGet } = require('../lib/kv');
 
 module.exports = async (req, res) => {
-  const redis = getRedis();
-  const dados = await redis.get('entrega_turbo:ultima_coleta');
-  const dadosFlex = await redis.get('entrega_turbo:ultima_coleta_flex');
+  const dados = await kvGet('entrega_turbo:ultima_coleta');
+  const dadosFlex = await kvGet('entrega_turbo:ultima_coleta_flex');
 
   if (!dados) {
     res.status(200).json({

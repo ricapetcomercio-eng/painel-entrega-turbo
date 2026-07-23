@@ -4,7 +4,7 @@
 // GET /api/collect?secret=SEU_CRON_SECRET
 //
 // Faz o trabalho pesado (chama ML e Shopee, processa) e grava o resultado
-// pronto no Redis. O painel (dashboard-data.js) só lê esse resultado.
+// pronto no Turso. O painel (dashboard-data.js) só lê esse resultado.
 //
 // HISTÓRICO DE BUGS JÁ CORRIGIDOS (pra não repetir):
 //   1) Reprocessar a janela de 48h inteira a cada execução estourava o
@@ -21,8 +21,12 @@
 //      marketplace fixo em "mercado_livre". Generalizado, e agora a Shopee
 //      também alimenta esse histórico com seu próprio coletor incremental
 //      (usando cursor, já que a paginação da Shopee não é por offset).
+//   5) Migrado de Redis (Upstash) para Turso (SQLite) — o Redis era
+//      compartilhado com outros dois projetos (concorrentes-ml,
+//      painelvendas-seven) e estourava a cota de 500k requisições/mês.
 
-const { getRedis } = require('../lib/redis');
+const { getDb } = require('../lib/db');
+const { kvGet, kvSet, kvDel } = require('../lib/kv');
 const { SELLER_IDS } = require('../lib/mlOrders');
 const { coletarPedidosTurbo } = require('../lib/shopeeOrders');
 const { buscarPedidosPeriodo: buscarPedidosPeriodoShopee, buscarDetalhesCompletos: buscarDetalhesCompletosShopee, montarPedidoGenericoShopee } = require('../lib/shopeeOrders');
@@ -32,7 +36,7 @@ const { registrarHistoricoFlex, listarRecentes } = require('../lib/historicoFlex
 const { buscarDetalhesShipment, montarPedidoGenerico } = require('../lib/mlAllOrders');
 const { buscarDevolucoesPeriodo } = require('../lib/mlClaims');
 const { buscarDevolucoesPorPedido: buscarDevolucoesShopeePorPedido } = require('../lib/shopeeReturns');
-const { registrarHistoricoTodos, HISTORICO_TODOS_HASH_KEY } = require('../lib/historicoTodos');
+const { registrarHistoricoTodos, marcarDevolucao } = require('../lib/historicoTodos');
 
 const HORAS_RETROATIVAS = 6; // janela de busca padrão (Shopee Turbo)
 const HORAS_JANELA_FLEX = 48; // "coleta só amanhã" — precisa de folga
@@ -55,10 +59,6 @@ const DIAS_JANELA_DEVOLUCOES = 60; // cobre pedidos com prazo de reclamação em
 // mais devagar, sobra mais orçamento de chamadas pro ML antes de bater
 // em rate limit (429).
 const INTERVALO_MINIMO_TODOS_ML_MS = 5 * 60 * 1000; // 5 minutos
-
-const LIMITE_HISTORICO = 5000;
-const HISTORICO_KEY = 'entrega_turbo:historico_pedidos';
-const HISTORICO_IDS_KEY = 'entrega_turbo:historico_ids_vistos';
 
 // Processamento em lotes paralelos — bem mais rápido que um por um, ainda
 // gentil com a API do ML (pausa entre lotes, poucas chamadas simultâneas).
@@ -83,41 +83,51 @@ async function processarEmLotes(itens, tempoOrcamentoMs, processarItem) {
   return { resultados, processados: i };
 }
 
-async function registrarNoHistorico(redis, pedidos, historicoKey, idsKey, extrator) {
+// -------- Histórico Turbo/Shopee (tabela historico_turbo) --------
+// A dedup que o Redis fazia com SET+LIST agora é automática: a PRIMARY KEY
+// (id_unico) da tabela rejeita duplicatas via INSERT OR IGNORE.
+async function registrarNoHistoricoTurbo(pedidos, extrator) {
+  if (!pedidos || pedidos.length === 0) return;
+  const db = getDb();
   for (const pedido of pedidos) {
-    const idUnico = `${pedido.marketplace}:${pedido.order_id}`;
-    const jaVisto = await redis.sismember(idsKey, idUnico);
-    if (jaVisto) continue;
-
-    await redis.sadd(idsKey, idUnico);
-    await redis.lpush(historicoKey, extrator(pedido));
+    const dados = extrator(pedido);
+    const idUnico = `${dados.marketplace}:${dados.order_id}`;
+    const dateCreatedTs = new Date(dados.date_created).getTime();
+    await db.execute({
+      sql: `INSERT OR IGNORE INTO historico_turbo
+              (id_unico, marketplace, conta, order_id, date_created, date_created_ts, total_amount, estado, cidade, itens)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [
+        idUnico, dados.marketplace, dados.conta || null, String(dados.order_id), dados.date_created,
+        dateCreatedTs, dados.total_amount, dados.estado || null, dados.cidade || null,
+        JSON.stringify(dados.itens || []),
+      ],
+    });
   }
-  await redis.ltrim(historicoKey, 0, LIMITE_HISTORICO - 1);
-  await redis.expire(idsKey, 60 * 60 * 24 * 30);
 }
 
 // -------- Histórico geral ("Todos os pedidos") — Mercado Livre, incremental, em lotes --------
 const TEMPO_MAXIMO_TODOS_MS = 4000;
 
-async function coletarNovosParaHistoricoTodos(redis, conta, erros) {
+async function coletarNovosParaHistoricoTodos(conta, erros) {
   const chaveUltimaCompleta = `entrega_turbo:todos_ultima_completa_ts:${conta}`;
   const chaveJanelaDesde = `entrega_turbo:todos_janela_desde:${conta}`;
   const chaveJanelaAte = `entrega_turbo:todos_janela_ate:${conta}`;
   const chaveJanelaOffset = `entrega_turbo:todos_janela_offset:${conta}`;
 
   try {
-    let desde = await redis.get(chaveJanelaDesde);
-    let ate = await redis.get(chaveJanelaAte);
-    let offset = (await redis.get(chaveJanelaOffset)) || 0;
+    let desde = await kvGet(chaveJanelaDesde);
+    let ate = await kvGet(chaveJanelaAte);
+    let offset = (await kvGet(chaveJanelaOffset)) || 0;
 
     if (!desde || !ate) {
-      const ultimaCompleta = await redis.get(chaveUltimaCompleta);
+      const ultimaCompleta = await kvGet(chaveUltimaCompleta);
       desde = ultimaCompleta || new Date(Date.now() - HORAS_JANELA_FLEX * 60 * 60 * 1000).toISOString();
       ate = new Date().toISOString();
       offset = 0;
-      await redis.set(chaveJanelaDesde, desde);
-      await redis.set(chaveJanelaAte, ate);
-      await redis.set(chaveJanelaOffset, 0);
+      await kvSet(chaveJanelaDesde, desde);
+      await kvSet(chaveJanelaAte, ate);
+      await kvSet(chaveJanelaOffset, 0);
     }
 
     const inicioExecucao = Date.now();
@@ -151,15 +161,15 @@ async function coletarNovosParaHistoricoTodos(redis, conta, erros) {
       if (total !== null && offset >= total) break;
     }
 
-    await registrarHistoricoTodos(redis, pedidosParaGravar);
+    await registrarHistoricoTodos(pedidosParaGravar);
 
     if (total === null || offset >= total) {
-      await redis.set(chaveUltimaCompleta, ate);
-      await redis.del(chaveJanelaDesde);
-      await redis.del(chaveJanelaAte);
-      await redis.del(chaveJanelaOffset);
+      await kvSet(chaveUltimaCompleta, ate);
+      await kvDel(chaveJanelaDesde);
+      await kvDel(chaveJanelaAte);
+      await kvDel(chaveJanelaOffset);
     } else {
-      await redis.set(chaveJanelaOffset, offset);
+      await kvSet(chaveJanelaOffset, offset);
     }
   } catch (err) {
     erros.push({ fonte: `historico_todos:${conta}`, mensagem: err.message });
@@ -171,28 +181,28 @@ async function coletarNovosParaHistoricoTodos(redis, conta, erros) {
 // da Shopee, que usa CURSOR opaco em vez de offset numérico.
 const TEMPO_MAXIMO_TODOS_SHOPEE_MS = 4000;
 
-async function coletarNovosParaHistoricoTodosShopee(redis, loja, erros) {
+async function coletarNovosParaHistoricoTodosShopee(loja, erros) {
   const chaveUltimaCompleta = `entrega_turbo:todos_shopee_ultima_completa_ts:${loja}`;
   const chaveJanelaDesde = `entrega_turbo:todos_shopee_janela_desde:${loja}`;
   const chaveJanelaAte = `entrega_turbo:todos_shopee_janela_ate:${loja}`;
   const chaveJanelaCursor = `entrega_turbo:todos_shopee_janela_cursor:${loja}`;
 
   try {
-    let desde = await redis.get(chaveJanelaDesde);
-    let ate = await redis.get(chaveJanelaAte);
-    let cursor = await redis.get(chaveJanelaCursor);
+    let desde = await kvGet(chaveJanelaDesde);
+    let ate = await kvGet(chaveJanelaAte);
+    let cursor = await kvGet(chaveJanelaCursor);
 
     if (!desde || !ate) {
-      const ultimaCompleta = await redis.get(chaveUltimaCompleta);
+      const ultimaCompleta = await kvGet(chaveUltimaCompleta);
       const desdeMs = ultimaCompleta
         ? new Date(ultimaCompleta).getTime()
         : Date.now() - HORAS_JANELA_SHOPEE_TODOS * 60 * 60 * 1000;
       desde = Math.floor(desdeMs / 1000); // Shopee usa epoch em segundos
       ate = Math.floor(Date.now() / 1000);
       cursor = null;
-      await redis.set(chaveJanelaDesde, desde);
-      await redis.set(chaveJanelaAte, ate);
-      await redis.del(chaveJanelaCursor);
+      await kvSet(chaveJanelaDesde, desde);
+      await kvSet(chaveJanelaAte, ate);
+      await kvDel(chaveJanelaCursor);
     } else {
       desde = Number(desde);
       ate = Number(ate);
@@ -214,16 +224,16 @@ async function coletarNovosParaHistoricoTodosShopee(redis, loja, erros) {
 
       cursor = pagina.nextCursor;
       if (!pagina.more || !cursor) { terminouJanela = true; break; }
-      await redis.set(chaveJanelaCursor, cursor);
+      await kvSet(chaveJanelaCursor, cursor);
     }
 
-    await registrarHistoricoTodos(redis, pedidosParaGravar);
+    await registrarHistoricoTodos(pedidosParaGravar);
 
     if (terminouJanela) {
-      await redis.set(chaveUltimaCompleta, new Date(ate * 1000).toISOString());
-      await redis.del(chaveJanelaDesde);
-      await redis.del(chaveJanelaAte);
-      await redis.del(chaveJanelaCursor);
+      await kvSet(chaveUltimaCompleta, new Date(ate * 1000).toISOString());
+      await kvDel(chaveJanelaDesde);
+      await kvDel(chaveJanelaAte);
+      await kvDel(chaveJanelaCursor);
     }
   } catch (err) {
     erros.push({ fonte: `historico_todos_shopee:${loja}`, mensagem: err.message });
@@ -234,25 +244,25 @@ async function coletarNovosParaHistoricoTodosShopee(redis, loja, erros) {
 const TEMPO_MAXIMO_FLEX_NOVOS_MS = 4000;
 const TEMPO_MAXIMO_FLEX_RECHECK_MS = 4000;
 
-async function coletarNovosFlex(redis, conta, erros) {
+async function coletarNovosFlex(conta, erros) {
   const chaveUltimaCompleta = `entrega_turbo:flex_ultima_completa_ts:${conta}`;
   const chaveJanelaDesde = `entrega_turbo:flex_janela_desde:${conta}`;
   const chaveJanelaAte = `entrega_turbo:flex_janela_ate:${conta}`;
   const chaveJanelaOffset = `entrega_turbo:flex_janela_offset:${conta}`;
 
   try {
-    let desde = await redis.get(chaveJanelaDesde);
-    let ate = await redis.get(chaveJanelaAte);
-    let offset = (await redis.get(chaveJanelaOffset)) || 0;
+    let desde = await kvGet(chaveJanelaDesde);
+    let ate = await kvGet(chaveJanelaAte);
+    let offset = (await kvGet(chaveJanelaOffset)) || 0;
 
     if (!desde || !ate) {
-      const ultimaCompleta = await redis.get(chaveUltimaCompleta);
+      const ultimaCompleta = await kvGet(chaveUltimaCompleta);
       desde = ultimaCompleta || new Date(Date.now() - HORAS_JANELA_FLEX * 60 * 60 * 1000).toISOString();
       ate = new Date().toISOString();
       offset = 0;
-      await redis.set(chaveJanelaDesde, desde);
-      await redis.set(chaveJanelaAte, ate);
-      await redis.set(chaveJanelaOffset, 0);
+      await kvSet(chaveJanelaDesde, desde);
+      await kvSet(chaveJanelaAte, ate);
+      await kvSet(chaveJanelaOffset, 0);
     }
 
     const inicioExecucao = Date.now();
@@ -277,24 +287,24 @@ async function coletarNovosFlex(redis, conta, erros) {
       if (total !== null && offset >= total) break;
     }
 
-    await registrarHistoricoFlex(redis, pedidosParaGravar);
+    await registrarHistoricoFlex(pedidosParaGravar);
 
     if (total === null || offset >= total) {
-      await redis.set(chaveUltimaCompleta, ate);
-      await redis.del(chaveJanelaDesde);
-      await redis.del(chaveJanelaAte);
-      await redis.del(chaveJanelaOffset);
+      await kvSet(chaveUltimaCompleta, ate);
+      await kvDel(chaveJanelaDesde);
+      await kvDel(chaveJanelaAte);
+      await kvDel(chaveJanelaOffset);
     } else {
-      await redis.set(chaveJanelaOffset, offset);
+      await kvSet(chaveJanelaOffset, offset);
     }
   } catch (err) {
     erros.push({ fonte: `flex_novos:${conta}`, mensagem: err.message });
   }
 }
 
-async function reverificarPendentesFlex(redis, erros) {
+async function reverificarPendentesFlex(erros) {
   try {
-    const recentes = await listarRecentes(redis, HORAS_JANELA_FLEX);
+    const recentes = await listarRecentes(HORAS_JANELA_FLEX);
     const pendentes = recentes.filter((p) => (p.categoria || 'aguardando') === 'aguardando' && p.shipment_id);
 
     const { resultados } = await processarEmLotes(pendentes, TEMPO_MAXIMO_FLEX_RECHECK_MS, async (pedido) => {
@@ -307,14 +317,14 @@ async function reverificarPendentesFlex(redis, erros) {
     });
 
     if (resultados.length > 0) {
-      await registrarHistoricoFlex(redis, resultados);
+      await registrarHistoricoFlex(resultados);
     }
   } catch (err) {
     erros.push({ fonte: 'flex_recheck_geral', mensagem: err.message });
   }
 }
 
-async function enriquecerDevolucoes(redis, conta, erros) {
+async function enriquecerDevolucoes(conta, erros) {
   try {
     const desde = new Date(Date.now() - DIAS_JANELA_DEVOLUCOES * 24 * 60 * 60 * 1000).toISOString();
     const ate = new Date().toISOString();
@@ -323,15 +333,12 @@ async function enriquecerDevolucoes(redis, conta, erros) {
     let atualizados = 0;
     for (const [orderId, info] of Object.entries(devolucoesPorPedido)) {
       const idUnico = `mercado_livre:${orderId}`;
-      const registro = await redis.hget(HISTORICO_TODOS_HASH_KEY, idUnico);
-      if (!registro) continue; // pedido ainda não coletado no histórico geral — ignora por enquanto
-
-      registro.devolvido = true;
-      registro.devolucao_claim_id = info.claim_id;
-      registro.devolucao_status = info.status;
-      registro.devolucao_reason_id = info.reason_id;
-      await redis.hset(HISTORICO_TODOS_HASH_KEY, { [idUnico]: registro });
-      atualizados++;
+      const marcou = await marcarDevolucao(idUnico, {
+        claimId: info.claim_id,
+        status: info.status,
+        reasonId: info.reason_id,
+      });
+      if (marcou) atualizados++;
     }
     return atualizados;
   } catch (err) {
@@ -340,7 +347,7 @@ async function enriquecerDevolucoes(redis, conta, erros) {
   }
 }
 
-async function enriquecerDevolucoesShopee(redis, loja, erros) {
+async function enriquecerDevolucoesShopee(loja, erros) {
   try {
     const ateEpoch = Math.floor(Date.now() / 1000);
     const desdeEpoch = ateEpoch - DIAS_JANELA_DEVOLUCOES * 24 * 60 * 60;
@@ -349,15 +356,12 @@ async function enriquecerDevolucoesShopee(redis, loja, erros) {
     let atualizados = 0;
     for (const [orderSn, info] of Object.entries(devolucoesPorPedido)) {
       const idUnico = `shopee:${orderSn}`;
-      const registro = await redis.hget(HISTORICO_TODOS_HASH_KEY, idUnico);
-      if (!registro) continue;
-
-      registro.devolvido = true;
-      registro.devolucao_claim_id = info.return_sn;
-      registro.devolucao_status = info.status;
-      registro.devolucao_reason_id = info.reason;
-      await redis.hset(HISTORICO_TODOS_HASH_KEY, { [idUnico]: registro });
-      atualizados++;
+      const marcou = await marcarDevolucao(idUnico, {
+        claimId: info.return_sn,
+        status: info.status,
+        reasonId: info.reason,
+      });
+      if (marcou) atualizados++;
     }
     return atualizados;
   } catch (err) {
@@ -376,9 +380,7 @@ module.exports = async (req, res) => {
     return;
   }
 
-  const redis = getRedis();
-
-  const ultimaExecucao = await redis.get('entrega_turbo:ultima_execucao_ts');
+  const ultimaExecucao = await kvGet('entrega_turbo:ultima_execucao_ts');
   const agora = Date.now();
   if (ultimaExecucao && agora - ultimaExecucao < INTERVALO_MINIMO_MS) {
     res.status(200).json({
@@ -388,18 +390,18 @@ module.exports = async (req, res) => {
     });
     return;
   }
-  await redis.set('entrega_turbo:ultima_execucao_ts', agora);
+  await kvSet('entrega_turbo:ultima_execucao_ts', agora);
 
   const erros = [];
 
   // -------- Shopee: throttle próprio, roda no máximo a cada 15 min --------
-  const ultimaExecucaoShopee = await redis.get('entrega_turbo:ultima_execucao_shopee_ts');
+  const ultimaExecucaoShopee = await kvGet('entrega_turbo:ultima_execucao_shopee_ts');
   const deveRodarShopee = !ultimaExecucaoShopee || (agora - ultimaExecucaoShopee >= INTERVALO_MINIMO_SHOPEE_MS);
 
   let totalShopeeTurbo = null; // null = não rodou nesta execução
 
   if (deveRodarShopee) {
-    await redis.set('entrega_turbo:ultima_execucao_shopee_ts', agora);
+    await kvSet('entrega_turbo:ultima_execucao_shopee_ts', agora);
 
     let pedidosShopee = [];
     for (const loja of ['ricapet', 'thapets']) {
@@ -425,11 +427,11 @@ module.exports = async (req, res) => {
       total: pedidosShopee.length,
       erros,
     };
-    await redis.set('entrega_turbo:ultima_coleta', resultado);
+    await kvSet('entrega_turbo:ultima_coleta', resultado);
     totalShopeeTurbo = resultado.total;
 
     try {
-      await registrarNoHistorico(redis, pedidosUnificados, HISTORICO_KEY, HISTORICO_IDS_KEY, (pedido) => ({
+      await registrarNoHistoricoTurbo(pedidosUnificados, (pedido) => ({
         marketplace: pedido.marketplace,
         conta: pedido.conta || pedido.loja || null,
         order_id: pedido.order_id,
@@ -444,17 +446,17 @@ module.exports = async (req, res) => {
     }
 
     for (const loja of LOJAS_SHOPEE) {
-      await coletarNovosParaHistoricoTodosShopee(redis, loja, erros);
+      await coletarNovosParaHistoricoTodosShopee(loja, erros);
     }
   }
 
   // -------- Mercado Livre: roda toda vez (não usa proxy, sem limite de cota) --------
   for (const conta of Object.keys(SELLER_IDS)) {
-    await coletarNovosFlex(redis, conta, erros);
+    await coletarNovosFlex(conta, erros);
   }
-  await reverificarPendentesFlex(redis, erros);
+  await reverificarPendentesFlex(erros);
 
-  const pedidosFlexAtuais = await listarRecentes(redis, HORAS_JANELA_FLEX);
+  const pedidosFlexAtuais = await listarRecentes(HORAS_JANELA_FLEX);
   const resultadoFlex = {
     atualizado_em: new Date().toISOString(),
     pedidos: pedidosFlexAtuais,
@@ -463,36 +465,36 @@ module.exports = async (req, res) => {
     coletados_nao_entregues: pedidosFlexAtuais.filter((p) => p.categoria === 'coletado').length,
     aguardando_coleta: pedidosFlexAtuais.filter((p) => (p.categoria || 'aguardando') === 'aguardando').length,
   };
-  await redis.set('entrega_turbo:ultima_coleta_flex', resultadoFlex);
+  await kvSet('entrega_turbo:ultima_coleta_flex', resultadoFlex);
 
   // -------- Todos os pedidos (ML): throttle próprio, roda no máximo a cada 5 min --------
-  const ultimaExecucaoTodosML = await redis.get('entrega_turbo:ultima_execucao_todos_ml_ts');
+  const ultimaExecucaoTodosML = await kvGet('entrega_turbo:ultima_execucao_todos_ml_ts');
   const deveRodarTodosML = !ultimaExecucaoTodosML || (agora - ultimaExecucaoTodosML >= INTERVALO_MINIMO_TODOS_ML_MS);
   if (deveRodarTodosML) {
-    await redis.set('entrega_turbo:ultima_execucao_todos_ml_ts', agora);
+    await kvSet('entrega_turbo:ultima_execucao_todos_ml_ts', agora);
     for (const conta of Object.keys(SELLER_IDS)) {
-      await coletarNovosParaHistoricoTodos(redis, conta, erros);
+      await coletarNovosParaHistoricoTodos(conta, erros);
     }
   }
 
   // -------- Devoluções: enriquece pedidos já coletados, throttle próprio --------
-  const ultimaExecucaoDevolucoes = await redis.get('entrega_turbo:ultima_execucao_devolucoes_ts');
+  const ultimaExecucaoDevolucoes = await kvGet('entrega_turbo:ultima_execucao_devolucoes_ts');
   const deveRodarDevolucoes = !ultimaExecucaoDevolucoes || (agora - ultimaExecucaoDevolucoes >= INTERVALO_MINIMO_DEVOLUCOES_MS);
   if (deveRodarDevolucoes) {
-    await redis.set('entrega_turbo:ultima_execucao_devolucoes_ts', agora);
+    await kvSet('entrega_turbo:ultima_execucao_devolucoes_ts', agora);
     for (const conta of Object.keys(SELLER_IDS)) {
-      await enriquecerDevolucoes(redis, conta, erros);
+      await enriquecerDevolucoes(conta, erros);
     }
     for (const loja of LOJAS_SHOPEE) {
-      await enriquecerDevolucoesShopee(redis, loja, erros);
+      await enriquecerDevolucoesShopee(loja, erros);
     }
   }
 
   // Se a Shopee não rodou nesta execução, mantém o último total conhecido
-  // (lido do Redis) em vez de reportar 0 — evita a falsa impressão de que
+  // (lido do banco) em vez de reportar 0 — evita a falsa impressão de que
   // a coleta zerou só porque essa execução pulou a Shopee de propósito.
   if (totalShopeeTurbo === null) {
-    const ultimaColetaSalva = await redis.get('entrega_turbo:ultima_coleta');
+    const ultimaColetaSalva = await kvGet('entrega_turbo:ultima_coleta');
     totalShopeeTurbo = (ultimaColetaSalva && ultimaColetaSalva.total) || 0;
   }
 
