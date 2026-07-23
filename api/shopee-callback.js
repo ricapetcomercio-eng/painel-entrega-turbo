@@ -1,13 +1,12 @@
 // api/shopee-callback.js
 // Recebe o redirect da autorização Shopee (depois que a loja aprova o
 // acesso no fluxo OAuth, iniciado em /api/shopee-auth-url) e troca o `code`
-// recebido por access_token + refresh_token, salvando tudo no Redis já
+// recebido por access_token + refresh_token, salvando tudo no Turso já
 // vinculado à loja certa (junto com o shop_id, capturado automaticamente
 // aqui — não precisa configurar SHOP_ID manualmente no Vercel).
 
 const crypto = require('crypto');
-const { getRedis } = require('../lib/redis');
-const { fetchViaFixie } = require('../lib/shopeeAuth');
+const { fetchViaFixie, salvarTokenShopee } = require('../lib/shopeeAuth');
 
 const AMBIENTE = (process.env.SHOPEE_AMBIENTE || 'sandbox').toLowerCase();
 const HOST = AMBIENTE === 'producao'
@@ -62,8 +61,7 @@ module.exports = async (req, res) => {
       return;
     }
 
-    const redis = getRedis();
-    await redis.set(`shopee_token:${loja}`, {
+    await salvarTokenShopee(loja, {
       access_token: data.access_token,
       refresh_token: data.refresh_token,
       shop_id: String(shopId),

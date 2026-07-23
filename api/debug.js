@@ -26,6 +26,13 @@ const TABELAS_SQL = [
     shop_id TEXT,
     expires_at INTEGER
   )`,
+  `CREATE TABLE IF NOT EXISTS ml_tokens (
+    conta TEXT PRIMARY KEY,
+    access_token TEXT,
+    refresh_token TEXT,
+    user_id TEXT,
+    expires_at INTEGER
+  )`,
   `CREATE TABLE IF NOT EXISTS historico_flex (
     id_unico TEXT PRIMARY KEY,
     marketplace TEXT,
