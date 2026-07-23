@@ -108,14 +108,15 @@ async function debugCriarTabelas(req, res) {
 }
 
 // -------- Migração única: Redis antigo (compartilhado) -> Turso --------
-// Só pode rodar depois que a cota do Redis resetar (14/08) — o limite de
-// 500 mil requisições/mês conta LEITURA também, não só escrita, então
-// nem dá pra testar isso antes do reset.
-//
 // Resumível: se demorar demais numa chamada só, chame de novo passando os
-// offsets retornados em "proximo" — continua de onde parou em cada tabela.
+// cursores/offsets retornados em "proximo" — continua de onde parou.
+//
+// IMPORTANTE: usamos HSCAN (não HGETALL) para os hashes, e LRANGE com
+// limites (não a lista inteira) — os hashes de histórico são grandes o
+// bastante (dezenas de MB) para estourar o limite de 10MB por comando do
+// Upstash se buscados de uma vez só.
 const LIMITE_TEMPO_MIGRACAO_MS = 8000;
-const TAMANHO_LOTE_MIGRACAO = 200;
+const TAMANHO_LOTE_MIGRACAO = 100;
 
 function paraInteiroBooleanoMigracao(v) {
   if (v === true) return 1;
@@ -123,17 +124,22 @@ function paraInteiroBooleanoMigracao(v) {
   return null;
 }
 
-async function migrarHistoricoFlex(redis, db, offsetInicial) {
-  const HISTORICO_FLEX_HASH_KEY = 'entrega_turbo:historico_flex_hash';
-  const todos = await redis.hgetall(HISTORICO_FLEX_HASH_KEY);
-  const entradas = Object.values(todos || {});
-  const lote = entradas.slice(offsetInicial, offsetInicial + TAMANHO_LOTE_MIGRACAO);
+function cursorConcluido(cursor) {
+  return cursor === '0' || cursor === 0 || cursor === null || cursor === undefined;
+}
 
-  const statements = lote.map((pedido) => {
+async function migrarHistoricoFlex(redis, db, cursorInicial) {
+  const HISTORICO_FLEX_HASH_KEY = 'entrega_turbo:historico_flex_hash';
+  const [proximoCursor, elementos] = await redis.hscan(HISTORICO_FLEX_HASH_KEY, cursorInicial, { count: TAMANHO_LOTE_MIGRACAO });
+
+  const statements = [];
+  for (let i = 0; i < elementos.length; i += 2) {
+    const pedido = elementos[i + 1];
+    if (!pedido || typeof pedido !== 'object') continue;
     const idUnico = `mercado_livre:${pedido.order_id}`;
     const dateCreatedTs = new Date(pedido.date_created).getTime();
     const coletadoInt = paraInteiroBooleanoMigracao(pedido.coletado);
-    return {
+    statements.push({
       sql: `INSERT OR IGNORE INTO historico_flex (
               id_unico, marketplace, conta, order_id, date_created, date_created_ts,
               total_amount, shipment_id, coletado, categoria, coletado_em, entregue_em,
@@ -147,24 +153,25 @@ async function migrarHistoricoFlex(redis, db, offsetInicial) {
         typeof pedido.horas_ate_entrega === 'number' ? pedido.horas_ate_entrega : null,
         JSON.stringify(pedido.itens || []),
       ],
-    };
-  });
+    });
+  }
 
   if (statements.length > 0) await db.batch(statements, 'write');
-  return { processados: lote.length, total_disponivel: entradas.length };
+  return { processados: elementos.length / 2, proximo_cursor: proximoCursor, concluido: cursorConcluido(proximoCursor) };
 }
 
-async function migrarHistoricoTodos(redis, db, offsetInicial) {
+async function migrarHistoricoTodos(redis, db, cursorInicial) {
   const HISTORICO_TODOS_HASH_KEY = 'entrega_turbo:historico_todos_hash';
-  const todos = await redis.hgetall(HISTORICO_TODOS_HASH_KEY);
-  const entradas = Object.values(todos || {});
-  const lote = entradas.slice(offsetInicial, offsetInicial + TAMANHO_LOTE_MIGRACAO);
+  const [proximoCursor, elementos] = await redis.hscan(HISTORICO_TODOS_HASH_KEY, cursorInicial, { count: TAMANHO_LOTE_MIGRACAO });
 
-  const statements = lote.map((pedido) => {
+  const statements = [];
+  for (let i = 0; i < elementos.length; i += 2) {
+    const pedido = elementos[i + 1];
+    if (!pedido || typeof pedido !== 'object') continue;
     const marketplace = pedido.marketplace || 'mercado_livre';
     const idUnico = `${marketplace}:${pedido.order_id}`;
     const dateCreatedTs = new Date(pedido.date_created).getTime();
-    return {
+    statements.push({
       sql: `INSERT OR IGNORE INTO historico_todos (
               id_unico, marketplace, conta, order_id, date_created, date_created_ts,
               total_amount, forma_entrega, status_envio, status_pedido, cancelado,
@@ -187,19 +194,21 @@ async function migrarHistoricoTodos(redis, db, offsetInicial) {
         pedido.devolucao_claim_id || null, pedido.devolucao_status || null, pedido.devolucao_reason_id || null,
         JSON.stringify(pedido.itens || []),
       ],
-    };
-  });
+    });
+  }
 
   if (statements.length > 0) await db.batch(statements, 'write');
-  return { processados: lote.length, total_disponivel: entradas.length };
+  return { processados: elementos.length / 2, proximo_cursor: proximoCursor, concluido: cursorConcluido(proximoCursor) };
 }
 
 async function migrarHistoricoTurbo(redis, db, offsetInicial) {
   const HISTORICO_KEY = 'entrega_turbo:historico_pedidos';
-  const todos = await redis.lrange(HISTORICO_KEY, 0, -1);
-  const lote = todos.slice(offsetInicial, offsetInicial + TAMANHO_LOTE_MIGRACAO);
+  // LRANGE com limites — nunca busca a lista inteira de uma vez, evitando
+  // o mesmo estouro de tamanho que os hashes tiveram.
+  const lote = await redis.lrange(HISTORICO_KEY, offsetInicial, offsetInicial + TAMANHO_LOTE_MIGRACAO - 1);
+  const total = await redis.llen(HISTORICO_KEY);
 
-  const statements = lote.map((pedido) => {
+  const statements = (lote || []).map((pedido) => {
     const idUnico = `${pedido.marketplace}:${pedido.order_id}`;
     const dateCreatedTs = new Date(pedido.date_created).getTime();
     return {
@@ -215,38 +224,37 @@ async function migrarHistoricoTurbo(redis, db, offsetInicial) {
   });
 
   if (statements.length > 0) await db.batch(statements, 'write');
-  return { processados: lote.length, total_disponivel: todos.length };
+  return { processados: (lote || []).length, total_disponivel: total };
 }
 
 async function debugMigrarRedisTurso(req, res) {
   const redis = getRedis();
   const db = getDb();
 
-  const offsetFlex = parseInt(req.query.offset_flex, 10) || 0;
-  const offsetTodos = parseInt(req.query.offset_todos, 10) || 0;
+  const cursorFlex = req.query.cursor_flex || '0';
+  const cursorTodos = req.query.cursor_todos || '0';
   const offsetTurbo = parseInt(req.query.offset_turbo, 10) || 0;
 
   const inicio = Date.now();
   const resultado = {};
 
   if (Date.now() - inicio < LIMITE_TEMPO_MIGRACAO_MS) {
-    resultado.flex = await migrarHistoricoFlex(redis, db, offsetFlex);
+    resultado.flex = await migrarHistoricoFlex(redis, db, cursorFlex);
   }
   if (Date.now() - inicio < LIMITE_TEMPO_MIGRACAO_MS) {
-    resultado.todos = await migrarHistoricoTodos(redis, db, offsetTodos);
+    resultado.todos = await migrarHistoricoTodos(redis, db, cursorTodos);
   }
   if (Date.now() - inicio < LIMITE_TEMPO_MIGRACAO_MS) {
     resultado.turbo = await migrarHistoricoTurbo(redis, db, offsetTurbo);
   }
 
-  const proximoOffsetFlex = offsetFlex + (resultado.flex ? resultado.flex.processados : 0);
-  const proximoOffsetTodos = offsetTodos + (resultado.todos ? resultado.todos.processados : 0);
   const proximoOffsetTurbo = offsetTurbo + (resultado.turbo ? resultado.turbo.processados : 0);
+  const turboConcluido = resultado.turbo && proximoOffsetTurbo >= resultado.turbo.total_disponivel;
 
   const done =
-    resultado.flex && proximoOffsetFlex >= resultado.flex.total_disponivel &&
-    resultado.todos && proximoOffsetTodos >= resultado.todos.total_disponivel &&
-    resultado.turbo && proximoOffsetTurbo >= resultado.turbo.total_disponivel;
+    resultado.flex && resultado.flex.concluido &&
+    resultado.todos && resultado.todos.concluido &&
+    turboConcluido;
 
   res.status(200).json({
     ok: true,
@@ -254,9 +262,9 @@ async function debugMigrarRedisTurso(req, res) {
     done,
     resultado,
     proximo: done ? null : {
-      offset_flex: proximoOffsetFlex,
-      offset_todos: proximoOffsetTodos,
-      offset_turbo: proximoOffsetTurbo,
+      cursor_flex: resultado.flex && !resultado.flex.concluido ? resultado.flex.proximo_cursor : '0',
+      cursor_todos: resultado.todos && !resultado.todos.concluido ? resultado.todos.proximo_cursor : '0',
+      offset_turbo: turboConcluido ? 0 : proximoOffsetTurbo,
     },
   });
 }
