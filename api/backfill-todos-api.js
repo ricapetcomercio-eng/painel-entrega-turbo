@@ -11,7 +11,6 @@
 // retornados, até vir "done": true):
 //   /api/backfill-todos-api?secret=SEU_SECRET&conta=ricapet&dias=30&dia=0&offset=0
 
-const { getRedis } = require('../lib/redis');
 const { buscarPedidosPeriodo, buscarDetalhesShipment, montarPedidoGenerico } = require('../lib/mlAllOrders');
 const { registrarHistoricoTodos } = require('../lib/historicoTodos');
 
@@ -37,7 +36,6 @@ module.exports = async (req, res) => {
     return;
   }
 
-  const redis = getRedis();
   // desde = início do dia mais antigo da janela (hoje - dias dias, à meia-noite)
   const hoje = new Date();
   const inicioJanela = new Date(hoje);
@@ -86,7 +84,7 @@ module.exports = async (req, res) => {
       }
     }
 
-    const { gravados } = await registrarHistoricoTodos(redis, pedidosParaGravar);
+    const { gravados } = await registrarHistoricoTodos(pedidosParaGravar);
     const done = diaAtual >= dias;
 
     res.status(200).json({
