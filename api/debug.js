@@ -296,6 +296,48 @@ async function debugMlClaims(req, res) {
   res.status(200).json({ ok: true, tipo: 'ml-claims', conta, periodo: { desde, ate }, resposta_bruta: dados });
 }
 
+async function debugMlShipment(req, res) {
+  const conta = req.query.conta;
+  const orderId = req.query.order_id;
+  let shipmentId = req.query.shipment_id;
+  if (!conta || (!orderId && !shipmentId)) {
+    res.status(400).json({ error: 'Use ?conta=ricapet&order_id=... (ou &shipment_id=...)' });
+    return;
+  }
+
+  const accessToken = await getMLAccessToken(conta);
+
+  let pedido = null;
+  if (!shipmentId) {
+    pedido = await mlFetch(`/orders/${orderId}`, accessToken);
+    shipmentId = pedido.shipping && pedido.shipping.id;
+    if (!shipmentId) {
+      res.status(200).json({ ok: true, tipo: 'ml-shipment', conta, order_id: orderId, aviso: 'Pedido não tem shipping.id', pedido_bruto: pedido });
+      return;
+    }
+  }
+
+  const shipment = await mlFetch(`/shipments/${shipmentId}`, accessToken);
+  let historico = null;
+  try {
+    historico = await mlFetch(`/shipments/${shipmentId}/history`, accessToken);
+  } catch (err) {
+    historico = { erro: err.message };
+  }
+
+  res.status(200).json({
+    ok: true,
+    tipo: 'ml-shipment',
+    conta,
+    order_id: orderId || null,
+    shipment_id: shipmentId,
+    shipment_status: shipment.status,
+    shipment_substatus: shipment.substatus,
+    shipment_bruto: shipment,
+    historico_bruto: historico,
+  });
+}
+
 async function debugShopeeReturns(req, res) {
   const loja = (req.query.loja || '').toLowerCase();
   if (!['ricapet', 'thapets'].includes(loja)) { res.status(400).json({ error: 'Use ?loja=ricapet ou ?loja=thapets' }); return; }
@@ -332,10 +374,11 @@ module.exports = async (req, res) => {
 
   try {
     if (req.query.tipo === 'ml-claims') return await debugMlClaims(req, res);
+    if (req.query.tipo === 'ml-shipment') return await debugMlShipment(req, res);
     if (req.query.tipo === 'shopee-returns') return await debugShopeeReturns(req, res);
     if (req.query.tipo === 'criar-tabelas') return await debugCriarTabelas(req, res);
     if (req.query.tipo === 'migrar-redis-turso') return await debugMigrarRedisTurso(req, res);
-    res.status(400).json({ error: 'Use ?tipo=ml-claims, ?tipo=shopee-returns, ?tipo=criar-tabelas ou ?tipo=migrar-redis-turso' });
+    res.status(400).json({ error: 'Use ?tipo=ml-claims, ?tipo=ml-shipment, ?tipo=shopee-returns, ?tipo=criar-tabelas ou ?tipo=migrar-redis-turso' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
