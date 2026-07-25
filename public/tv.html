@@ -18,6 +18,7 @@
     --preto: #7a0d0f;
     --flex: #4d9bff;
     --turbo: #b968f2;
+    --agora: #ff4d4f;
   }
   * { box-sizing: border-box; }
   html, body {
@@ -125,6 +126,8 @@
   }
   .selo-flex { background: rgba(77,155,255,0.18); color: var(--flex); }
   .selo-turbo { background: rgba(185,104,242,0.18); color: var(--turbo); }
+  .selo-agora { background: rgba(255,77,79,0.18); color: var(--agora); }
+  .status-nao-entregue-txt { color: var(--vermelho); }
   .card-conta { font-size: 11px; color: var(--muted); }
 
   .card-pedido-id { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
@@ -311,9 +314,10 @@
       const createdMs = new Date(p.date_created).getTime();
       const deadlineMs = p.deadline ? new Date(p.deadline).getTime() : createdMs + 21 * 60 * 60 * 1000;
       const status = p.categoria || (p.coletado ? 'coletado' : 'aguardando');
+      const tipoBadge = p.tipo === 'agora' ? 'AGORA' : p.tipo === 'turbo' ? 'TURBO' : 'FLEX';
       cards.push({
         id: 'flex:' + p.order_id,
-        tipo: 'FLEX',
+        tipo: tipoBadge,
         conta: p.conta,
         order_id: p.order_id,
         itens: p.itens || [],
@@ -345,7 +349,7 @@
       const total = c.deadlineMs - c.createdMs;
       const restante = c.deadlineMs - agora;
       c.fracao = total > 0 ? Math.max(0, 1 - restante / total) : 1;
-      c.zona = (c.status === 'coletado' || c.status === 'entregue') ? 'concluido' : zonaPorFracao(c.fracao);
+      c.zona = (c.status === 'coletado' || c.status === 'entregue' || c.status === 'nao_entregue') ? 'concluido' : zonaPorFracao(c.fracao);
       c.msRestante = restante;
     });
 
@@ -392,7 +396,7 @@
       if (!alvo.includes(busca)) return false;
     }
     if (filtroAtivo === 'flex') return c.tipo === 'FLEX';
-    if (filtroAtivo === 'turbo') return c.tipo === 'TURBO';
+    if (filtroAtivo === 'turbo') return c.tipo === 'TURBO' || c.tipo === 'AGORA';
     if (filtroAtivo === 'urgentes') return ['laranja', 'vermelho', 'preto'].includes(c.zona);
     if (filtroAtivo === 'atrasados') return c.zona === 'preto';
     if (filtroAtivo === 'aguardando') return c.status === 'aguardando';
@@ -401,7 +405,8 @@
 
   function cardHtml(c) {
     const itensTxt = (c.itens || []).map((i) => `${i.quantidade}x ${i.titulo}`).join(', ');
-    const concluido = c.status === 'coletado' || c.status === 'entregue';
+    const naoEntregue = c.status === 'nao_entregue';
+    const concluido = c.status === 'coletado' || c.status === 'entregue' || naoEntregue;
     const zonaClasse = concluido ? '' : 'zona-' + c.zona;
     const flashClasse = c._flashNovo ? ' novo-flash' : '';
     const pctBarra = Math.min(100, Math.round(c.fracao * 100));
@@ -409,16 +414,19 @@
     let statusHtml;
     if (c.status === 'entregue') statusHtml = '<span class="status-coletado-txt">✅ Entregue</span>';
     else if (c.status === 'coletado') statusHtml = '<span class="status-coletado-txt">✅ Coletado</span>';
+    else if (naoEntregue) statusHtml = '<span class="status-nao-entregue-txt">⚠️ Não entregue</span>';
     else statusHtml = '⏳ Aguardando coleta';
 
     const contadorHtml = concluido
-      ? `<div class="card-contador" style="color:var(--verde);">✓</div>`
+      ? `<div class="card-contador" style="color:${naoEntregue ? 'var(--vermelho)' : 'var(--verde)'};">${naoEntregue ? '!' : '✓'}</div>`
       : `<div class="card-contador" data-deadline="${c.deadlineMs}">${formatarContador(c.msRestante)}</div>`;
+
+    const seloClasse = c.tipo === 'AGORA' ? 'selo-agora' : c.tipo === 'TURBO' ? 'selo-turbo' : 'selo-flex';
 
     return `
       <div class="card-pedido ${zonaClasse}${concluido ? ' concluido' : ''}${flashClasse}" data-id="${c.id}">
         <div class="card-topo">
-          <span class="selo-tipo ${c.tipo === 'FLEX' ? 'selo-flex' : 'selo-turbo'}">${c.tipo}</span>
+          <span class="selo-tipo ${seloClasse}">${c.tipo}</span>
           <span class="card-conta">${c.conta || ''}</span>
         </div>
         <div class="card-pedido-id">#${c.order_id}</div>
@@ -430,7 +438,7 @@
   }
 
   function renderizarCards() {
-    const pendentes = cardsAtuais.filter((c) => c.status !== 'coletado' && c.status !== 'entregue' && passaNoFiltro(c));
+    const pendentes = cardsAtuais.filter((c) => c.status !== 'coletado' && c.status !== 'entregue' && c.status !== 'nao_entregue' && passaNoFiltro(c));
     pendentes.sort((a, b) => a.msRestante - b.msRestante);
 
     const areaCards = document.getElementById('areaCards');
@@ -440,7 +448,7 @@
 
     const hoje = new Date().toDateString();
     const coletadosHoje = cardsAtuais.filter((c) => {
-      if (c.status !== 'coletado' && c.status !== 'entregue') return false;
+      if (c.status !== 'coletado' && c.status !== 'entregue' && c.status !== 'nao_entregue') return false;
       return new Date(c.createdMs).toDateString() === hoje;
     }).filter(passaNoFiltro);
 
@@ -455,8 +463,9 @@
   function atualizarKpis(pendentes, coletadosHoje) {
     const criticos = pendentes.filter((c) => c.zona === 'vermelho' || c.zona === 'preto').length;
     const atrasados = pendentes.filter((c) => c.zona === 'preto').length;
-    const flexCount = cardsAtuais.filter((c) => c.tipo === 'FLEX' && c.status !== 'coletado' && c.status !== 'entregue').length;
-    const turboCount = cardsAtuais.filter((c) => c.tipo === 'TURBO' && c.status !== 'coletado' && c.status !== 'entregue').length;
+    const naoConcluido = (c) => c.status !== 'coletado' && c.status !== 'entregue' && c.status !== 'nao_entregue';
+    const flexCount = cardsAtuais.filter((c) => c.tipo === 'FLEX' && naoConcluido(c)).length;
+    const turboCount = cardsAtuais.filter((c) => (c.tipo === 'TURBO' || c.tipo === 'AGORA') && naoConcluido(c)).length;
 
     document.getElementById('kpiAguardando').textContent = pendentes.length;
     document.getElementById('kpiFlex').textContent = flexCount;

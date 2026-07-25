@@ -464,6 +464,7 @@ module.exports = async (req, res) => {
     entregues: pedidosFlexAtuais.filter((p) => p.categoria === 'entregue').length,
     coletados_nao_entregues: pedidosFlexAtuais.filter((p) => p.categoria === 'coletado').length,
     aguardando_coleta: pedidosFlexAtuais.filter((p) => (p.categoria || 'aguardando') === 'aguardando').length,
+    nao_entregues: pedidosFlexAtuais.filter((p) => p.categoria === 'nao_entregue').length,
   };
   await kvSet('entrega_turbo:ultima_coleta_flex', resultadoFlex);
 

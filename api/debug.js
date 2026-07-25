@@ -45,6 +45,7 @@ const TABELAS_SQL = [
     shipment_id TEXT,
     coletado INTEGER,
     categoria TEXT,
+    tipo TEXT,
     status_envio TEXT,
     coletado_em TEXT,
     entregue_em TEXT,
@@ -126,6 +127,22 @@ async function debugCriarTabelas(req, res) {
     criadas.push(sql.split('\n')[0].trim());
   }
   res.status(200).json({ ok: true, tipo: 'criar-tabelas', comandos_executados: criadas.length, detalhe: criadas });
+}
+
+// Adiciona a coluna "tipo" (flex/turbo/agora) em bancos que já existiam antes
+// dela — CREATE TABLE IF NOT EXISTS não adiciona coluna em tabela já criada.
+// Idempotente: se a coluna já existe, o Turso rejeita com "duplicate column
+// name" e a gente só ignora.
+async function debugAdicionarColunaTipo(req, res) {
+  const db = getDb();
+  let adicionada = false;
+  try {
+    await db.execute("ALTER TABLE historico_flex ADD COLUMN tipo TEXT DEFAULT 'flex'");
+    adicionada = true;
+  } catch (err) {
+    if (!/duplicate column/i.test(err.message)) throw err;
+  }
+  res.status(200).json({ ok: true, tipo: 'adicionar-coluna-tipo', adicionada });
 }
 
 // -------- Migração única: Redis antigo (compartilhado) -> Turso --------
@@ -359,6 +376,38 @@ async function debugMlShipment(req, res) {
   });
 }
 
+// Testa o endpoint oficial GET /shipments/{id}/sla — a doc do ML só confirma
+// esse endpoint pra Envios Agora, mas o path não parece exclusivo. Antes de
+// confiar nele pra Flex/Turbo (e trocar nosso cálculo manual de prazo por
+// ele), precisamos ver se devolve algo válido pra esses tipos também.
+async function debugMlSla(req, res) {
+  const conta = req.query.conta;
+  const orderId = req.query.order_id;
+  let shipmentId = req.query.shipment_id;
+  if (!conta || (!orderId && !shipmentId)) {
+    res.status(400).json({ error: 'Use ?conta=ricapet&order_id=... (ou &shipment_id=...)' });
+    return;
+  }
+
+  const accessToken = await getMLAccessToken(conta);
+
+  if (!shipmentId) {
+    const pedido = await mlFetch(`/orders/${orderId}`, accessToken);
+    shipmentId = pedido.shipping && pedido.shipping.id;
+    if (!shipmentId) {
+      res.status(200).json({ ok: true, tipo: 'ml-sla', conta, order_id: orderId, aviso: 'Pedido não tem shipping.id' });
+      return;
+    }
+  }
+
+  try {
+    const sla = await mlFetch(`/shipments/${shipmentId}/sla`, accessToken);
+    res.status(200).json({ ok: true, tipo: 'ml-sla', conta, order_id: orderId || null, shipment_id: shipmentId, sla_bruto: sla });
+  } catch (err) {
+    res.status(200).json({ ok: false, tipo: 'ml-sla', conta, order_id: orderId || null, shipment_id: shipmentId, erro: err.message });
+  }
+}
+
 async function debugShopeeReturns(req, res) {
   const loja = (req.query.loja || '').toLowerCase();
   if (!['ricapet', 'thapets'].includes(loja)) { res.status(400).json({ error: 'Use ?loja=ricapet ou ?loja=thapets' }); return; }
@@ -396,11 +445,13 @@ module.exports = async (req, res) => {
   try {
     if (req.query.tipo === 'ml-claims') return await debugMlClaims(req, res);
     if (req.query.tipo === 'ml-shipment') return await debugMlShipment(req, res);
+    if (req.query.tipo === 'ml-sla') return await debugMlSla(req, res);
     if (req.query.tipo === 'shopee-returns') return await debugShopeeReturns(req, res);
     if (req.query.tipo === 'criar-tabelas') return await debugCriarTabelas(req, res);
     if (req.query.tipo === 'migrar-redis-turso') return await debugMigrarRedisTurso(req, res);
     if (req.query.tipo === 'corrigir-shipment-id') return await debugCorrigirShipmentId(req, res);
-    res.status(400).json({ error: 'Use ?tipo=ml-claims, ?tipo=ml-shipment, ?tipo=shopee-returns, ?tipo=criar-tabelas, ?tipo=migrar-redis-turso ou ?tipo=corrigir-shipment-id' });
+    if (req.query.tipo === 'adicionar-coluna-tipo') return await debugAdicionarColunaTipo(req, res);
+    res.status(400).json({ error: 'Use ?tipo=ml-claims, ?tipo=ml-shipment, ?tipo=ml-sla, ?tipo=shopee-returns, ?tipo=criar-tabelas, ?tipo=migrar-redis-turso, ?tipo=corrigir-shipment-id ou ?tipo=adicionar-coluna-tipo' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
