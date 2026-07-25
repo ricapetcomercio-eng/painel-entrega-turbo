@@ -128,6 +128,11 @@
   .selo-turbo { background: rgba(185,104,242,0.18); color: var(--turbo); }
   .selo-agora { background: rgba(255,77,79,0.18); color: var(--agora); }
   .status-nao-entregue-txt { color: var(--vermelho); }
+  .selo-coleta {
+    display: block; margin-top: 6px; font-size: 12px; font-weight: 700;
+    color: var(--laranja); background: rgba(255,138,61,0.14);
+    padding: 4px 8px; border-radius: 6px; text-align: center;
+  }
   .card-conta { font-size: 11px; color: var(--muted); }
 
   .card-pedido-id { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
@@ -299,6 +304,15 @@
     return 'verde';
   }
 
+  // O motorista do Flex passa pra coletar por volta do meio-dia da data de
+  // entrega (mesmo dia calendário do prazo final, horário de Brasília) — não
+  // é um prazo "final" (esse já existe, é o deadline), é um aviso de que já
+  // dá pra separar o pedido pra coleta.
+  function calcularHoraColeta(deadlineMs) {
+    const dataBrasil = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date(deadlineMs));
+    return new Date(`${dataBrasil}T12:00:00-03:00`).getTime();
+  }
+
   // ================= ESTADO =================
   let cardsAtuais = [];
   let filtroAtivo = 'todos';
@@ -322,6 +336,9 @@
       const resolvidoMs = p.entregue_em ? new Date(p.entregue_em).getTime()
         : p.coletado_em ? new Date(p.coletado_em).getTime()
         : createdMs;
+      // Só o Flex "comum" tem esse aviso de meio-dia — Turbo e Agora já têm
+      // janelas próprias bem mais curtas (3h / 25min), não faz sentido pra eles.
+      const horaColetaMs = p.tipo === 'turbo' || p.tipo === 'agora' ? null : calcularHoraColeta(deadlineMs);
       cards.push({
         id: 'flex:' + p.order_id,
         tipo: tipoBadge,
@@ -331,6 +348,7 @@
         createdMs,
         resolvidoMs,
         deadlineMs,
+        horaColetaMs,
         status,
         horas_ate_coleta: p.horas_ate_coleta,
       });
@@ -431,6 +449,8 @@
       : `<div class="card-contador" data-deadline="${c.deadlineMs}">${formatarContador(c.msRestante)}</div>`;
 
     const seloClasse = c.tipo === 'AGORA' ? 'selo-agora' : c.tipo === 'TURBO' ? 'selo-turbo' : 'selo-flex';
+    const prontoParaColeta = !concluido && c.horaColetaMs && Date.now() >= c.horaColetaMs;
+    const seloColetaHtml = prontoParaColeta ? '<span class="selo-coleta">🚚 Hora de coletar</span>' : '';
 
     return `
       <div class="card-pedido ${zonaClasse}${concluido ? ' concluido' : ''}${flashClasse}" data-id="${c.id}">
@@ -442,6 +462,7 @@
         <div class="card-itens" title="${itensTxt}">${itensTxt}</div>
         ${contadorHtml}
         <div class="card-status">${statusHtml}</div>
+        ${seloColetaHtml}
         ${concluido ? '' : `<div class="barra-prazo"><div class="barra-prazo-fill" style="width:${pctBarra}%;"></div></div>`}
       </div>`;
   }
