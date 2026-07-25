@@ -315,6 +315,13 @@
       const deadlineMs = p.deadline ? new Date(p.deadline).getTime() : createdMs + 21 * 60 * 60 * 1000;
       const status = p.categoria || (p.coletado ? 'coletado' : 'aguardando');
       const tipoBadge = p.tipo === 'agora' ? 'AGORA' : p.tipo === 'turbo' ? 'TURBO' : 'FLEX';
+      // Data em que o pedido foi resolvido de verdade (entregue/coletado) —
+      // usada pra decidir se entra em "Coletados hoje". Sem isso, um pedido
+      // criado ontem e coletado hoje some da tela (não está mais "em
+      // aberto" e não aparece em "hoje" porque foi *criado* ontem).
+      const resolvidoMs = p.entregue_em ? new Date(p.entregue_em).getTime()
+        : p.coletado_em ? new Date(p.coletado_em).getTime()
+        : createdMs;
       cards.push({
         id: 'flex:' + p.order_id,
         tipo: tipoBadge,
@@ -322,6 +329,7 @@
         order_id: p.order_id,
         itens: p.itens || [],
         createdMs,
+        resolvidoMs,
         deadlineMs,
         status,
         horas_ate_coleta: p.horas_ate_coleta,
@@ -340,6 +348,7 @@
         order_id: p.order_id,
         itens: p.itens || [],
         createdMs,
+        resolvidoMs: createdMs, // ainda não rastreamos coleta para o bucket Turbo
         deadlineMs,
         status: 'aguardando', // ainda não rastreamos coleta para o bucket Turbo
       });
@@ -449,7 +458,7 @@
     const hoje = new Date().toDateString();
     const coletadosHoje = cardsAtuais.filter((c) => {
       if (c.status !== 'coletado' && c.status !== 'entregue' && c.status !== 'nao_entregue') return false;
-      return new Date(c.createdMs).toDateString() === hoje;
+      return new Date(c.resolvidoMs).toDateString() === hoje;
     }).filter(passaNoFiltro);
 
     const areaColetados = document.getElementById('areaColetadosHoje');
