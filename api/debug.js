@@ -97,6 +97,27 @@ const TABELAS_SQL = [
   `CREATE INDEX IF NOT EXISTS idx_historico_turbo_data ON historico_turbo(date_created_ts)`,
 ];
 
+// Corrige shipment_id gravados como "123456789.0" em vez de "123456789" —
+// bug no INSERT que não convertia o número pra string antes de gravar numa
+// coluna TEXT, fazendo o SQLite aplicar a conversão REAL->TEXT (que sempre
+// inclui ".0"). Isso quebrava a reverificação de status desses pedidos pra
+// sempre, porque "123456789.0" não é um shipment_id válido na API do ML.
+async function debugCorrigirShipmentId(req, res) {
+  const db = getDb();
+  const antes = await db.execute(
+    "SELECT id_unico, shipment_id FROM historico_flex WHERE shipment_id LIKE '%.0'"
+  );
+  await db.execute(
+    "UPDATE historico_flex SET shipment_id = SUBSTR(shipment_id, 1, LENGTH(shipment_id) - 2) WHERE shipment_id LIKE '%.0'"
+  );
+  res.status(200).json({
+    ok: true,
+    tipo: 'corrigir-shipment-id',
+    corrigidos: antes.rows.length,
+    exemplos: antes.rows.slice(0, 10),
+  });
+}
+
 async function debugCriarTabelas(req, res) {
   const db = getDb();
   const criadas = [];
@@ -378,7 +399,8 @@ module.exports = async (req, res) => {
     if (req.query.tipo === 'shopee-returns') return await debugShopeeReturns(req, res);
     if (req.query.tipo === 'criar-tabelas') return await debugCriarTabelas(req, res);
     if (req.query.tipo === 'migrar-redis-turso') return await debugMigrarRedisTurso(req, res);
-    res.status(400).json({ error: 'Use ?tipo=ml-claims, ?tipo=ml-shipment, ?tipo=shopee-returns, ?tipo=criar-tabelas ou ?tipo=migrar-redis-turso' });
+    if (req.query.tipo === 'corrigir-shipment-id') return await debugCorrigirShipmentId(req, res);
+    res.status(400).json({ error: 'Use ?tipo=ml-claims, ?tipo=ml-shipment, ?tipo=shopee-returns, ?tipo=criar-tabelas, ?tipo=migrar-redis-turso ou ?tipo=corrigir-shipment-id' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
