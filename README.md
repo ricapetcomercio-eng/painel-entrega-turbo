@@ -92,8 +92,8 @@ necessário só por causa disso, o cron-job.org resolve sem custo.
    `get_order_detail` ainda não foi validado com um pedido real. Rodar uma vez
    e conferir/ajustar em `shopeeOrders.js` se necessário.
 
-2. **Limite de horas do ML** (`LIMITE_HORAS_EXPRESSA` em `mlOrders.js`, hoje 4h)
-   — ajustar conforme o que você observar nos pedidos reais.
+2. ~~**Limite de horas do ML**~~ — resolvido: Envios Turbo é 3h, dias úteis
+   9h-15h (`HORAS_PADRAO_FLEX` + `dentroJanelaTurbo` em `mlOrders.js`).
 
 3. **Autorização OAuth inicial**: se você já tem os refresh_tokens salvos em
    outro Redis (ex: painelvendas), copie os valores pra cá. Se não, rode o
