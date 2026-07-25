@@ -212,7 +212,6 @@
 
 <script>
   // ================= CONFIG =================
-  const PRAZO_COLETA_HORAS = 24; // mesma referência usada no backend (mlFlexOrders.js)
   const INTERVALO_BUSCA_MS = 20000;
 
   // ================= ÁUDIO =================
@@ -310,7 +309,7 @@
     // FLEX — usa pedidosFlex (tem categoria/coletado/tempo de coleta reais)
     (dados.pedidosFlex || []).forEach((p) => {
       const createdMs = new Date(p.date_created).getTime();
-      const deadlineMs = createdMs + PRAZO_COLETA_HORAS * 60 * 60 * 1000;
+      const deadlineMs = p.deadline ? new Date(p.deadline).getTime() : createdMs + 21 * 60 * 60 * 1000;
       const status = p.categoria || (p.coletado ? 'coletado' : 'aguardando');
       cards.push({
         id: 'flex:' + p.order_id,
