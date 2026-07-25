@@ -46,6 +46,7 @@ const TABELAS_SQL = [
     coletado INTEGER,
     categoria TEXT,
     tipo TEXT,
+    deadline TEXT,
     status_envio TEXT,
     coletado_em TEXT,
     entregue_em TEXT,
@@ -129,20 +130,26 @@ async function debugCriarTabelas(req, res) {
   res.status(200).json({ ok: true, tipo: 'criar-tabelas', comandos_executados: criadas.length, detalhe: criadas });
 }
 
-// Adiciona a coluna "tipo" (flex/turbo/agora) em bancos que já existiam antes
-// dela — CREATE TABLE IF NOT EXISTS não adiciona coluna em tabela já criada.
+// Adiciona as colunas "tipo" (flex/turbo/agora) e "deadline" (prazo real,
+// vindo do SLA oficial do ML ou calculado) em bancos que já existiam antes
+// delas — CREATE TABLE IF NOT EXISTS não adiciona coluna em tabela já criada.
 // Idempotente: se a coluna já existe, o Turso rejeita com "duplicate column
-// name" e a gente só ignora.
+// name" e a gente só ignora (pode rodar de novo sem problema).
 async function debugAdicionarColunaTipo(req, res) {
   const db = getDb();
-  let adicionada = false;
-  try {
-    await db.execute("ALTER TABLE historico_flex ADD COLUMN tipo TEXT DEFAULT 'flex'");
-    adicionada = true;
-  } catch (err) {
-    if (!/duplicate column/i.test(err.message)) throw err;
+  const adicionadas = [];
+  for (const [coluna, sql] of [
+    ['tipo', "ALTER TABLE historico_flex ADD COLUMN tipo TEXT DEFAULT 'flex'"],
+    ['deadline', 'ALTER TABLE historico_flex ADD COLUMN deadline TEXT'],
+  ]) {
+    try {
+      await db.execute(sql);
+      adicionadas.push(coluna);
+    } catch (err) {
+      if (!/duplicate column/i.test(err.message)) throw err;
+    }
   }
-  res.status(200).json({ ok: true, tipo: 'adicionar-coluna-tipo', adicionada });
+  res.status(200).json({ ok: true, tipo: 'adicionar-coluna-tipo', adicionadas });
 }
 
 // -------- Migração única: Redis antigo (compartilhado) -> Turso --------
