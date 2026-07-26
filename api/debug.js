@@ -452,6 +452,26 @@ async function debugShopeeTodosStatus(req, res) {
   });
 }
 
+// Chama get_order_detail direto pra 1-2 order_sn reais e devolve a resposta
+// bruta — usado pra descobrir por que o coletor de "Todos os pedidos" da
+// Shopee grava zero registros mesmo sem erro (suspeita: order_list vem
+// vazio de get_order_detail, silenciosamente, com response_optional_fields).
+async function debugShopeeOrderDetail(req, res) {
+  const loja = (req.query.loja || '').toLowerCase();
+  const orderSn = req.query.order_sn;
+  if (!['ricapet', 'thapets'].includes(loja) || !orderSn) {
+    res.status(400).json({ error: 'Use ?loja=ricapet&order_sn=XXXXX' });
+    return;
+  }
+
+  const data = await shopeeGet(loja, '/api/v2/order/get_order_detail', {
+    order_sn_list: orderSn,
+    response_optional_fields: 'item_list,total_amount,shipping_carrier,recipient_address',
+  });
+
+  res.status(200).json({ ok: true, tipo: 'shopee-order-detail', loja, order_sn: orderSn, resposta_bruta: data });
+}
+
 // Mostra os canais de logística reais da loja e o que está em cache pra
 // "Turbo" — o nome exato do canal Turbo nunca foi confirmado com dados
 // reais (ver TODO em lib/shopeeOrders.js), então se a Entrega Turbo não
@@ -557,6 +577,7 @@ module.exports = async (req, res) => {
     if (req.query.tipo === 'shopee-channels') return await debugShopeeChannels(req, res);
     if (req.query.tipo === 'shopee-orders-recentes') return await debugShopeeOrdersRecentes(req, res);
     if (req.query.tipo === 'shopee-todos-status') return await debugShopeeTodosStatus(req, res);
+    if (req.query.tipo === 'shopee-order-detail') return await debugShopeeOrderDetail(req, res);
     if (req.query.tipo === 'criar-tabelas') return await debugCriarTabelas(req, res);
     if (req.query.tipo === 'migrar-redis-turso') return await debugMigrarRedisTurso(req, res);
     if (req.query.tipo === 'corrigir-shipment-id') return await debugCorrigirShipmentId(req, res);
