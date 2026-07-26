@@ -13,6 +13,7 @@ const { getMLAccessToken } = require('../lib/mlAuth');
 const { shopeeGet } = require('../lib/shopeeAuth');
 const { getDb } = require('../lib/db');
 const { getRedis } = require('../lib/redis');
+const { kvGet, kvDel } = require('../lib/kv');
 
 const TABELAS_SQL = [
   `CREATE TABLE IF NOT EXISTS kv_simples (
@@ -415,6 +416,38 @@ async function debugMlSla(req, res) {
   }
 }
 
+// Mostra os canais de logística reais da loja e o que está em cache pra
+// "Turbo" — o nome exato do canal Turbo nunca foi confirmado com dados
+// reais (ver TODO em lib/shopeeOrders.js), então se a Entrega Turbo não
+// aparece no painel, o mais provável é o nome não bater com a regex /turbo/i.
+async function debugShopeeChannels(req, res) {
+  const loja = (req.query.loja || '').toLowerCase();
+  if (!['ricapet', 'thapets'].includes(loja)) { res.status(400).json({ error: 'Use ?loja=ricapet ou ?loja=thapets' }); return; }
+
+  if (req.query.limpar_cache === '1') {
+    await kvDel(`shopee_turbo_channel:${loja}`);
+  }
+
+  const cacheKey = `shopee_turbo_channel:${loja}`;
+  const cacheAtual = await kvGet(cacheKey);
+
+  const data = await shopeeGet(loja, '/api/v2/logistics/get_channel_list');
+  const canais = (data.response && data.response.logistics_channel_list) || [];
+
+  res.status(200).json({
+    ok: true,
+    tipo: 'shopee-channels',
+    loja,
+    cache_atual_turbo_channel_id: cacheAtual,
+    total_canais: canais.length,
+    canais: canais.map((c) => ({
+      logistics_channel_id: c.logistics_channel_id,
+      logistics_channel_name: c.logistics_channel_name,
+      enabled: c.enabled,
+    })),
+  });
+}
+
 async function debugShopeeReturns(req, res) {
   const loja = (req.query.loja || '').toLowerCase();
   if (!['ricapet', 'thapets'].includes(loja)) { res.status(400).json({ error: 'Use ?loja=ricapet ou ?loja=thapets' }); return; }
@@ -454,11 +487,12 @@ module.exports = async (req, res) => {
     if (req.query.tipo === 'ml-shipment') return await debugMlShipment(req, res);
     if (req.query.tipo === 'ml-sla') return await debugMlSla(req, res);
     if (req.query.tipo === 'shopee-returns') return await debugShopeeReturns(req, res);
+    if (req.query.tipo === 'shopee-channels') return await debugShopeeChannels(req, res);
     if (req.query.tipo === 'criar-tabelas') return await debugCriarTabelas(req, res);
     if (req.query.tipo === 'migrar-redis-turso') return await debugMigrarRedisTurso(req, res);
     if (req.query.tipo === 'corrigir-shipment-id') return await debugCorrigirShipmentId(req, res);
     if (req.query.tipo === 'adicionar-coluna-tipo') return await debugAdicionarColunaTipo(req, res);
-    res.status(400).json({ error: 'Use ?tipo=ml-claims, ?tipo=ml-shipment, ?tipo=ml-sla, ?tipo=shopee-returns, ?tipo=criar-tabelas, ?tipo=migrar-redis-turso, ?tipo=corrigir-shipment-id ou ?tipo=adicionar-coluna-tipo' });
+    res.status(400).json({ error: 'Use ?tipo=ml-claims, ?tipo=ml-shipment, ?tipo=ml-sla, ?tipo=shopee-returns, ?tipo=shopee-channels, ?tipo=criar-tabelas, ?tipo=migrar-redis-turso, ?tipo=corrigir-shipment-id ou ?tipo=adicionar-coluna-tipo' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
