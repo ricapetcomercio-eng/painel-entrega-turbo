@@ -421,15 +421,6 @@ module.exports = async (req, res) => {
       return { ...pedido, deadline };
     });
 
-    const resultado = {
-      atualizado_em: new Date().toISOString(),
-      pedidos: pedidosUnificados.sort((a, b) => new Date(a.deadline) - new Date(b.deadline)),
-      total: pedidosShopee.length,
-      erros,
-    };
-    await kvSet('entrega_turbo:ultima_coleta', resultado);
-    totalShopeeTurbo = resultado.total;
-
     try {
       await registrarNoHistoricoTurbo(pedidosUnificados, (pedido) => ({
         marketplace: pedido.marketplace,
@@ -448,6 +439,20 @@ module.exports = async (req, res) => {
     for (const loja of LOJAS_SHOPEE) {
       await coletarNovosParaHistoricoTodosShopee(loja, erros);
     }
+
+    // Só grava depois de TUDO rodar (Turbo, histórico Turbo E histórico
+    // geral) — salvar antes fazia erros das etapas seguintes nunca
+    // aparecerem pra quem lê entrega_turbo:ultima_coleta (bug real: erros
+    // do coletor de "Todos os pedidos" da Shopee ficavam invisíveis, porque
+    // o kvSet já tinha serializado o array `erros` antes desse coletor rodar).
+    const resultado = {
+      atualizado_em: new Date().toISOString(),
+      pedidos: pedidosUnificados.sort((a, b) => new Date(a.deadline) - new Date(b.deadline)),
+      total: pedidosShopee.length,
+      erros,
+    };
+    await kvSet('entrega_turbo:ultima_coleta', resultado);
+    totalShopeeTurbo = resultado.total;
   }
 
   // -------- Mercado Livre: roda toda vez (não usa proxy, sem limite de cota) --------
