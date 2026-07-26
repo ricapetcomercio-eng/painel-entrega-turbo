@@ -38,6 +38,9 @@
   }
   #overlayAtivar p { color: var(--muted); font-size: 14px; }
 
+  /* ---- topo fixo (header+heatmap+kpis+controles não rolam com os cards) ---- */
+  .topo-fixo { position: sticky; top: 0; z-index: 50; background: var(--bg); }
+
   /* ---- header ---- */
   .header {
     display: flex; align-items: center; justify-content: space-between;
@@ -129,16 +132,31 @@
   .selo-agora { background: rgba(255,77,79,0.18); color: var(--agora); }
   .status-nao-entregue-txt { color: var(--vermelho); }
   .selo-coleta {
-    display: block; margin-top: 6px; font-size: 12px; font-weight: 700;
-    color: var(--laranja); background: rgba(255,138,61,0.14);
-    padding: 4px 8px; border-radius: 6px; text-align: center;
+    display: block; margin-top: 6px; font-size: 13px; font-weight: 800;
+    color: #fff; background: var(--laranja);
+    padding: 5px 8px; border-radius: 6px; text-align: center;
+    animation: piscaColeta 1.4s infinite;
+  }
+  @keyframes piscaColeta {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(255,138,61,0.6); }
+    50% { opacity: 0.85; box-shadow: 0 0 0 6px rgba(255,138,61,0); }
   }
   .card-conta { font-size: 11px; color: var(--muted); }
 
-  .card-pedido-id { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
-  .card-itens { font-size: 12px; color: var(--muted); margin-bottom: 10px; max-height: 34px; overflow: hidden; }
+  .card-pedido-id { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+  /* SKU é o que o time de expedição usa pra achar o produto — fica em
+     destaque; o nome completo do produto (geralmente longo) fica menor e
+     numa linha só, com "..." no fim em vez de estourar o card. */
+  .card-sku {
+    font-size: 16px; font-weight: 800; color: var(--text); margin-bottom: 2px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .card-itens {
+    font-size: 12px; color: var(--muted); margin-bottom: 10px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
 
-  .card-contador { font-size: 26px; font-weight: 800; text-align: center; margin: 6px 0; }
+  .card-contador { font-size: 32px; font-weight: 800; text-align: center; margin: 6px 0; }
   .zona-verde .card-contador { color: var(--verde); }
   .zona-amarelo .card-contador { color: var(--amarelo); }
   .zona-laranja .card-contador { color: var(--laranja); }
@@ -170,46 +188,48 @@
     <p>Necessário uma vez, por causa da política de autoplay dos navegadores.</p>
   </div>
 
-  <div class="faixa-emergencia" id="faixaEmergencia">⚠ MUITOS PEDIDOS CRÍTICOS — AÇÃO IMEDIATA NA EXPEDIÇÃO ⚠</div>
+  <div class="topo-fixo">
+    <div class="faixa-emergencia" id="faixaEmergencia">⚠ MUITOS PEDIDOS CRÍTICOS — AÇÃO IMEDIATA NA EXPEDIÇÃO ⚠</div>
 
-  <div class="header">
-    <div>
-      <h1>Centro de Controle — Expedição</h1>
-      <div class="sub">Ricapet &amp; Thapets · Flex e Turbo</div>
+    <div class="header">
+      <div>
+        <h1>Centro de Controle — Expedição</h1>
+        <div class="sub">Ricapet &amp; Thapets · Flex e Turbo</div>
+      </div>
+      <div style="text-align:right;">
+        <div class="relogio" id="relogio">--:--:--</div>
+        <div class="conexao"><span class="ponto" id="pontoConexao"></span><span id="ultimaAtualizacao">carregando...</span></div>
+      </div>
     </div>
-    <div style="text-align:right;">
-      <div class="relogio" id="relogio">--:--:--</div>
-      <div class="conexao"><span class="ponto" id="pontoConexao"></span><span id="ultimaAtualizacao">carregando...</span></div>
+
+    <div class="heatmap">
+      <div class="heatmap-fatia heatmap-15"><span class="n" id="heat15">0</span>vencem em 15min</div>
+      <div class="heatmap-fatia heatmap-30"><span class="n" id="heat30">0</span>vencem em 30min</div>
+      <div class="heatmap-fatia heatmap-60"><span class="n" id="heat60">0</span>vencem em 60min</div>
     </div>
-  </div>
 
-  <div class="heatmap">
-    <div class="heatmap-fatia heatmap-15"><span class="n" id="heat15">0</span>vencem em 15min</div>
-    <div class="heatmap-fatia heatmap-30"><span class="n" id="heat30">0</span>vencem em 30min</div>
-    <div class="heatmap-fatia heatmap-60"><span class="n" id="heat60">0</span>vencem em 60min</div>
-  </div>
+    <div class="kpis">
+      <div class="kpi"><div class="v" id="kpiAguardando">-</div><div class="l">Aguardando</div></div>
+      <div class="kpi"><div class="v" style="color:var(--flex);" id="kpiFlex">-</div><div class="l">Flex</div></div>
+      <div class="kpi"><div class="v" style="color:var(--turbo);" id="kpiTurbo">-</div><div class="l">Turbo</div></div>
+      <div class="kpi"><div class="v" style="color:var(--vermelho);" id="kpiCriticos">-</div><div class="l">Críticos</div></div>
+      <div class="kpi"><div class="v" style="color:#ff8080;" id="kpiAtrasados">-</div><div class="l">Atrasados</div></div>
+      <div class="kpi"><div class="v" style="color:var(--verde);" id="kpiColetadosHoje">-</div><div class="l">Coletados hoje</div></div>
+      <div class="kpi"><div class="v" id="kpiTempoMedio">-</div><div class="l">Tempo médio até coleta</div></div>
+      <div class="kpi"><div class="v" id="kpiMaiorAtraso">-</div><div class="l">Maior atraso</div></div>
+    </div>
 
-  <div class="kpis">
-    <div class="kpi"><div class="v" id="kpiAguardando">-</div><div class="l">Aguardando</div></div>
-    <div class="kpi"><div class="v" style="color:var(--flex);" id="kpiFlex">-</div><div class="l">Flex</div></div>
-    <div class="kpi"><div class="v" style="color:var(--turbo);" id="kpiTurbo">-</div><div class="l">Turbo</div></div>
-    <div class="kpi"><div class="v" style="color:var(--vermelho);" id="kpiCriticos">-</div><div class="l">Críticos</div></div>
-    <div class="kpi"><div class="v" style="color:#ff8080;" id="kpiAtrasados">-</div><div class="l">Atrasados</div></div>
-    <div class="kpi"><div class="v" style="color:var(--verde);" id="kpiColetadosHoje">-</div><div class="l">Coletados hoje</div></div>
-    <div class="kpi"><div class="v" id="kpiTempoMedio">-</div><div class="l">Tempo médio até coleta</div></div>
-    <div class="kpi"><div class="v" id="kpiMaiorAtraso">-</div><div class="l">Maior atraso</div></div>
-  </div>
-
-  <div class="controles">
-    <button class="filtro-btn ativo" data-filtro="todos" onclick="aplicarFiltro('todos', this)">Todos</button>
-    <button class="filtro-btn" data-filtro="flex" onclick="aplicarFiltro('flex', this)">Flex</button>
-    <button class="filtro-btn" data-filtro="turbo" onclick="aplicarFiltro('turbo', this)">Turbo</button>
-    <button class="filtro-btn" data-filtro="urgentes" onclick="aplicarFiltro('urgentes', this)">Urgentes</button>
-    <button class="filtro-btn" data-filtro="atrasados" onclick="aplicarFiltro('atrasados', this)">Atrasados</button>
-    <button class="filtro-btn" data-filtro="aguardando" onclick="aplicarFiltro('aguardando', this)">Aguardando coleta</button>
-    <input id="buscaInput" placeholder="Buscar por pedido, SKU ou item..." oninput="renderizarCards()">
-    <button class="btn-icone ativo" id="btnSom" onclick="alternarSom()">🔔 Som: ligado</button>
-    <button class="btn-icone ativo" id="btnVoz" onclick="alternarVoz()">🗣 Voz: ligada</button>
+    <div class="controles">
+      <button class="filtro-btn ativo" data-filtro="todos" onclick="aplicarFiltro('todos', this)">Todos</button>
+      <button class="filtro-btn" data-filtro="flex" onclick="aplicarFiltro('flex', this)">Flex</button>
+      <button class="filtro-btn" data-filtro="turbo" onclick="aplicarFiltro('turbo', this)">Turbo</button>
+      <button class="filtro-btn" data-filtro="urgentes" onclick="aplicarFiltro('urgentes', this)">Urgentes</button>
+      <button class="filtro-btn" data-filtro="atrasados" onclick="aplicarFiltro('atrasados', this)">Atrasados</button>
+      <button class="filtro-btn" data-filtro="aguardando" onclick="aplicarFiltro('aguardando', this)">Aguardando coleta</button>
+      <input id="buscaInput" placeholder="Buscar por pedido, SKU ou item..." oninput="renderizarCards()">
+      <button class="btn-icone ativo" id="btnSom" onclick="alternarSom()">🔔 Som: ligado</button>
+      <button class="btn-icone ativo" id="btnVoz" onclick="alternarVoz()">🗣 Voz: ligada</button>
+    </div>
   </div>
 
   <div class="secao-titulo">Pedidos em aberto (mais urgente primeiro)</div>
@@ -431,6 +451,10 @@
   }
 
   function cardHtml(c) {
+    // SKU em destaque (é o que o time de expedição usa pra achar o produto
+    // na prateleira); nome completo do produto vira info secundária, numa
+    // linha só com "..." — títulos da Shopee/ML costumam ser bem longos.
+    const itensSkuTxt = (c.itens || []).map((i) => `${i.quantidade}x ${i.sku || i.titulo}`).join(', ');
     const itensTxt = (c.itens || []).map((i) => `${i.quantidade}x ${i.titulo}`).join(', ');
     const naoEntregue = c.status === 'nao_entregue';
     const cancelado = c.status === 'cancelado';
@@ -461,6 +485,7 @@
           <span class="card-conta">${c.conta || ''}</span>
         </div>
         <div class="card-pedido-id">#${c.order_id}</div>
+        <div class="card-sku" title="${itensSkuTxt}">${itensSkuTxt}</div>
         <div class="card-itens" title="${itensTxt}">${itensTxt}</div>
         ${contadorHtml}
         <div class="card-status">${statusHtml}</div>
