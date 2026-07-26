@@ -416,6 +416,42 @@ async function debugMlSla(req, res) {
   }
 }
 
+// Mostra o estado do cursor incremental do coletor de "Todos os pedidos"
+// da Shopee (api/collect.js: coletarNovosParaHistoricoTodosShopee) — se a
+// janela (desde/ate) ficou presa num intervalo antigo (ex: de quando o
+// Fixie estava quebrado), o coletor nunca avança pros pedidos recentes até
+// terminar de processar aquela janela velha inteira.
+async function debugShopeeTodosStatus(req, res) {
+  const loja = (req.query.loja || '').toLowerCase();
+  if (!['ricapet', 'thapets'].includes(loja)) { res.status(400).json({ error: 'Use ?loja=ricapet ou ?loja=thapets' }); return; }
+
+  if (req.query.resetar === '1') {
+    await kvDel(`entrega_turbo:todos_shopee_janela_desde:${loja}`);
+    await kvDel(`entrega_turbo:todos_shopee_janela_ate:${loja}`);
+    await kvDel(`entrega_turbo:todos_shopee_janela_cursor:${loja}`);
+  }
+
+  const ultimaCompleta = await kvGet(`entrega_turbo:todos_shopee_ultima_completa_ts:${loja}`);
+  const janelaDesde = await kvGet(`entrega_turbo:todos_shopee_janela_desde:${loja}`);
+  const janelaAte = await kvGet(`entrega_turbo:todos_shopee_janela_ate:${loja}`);
+  const janelaCursor = await kvGet(`entrega_turbo:todos_shopee_janela_cursor:${loja}`);
+  const ultimaExecucaoShopee = await kvGet('entrega_turbo:ultima_execucao_shopee_ts');
+
+  res.status(200).json({
+    ok: true,
+    tipo: 'shopee-todos-status',
+    loja,
+    ultima_janela_completa: ultimaCompleta,
+    janela_em_andamento: {
+      desde: janelaDesde ? new Date(Number(janelaDesde) * 1000).toISOString() : null,
+      ate: janelaAte ? new Date(Number(janelaAte) * 1000).toISOString() : null,
+      cursor: janelaCursor,
+    },
+    ultima_execucao_shopee_geral: ultimaExecucaoShopee ? new Date(ultimaExecucaoShopee).toISOString() : null,
+    resetado: req.query.resetar === '1',
+  });
+}
+
 // Mostra os canais de logística reais da loja e o que está em cache pra
 // "Turbo" — o nome exato do canal Turbo nunca foi confirmado com dados
 // reais (ver TODO em lib/shopeeOrders.js), então se a Entrega Turbo não
@@ -520,6 +556,7 @@ module.exports = async (req, res) => {
     if (req.query.tipo === 'shopee-returns') return await debugShopeeReturns(req, res);
     if (req.query.tipo === 'shopee-channels') return await debugShopeeChannels(req, res);
     if (req.query.tipo === 'shopee-orders-recentes') return await debugShopeeOrdersRecentes(req, res);
+    if (req.query.tipo === 'shopee-todos-status') return await debugShopeeTodosStatus(req, res);
     if (req.query.tipo === 'criar-tabelas') return await debugCriarTabelas(req, res);
     if (req.query.tipo === 'migrar-redis-turso') return await debugMigrarRedisTurso(req, res);
     if (req.query.tipo === 'corrigir-shipment-id') return await debugCorrigirShipmentId(req, res);
