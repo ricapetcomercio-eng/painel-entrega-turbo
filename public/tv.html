@@ -599,13 +599,15 @@
   function tickAutoScroll() {
     if (Date.now() < autoScrollPausadoAte) return;
 
-    // document.documentElement.scrollHeight NÃO serve aqui: como o CSS define
-    // "html, body { height: 100% }", o <html> sempre reporta a altura da tela,
-    // não a altura real do conteúdo. document.body.scrollHeight é o correto.
-    const maxScroll = document.body.scrollHeight - window.innerHeight;
+    // Quem rola de verdade aqui é o <body>, não o window: o CSS define
+    // "html, body { height: 100% }", o que faz o <body> virar seu próprio
+    // container de scroll interno (altura travada na tela, overflow-y:
+    // auto por padrão) — confirmado testando ao vivo (window.scrollBy não
+    // fazia nada, document.body.scrollTop funcionava).
+    const maxScroll = document.body.scrollHeight - document.body.clientHeight;
     if (maxScroll <= 0) return; // conteúdo cabe na tela, nada pra rolar
 
-    const atual = window.scrollY;
+    const atual = document.body.scrollTop;
     if (direcaoScroll === 1 && atual >= maxScroll - 1) {
       direcaoScroll = -1;
       autoScrollPausadoAte = Date.now() + PAUSA_NAS_PONTAS_MS;
@@ -616,7 +618,7 @@
       autoScrollPausadoAte = Date.now() + PAUSA_NAS_PONTAS_MS;
       return;
     }
-    window.scrollBy(0, direcaoScroll * VELOCIDADE_SCROLL_PX);
+    document.body.scrollTop = atual + direcaoScroll * VELOCIDADE_SCROLL_PX;
   }
   setInterval(tickAutoScroll, INTERVALO_TICK_SCROLL_MS);
 </script>
