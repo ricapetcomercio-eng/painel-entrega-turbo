@@ -448,6 +448,37 @@ async function debugShopeeChannels(req, res) {
   });
 }
 
+// Consulta direto na API da Shopee (sem depender do nosso pipeline/histórico)
+// quantos pedidos existem num período — pra confirmar se "zero pedidos no
+// histórico" é falta de venda real ou falha silenciosa de coleta.
+async function debugShopeeOrdersRecentes(req, res) {
+  const loja = (req.query.loja || '').toLowerCase();
+  if (!['ricapet', 'thapets'].includes(loja)) { res.status(400).json({ error: 'Use ?loja=ricapet ou ?loja=thapets' }); return; }
+  const dias = Math.min(parseInt(req.query.dias, 10) || 7, 15); // API limita a 15 dias por chamada
+
+  const timeTo = Math.floor(Date.now() / 1000);
+  const timeFrom = timeTo - dias * 24 * 60 * 60;
+
+  const data = await shopeeGet(loja, '/api/v2/order/get_order_list', {
+    time_range_field: 'create_time',
+    time_from: timeFrom,
+    time_to: timeTo,
+    page_size: 100,
+  });
+
+  const pedidos = (data.response && data.response.order_list) || [];
+
+  res.status(200).json({
+    ok: true,
+    tipo: 'shopee-orders-recentes',
+    loja,
+    periodo_dias: dias,
+    total_pedidos: pedidos.length,
+    more: (data.response && data.response.more) || false,
+    exemplos: pedidos.slice(0, 10).map((p) => ({ order_sn: p.order_sn, order_status: p.order_status })),
+  });
+}
+
 async function debugShopeeReturns(req, res) {
   const loja = (req.query.loja || '').toLowerCase();
   if (!['ricapet', 'thapets'].includes(loja)) { res.status(400).json({ error: 'Use ?loja=ricapet ou ?loja=thapets' }); return; }
@@ -488,6 +519,7 @@ module.exports = async (req, res) => {
     if (req.query.tipo === 'ml-sla') return await debugMlSla(req, res);
     if (req.query.tipo === 'shopee-returns') return await debugShopeeReturns(req, res);
     if (req.query.tipo === 'shopee-channels') return await debugShopeeChannels(req, res);
+    if (req.query.tipo === 'shopee-orders-recentes') return await debugShopeeOrdersRecentes(req, res);
     if (req.query.tipo === 'criar-tabelas') return await debugCriarTabelas(req, res);
     if (req.query.tipo === 'migrar-redis-turso') return await debugMigrarRedisTurso(req, res);
     if (req.query.tipo === 'corrigir-shipment-id') return await debugCorrigirShipmentId(req, res);
