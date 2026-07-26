@@ -599,7 +599,10 @@
   function tickAutoScroll() {
     if (Date.now() < autoScrollPausadoAte) return;
 
-    const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+    // document.documentElement.scrollHeight NÃO serve aqui: como o CSS define
+    // "html, body { height: 100% }", o <html> sempre reporta a altura da tela,
+    // não a altura real do conteúdo. document.body.scrollHeight é o correto.
+    const maxScroll = document.body.scrollHeight - window.innerHeight;
     if (maxScroll <= 0) return; // conteúdo cabe na tela, nada pra rolar
 
     const atual = window.scrollY;
