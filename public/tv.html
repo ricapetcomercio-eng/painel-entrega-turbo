@@ -574,6 +574,48 @@
   setInterval(atualizarContadoresAoVivo, 1000);
   setInterval(buscarDados, INTERVALO_BUSCA_MS);
   atualizarRelogio();
+
+  // ================= AUTO-SCROLL =================
+  // Numa TV ninguém rola a tela manualmente — sem isso, pedidos abaixo da
+  // dobra ficam invisíveis pra sempre quando há mais cards do que cabe na
+  // tela. Desce devagar, pausa embaixo, sobe, pausa em cima, repete. Só
+  // ativa quando o conteúdo realmente não cabe, e pausa um tempo se alguém
+  // interagir manualmente (útil ao testar num navegador comum).
+  const VELOCIDADE_SCROLL_PX = 1;
+  const INTERVALO_TICK_SCROLL_MS = 50;
+  const PAUSA_NAS_PONTAS_MS = 4000;
+  const PAUSA_APOS_INTERACAO_MS = 15000;
+
+  let direcaoScroll = 1; // 1 = descendo, -1 = subindo
+  let autoScrollPausadoAte = 0;
+
+  function pausarAutoScroll() {
+    autoScrollPausadoAte = Date.now() + PAUSA_APOS_INTERACAO_MS;
+  }
+  ['mousedown', 'touchstart', 'keydown', 'wheel'].forEach((evt) => {
+    window.addEventListener(evt, pausarAutoScroll, { passive: true });
+  });
+
+  function tickAutoScroll() {
+    if (Date.now() < autoScrollPausadoAte) return;
+
+    const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+    if (maxScroll <= 0) return; // conteúdo cabe na tela, nada pra rolar
+
+    const atual = window.scrollY;
+    if (direcaoScroll === 1 && atual >= maxScroll - 1) {
+      direcaoScroll = -1;
+      autoScrollPausadoAte = Date.now() + PAUSA_NAS_PONTAS_MS;
+      return;
+    }
+    if (direcaoScroll === -1 && atual <= 1) {
+      direcaoScroll = 1;
+      autoScrollPausadoAte = Date.now() + PAUSA_NAS_PONTAS_MS;
+      return;
+    }
+    window.scrollBy(0, direcaoScroll * VELOCIDADE_SCROLL_PX);
+  }
+  setInterval(tickAutoScroll, INTERVALO_TICK_SCROLL_MS);
 </script>
 </body>
 </html>
