@@ -41,10 +41,11 @@ const { registrarHistoricoTodos, marcarDevolucao } = require('../lib/historicoTo
 
 // Janela de DESCOBERTA de pedidos Turbo novos (não confundir com a
 // reverificação, que cobre qualquer "aguardando" sem limite de idade).
-// 48h em vez de 6h dá folga contra qualquer gap de execução (ex: o Fixie
-// já ficou fora do ar por mais de 6h uma vez nessa operação) — volume de
-// Turbo é baixo, não tem custo real em alargar.
-const HORAS_RETROATIVAS = 48;
+// 7 dias em vez de 48h — o volume de Turbo é baixo (poucas unidades por
+// semana), então não tem custo real em alargar bastante, e isso evita
+// depender de coincidência de horário entre execuções (48h já deixou
+// escapar pedidos reais por só ~2h de diferença).
+const HORAS_RETROATIVAS = 7 * 24;
 const HORAS_JANELA_FLEX = 48; // "coleta só amanhã" — precisa de folga
 const HORAS_JANELA_SHOPEE_TODOS = 48; // mesma folga usada no restante do backfill
 
