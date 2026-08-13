@@ -436,6 +436,27 @@ async function debugMlSla(req, res) {
 // janela (desde/ate) ficou presa num intervalo antigo (ex: de quando o
 // Fixie estava quebrado), o coletor nunca avança pros pedidos recentes até
 // terminar de processar aquela janela velha inteira.
+// Mostra o conteúdo bruto da tabela historico_turbo_live (rastreamento "ao
+// vivo" do Turbo) — prova direta se um pedido específico foi capturado pelo
+// nosso sistema, independente do que aparece no painel (que só mostra
+// categoria='aguardando').
+async function debugTurboLiveStatus(req, res) {
+  const db = getDb();
+  const orderSn = req.query.order_sn;
+
+  if (orderSn) {
+    const rs = await db.execute({
+      sql: 'SELECT * FROM historico_turbo_live WHERE order_id = ?',
+      args: [orderSn],
+    });
+    res.status(200).json({ ok: true, tipo: 'turbo-live-status', order_sn: orderSn, encontrado: rs.rows.length > 0, registro: rs.rows[0] || null });
+    return;
+  }
+
+  const rs = await db.execute('SELECT id_unico, conta, order_id, date_created, categoria, status_pedido, deadline FROM historico_turbo_live ORDER BY date_created_ts DESC LIMIT 50');
+  res.status(200).json({ ok: true, tipo: 'turbo-live-status', total: rs.rows.length, registros: rs.rows });
+}
+
 async function debugShopeeTodosStatus(req, res) {
   const loja = (req.query.loja || '').toLowerCase();
   if (!['ricapet', 'thapets'].includes(loja)) { res.status(400).json({ error: 'Use ?loja=ricapet ou ?loja=thapets' }); return; }
@@ -584,6 +605,7 @@ module.exports = async (req, res) => {
     if (req.query.tipo === 'shopee-channels') return await debugShopeeChannels(req, res);
     if (req.query.tipo === 'shopee-orders-recentes') return await debugShopeeOrdersRecentes(req, res);
     if (req.query.tipo === 'shopee-todos-status') return await debugShopeeTodosStatus(req, res);
+    if (req.query.tipo === 'turbo-live-status') return await debugTurboLiveStatus(req, res);
     if (req.query.tipo === 'shopee-order-detail') return await debugShopeeOrderDetail(req, res);
     if (req.query.tipo === 'criar-tabelas') return await debugCriarTabelas(req, res);
     if (req.query.tipo === 'migrar-redis-turso') return await debugMigrarRedisTurso(req, res);
