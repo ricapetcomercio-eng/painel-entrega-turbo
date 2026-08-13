@@ -98,6 +98,21 @@ const TABELAS_SQL = [
     itens TEXT
   )`,
   `CREATE INDEX IF NOT EXISTS idx_historico_turbo_data ON historico_turbo(date_created_ts)`,
+  `CREATE TABLE IF NOT EXISTS historico_turbo_live (
+    id_unico TEXT PRIMARY KEY,
+    marketplace TEXT,
+    conta TEXT,
+    order_id TEXT,
+    date_created TEXT,
+    date_created_ts INTEGER,
+    total_amount REAL,
+    categoria TEXT,
+    status_pedido TEXT,
+    resolvido_em TEXT,
+    deadline TEXT,
+    itens TEXT
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_historico_turbo_live_data ON historico_turbo_live(date_created_ts)`,
 ];
 
 // Corrige shipment_id gravados como "123456789.0" em vez de "123456789" —
@@ -472,20 +487,13 @@ async function debugShopeeOrderDetail(req, res) {
   res.status(200).json({ ok: true, tipo: 'shopee-order-detail', loja, order_sn: orderSn, resposta_bruta: data });
 }
 
-// Mostra os canais de logística reais da loja e o que está em cache pra
-// "Turbo" — o nome exato do canal Turbo nunca foi confirmado com dados
-// reais (ver TODO em lib/shopeeOrders.js), então se a Entrega Turbo não
-// aparece no painel, o mais provável é o nome não bater com a regex /turbo/i.
+// Mostra os canais de logística reais da loja — diagnóstico útil pra
+// conferir nomes/status, mas a identificação do Turbo em si usa
+// shipping_carrier no pedido (não precisa mais bater channel_id contra essa
+// lista — ver lib/shopeeOrders.js).
 async function debugShopeeChannels(req, res) {
   const loja = (req.query.loja || '').toLowerCase();
   if (!['ricapet', 'thapets'].includes(loja)) { res.status(400).json({ error: 'Use ?loja=ricapet ou ?loja=thapets' }); return; }
-
-  if (req.query.limpar_cache === '1') {
-    await kvDel(`shopee_turbo_channel:${loja}`);
-  }
-
-  const cacheKey = `shopee_turbo_channel:${loja}`;
-  const cacheAtual = await kvGet(cacheKey);
 
   const data = await shopeeGet(loja, '/api/v2/logistics/get_channel_list');
   const canais = (data.response && data.response.logistics_channel_list) || [];
@@ -494,7 +502,6 @@ async function debugShopeeChannels(req, res) {
     ok: true,
     tipo: 'shopee-channels',
     loja,
-    cache_atual_turbo_channel_id: cacheAtual,
     total_canais: canais.length,
     canais: canais.map((c) => ({
       logistics_channel_id: c.logistics_channel_id,

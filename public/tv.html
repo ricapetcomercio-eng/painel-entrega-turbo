@@ -374,21 +374,22 @@
       });
     });
 
-    // TURBO — usa o bucket "pedidos" (Shopee Entrega Turbo real; hoje pode
-    // estar vazio até a Shopee Turbo estar aprovada/funcionando)
+    // TURBO — usa o bucket "pedidos" (Shopee Entrega Turbo, rastreamento
+    // persistente com status real — lib/historicoTurboLive.js)
     (dados.pedidos || []).filter((p) => p.marketplace === 'shopee').forEach((p) => {
       const createdMs = new Date(p.date_created).getTime();
       const deadlineMs = p.deadline ? new Date(p.deadline).getTime() : createdMs + 4 * 60 * 60 * 1000;
+      const resolvidoMs = p.resolvido_em ? new Date(p.resolvido_em).getTime() : createdMs;
       cards.push({
         id: 'turbo:' + p.order_id,
         tipo: 'TURBO',
-        conta: p.conta || p.loja,
+        conta: p.conta,
         order_id: p.order_id,
         itens: p.itens || [],
         createdMs,
-        resolvidoMs: createdMs, // ainda não rastreamos coleta para o bucket Turbo
+        resolvidoMs,
         deadlineMs,
-        status: 'aguardando', // ainda não rastreamos coleta para o bucket Turbo
+        status: p.categoria || 'aguardando',
       });
     });
 

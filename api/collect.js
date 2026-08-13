@@ -28,11 +28,12 @@
 const { getDb } = require('../lib/db');
 const { kvGet, kvSet, kvDel } = require('../lib/kv');
 const { SELLER_IDS } = require('../lib/mlOrders');
-const { coletarPedidosTurbo } = require('../lib/shopeeOrders');
+const { coletarPedidosTurbo, reverificarPedidoTurbo } = require('../lib/shopeeOrders');
 const { buscarPedidosPeriodo: buscarPedidosPeriodoShopee, buscarDetalhesCompletos: buscarDetalhesCompletosShopee, montarPedidoGenericoShopee } = require('../lib/shopeeOrders');
 const { LOJAS: LOJAS_SHOPEE } = require('../lib/shopeeAuth');
 const { buscarPedidosPeriodo, verificarFlex, montarPedidoFlex, reverificarStatusPedido } = require('../lib/mlFlexOrders');
 const { registrarHistoricoFlex, listarRecentes } = require('../lib/historicoFlex');
+const { registrarHistoricoTurboLive, listarRecentesTurbo } = require('../lib/historicoTurboLive');
 const { buscarDetalhesShipment, montarPedidoGenerico } = require('../lib/mlAllOrders');
 const { buscarDevolucoesPeriodo } = require('../lib/mlClaims');
 const { buscarDevolucoesPorPedido: buscarDevolucoesShopeePorPedido } = require('../lib/shopeeReturns');
@@ -324,6 +325,33 @@ async function reverificarPendentesFlex(erros) {
   }
 }
 
+// Mesmo espírito do reverificarPendentesFlex, pro Turbo da Shopee — sem
+// isso, um pedido Turbo preso (nunca coletado) desaparecia do painel depois
+// de sair da janela de busca recente, mesmo continuando parado de verdade.
+const TEMPO_MAXIMO_TURBO_RECHECK_MS = 3000;
+
+async function reverificarPendentesTurbo(erros) {
+  try {
+    const recentes = await listarRecentesTurbo(HORAS_JANELA_FLEX);
+    const pendentes = recentes.filter((p) => p.categoria === 'aguardando');
+
+    const { resultados } = await processarEmLotes(pendentes, TEMPO_MAXIMO_TURBO_RECHECK_MS, async (pedido) => {
+      try {
+        return await reverificarPedidoTurbo(pedido.conta, pedido.order_id);
+      } catch (err) {
+        erros.push({ fonte: `turbo_recheck:${pedido.order_id}`, mensagem: err.message });
+        return null;
+      }
+    });
+
+    if (resultados.length > 0) {
+      await registrarHistoricoTurboLive(resultados);
+    }
+  } catch (err) {
+    erros.push({ fonte: 'turbo_recheck_geral', mensagem: err.message });
+  }
+}
+
 async function enriquecerDevolucoes(conta, erros) {
   try {
     const desde = new Date(Date.now() - DIAS_JANELA_DEVOLUCOES * 24 * 60 * 60 * 1000).toISOString();
@@ -413,18 +441,23 @@ module.exports = async (req, res) => {
       }
     }
 
-    const pedidosUnificados = pedidosShopee.map((pedido) => {
-      const horas = pedido.horas_prometidas || 4;
-      const deadline = new Date(
-        new Date(pedido.date_created).getTime() + horas * 60 * 60 * 1000
-      ).toISOString();
-      return { ...pedido, deadline };
-    });
+    // Grava/atualiza no histórico "ao vivo" (persistente, com categoria) —
+    // sem isso, um pedido Turbo preso (nunca coletado) desaparecia do
+    // painel depois de sair da janela de busca recente (6h), mesmo
+    // continuando parado de verdade. Também reverifica quem já estava
+    // "aguardando", pra pegar mudança de status independente de aparecer
+    // de novo na busca recente.
+    try {
+      await registrarHistoricoTurboLive(pedidosShopee);
+    } catch (err) {
+      erros.push({ fonte: 'historico_turbo_live', mensagem: err.message });
+    }
+    await reverificarPendentesTurbo(erros);
 
     try {
-      await registrarNoHistoricoTurbo(pedidosUnificados, (pedido) => ({
+      await registrarNoHistoricoTurbo(pedidosShopee, (pedido) => ({
         marketplace: pedido.marketplace,
-        conta: pedido.conta || pedido.loja || null,
+        conta: pedido.conta || null,
         order_id: pedido.order_id,
         date_created: pedido.date_created,
         total_amount: pedido.total_amount,
@@ -445,10 +478,11 @@ module.exports = async (req, res) => {
     // aparecerem pra quem lê entrega_turbo:ultima_coleta (bug real: erros
     // do coletor de "Todos os pedidos" da Shopee ficavam invisíveis, porque
     // o kvSet já tinha serializado o array `erros` antes desse coletor rodar).
+    const pedidosAoVivo = await listarRecentesTurbo(HORAS_JANELA_FLEX);
     const resultado = {
       atualizado_em: new Date().toISOString(),
-      pedidos: pedidosUnificados.sort((a, b) => new Date(a.deadline) - new Date(b.deadline)),
-      total: pedidosShopee.length,
+      pedidos: pedidosAoVivo,
+      total: pedidosAoVivo.filter((p) => p.categoria === 'aguardando').length,
       erros,
     };
     await kvSet('entrega_turbo:ultima_coleta', resultado);
