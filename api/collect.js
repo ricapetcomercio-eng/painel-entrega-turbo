@@ -39,7 +39,12 @@ const { buscarDevolucoesPeriodo } = require('../lib/mlClaims');
 const { buscarDevolucoesPorPedido: buscarDevolucoesShopeePorPedido } = require('../lib/shopeeReturns');
 const { registrarHistoricoTodos, marcarDevolucao } = require('../lib/historicoTodos');
 
-const HORAS_RETROATIVAS = 6; // janela de busca padrão (Shopee Turbo)
+// Janela de DESCOBERTA de pedidos Turbo novos (não confundir com a
+// reverificação, que cobre qualquer "aguardando" sem limite de idade).
+// 48h em vez de 6h dá folga contra qualquer gap de execução (ex: o Fixie
+// já ficou fora do ar por mais de 6h uma vez nessa operação) — volume de
+// Turbo é baixo, não tem custo real em alargar.
+const HORAS_RETROATIVAS = 48;
 const HORAS_JANELA_FLEX = 48; // "coleta só amanhã" — precisa de folga
 const HORAS_JANELA_SHOPEE_TODOS = 48; // mesma folga usada no restante do backfill
 
