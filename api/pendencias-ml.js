@@ -123,12 +123,58 @@ async function publicarResposta(accessToken, questionId, texto) {
   }
 }
 
+// Inspeciona os atributos reais de um anúncio — só pra testar/depurar se
+// gerarRespostaSugerida acha algo de verdade, sem precisar esperar uma
+// pergunta real chegar. ?debug_item=1 (com ?conta=, item_id opcional —
+// sem ele pega o primeiro item ativo da conta).
+async function handleDebugItem(req, res) {
+  const conta = req.query.conta;
+  if (!CONTAS.includes(conta)) {
+    res.status(400).json({ error: 'Use ?conta=ricapet ou ?conta=thapets' });
+    return;
+  }
+
+  try {
+    const accessToken = await getMLAccessToken(conta);
+
+    let itemId = req.query.item_id;
+    if (!itemId) {
+      const busca = await mlFetch(`/users/${SELLER_IDS[conta]}/items/search?limit=1`, accessToken);
+      itemId = (busca.results || [])[0];
+      if (!itemId) { res.status(404).json({ error: 'Nenhum item encontrado pra essa conta' }); return; }
+    }
+
+    const item = await mlFetch(`/items/${itemId}?attributes=id,title,attributes,variations`, accessToken);
+    const perguntaTeste = req.query.pergunta || 'quais as medidas desse produto?';
+    const sugestao = gerarRespostaSugerida(perguntaTeste, item);
+
+    res.status(200).json({
+      ok: true,
+      conta,
+      item_id: itemId,
+      titulo: item.title,
+      atributos_relevantes: (item.attributes || []).filter((a) =>
+        ['PACKAGE_LENGTH', 'PACKAGE_WIDTH', 'PACKAGE_HEIGHT', 'PACKAGE_WEIGHT', 'COLOR', 'MATERIAL'].includes(a.id)
+      ),
+      variations_cores: (item.variations || [])
+        .flatMap((v) => v.attribute_combinations || [])
+        .filter((a) => a.id === 'COLOR'),
+      pergunta_teste: perguntaTeste,
+      sugestao_gerada: sugestao,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
 async function handleGet(req, res) {
   const secretEsperado = process.env.PENDENCIAS_ML_SECRET;
   if (!secretEsperado || req.query.secret !== secretEsperado) {
     res.status(401).json({ error: 'Não autorizado' });
     return;
   }
+
+  if (req.query.debug_item) return handleDebugItem(req, res);
 
   const resultado = { atualizado_em: new Date().toISOString() };
 
