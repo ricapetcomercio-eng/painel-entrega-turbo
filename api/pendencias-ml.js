@@ -8,13 +8,22 @@
 // local. Reaproveita os mesmos tokens/app ML de lib/mlAuth.js usados pelo
 // resto do painel.
 //
-// GET /api/pendencias-ml?secret=SEU_PENDENCIAS_ML_SECRET
+// GET  /api/pendencias-ml?secret=SEU_PENDENCIAS_ML_SECRET
+//      -> perguntas/mensagens pendentes (com resposta_sugerida, se achar).
+// POST /api/pendencias-ml   Body: { secret, conta, question_id, text }
+//      -> publica de verdade a resposta de UMA pergunta no Mercado Livre.
+//      Chamado pelo checkout_bipagem.py só depois que alguém aprova o
+//      rascunho pelo WhatsApp ("SIM <question_id>") — essa rota nunca
+//      decide sozinha o que responder, só publica o texto já aprovado.
 //
-// PENDENCIAS_ML_SECRET é um secret PRÓPRIO desta rota (e de
-// responder-pergunta-ml.js) — de propósito, não é o mesmo CRON_SECRET
-// usado por /api/collect (esse já está em produção, chamado por um cron
-// externo a cada 1-2 min; usar outro aqui evita qualquer risco de quebrar
-// aquele fluxo ao rotacionar).
+// As duas ações dividem o mesmo arquivo (em vez de dois endpoints
+// separados) pra não estourar o limite de Serverless Functions do plano
+// Hobby da Vercel (12) — GET e POST no mesmo path contam como 1 função só.
+//
+// PENDENCIAS_ML_SECRET é um secret PRÓPRIO desta rota — de propósito, não
+// é o mesmo CRON_SECRET usado por /api/collect (esse já está em produção,
+// chamado por um cron externo a cada 1-2 min; usar outro aqui evita
+// qualquer risco de quebrar aquele fluxo ao rotacionar).
 
 const { getMLAccessToken, CONTAS } = require('../lib/mlAuth');
 const { SELLER_IDS } = require('../lib/mlOrders');
@@ -92,10 +101,24 @@ async function buscarMensagensNaoLidas(accessToken) {
   }));
 }
 
-module.exports = async (req, res) => {
+async function publicarResposta(accessToken, questionId, texto) {
+  const resp = await fetch('https://api.mercadolibre.com/marketplace/answers', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json; charset=utf-8',
+    },
+    body: JSON.stringify({ question_id: Number(questionId), text: texto }),
+  });
+  if (!resp.ok) {
+    const errText = await resp.text();
+    throw new Error(`Erro ML (${resp.status}): ${errText}`);
+  }
+}
+
+async function handleGet(req, res) {
   const secretEsperado = process.env.PENDENCIAS_ML_SECRET;
-  const hasValidSecret = secretEsperado && req.query.secret === secretEsperado;
-  if (!hasValidSecret) {
+  if (!secretEsperado || req.query.secret !== secretEsperado) {
     res.status(401).json({ error: 'Não autorizado' });
     return;
   }
@@ -116,4 +139,32 @@ module.exports = async (req, res) => {
   }
 
   res.status(200).json(resultado);
+}
+
+async function handlePost(req, res) {
+  const secretEsperado = process.env.PENDENCIAS_ML_SECRET;
+  const body = req.body || {};
+  if (!secretEsperado || body.secret !== secretEsperado) {
+    res.status(401).json({ error: 'Não autorizado' });
+    return;
+  }
+
+  const { conta, question_id, text } = body;
+  if (!CONTAS.includes(conta) || !question_id || !text) {
+    res.status(400).json({ error: 'Use {conta, question_id, text}' });
+    return;
+  }
+
+  try {
+    const accessToken = await getMLAccessToken(conta);
+    await publicarResposta(accessToken, question_id, text);
+    res.status(200).json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+module.exports = async (req, res) => {
+  if (req.method === 'POST') return handlePost(req, res);
+  return handleGet(req, res);
 };
