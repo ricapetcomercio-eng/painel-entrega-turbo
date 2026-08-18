@@ -7,6 +7,10 @@
 //
 // POST /api/responder-pergunta-ml
 // Body: { secret, conta, question_id, text }
+//
+// PENDENCIAS_ML_SECRET é um secret próprio dessa rota (e de
+// pendencias-ml.js), separado do CRON_SECRET já usado em produção por
+// /api/collect — ver comentário em pendencias-ml.js.
 
 const { getMLAccessToken, CONTAS } = require('../lib/mlAuth');
 
@@ -16,9 +20,9 @@ module.exports = async (req, res) => {
     return;
   }
 
-  const cronSecret = process.env.CRON_SECRET;
+  const secretEsperado = process.env.PENDENCIAS_ML_SECRET;
   const body = req.body || {};
-  if (!cronSecret || body.secret !== cronSecret) {
+  if (!secretEsperado || body.secret !== secretEsperado) {
     res.status(401).json({ error: 'Não autorizado' });
     return;
   }

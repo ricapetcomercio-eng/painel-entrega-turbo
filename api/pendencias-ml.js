@@ -8,7 +8,13 @@
 // local. Reaproveita os mesmos tokens/app ML de lib/mlAuth.js usados pelo
 // resto do painel.
 //
-// GET /api/pendencias-ml?secret=SEU_CRON_SECRET
+// GET /api/pendencias-ml?secret=SEU_PENDENCIAS_ML_SECRET
+//
+// PENDENCIAS_ML_SECRET é um secret PRÓPRIO desta rota (e de
+// responder-pergunta-ml.js) — de propósito, não é o mesmo CRON_SECRET
+// usado por /api/collect (esse já está em produção, chamado por um cron
+// externo a cada 1-2 min; usar outro aqui evita qualquer risco de quebrar
+// aquele fluxo ao rotacionar).
 
 const { getMLAccessToken, CONTAS } = require('../lib/mlAuth');
 const { SELLER_IDS } = require('../lib/mlOrders');
@@ -87,8 +93,8 @@ async function buscarMensagensNaoLidas(accessToken) {
 }
 
 module.exports = async (req, res) => {
-  const cronSecret = process.env.CRON_SECRET;
-  const hasValidSecret = cronSecret && req.query.secret === cronSecret;
+  const secretEsperado = process.env.PENDENCIAS_ML_SECRET;
+  const hasValidSecret = secretEsperado && req.query.secret === secretEsperado;
   if (!hasValidSecret) {
     res.status(401).json({ error: 'Não autorizado' });
     return;
