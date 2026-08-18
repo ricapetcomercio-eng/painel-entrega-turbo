@@ -94,11 +94,8 @@ async function buscarPerguntasNaoRespondidas(conta, accessToken) {
 }
 
 async function buscarMensagensNaoLidas(conta, accessToken) {
-  // user_id é obrigatório aqui — sem ele o ML devolve 403 "Invalid
-  // caller.id" mesmo o Bearer token já identificando a conta (confirmado
-  // testando ao vivo). Usa o mesmo SELLER_IDS que /orders/search já usa.
   const userId = SELLER_IDS[conta];
-  const data = await mlFetch(`/marketplace/messages/unread?role=seller&tag=post_sale&user_id=${userId}`, accessToken);
+  const data = await mlFetch(`/messages/unread/${userId}?tag=post_sale&role=seller`, accessToken);
   return (data.results || []).map((r) => ({
     pack_id: String(r.resource || '').replace(/\/$/, '').split('/').pop(),
     count: r.count || 0,
