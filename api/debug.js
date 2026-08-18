@@ -10,7 +10,6 @@
 //   /api/debug?tipo=shopee-returns&loja=thapets&secret=SEU_CRON_SECRET
 
 const { getMLAccessToken } = require('../lib/mlAuth');
-const { SELLER_IDS } = require('../lib/mlOrders');
 const { shopeeGet } = require('../lib/shopeeAuth');
 const { getDb } = require('../lib/db');
 const { getRedis } = require('../lib/redis');
@@ -340,45 +339,6 @@ async function mlFetch(path, accessToken) {
   return data;
 }
 
-async function debugMlItem(req, res) {
-  // Inspeciona os atributos reais de um anúncio — usado pra testar se
-  // lib/mlRespostaSugerida.js consegue mesmo sugerir resposta de
-  // medidas/cor/material pra ele, sem precisar esperar uma pergunta real.
-  const conta = req.query.conta;
-  if (!conta) { res.status(400).json({ error: 'Use ?conta=ricapet|thapets (item_id opcional — sem ele, pega o primeiro item ativo da conta)' }); return; }
-
-  const accessToken = await getMLAccessToken(conta);
-
-  let itemId = req.query.item_id;
-  if (!itemId) {
-    const busca = await mlFetch(`/users/${SELLER_IDS[conta]}/items/search?limit=1`, accessToken);
-    itemId = (busca.results || [])[0];
-    if (!itemId) { res.status(404).json({ error: 'Nenhum item encontrado pra essa conta' }); return; }
-  }
-
-  const item = await mlFetch(`/items/${itemId}?attributes=id,title,attributes,variations`, accessToken);
-
-  const { gerarRespostaSugerida } = require('../lib/mlRespostaSugerida');
-  const perguntaTeste = req.query.pergunta || 'quais as medidas desse produto?';
-  const sugestao = gerarRespostaSugerida(perguntaTeste, item);
-
-  res.status(200).json({
-    ok: true,
-    tipo: 'ml-item',
-    conta,
-    item_id: itemId,
-    titulo: item.title,
-    atributos_relevantes: (item.attributes || []).filter((a) =>
-      ['PACKAGE_LENGTH', 'PACKAGE_WIDTH', 'PACKAGE_HEIGHT', 'PACKAGE_WEIGHT', 'COLOR', 'MATERIAL'].includes(a.id)
-    ),
-    variations_cores: (item.variations || [])
-      .flatMap((v) => v.attribute_combinations || [])
-      .filter((a) => a.id === 'COLOR'),
-    pergunta_teste: perguntaTeste,
-    sugestao_gerada: sugestao,
-  });
-}
-
 async function debugMlClaims(req, res) {
   const conta = req.query.conta;
   const dias = parseInt(req.query.dias, 10) || 30;
@@ -638,7 +598,6 @@ module.exports = async (req, res) => {
   }
 
   try {
-    if (req.query.tipo === 'ml-item') return await debugMlItem(req, res);
     if (req.query.tipo === 'ml-claims') return await debugMlClaims(req, res);
     if (req.query.tipo === 'ml-shipment') return await debugMlShipment(req, res);
     if (req.query.tipo === 'ml-sla') return await debugMlSla(req, res);
@@ -652,7 +611,7 @@ module.exports = async (req, res) => {
     if (req.query.tipo === 'migrar-redis-turso') return await debugMigrarRedisTurso(req, res);
     if (req.query.tipo === 'corrigir-shipment-id') return await debugCorrigirShipmentId(req, res);
     if (req.query.tipo === 'adicionar-coluna-tipo') return await debugAdicionarColunaTipo(req, res);
-    res.status(400).json({ error: 'Use ?tipo=ml-item, ?tipo=ml-claims, ?tipo=ml-shipment, ?tipo=ml-sla, ?tipo=shopee-returns, ?tipo=shopee-channels, ?tipo=criar-tabelas, ?tipo=migrar-redis-turso, ?tipo=corrigir-shipment-id ou ?tipo=adicionar-coluna-tipo' });
+    res.status(400).json({ error: 'Use ?tipo=ml-claims, ?tipo=ml-shipment, ?tipo=ml-sla, ?tipo=shopee-returns, ?tipo=shopee-channels, ?tipo=criar-tabelas, ?tipo=migrar-redis-turso, ?tipo=corrigir-shipment-id ou ?tipo=adicionar-coluna-tipo' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
