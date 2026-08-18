@@ -94,8 +94,14 @@ async function buscarPerguntasNaoRespondidas(conta, accessToken) {
 }
 
 async function buscarMensagensNaoLidas(conta, accessToken) {
+  // Endpoint oficial documentado. Testado ao vivo com Ricapet/Thapets e
+  // devolve 403 "Invalid caller.id" pras duas contas mesmo com user_id
+  // certo — bate com a restrição documentada da própria Mercado Livre:
+  // vendedores classificados como "Model 6" são bloqueados dos endpoints
+  // de Messages de propósito (não é algo corrigível por código; se a ML
+  // mudar essa classificação um dia, volta a funcionar sozinho).
   const userId = SELLER_IDS[conta];
-  const data = await mlFetch(`/messages/unread/${userId}?tag=post_sale&role=seller`, accessToken);
+  const data = await mlFetch(`/marketplace/messages/unread?role=seller&tag=post_sale&user_id=${userId}`, accessToken);
   return (data.results || []).map((r) => ({
     pack_id: String(r.resource || '').replace(/\/$/, '').split('/').pop(),
     count: r.count || 0,
@@ -127,16 +133,33 @@ async function handleGet(req, res) {
   const resultado = { atualizado_em: new Date().toISOString() };
 
   for (const conta of CONTAS) {
+    const contaResultado = { perguntas: [], mensagens: [], erro: null };
+    resultado[conta] = contaResultado;
+
+    let accessToken;
     try {
-      const accessToken = await getMLAccessToken(conta);
-      const [perguntas, mensagens] = await Promise.all([
-        buscarPerguntasNaoRespondidas(conta, accessToken),
-        buscarMensagensNaoLidas(conta, accessToken),
-      ]);
-      resultado[conta] = { perguntas, mensagens, erro: null };
+      accessToken = await getMLAccessToken(conta);
     } catch (err) {
-      resultado[conta] = { perguntas: [], mensagens: [], erro: err.message };
+      contaResultado.erro = err.message;
+      continue; // sem token não dá pra tentar nada — pula pra próxima conta
     }
+
+    // Perguntas e mensagens são buscadas de forma independente: uma
+    // falhar (ex: mensagens bloqueadas por restrição "Model 6" da ML, ver
+    // buscarMensagensNaoLidas) não pode descartar o resultado da outra,
+    // que pode ter funcionado normalmente.
+    const erros = [];
+    try {
+      contaResultado.perguntas = await buscarPerguntasNaoRespondidas(conta, accessToken);
+    } catch (err) {
+      erros.push(`perguntas: ${err.message}`);
+    }
+    try {
+      contaResultado.mensagens = await buscarMensagensNaoLidas(conta, accessToken);
+    } catch (err) {
+      erros.push(`mensagens: ${err.message}`);
+    }
+    if (erros.length) contaResultado.erro = erros.join(' | ');
   }
 
   res.status(200).json(resultado);
