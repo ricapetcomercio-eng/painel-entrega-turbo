@@ -1308,7 +1308,7 @@
   async function carregarDesempenho(forcar) {
     try {
       if (!dadosDesempenho || forcar) {
-        const resp = await fetch('/api/produtos-desempenho-data');
+        const resp = await fetch('/api/analytics-todos-data?visao=produtos');
         dadosDesempenho = await resp.json();
       }
       if (!dadosDesempenho || dadosDesempenho.error || !Array.isArray(dadosDesempenho.produtos)) {

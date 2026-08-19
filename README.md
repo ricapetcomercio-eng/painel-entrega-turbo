@@ -85,7 +85,9 @@ necessário só por causa disso, o cron-job.org resolve sem custo.
 
 ## Aba "Desempenho" (vendas por produto, cruzando SKU com a TABELA_AUXILIAR)
 
-A aba Desempenho (`/api/produtos-desempenho-data.js`) agrupa o histórico de
+A aba Desempenho (`/api/analytics-todos-data.js?visao=produtos` — dividindo o
+mesmo arquivo da rota "Todos os pedidos" pra não estourar o limite de 12
+Serverless Functions do plano Hobby da Vercel) agrupa o histórico de
 pedidos (`lib/historicoTodos.js`) por mês e por PRODUTO/COR/TAMANHO,
 cruzando o SKU de cada item com `lib/tabelaProdutos.json` — uma cópia
 gerada de `C:\FECHAMENTO\03 AUXILIARES\TABELA_AUXILIAR.xlsx` (aba
