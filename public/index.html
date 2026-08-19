@@ -453,7 +453,7 @@
       <div class="stat-card"><div class="value" id="desNaoMapeados">–</div><div class="label">Itens com SKU não mapeado</div></div>
     </div>
 
-    <div class="secao-titulo">Evolução Mensal Total</div>
+    <div class="secao-titulo" id="desEvoTitulo">Evolução Mensal Total — Soma de Vendas (Pedido Pago) (BRL)</div>
     <div class="card" style="margin-bottom:20px;">
       <div class="card-head" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
         <span>Todos os produtos somados, mês a mês (ou um produto específico, pelo filtro)</span>
@@ -463,7 +463,7 @@
           <button class="periodo-btn" id="desEvoBtnUnidades" onclick="desempenhoSetMetricaEvolucao('unidades', event)">Unidades</button>
         </div>
       </div>
-      <div class="card-body"><div class="chart-wrap-grande" style="height:280px;"><canvas id="chartDesempenhoEvolucao"></canvas></div></div>
+      <div class="card-body"><div class="chart-wrap-grande" style="height:320px;"><canvas id="chartDesempenhoEvolucao"></canvas></div></div>
     </div>
 
     <div class="secao-titulo">Matriz Mês a Mês — Todos os Produtos</div>
@@ -1445,6 +1445,10 @@
     const filtro = document.getElementById('desEvoProdutoFiltro').value;
     const { periodos, mes_labels, produtos } = dadosDesempenho;
     const labels = periodos.map(m => mes_labels[m]);
+    const rotuloMetrica = desMetricaEvolucao === 'vendas' ? 'Soma de Vendas (Pedido Pago) (BRL)' : 'Soma de Unidades (Pedido Pago)';
+
+    document.getElementById('desEvoTitulo').textContent =
+      `Evolução Mensal Total — ${rotuloMetrica}${filtro ? ' · ' + filtro : ''}`;
 
     let valores;
     if (filtro) {
@@ -1455,19 +1459,22 @@
     }
 
     criarOuAtualizarChart('chartDesempenhoEvolucao', {
-      type: 'line',
+      type: 'bar',
       data: {
         labels,
         datasets: [{
-          label: desMetricaEvolucao === 'vendas' ? 'Vendas (BRL)' : 'Unidades',
-          data: valores, borderColor: CORES.teal, backgroundColor: CORES.teal, tension: 0.25, fill: false, pointRadius: 3,
+          label: rotuloMetrica,
+          data: valores, backgroundColor: CORES.blue, borderRadius: 3,
         }],
       },
       options: {
         responsive: true, maintainAspectRatio: false,
         plugins: {
-          legend: { display: false },
-          datalabels: { display: false },
+          legend: { display: true, position: 'bottom', labels: { boxWidth: 10, color: CORES.muted, font: { size: 11 } } },
+          datalabels: {
+            display: true, anchor: 'end', align: 'end', color: '#2d3436', font: { size: 9, weight: 'bold' },
+            formatter: (v) => v ? (desMetricaEvolucao === 'vendas' ? formatarMoeda(v) : v.toLocaleString('pt-BR')) : '',
+          },
           tooltip: { callbacks: { label: (ctx) => desMetricaEvolucao === 'vendas' ? formatarMoeda(ctx.parsed.y) : ctx.parsed.y } },
         },
         scales: {

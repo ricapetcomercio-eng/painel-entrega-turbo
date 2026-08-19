@@ -339,6 +339,31 @@ async function mlFetch(path, accessToken) {
   return data;
 }
 
+// Teste isolado da API de Product Ads (impressões/cliques) ANTES de montar
+// a coleta diária de verdade — a API só funciona se o app OAuth do ML
+// tiver o produto "Advertising" liberado e a conta tiver Publicidade
+// habilitada (Mercado Livre > Mi perfil > Publicidade); nunca testado
+// contra produção até rodar isso aqui uma vez.
+async function debugMlAdsTest(req, res) {
+  const conta = req.query.conta;
+  if (!conta) { res.status(400).json({ error: 'Use ?conta=ricapet ou ?conta=thapets' }); return; }
+
+  const { buscarAdvertiserId, buscarMetricasAnuncios } = require('../lib/mlAds');
+  const advertiserId = await buscarAdvertiserId(conta);
+
+  const hoje = new Date();
+  const ontem = new Date(hoje.getTime() - 24 * 60 * 60 * 1000);
+  const fmt = (d) => d.toISOString().slice(0, 10);
+  const metricas = await buscarMetricasAnuncios(conta, fmt(ontem), fmt(hoje), { limit: 5 });
+
+  res.status(200).json({
+    ok: true, tipo: 'ml-ads-test', conta, advertiser_id: advertiserId,
+    periodo: { de: fmt(ontem), ate: fmt(hoje) },
+    total_anuncios_retornados: metricas.length,
+    amostra: metricas.slice(0, 5),
+  });
+}
+
 async function debugMlClaims(req, res) {
   const conta = req.query.conta;
   const dias = parseInt(req.query.dias, 10) || 30;
@@ -598,6 +623,7 @@ module.exports = async (req, res) => {
   }
 
   try {
+    if (req.query.tipo === 'ml-ads-test') return await debugMlAdsTest(req, res);
     if (req.query.tipo === 'ml-claims') return await debugMlClaims(req, res);
     if (req.query.tipo === 'ml-shipment') return await debugMlShipment(req, res);
     if (req.query.tipo === 'ml-sla') return await debugMlSla(req, res);
