@@ -47,17 +47,47 @@ function periodosContiguos(chaves) {
   return resultado;
 }
 
+// Converte "YYYY-MM" em timestamp de início (dia 1, 00:00) ou fim (último
+// dia, 23:59:59) do mês — usado pelo filtro de período (mês De/Até) da aba
+// Desempenho.
+function inicioDoMes(chaveMesStr) {
+  const [ano, mes] = chaveMesStr.split('-').map(Number);
+  return new Date(ano, mes - 1, 1, 0, 0, 0).getTime();
+}
+function fimDoMes(chaveMesStr) {
+  const [ano, mes] = chaveMesStr.split('-').map(Number);
+  return new Date(ano, mes, 0, 23, 59, 59, 999).getTime();
+}
+
 async function responderVisaoProdutos(req, res) {
   const meses = parseInt(req.query.meses, 10) || null;
+  const mesDe = req.query.mes_de || null; // "YYYY-MM"
+  const mesAte = req.query.mes_ate || null;
+
   let desdeTs = 0;
-  const ateTs = Date.now();
-  if (meses) {
+  let ateTs = Date.now();
+  if (mesDe || mesAte) {
+    if (mesDe) desdeTs = inicioDoMes(mesDe);
+    if (mesAte) ateTs = fimDoMes(mesAte);
+  } else if (meses) {
     const agora = new Date();
     const desde = new Date(agora.getFullYear(), agora.getMonth() - meses + 1, 1);
     desdeTs = desde.getTime();
   }
 
-  const pedidos = await buscarPorPeriodo(desdeTs, ateTs);
+  let pedidos = await buscarPorPeriodo(desdeTs, ateTs);
+
+  // Filtros de marketplace/conta — mesmo espírito do forma_entrega/estado
+  // já usado no modo padrão desta rota (filtra a lista já buscada, em vez
+  // de mudar a query no banco).
+  const marketplaceFiltro = req.query.marketplace;
+  const contaFiltro = req.query.conta;
+  if (marketplaceFiltro && marketplaceFiltro !== 'todos') {
+    pedidos = pedidos.filter((p) => p.marketplace === marketplaceFiltro);
+  }
+  if (contaFiltro && contaFiltro !== 'todos') {
+    pedidos = pedidos.filter((p) => p.conta === contaFiltro);
+  }
 
   const produtos = {}; // nome -> { totalVendas, totalUnidades, porMes: {mes:{vendas,unidades}}, variacoes: {chave:{cor,tamanho,vendas,unidades}} }
   const mesesEncontrados = new Set();

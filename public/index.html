@@ -419,6 +419,32 @@
   <div id="painelDesempenho" class="oculto">
     <div style="color:var(--muted); font-size:11px; margin-bottom:12px;" id="desempenhoAvisoCobertura"></div>
 
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-body" style="display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding:12px 16px;">
+        <label style="display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted);">Marketplace
+          <select id="desFiltroMarketplace" class="desempenho-select" onchange="carregarDesempenho(true)">
+            <option value="todos">Todos</option>
+            <option value="mercado_livre">Mercado Livre</option>
+            <option value="shopee">Shopee</option>
+          </select>
+        </label>
+        <label style="display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted);">Conta
+          <select id="desFiltroConta" class="desempenho-select" onchange="carregarDesempenho(true)">
+            <option value="todos">Todas</option>
+            <option value="ricapet">Ricapet</option>
+            <option value="thapets">Thapets</option>
+          </select>
+        </label>
+        <label style="display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted);">De
+          <select id="desFiltroMesDe" class="desempenho-select" onchange="carregarDesempenho(true)"></select>
+        </label>
+        <label style="display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted);">Até
+          <select id="desFiltroMesAte" class="desempenho-select" onchange="carregarDesempenho(true)"></select>
+        </label>
+        <button class="periodo-btn" onclick="desempenhoLimparFiltros()" style="margin-left:auto;">Limpar filtros</button>
+      </div>
+    </div>
+
     <div class="grid-stats">
       <div class="stat-card"><div class="value" id="desProdutosDistintos">–</div><div class="label">Produtos distintos</div></div>
       <div class="stat-card"><div class="value" id="desFaturamentoTotal">–</div><div class="label">Faturamento total (histórico coletado)</div></div>
@@ -459,6 +485,11 @@
       <div style="color:var(--muted); font-size:11px; padding:0 16px 14px;">Clique numa linha pra ver a evolução e as variações desse produto acima/abaixo.</div>
     </div>
 
+    <div class="secao-titulo">Top 15 Produtos — Vendas Total no Período</div>
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-body"><div class="chart-wrap-grande" style="height:340px;"><canvas id="chartDesempenhoTop15"></canvas></div></div>
+    </div>
+
     <div class="grid-bottom" style="grid-template-columns: 1.3fr 1fr;">
       <div class="card">
         <div class="card-head">Variações do produto</div>
@@ -476,6 +507,21 @@
           </table>
         </div>
       </div>
+    </div>
+
+    <div class="secao-titulo">Variações — Todos os Produtos</div>
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-head" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        <input id="desVarTodasBusca" class="desempenho-input" placeholder="Buscar produto ou variação..." oninput="renderizarDesempenhoVariacoesTodas()">
+        <span class="badge" id="desVarTodasContagem" style="margin-left:auto; background:var(--bg); color:var(--muted);"></span>
+      </div>
+      <div class="card-body" style="max-height:500px; overflow-y:auto; padding:0;">
+        <table>
+          <thead><tr><th>Produto</th><th>Variação</th><th>Vendas (BRL)</th><th>Unidades</th><th>% do produto</th></tr></thead>
+          <tbody id="tabelaDesempenhoVariacoesTodasCorpo"></tbody>
+        </table>
+      </div>
+      <div style="color:var(--muted); font-size:11px; padding:0 16px 14px;">Só produtos com mais de uma variação cadastrada na TABELA_AUXILIAR. Clique numa linha pra ver o produto na seção de variações acima.</div>
     </div>
 
     <div class="secao-titulo">Ranking Geral de Produtos</div>
@@ -754,7 +800,7 @@
     carregarProdutos();
     carregarTodos();
     carregarAnalytics();
-    if (dadosDesempenho) { renderizarDesempenhoEvolucao(); renderizarDesempenhoVariacoes(); }
+    if (dadosDesempenho) { renderizarDesempenhoEvolucao(); renderizarDesempenhoTop15(); renderizarDesempenhoVariacoes(); }
   }
 
   function inicializarTema() {
@@ -1308,20 +1354,58 @@
   async function carregarDesempenho(forcar) {
     try {
       if (!dadosDesempenho || forcar) {
-        const resp = await fetch('/api/analytics-todos-data?visao=produtos');
+        const params = new URLSearchParams({ visao: 'produtos' });
+        const mkt = document.getElementById('desFiltroMarketplace').value;
+        const conta = document.getElementById('desFiltroConta').value;
+        const mesDe = document.getElementById('desFiltroMesDe').value;
+        const mesAte = document.getElementById('desFiltroMesAte').value;
+        if (mkt && mkt !== 'todos') params.set('marketplace', mkt);
+        if (conta && conta !== 'todos') params.set('conta', conta);
+        if (mesDe) params.set('mes_de', mesDe);
+        if (mesAte) params.set('mes_ate', mesAte);
+        const resp = await fetch('/api/analytics-todos-data?' + params.toString());
         dadosDesempenho = await resp.json();
       }
       if (!dadosDesempenho || dadosDesempenho.error || !Array.isArray(dadosDesempenho.produtos)) {
         document.getElementById('desempenhoAvisoCobertura').textContent = 'Não foi possível carregar os dados de desempenho.';
         return;
       }
+      renderizarDesempenhoFiltroPeriodo();
       renderizarDesempenhoKpis();
       renderizarDesempenhoFiltroProduto();
       renderizarDesempenhoEvolucao();
       renderizarDesempenhoMatriz();
+      renderizarDesempenhoTop15();
       renderizarDesempenhoVariacoesSelect();
+      renderizarDesempenhoVariacoesTodas();
       renderizarDesempenhoRanking();
     } catch (e) { /* silencioso */ }
+  }
+
+  // Só popula as opções de mês De/Até UMA VEZ (na primeira carga, sem
+  // filtro nenhum ainda — nesse ponto dadosDesempenho.periodos já é o
+  // histórico completo). Depois disso, o usuário escolhe livremente e o
+  // range não é sobrescrito a cada refetch filtrado (que devolve só os
+  // meses dentro do filtro, não o range completo).
+  function renderizarDesempenhoFiltroPeriodo() {
+    const selDe = document.getElementById('desFiltroMesDe');
+    const selAte = document.getElementById('desFiltroMesAte');
+    if (selDe.options.length || !dadosDesempenho.periodos.length) return;
+    const opcoes = dadosDesempenho.periodos.map(m => `<option value="${m}">${dadosDesempenho.mes_labels[m]}</option>`).join('');
+    selDe.innerHTML = opcoes;
+    selAte.innerHTML = opcoes;
+    selDe.selectedIndex = 0;
+    selAte.selectedIndex = selAte.options.length - 1;
+  }
+
+  function desempenhoLimparFiltros() {
+    document.getElementById('desFiltroMarketplace').value = 'todos';
+    document.getElementById('desFiltroConta').value = 'todos';
+    const selDe = document.getElementById('desFiltroMesDe');
+    const selAte = document.getElementById('desFiltroMesAte');
+    if (selDe.options.length) selDe.selectedIndex = 0;
+    if (selAte.options.length) selAte.selectedIndex = selAte.options.length - 1;
+    carregarDesempenho(true);
   }
 
   function renderizarDesempenhoKpis() {
@@ -1424,6 +1508,67 @@
         document.getElementById('desEvoProdutoFiltro').value = tr.dataset.nome;
         document.getElementById('desVarProdutoSelect').value = tr.dataset.nome;
         renderizarDesempenhoEvolucao();
+        renderizarDesempenhoVariacoes();
+      };
+    });
+  }
+
+  function renderizarDesempenhoTop15() {
+    const top15 = [...dadosDesempenho.produtos].sort((a, b) => b.total_vendas - a.total_vendas).slice(0, 15);
+    criarOuAtualizarChart('chartDesempenhoTop15', {
+      type: 'bar',
+      data: {
+        labels: top15.map(p => truncarTitulo(p.nome, 30)),
+        datasets: [{ label: 'Vendas (BRL)', data: top15.map(p => p.total_vendas), backgroundColor: CORES.teal }],
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          datalabels: { display: false },
+          tooltip: { callbacks: { label: (ctx) => formatarMoeda(ctx.parsed.x) } },
+        },
+        onClick: (evt, elementos) => {
+          if (!elementos.length) return;
+          const nome = top15[elementos[0].index].nome;
+          document.getElementById('desEvoProdutoFiltro').value = nome;
+          document.getElementById('desVarProdutoSelect').value = nome;
+          renderizarDesempenhoEvolucao();
+          renderizarDesempenhoVariacoes();
+        },
+        onHover: (evt, elementos) => { evt.native.target.style.cursor = elementos.length ? 'pointer' : 'default'; },
+        scales: {
+          x: { grid: { color: CORES.grid }, ticks: { color: CORES.muted, callback: (v) => formatarMoeda(v) } },
+          y: { grid: { display: false }, ticks: { color: CORES.muted, font: { size: 10 } } },
+        },
+      },
+    });
+  }
+
+  function renderizarDesempenhoVariacoesTodas() {
+    const busca = (document.getElementById('desVarTodasBusca').value || '').toLowerCase();
+    const linhas = [];
+    dadosDesempenho.produtos.forEach(p => {
+      if (p.variacoes.length < 2) return; // só produtos com variação de verdade cadastrada
+      const total = p.total_vendas || 1;
+      p.variacoes.forEach(v => {
+        linhas.push({ produto: p.nome, variacao: `${v.cor} · ${v.tamanho}`, vendas: v.vendas, unidades: v.unidades, pct: v.vendas / total * 100 });
+      });
+    });
+    const filtradas = linhas.filter(l => !busca || l.produto.toLowerCase().includes(busca) || l.variacao.toLowerCase().includes(busca));
+    document.getElementById('desVarTodasContagem').textContent = filtradas.length + ' variação(ões)';
+
+    const tbody = document.getElementById('tabelaDesempenhoVariacoesTodasCorpo');
+    const LIMITE = 200;
+    tbody.innerHTML = !filtradas.length
+      ? '<tr><td colspan="5" class="empty">Nenhuma variação encontrada.</td></tr>'
+      : filtradas.slice(0, LIMITE).map(l => `<tr data-nome="${l.produto}" style="cursor:pointer;"><td>${l.produto}</td><td>${l.variacao}</td><td>${formatarMoeda(l.vendas)}</td><td>${l.unidades.toLocaleString('pt-BR')}</td><td>${l.pct.toFixed(1)}%</td></tr>`).join('')
+        + (filtradas.length > LIMITE ? `<tr><td colspan="5" style="color:var(--muted); text-align:center;">Mostrando ${LIMITE} de ${filtradas.length}.</td></tr>` : '');
+
+    tbody.querySelectorAll('tr[data-nome]').forEach(tr => {
+      tr.onclick = () => {
+        document.getElementById('desVarProdutoSelect').value = tr.dataset.nome;
         renderizarDesempenhoVariacoes();
       };
     });
