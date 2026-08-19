@@ -83,6 +83,33 @@ A rota `/api/collect` já valida o `?secret=` contra a variável de ambiente
 plano Pro ($20/mês) libera cron nativo com frequência de minutos — mas não é
 necessário só por causa disso, o cron-job.org resolve sem custo.
 
+## Aba "Desempenho" (vendas por produto, cruzando SKU com a TABELA_AUXILIAR)
+
+A aba Desempenho (`/api/produtos-desempenho-data.js`) agrupa o histórico de
+pedidos (`lib/historicoTodos.js`) por mês e por PRODUTO/COR/TAMANHO,
+cruzando o SKU de cada item com `lib/tabelaProdutos.json` — uma cópia
+gerada de `C:\FECHAMENTO\03 AUXILIARES\TABELA_AUXILIAR.xlsx` (aba
+`TABELA_PRODUTOS`), já que o deploy na Vercel não tem acesso ao seu PC.
+
+**Sempre que `TABELA_AUXILIAR.xlsx` for atualizado**, rode e dê push:
+
+```
+python scripts/gerar_tabela_produtos.py
+git add lib/tabelaProdutos.json
+git commit -m "Atualiza tabela SKU->Produto"
+git push
+```
+
+SKUs sem correspondência na planilha aparecem agrupados como "Não mapeado"
+na aba Desempenho — é o sinal de que a planilha precisa ser atualizada.
+
+Os itens de pedido só passaram a guardar `valor_unitario` a partir desta
+mudança — pedidos coletados antes dela não têm preço por item no histórico
+(a aba mostra a % de cobertura). Pra completar o valor de meses antigos,
+rode de novo `api/backfill-todos-api.js`/`api/backfill-shopee-todos.js`
+(mesmo uso de sempre — ver seções desses backfills) pro período desejado;
+eles resincronizam o pedido inteiro, incluindo os itens com preço.
+
 ## ⚠️ Outras pendências / TODOs antes de ir pra produção
 
 1. **Campo exato do canal "Entrega Turbo" na Shopee**: `lib/shopeeOrders.js`
