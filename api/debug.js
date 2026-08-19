@@ -348,20 +348,50 @@ async function debugMlAdsTest(req, res) {
   const conta = req.query.conta;
   if (!conta) { res.status(400).json({ error: 'Use ?conta=ricapet ou ?conta=thapets' }); return; }
 
-  const { buscarAdvertiserId, buscarMetricasAnuncios } = require('../lib/mlAds');
-  const advertiserId = await buscarAdvertiserId(conta);
+  const { buscarAdvertiserId, buscarMetricasAnuncios, buscarCampanhas, buscarDetalheAnuncio } = require('../lib/mlAds');
 
+  // Janela de 7 dias inteiros, terminando ontem — evita qualquer problema
+  // com "hoje" ainda não estar fechado/consolidado nas métricas do ML.
   const hoje = new Date();
   const ontem = new Date(hoje.getTime() - 24 * 60 * 60 * 1000);
+  const seteDiasAtras = new Date(hoje.getTime() - 8 * 24 * 60 * 60 * 1000);
   const fmt = (d) => d.toISOString().slice(0, 10);
-  const metricas = await buscarMetricasAnuncios(conta, fmt(ontem), fmt(hoje), { limit: 5 });
+  const periodo = { de: fmt(seteDiasAtras), ate: fmt(ontem) };
 
-  res.status(200).json({
-    ok: true, tipo: 'ml-ads-test', conta, advertiser_id: advertiserId,
-    periodo: { de: fmt(ontem), ate: fmt(hoje) },
-    total_anuncios_retornados: metricas.length,
-    amostra: metricas.slice(0, 5),
-  });
+  // Anúncio real, pego da TABELA_AUXILIAR (Código do anúncio da SKU
+  // "Alimentador_Automatico"), só pra testar o endpoint de item único —
+  // pode ser sobrescrito via ?item_id= se quiser testar outro.
+  const itemIdTeste = req.query.item_id || 'MLB5993419290';
+
+  const resultado = { ok: true, tipo: 'ml-ads-test', conta, periodo, item_id_teste: itemIdTeste };
+
+  try {
+    resultado.advertiser_id = await buscarAdvertiserId(conta);
+  } catch (err) {
+    resultado.advertiser_id_erro = err.message;
+  }
+
+  try {
+    const campanhas = await buscarCampanhas(conta, periodo.de, periodo.ate);
+    resultado.campanhas = { total: (campanhas.paging && campanhas.paging.total) || 0, amostra: (campanhas.results || []).slice(0, 3) };
+  } catch (err) {
+    resultado.campanhas_erro = err.message;
+  }
+
+  try {
+    const metricas = await buscarMetricasAnuncios(conta, periodo.de, periodo.ate, { limit: 5 });
+    resultado.anuncios_lista = { total_retornado: metricas.length, amostra: metricas.slice(0, 5) };
+  } catch (err) {
+    resultado.anuncios_lista_erro = err.message;
+  }
+
+  try {
+    resultado.anuncio_unico = await buscarDetalheAnuncio(conta, itemIdTeste);
+  } catch (err) {
+    resultado.anuncio_unico_erro = err.message;
+  }
+
+  res.status(200).json(resultado);
 }
 
 async function debugMlClaims(req, res) {
