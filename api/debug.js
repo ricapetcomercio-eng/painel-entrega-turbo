@@ -653,6 +653,39 @@ module.exports = async (req, res) => {
   }
 
   try {
+    if (req.query.tipo === 'ml-oauth-url') {
+      const conta = req.query.conta;
+      const redirectUri = req.query.redirect_uri;
+      if (!conta || !redirectUri) {
+        res.status(400).json({ error: 'Use ?conta=ricapet|thapets&redirect_uri=<uma URI já cadastrada no app>' });
+        return;
+      }
+      const { getContaConfig } = require('../lib/mlAuth');
+      const { clientId } = getContaConfig(conta);
+      const authUrl = `https://auth.mercadolivre.com.br/authorization?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}`;
+      res.status(200).json({ ok: true, tipo: 'ml-oauth-url', conta, redirect_uri: redirectUri, url_para_abrir: authUrl });
+      return;
+    }
+    if (req.query.tipo === 'ml-oauth-exchange') {
+      const conta = req.query.conta;
+      const code = req.query.code;
+      const redirectUri = req.query.redirect_uri;
+      if (!conta || !code || !redirectUri) {
+        res.status(400).json({ error: 'Use ?conta=ricapet|thapets&code=<code recebido>&redirect_uri=<mesma URI usada no ml-oauth-url>' });
+        return;
+      }
+      const { getContaConfig, trocarCodigoPorTokens, salvarToken } = require('../lib/mlAuth');
+      const { clientId, clientSecret } = getContaConfig(conta);
+      const tokenData = await trocarCodigoPorTokens(clientId, clientSecret, code, redirectUri);
+      await salvarToken(conta, {
+        access_token: tokenData.access_token,
+        refresh_token: tokenData.refresh_token,
+        user_id: tokenData.user_id,
+        expires_at: Date.now() + tokenData.expires_in * 1000,
+      });
+      res.status(200).json({ ok: true, tipo: 'ml-oauth-exchange', conta, escopo_concedido: tokenData.scope, user_id: tokenData.user_id });
+      return;
+    }
     if (req.query.tipo === 'ml-client-ids') {
       res.status(200).json({
         ok: true, tipo: 'ml-client-ids',
