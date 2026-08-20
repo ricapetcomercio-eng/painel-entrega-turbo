@@ -695,6 +695,32 @@ module.exports = async (req, res) => {
       return;
     }
     if (req.query.tipo === 'ml-ads-test') return await debugMlAdsTest(req, res);
+    if (req.query.tipo === 'ml-ads-varios-itens') {
+      const conta = req.query.conta;
+      if (!conta) { res.status(400).json({ error: 'Use ?conta=ricapet ou ?conta=thapets' }); return; }
+      const { getMLAccessToken } = require('../lib/mlAuth');
+      const { chamadaBruta } = require('../lib/mlAds');
+      const accessToken = await getMLAccessToken(conta);
+
+      // Anúncios reais dos produtos mais vendidos (Arranhador Adesivo),
+      // pegos direto da TABELA_AUXILIAR — mais chance de estarem
+      // anunciados de verdade do que um item aleatório.
+      const itensPadrao = [
+        'MLB5266670312', 'MLB4113207571', 'MLB4112797061', 'MLB5473940642',
+        'MLB3959143795', 'MLB3960024607', 'MLB5267523998', 'MLB5266582944',
+        'MLB3959131641', 'MLB3960028631', 'MLB3959960521', 'MLB5266714014',
+      ];
+      const itens = req.query.item_ids ? req.query.item_ids.split(',') : itensPadrao;
+
+      const resultados = {};
+      for (const itemId of itens) {
+        const r = await chamadaBruta(`/advertising/product_ads/items/${itemId}`, accessToken, { 'Api-Version': '2' });
+        resultados[itemId] = { status: r.status, corpo: r.status === 200 ? JSON.parse(r.body) : r.body };
+      }
+
+      res.status(200).json({ ok: true, tipo: 'ml-ads-varios-itens', conta, total_testados: itens.length, resultados });
+      return;
+    }
     if (req.query.tipo === 'ml-ads-raw') {
       const conta = req.query.conta;
       if (!conta) { res.status(400).json({ error: 'Use ?conta=ricapet ou ?conta=thapets' }); return; }
