@@ -653,6 +653,14 @@ module.exports = async (req, res) => {
   }
 
   try {
+    if (req.query.tipo === 'ml-client-ids') {
+      res.status(200).json({
+        ok: true, tipo: 'ml-client-ids',
+        ricapet: process.env.ML_RICAPET_CLIENT_ID || null,
+        thapets: process.env.ML_THAPETS_CLIENT_ID || null,
+      });
+      return;
+    }
     if (req.query.tipo === 'ml-ads-test') return await debugMlAdsTest(req, res);
     if (req.query.tipo === 'ml-claims') return await debugMlClaims(req, res);
     if (req.query.tipo === 'ml-shipment') return await debugMlShipment(req, res);
