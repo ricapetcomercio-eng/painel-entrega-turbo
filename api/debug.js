@@ -695,6 +695,36 @@ module.exports = async (req, res) => {
       return;
     }
     if (req.query.tipo === 'ml-ads-test') return await debugMlAdsTest(req, res);
+    if (req.query.tipo === 'ml-ads-raw') {
+      const conta = req.query.conta;
+      if (!conta) { res.status(400).json({ error: 'Use ?conta=ricapet ou ?conta=thapets' }); return; }
+      const { getMLAccessToken } = require('../lib/mlAuth');
+      const { buscarAdvertiserId, chamadaBruta } = require('../lib/mlAds');
+      const accessToken = await getMLAccessToken(conta);
+      const advertiserId = await buscarAdvertiserId(conta);
+
+      const hoje = new Date();
+      const ontem = new Date(hoje.getTime() - 24 * 60 * 60 * 1000);
+      const seteDiasAtras = new Date(hoje.getTime() - 8 * 24 * 60 * 60 * 1000);
+      const fmt = (d) => d.toISOString().slice(0, 10);
+      const de = fmt(seteDiasAtras), ate = fmt(ontem);
+
+      const tentativas = {
+        campanhas_sem_query: await chamadaBruta(
+          `/advertising/advertisers/${advertiserId}/product_ads/campaigns`, accessToken, { 'Api-Version': '2' }),
+        campanhas_com_datas_sem_metrics: await chamadaBruta(
+          `/advertising/advertisers/${advertiserId}/product_ads/campaigns?date_from=${de}&date_to=${ate}`, accessToken, { 'Api-Version': '2' }),
+        campanhas_header_minusculo: await chamadaBruta(
+          `/advertising/advertisers/${advertiserId}/product_ads/campaigns?date_from=${de}&date_to=${ate}&metrics=clicks,prints`, accessToken, { 'api-version': '2' }),
+        campanhas_sem_header_versao: await chamadaBruta(
+          `/advertising/advertisers/${advertiserId}/product_ads/campaigns?date_from=${de}&date_to=${ate}&metrics=clicks,prints`, accessToken, {}),
+        items_sem_query: await chamadaBruta(
+          `/advertising/advertisers/${advertiserId}/product_ads/items`, accessToken, { 'Api-Version': '2' }),
+      };
+
+      res.status(200).json({ ok: true, tipo: 'ml-ads-raw', conta, advertiser_id: advertiserId, periodo: { de, ate }, tentativas });
+      return;
+    }
     if (req.query.tipo === 'ml-claims') return await debugMlClaims(req, res);
     if (req.query.tipo === 'ml-shipment') return await debugMlShipment(req, res);
     if (req.query.tipo === 'ml-sla') return await debugMlSla(req, res);
