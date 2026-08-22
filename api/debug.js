@@ -14,6 +14,7 @@ const { shopeeGet } = require('../lib/shopeeAuth');
 const { getDb } = require('../lib/db');
 const { getRedis } = require('../lib/redis');
 const { kvGet, kvDel } = require('../lib/kv');
+const { importarContagemFisica, enviarBalancoAgora } = require('../lib/estoqueSaldo');
 
 const TABELAS_SQL = [
   `CREATE TABLE IF NOT EXISTS kv_simples (
@@ -113,6 +114,37 @@ const TABELAS_SQL = [
     itens TEXT
   )`,
   `CREATE INDEX IF NOT EXISTS idx_historico_turbo_live_data ON historico_turbo_live(date_created_ts)`,
+  `CREATE TABLE IF NOT EXISTS estoque_saldo (
+    produto TEXT NOT NULL,
+    cor TEXT NOT NULL,
+    tamanho TEXT NOT NULL,
+    saldo REAL NOT NULL DEFAULT 0,
+    atualizado_em TEXT,
+    PRIMARY KEY (produto, cor, tamanho)
+  )`,
+  `CREATE TABLE IF NOT EXISTS estoque_baixas (
+    id_unico TEXT NOT NULL,
+    item_index INTEGER NOT NULL,
+    produto TEXT,
+    cor TEXT,
+    tamanho TEXT,
+    quantidade REAL,
+    sku TEXT,
+    aplicado_em TEXT,
+    revertido INTEGER NOT NULL DEFAULT 0,
+    revertido_em TEXT,
+    PRIMARY KEY (id_unico, item_index)
+  )`,
+  `CREATE TABLE IF NOT EXISTS estoque_vendas_nao_mapeadas (
+    id_unico TEXT NOT NULL,
+    item_index INTEGER NOT NULL,
+    sku TEXT,
+    quantidade REAL,
+    marketplace TEXT,
+    conta TEXT,
+    registrado_em TEXT,
+    PRIMARY KEY (id_unico, item_index)
+  )`,
 ];
 
 // Corrige shipment_id gravados como "123456789.0" em vez de "123456789" —
@@ -166,6 +198,31 @@ async function debugAdicionarColunaTipo(req, res) {
     }
   }
   res.status(200).json({ ok: true, tipo: 'adicionar-coluna-tipo', adicionadas });
+}
+
+// -------- Saldo de estoque (ver lib/estoqueSaldo.js) --------
+
+async function debugImportarContagemFisica(req, res) {
+  const resultado = await importarContagemFisica();
+  res.status(200).json({ ok: true, tipo: 'importar-contagem-fisica', ...resultado });
+}
+
+async function debugEstoqueSaldo(req, res) {
+  const db = getDb();
+  const rs = await db.execute('SELECT produto, cor, tamanho, saldo, atualizado_em FROM estoque_saldo ORDER BY produto, tamanho, cor');
+  const naoMapeadas = await db.execute('SELECT COUNT(*) AS total FROM estoque_vendas_nao_mapeadas');
+  res.status(200).json({
+    ok: true,
+    tipo: 'estoque-saldo',
+    total_produtos: rs.rows.length,
+    vendas_nao_mapeadas: naoMapeadas.rows[0].total,
+    saldo: rs.rows,
+  });
+}
+
+async function debugBalancoMensal(req, res) {
+  const resultado = await enviarBalancoAgora();
+  res.status(200).json({ ok: true, tipo: 'balanco-mensal', resultado });
 }
 
 // -------- Migração única: Redis antigo (compartilhado) -> Turso --------
@@ -647,7 +704,20 @@ async function debugShopeeReturns(req, res) {
 
 module.exports = async (req, res) => {
   const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret || req.query.secret !== cronSecret) {
+  // "importar-contagem-fisica" é chamado direto do navegador (botão em
+  // estoque.html, outro projeto) — usa um secret próprio, mais fraco, em vez
+  // do CRON_SECRET (que também protege rotas sensíveis como troca de token
+  // OAuth), pra não expor esse último num arquivo client-side.
+  const isImportarContagemFisica = req.query.tipo === 'importar-contagem-fisica';
+  if (isImportarContagemFisica) {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    if (req.method === 'OPTIONS') { res.status(204).end(); return; }
+  }
+  const estoquePublicSecret = process.env.ESTOQUE_PUBLIC_SECRET;
+  const secretAutorizado =
+    (cronSecret && req.query.secret === cronSecret) ||
+    (isImportarContagemFisica && estoquePublicSecret && req.query.secret === estoquePublicSecret);
+  if (!secretAutorizado) {
     res.status(401).json({ error: 'Não autorizado' });
     return;
   }
@@ -764,6 +834,9 @@ module.exports = async (req, res) => {
     if (req.query.tipo === 'migrar-redis-turso') return await debugMigrarRedisTurso(req, res);
     if (req.query.tipo === 'corrigir-shipment-id') return await debugCorrigirShipmentId(req, res);
     if (req.query.tipo === 'adicionar-coluna-tipo') return await debugAdicionarColunaTipo(req, res);
+    if (req.query.tipo === 'importar-contagem-fisica') return await debugImportarContagemFisica(req, res);
+    if (req.query.tipo === 'estoque-saldo') return await debugEstoqueSaldo(req, res);
+    if (req.query.tipo === 'balanco-mensal') return await debugBalancoMensal(req, res);
     res.status(400).json({ error: 'Use ?tipo=ml-claims, ?tipo=ml-shipment, ?tipo=ml-sla, ?tipo=shopee-returns, ?tipo=shopee-channels, ?tipo=criar-tabelas, ?tipo=migrar-redis-turso, ?tipo=corrigir-shipment-id ou ?tipo=adicionar-coluna-tipo' });
   } catch (err) {
     res.status(500).json({ error: err.message });

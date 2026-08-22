@@ -38,6 +38,7 @@ const { buscarDetalhesShipment, montarPedidoGenerico } = require('../lib/mlAllOr
 const { buscarDevolucoesPeriodo } = require('../lib/mlClaims');
 const { buscarDevolucoesPorPedido: buscarDevolucoesShopeePorPedido } = require('../lib/shopeeReturns');
 const { registrarHistoricoTodos, marcarDevolucao } = require('../lib/historicoTodos');
+const { enviarBalancoMensalSeNecessario } = require('../lib/estoqueSaldo');
 
 // Janela de DESCOBERTA de pedidos Turbo novos (não confundir com a
 // reverificação, que cobre qualquer "aguardando" sem limite de idade).
@@ -542,6 +543,13 @@ module.exports = async (req, res) => {
   if (totalShopeeTurbo === null) {
     const ultimaColetaSalva = await kvGet('entrega_turbo:ultima_coleta');
     totalShopeeTurbo = (ultimaColetaSalva && ultimaColetaSalva.total) || 0;
+  }
+
+  // -------- Balanço mensal de estoque: manda pra planilha 1x por mês --------
+  try {
+    await enviarBalancoMensalSeNecessario();
+  } catch (err) {
+    erros.push({ fonte: 'balanco_mensal_estoque', mensagem: err.message });
   }
 
   res.status(200).json({
