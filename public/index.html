@@ -825,6 +825,9 @@
   }
 
   const TURBO_ATIVO = false; // ainda não existem pedidos Turbo reais; aba desativada por enquanto
+  // Repassa o ?token= da própria URL pro /api/dashboard-data — é o que
+  // permite proteger a API com DASHBOARD_TOKEN sem exigir login na tela.
+  const TOKEN = new URLSearchParams(location.search).get('token') || '';
 
   let charts = {};
   let periodoAtual = { de: null, ate: null };
@@ -2103,7 +2106,7 @@
 
   async function carregar() {
     try {
-      const resp = await fetch('/api/dashboard-data');
+      const resp = await fetch('/api/dashboard-data' + (TOKEN ? '?token=' + encodeURIComponent(TOKEN) : ''));
       const dados = await resp.json();
       const atualizadoEm = document.getElementById('atualizado-em');
       atualizadoEm.textContent = dados.atualizado_em ? 'Última atualização: ' + new Date(dados.atualizado_em).toLocaleString('pt-BR') : (dados.aviso || 'Sem dados ainda.');

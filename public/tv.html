@@ -241,6 +241,9 @@
 <script>
   // ================= CONFIG =================
   const INTERVALO_BUSCA_MS = 20000;
+  // Repassa o ?token= da própria URL da TV pro /api/dashboard-data — é o que
+  // permite proteger a API com DASHBOARD_TOKEN sem exigir login na tela.
+  const TOKEN = new URLSearchParams(location.search).get('token') || '';
 
   // ================= ÁUDIO =================
   let audioCtx = null;
@@ -576,7 +579,7 @@
 
   async function buscarDados() {
     try {
-      const resp = await fetch('/api/dashboard-data');
+      const resp = await fetch('/api/dashboard-data' + (TOKEN ? '?token=' + encodeURIComponent(TOKEN) : ''));
       const dados = await resp.json();
 
       const novosCards = montarCards(dados);

@@ -57,6 +57,14 @@ Shopee: modalidade **Entrega Turbo**, até 4h).
 - `CRON_SECRET` — string aleatória, usada pra você testar a rota `/api/collect`
   manualmente (`/api/collect?secret=...`) sem precisar do cabeçalho do Vercel Cron.
 
+### Painel (opcional, mas recomendado)
+- `DASHBOARD_TOKEN` — string aleatória que protege `/api/dashboard-data`
+  (pedidos reais, valores, SKUs). Se não estiver configurada, a rota fica
+  aberta pra qualquer um com a URL — configure e use as telas com
+  `?token=SEU_TOKEN` na URL (ex.: `.../tv.html?token=SEU_TOKEN`), tanto na
+  TV quanto no painel operacional (`index.html`). O front-end repassa esse
+  `?token=` pra API sozinho.
+
 ## ⏱️ Como a coleta é disparada (sem depender do Vercel Cron)
 
 O SLA de entrega expressa é de 3-4h, então "1x por dia" (limite do Vercel Cron
