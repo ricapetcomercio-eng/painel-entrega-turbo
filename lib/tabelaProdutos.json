@@ -1038,7 +1038,7 @@
     "tamanho": "120x50"
   },
   "ArranhadorAdesivo_Bege200x50": {
-    "cor": "Arranhador Adesivo",
+    "cor": "Bege",
     "custo": 20.97,
     "produto": "Arranhador Adesivo",
     "tamanho": "200x50"
@@ -3193,31 +3193,31 @@
   },
   "Presilhas_AspiraisKIT16": {
     "cor": "-",
-    "custo": 6.08,
+    "custo": null,
     "produto": "Presilhas Aspirais",
     "tamanho": "-"
   },
   "Presilhas_AspiraisKIT24": {
     "cor": "-",
-    "custo": 9.120000000000001,
+    "custo": null,
     "produto": "Presilhas Aspirais",
     "tamanho": "-"
   },
   "Presilhas_AspiraisKIT32": {
     "cor": "-",
-    "custo": 12.16,
+    "custo": null,
     "produto": "Presilhas Aspirais",
     "tamanho": "-"
   },
   "Presilhas_AspiraisKIT50": {
     "cor": "-",
-    "custo": 19.0,
+    "custo": null,
     "produto": "Presilhas Aspirais",
     "tamanho": "-"
   },
   "Presilhas_AspiraisKIT8": {
     "cor": "-",
-    "custo": 3.04,
+    "custo": null,
     "produto": "Presilhas Aspirais",
     "tamanho": "-"
   },
