@@ -14,7 +14,7 @@ const { shopeeGet } = require('../lib/shopeeAuth');
 const { getDb } = require('../lib/db');
 const { getRedis } = require('../lib/redis');
 const { kvGet, kvDel } = require('../lib/kv');
-const { importarContagemFisica, completarCatalogoFaltante, corrigirCorArranhadorAdesivoBege, enviarBalancoAgora } = require('../lib/estoqueSaldo');
+const { importarContagemFisica, importarSaldoDaPlanilha, completarCatalogoFaltante, corrigirCorArranhadorAdesivoBege, enviarBalancoAgora } = require('../lib/estoqueSaldo');
 
 const TABELAS_SQL = [
   `CREATE TABLE IF NOT EXISTS kv_simples (
@@ -205,6 +205,11 @@ async function debugAdicionarColunaTipo(req, res) {
 async function debugImportarContagemFisica(req, res) {
   const resultado = await importarContagemFisica();
   res.status(200).json({ ok: true, tipo: 'importar-contagem-fisica', ...resultado });
+}
+
+async function debugImportarSaldoDaPlanilha(req, res) {
+  const resultado = await importarSaldoDaPlanilha();
+  res.status(200).json({ ok: true, tipo: 'importar-saldo-da-planilha', ...resultado });
 }
 
 async function debugCompletarCatalogoFaltante(req, res) {
@@ -716,7 +721,7 @@ async function debugShopeeReturns(req, res) {
 // outro projeto) — usam o ESTOQUE_PUBLIC_SECRET, mais fraco, em vez do
 // CRON_SECRET (que também protege rotas sensíveis como troca de token
 // OAuth), pra não expor esse último num arquivo client-side.
-const TIPOS_PUBLICOS_ESTOQUE = new Set(['importar-contagem-fisica', 'estoque-saldo', 'completar-catalogo-faltante', 'corrigir-cor-arranhador-adesivo-bege']);
+const TIPOS_PUBLICOS_ESTOQUE = new Set(['importar-contagem-fisica', 'importar-saldo-da-planilha', 'estoque-saldo', 'completar-catalogo-faltante', 'corrigir-cor-arranhador-adesivo-bege']);
 
 module.exports = async (req, res) => {
   const cronSecret = process.env.CRON_SECRET;
@@ -847,6 +852,7 @@ module.exports = async (req, res) => {
     if (req.query.tipo === 'corrigir-shipment-id') return await debugCorrigirShipmentId(req, res);
     if (req.query.tipo === 'adicionar-coluna-tipo') return await debugAdicionarColunaTipo(req, res);
     if (req.query.tipo === 'importar-contagem-fisica') return await debugImportarContagemFisica(req, res);
+    if (req.query.tipo === 'importar-saldo-da-planilha') return await debugImportarSaldoDaPlanilha(req, res);
     if (req.query.tipo === 'estoque-saldo') return await debugEstoqueSaldo(req, res);
     if (req.query.tipo === 'completar-catalogo-faltante') return await debugCompletarCatalogoFaltante(req, res);
     if (req.query.tipo === 'corrigir-cor-arranhador-adesivo-bege') return await debugCorrigirCorArranhadorAdesivoBege(req, res);
