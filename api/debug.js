@@ -702,21 +702,23 @@ async function debugShopeeReturns(req, res) {
   }
 }
 
+// Rotas chamadas direto do navegador (botão/tela em painel-estoque-adesivo,
+// outro projeto) — usam o ESTOQUE_PUBLIC_SECRET, mais fraco, em vez do
+// CRON_SECRET (que também protege rotas sensíveis como troca de token
+// OAuth), pra não expor esse último num arquivo client-side.
+const TIPOS_PUBLICOS_ESTOQUE = new Set(['importar-contagem-fisica', 'estoque-saldo']);
+
 module.exports = async (req, res) => {
   const cronSecret = process.env.CRON_SECRET;
-  // "importar-contagem-fisica" é chamado direto do navegador (botão em
-  // estoque.html, outro projeto) — usa um secret próprio, mais fraco, em vez
-  // do CRON_SECRET (que também protege rotas sensíveis como troca de token
-  // OAuth), pra não expor esse último num arquivo client-side.
-  const isImportarContagemFisica = req.query.tipo === 'importar-contagem-fisica';
-  if (isImportarContagemFisica) {
+  const isRotaPublicaEstoque = TIPOS_PUBLICOS_ESTOQUE.has(req.query.tipo);
+  if (isRotaPublicaEstoque) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     if (req.method === 'OPTIONS') { res.status(204).end(); return; }
   }
   const estoquePublicSecret = process.env.ESTOQUE_PUBLIC_SECRET;
   const secretAutorizado =
     (cronSecret && req.query.secret === cronSecret) ||
-    (isImportarContagemFisica && estoquePublicSecret && req.query.secret === estoquePublicSecret);
+    (isRotaPublicaEstoque && estoquePublicSecret && req.query.secret === estoquePublicSecret);
   if (!secretAutorizado) {
     res.status(401).json({ error: 'Não autorizado' });
     return;
