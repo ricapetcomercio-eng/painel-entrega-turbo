@@ -43,7 +43,7 @@ module.exports = async (req, res) => {
     let rs;
     if (tipo === 'ml') {
       rs = await db.execute({
-        sql: `UPDATE historico_flex SET categoria = 'coletado', coletado_em = ?
+        sql: `UPDATE historico_flex SET categoria = 'coletado', coletado = 1, coletado_em = ?
               WHERE shipment_id = ? AND categoria = 'aguardando'`,
         args: [agora, identificador],
       });
