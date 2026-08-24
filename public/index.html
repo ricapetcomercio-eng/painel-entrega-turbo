@@ -240,7 +240,7 @@
       Estoque Adesivo
     </a>
 
-    <a class="sidebar-link" href="/tv.html" target="_blank" rel="noopener">
+    <a class="sidebar-link" href="/tv.html" id="linkPainelTV" target="_blank" rel="noopener">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
       Painel TV
     </a>
@@ -828,6 +828,12 @@
   // Repassa o ?token= da própria URL pro /api/dashboard-data — é o que
   // permite proteger a API com DASHBOARD_TOKEN sem exigir login na tela.
   const TOKEN = new URLSearchParams(location.search).get('token') || '';
+  // Repassa o mesmo token pro link "Painel TV" da barra lateral — sem
+  // isso, o link fixo (sem token) leva pra uma tela vazia (401) desde que
+  // DASHBOARD_TOKEN passou a proteger a API.
+  if (TOKEN) {
+    document.getElementById('linkPainelTV').href = '/tv.html?token=' + encodeURIComponent(TOKEN);
+  }
 
   let charts = {};
   let periodoAtual = { de: null, ate: null };
