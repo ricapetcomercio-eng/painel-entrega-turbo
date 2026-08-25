@@ -27,17 +27,6 @@
     overflow-x: hidden;
   }
 
-  /* ---- overlay inicial (ativar audio) ---- */
-  #overlayAtivar {
-    position: fixed; inset: 0; background: rgba(11,14,20,0.96); z-index: 9999;
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
-  }
-  #overlayAtivar button {
-    background: var(--flex); color: #fff; border: none; border-radius: 12px;
-    padding: 18px 36px; font-size: 22px; font-weight: 700; cursor: pointer;
-  }
-  #overlayAtivar p { color: var(--muted); font-size: 14px; }
-
   /* ---- topo fixo (header+heatmap+kpis+controles não rolam com os cards) ---- */
   .topo-fixo { position: sticky; top: 0; z-index: 50; background: var(--bg); }
 
@@ -187,12 +176,6 @@
 </head>
 <body>
 
-  <div id="overlayAtivar">
-    <div style="font-size:40px;">🔊</div>
-    <button onclick="ativarAudio()">Toque para ativar sons e alertas</button>
-    <p>Necessário uma vez, por causa da política de autoplay dos navegadores.</p>
-  </div>
-
   <div class="topo-fixo">
     <div class="faixa-emergencia" id="faixaEmergencia">⚠ MUITOS PEDIDOS CRÍTICOS — AÇÃO IMEDIATA NA EXPEDIÇÃO ⚠</div>
 
@@ -255,14 +238,28 @@
   let somLigado = true;
   let vozLigada = true;
 
-  function ativarAudio() {
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    document.getElementById('overlayAtivar').style.display = 'none';
-    buscarDados();
+  function iniciarAudio() {
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    } catch (e) {
+      console.warn('AudioContext não pôde ser criado:', e);
+    }
+  }
+
+  // O navegador pode suspender o AudioContext sozinho (política de
+  // autoplay, ou economia de energia numa aba/tela ligada por horas sem
+  // nenhuma interação) — sem retomar, os sons param de sair mesmo com
+  // "Som: ligado". Qualquer clique real do usuário (ex: o próprio botão
+  // de som) é ocasião válida pra tentar retomar.
+  function retomarAudioSeSuspenso() {
+    if (audioCtx && audioCtx.state === 'suspended') {
+      audioCtx.resume().catch(() => {});
+    }
   }
 
   function tocarTom(freq, duracaoMs, tipo) {
     if (!somLigado || !audioCtx) return;
+    retomarAudioSeSuspenso();
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
     osc.type = tipo || 'sine';
@@ -299,6 +296,7 @@
 
   function alternarSom() {
     somLigado = !somLigado;
+    retomarAudioSeSuspenso(); // clique real do usuário — ocasião certa pra destravar o áudio
     const btn = document.getElementById('btnSom');
     btn.textContent = somLigado ? '🔔 Som: ligado' : '🔕 Som: mudo';
     btn.className = 'btn-icone' + (somLigado ? ' ativo' : '');
@@ -618,6 +616,13 @@
   setInterval(atualizarContadoresAoVivo, 1000);
   setInterval(buscarDados, INTERVALO_BUSCA_MS);
   atualizarRelogio();
+
+  // Sem overlay de "toque pra ativar" — carrega os dados direto. O
+  // AudioContext pode nascer suspenso por política de autoplay (sem
+  // interação do usuário nesse carregamento); retomarAudioSeSuspenso()
+  // tenta destravar em qualquer clique real na tela depois disso.
+  iniciarAudio();
+  buscarDados();
 
   // ================= AUTO-SCROLL =================
   // Numa TV ninguém rola a tela manualmente — sem isso, pedidos abaixo da
