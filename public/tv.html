@@ -648,7 +648,12 @@
     // container de scroll interno (altura travada na tela, overflow-y:
     // auto por padrão) — confirmado testando ao vivo (window.scrollBy não
     // fazia nada, document.body.scrollTop funcionava).
-    const maxScroll = document.body.scrollHeight - document.body.clientHeight;
+    //
+    // O limite é o fim de "Pedidos em aberto" (#areaCards), não o fim da
+    // página inteira — "Coletados hoje" vem depois só de referência, a
+    // ideia da TV é mostrar o que falta despachar hoje, não rolar até lá.
+    const areaCards = document.getElementById('areaCards');
+    const maxScroll = areaCards.offsetTop + areaCards.offsetHeight - document.body.clientHeight;
     if (maxScroll <= 0) return; // conteúdo cabe na tela, nada pra rolar
 
     const atual = document.body.scrollTop;
