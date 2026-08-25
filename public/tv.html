@@ -123,6 +123,11 @@
   }
   .card-pedido.concluido { opacity: 0.55; border-style: dashed; }
 
+  /* Pedido cujo prazo vence só amanhã (não hoje) — não precisa competir
+     visualmente com o que é urgente agora; some a cor/pulso de urgência,
+     mesmo que a fração do prazo já esteja alta (janela naturalmente longa). */
+  .card-pedido.dia-seguinte { opacity: 0.4; border-color: var(--border) !important; background: var(--card) !important; animation: none !important; box-shadow: none !important; }
+
   .card-topo { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
   .selo-tipo {
     font-size: 11px; font-weight: 800; padding: 3px 10px; border-radius: 999px; letter-spacing: 0.03em;
@@ -336,6 +341,14 @@
     return new Date(`${dataBrasil}T12:00:00-03:00`).getTime();
   }
 
+  // Mesmo dia-calendário (horário de Brasília) do prazo final — usado pra
+  // apagar visualmente cards cujo prazo só vence amanhã, que não precisam
+  // competir por atenção com os que vencem hoje.
+  function ehHojeBrasil(ms) {
+    const fmt = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' });
+    return fmt.format(new Date(ms)) === fmt.format(new Date());
+  }
+
   // ================= ESTADO =================
   let cardsAtuais = [];
   let filtroAtivo = 'todos';
@@ -402,6 +415,7 @@
       c.fracao = total > 0 ? Math.max(0, 1 - restante / total) : 1;
       c.zona = (c.status === 'coletado' || c.status === 'entregue' || c.status === 'nao_entregue' || c.status === 'cancelado') ? 'concluido' : zonaPorFracao(c.fracao);
       c.msRestante = restante;
+      c.diaSeguinte = c.zona !== 'concluido' && !ehHojeBrasil(c.deadlineMs);
     });
 
     return cards;
@@ -465,6 +479,7 @@
     const concluido = c.status === 'coletado' || c.status === 'entregue' || naoEntregue || cancelado;
     const zonaClasse = concluido ? '' : 'zona-' + c.zona;
     const flashClasse = c._flashNovo ? ' novo-flash' : '';
+    const diaSeguinteClasse = c.diaSeguinte ? ' dia-seguinte' : '';
     const pctBarra = Math.min(100, Math.round(c.fracao * 100));
 
     let statusHtml;
@@ -483,7 +498,7 @@
     const seloColetaHtml = prontoParaColeta ? '<span class="selo-coleta">🚚 Hora de coletar</span>' : '';
 
     return `
-      <div class="card-pedido ${zonaClasse}${concluido ? ' concluido' : ''}${flashClasse}" data-id="${c.id}">
+      <div class="card-pedido ${zonaClasse}${concluido ? ' concluido' : ''}${flashClasse}${diaSeguinteClasse}" data-id="${c.id}">
         <div class="card-topo">
           <span class="selo-tipo ${seloClasse}">${c.tipo}</span>
           <span class="card-conta">${c.conta || ''}</span>
@@ -611,8 +626,8 @@
   // ativa quando o conteúdo realmente não cabe, e pausa um tempo se alguém
   // interagir manualmente (útil ao testar num navegador comum).
   const VELOCIDADE_SCROLL_PX = 1;
-  const INTERVALO_TICK_SCROLL_MS = 50;
-  const PAUSA_NAS_PONTAS_MS = 4000;
+  const INTERVALO_TICK_SCROLL_MS = 130; // era 50 — rolagem estava rápida demais pra dar tempo de ler
+  const PAUSA_NAS_PONTAS_MS = 6000;
   const PAUSA_APOS_INTERACAO_MS = 15000;
 
   let direcaoScroll = 1; // 1 = descendo, -1 = subindo
