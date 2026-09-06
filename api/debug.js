@@ -830,7 +830,7 @@ async function debugPontoHistorico(req, res) {
   const funcionario = verificarTokenPonto(token);
   if (!funcionario) { res.status(401).json({ ok: false, error: 'Sessão expirada, faça login de novo.' }); return; }
 
-  const limite = Math.min(Math.max(parseInt(req.query.limite, 10) || 20, 1), 100);
+  const limite = Math.min(Math.max(parseInt(req.query.limite, 10) || 150, 1), 400);
   const db = getDb();
   const rs = await db.execute({
     sql: `SELECT registrado_em, tipo, metodo_validacao, distancia_metros
