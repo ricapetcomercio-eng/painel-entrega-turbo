@@ -57,6 +57,26 @@ Shopee: modalidade **Entrega Turbo**, até 4h).
 - `CRON_SECRET` — string aleatória, usada pra você testar a rota `/api/collect`
   manualmente (`/api/collect?secret=...`) sem precisar do cabeçalho do Vercel Cron.
 
+### Ponto (app nativo Ricapet — controle interno de presença)
+- `PONTO_PUBLIC_SECRET` — string aleatória própria, igual ao `ESTOQUE_PUBLIC_SECRET`
+  mas pro app de Ponto: fica embutida no app nativo, então precisa ser
+  diferente do `CRON_SECRET`. Libera só `ponto-funcionarios`, `ponto-login`
+  e `ponto-bater` — nunca o relatório nem o cadastro de funcionário (esses
+  dois usam o `CRON_SECRET`, de gestão).
+- `PONTO_TOKEN_SECRET` — string aleatória usada só pra assinar o token de
+  sessão devolvido no login (HMAC) — não precisa decorar, só gerar uma vez
+  e configurar na Vercel.
+- `PONTO_PIN_SALT` — string aleatória misturada no hash do PIN de cada
+  funcionário antes de gravar no banco (nunca fica em texto puro).
+
+### Painel (opcional, mas recomendado)
+- `DASHBOARD_TOKEN` — string aleatória que protege `/api/dashboard-data`
+  (pedidos reais, valores, SKUs). Se não estiver configurada, a rota fica
+  aberta pra qualquer um com a URL — configure e use as telas com
+  `?token=SEU_TOKEN` na URL (ex.: `.../tv.html?token=SEU_TOKEN`), tanto na
+  TV quanto no painel operacional (`index.html`). O front-end repassa esse
+  `?token=` pra API sozinho.
+
 ## ⏱️ Como a coleta é disparada (sem depender do Vercel Cron)
 
 O SLA de entrega expressa é de 3-4h, então "1x por dia" (limite do Vercel Cron
@@ -82,6 +102,35 @@ A rota `/api/collect` já valida o `?secret=` contra a variável de ambiente
 **Alternativa**: se preferir manter tudo dentro do ecossistema Vercel, o
 plano Pro ($20/mês) libera cron nativo com frequência de minutos — mas não é
 necessário só por causa disso, o cron-job.org resolve sem custo.
+
+## Aba "Desempenho" (vendas por produto, cruzando SKU com a TABELA_AUXILIAR)
+
+A aba Desempenho (`/api/analytics-todos-data.js?visao=produtos` — dividindo o
+mesmo arquivo da rota "Todos os pedidos" pra não estourar o limite de 12
+Serverless Functions do plano Hobby da Vercel) agrupa o histórico de
+pedidos (`lib/historicoTodos.js`) por mês e por PRODUTO/COR/TAMANHO,
+cruzando o SKU de cada item com `lib/tabelaProdutos.json` — uma cópia
+gerada de `C:\FECHAMENTO\03 AUXILIARES\TABELA_AUXILIAR.xlsx` (aba
+`TABELA_PRODUTOS`), já que o deploy na Vercel não tem acesso ao seu PC.
+
+**Sempre que `TABELA_AUXILIAR.xlsx` for atualizado**, rode e dê push:
+
+```
+python scripts/gerar_tabela_produtos.py
+git add lib/tabelaProdutos.json
+git commit -m "Atualiza tabela SKU->Produto"
+git push
+```
+
+SKUs sem correspondência na planilha aparecem agrupados como "Não mapeado"
+na aba Desempenho — é o sinal de que a planilha precisa ser atualizada.
+
+Os itens de pedido só passaram a guardar `valor_unitario` a partir desta
+mudança — pedidos coletados antes dela não têm preço por item no histórico
+(a aba mostra a % de cobertura). Pra completar o valor de meses antigos,
+rode de novo `api/backfill-todos-api.js`/`api/backfill-shopee-todos.js`
+(mesmo uso de sempre — ver seções desses backfills) pro período desejado;
+eles resincronizam o pedido inteiro, incluindo os itens com preço.
 
 ## ⚠️ Outras pendências / TODOs antes de ir pra produção
 

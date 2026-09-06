@@ -27,17 +27,6 @@
     overflow-x: hidden;
   }
 
-  /* ---- overlay inicial (ativar audio) ---- */
-  #overlayAtivar {
-    position: fixed; inset: 0; background: rgba(11,14,20,0.96); z-index: 9999;
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
-  }
-  #overlayAtivar button {
-    background: var(--flex); color: #fff; border: none; border-radius: 12px;
-    padding: 18px 36px; font-size: 22px; font-weight: 700; cursor: pointer;
-  }
-  #overlayAtivar p { color: var(--muted); font-size: 14px; }
-
   /* ---- topo fixo (header+heatmap+kpis+controles não rolam com os cards) ---- */
   .topo-fixo { position: sticky; top: 0; z-index: 50; background: var(--bg); }
 
@@ -123,6 +112,11 @@
   }
   .card-pedido.concluido { opacity: 0.55; border-style: dashed; }
 
+  /* Pedido cujo prazo vence só amanhã (não hoje) — não precisa competir
+     visualmente com o que é urgente agora; some a cor/pulso de urgência,
+     mesmo que a fração do prazo já esteja alta (janela naturalmente longa). */
+  .card-pedido.dia-seguinte { opacity: 0.4; border-color: var(--border) !important; background: var(--card) !important; animation: none !important; box-shadow: none !important; }
+
   .card-topo { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
   .selo-tipo {
     font-size: 11px; font-weight: 800; padding: 3px 10px; border-radius: 999px; letter-spacing: 0.03em;
@@ -182,12 +176,6 @@
 </head>
 <body>
 
-  <div id="overlayAtivar">
-    <div style="font-size:40px;">🔊</div>
-    <button onclick="ativarAudio()">Toque para ativar sons e alertas</button>
-    <p>Necessário uma vez, por causa da política de autoplay dos navegadores.</p>
-  </div>
-
   <div class="topo-fixo">
     <div class="faixa-emergencia" id="faixaEmergencia">⚠ MUITOS PEDIDOS CRÍTICOS — AÇÃO IMEDIATA NA EXPEDIÇÃO ⚠</div>
 
@@ -241,20 +229,37 @@
 <script>
   // ================= CONFIG =================
   const INTERVALO_BUSCA_MS = 20000;
+  // Repassa o ?token= da própria URL da TV pro /api/dashboard-data — é o que
+  // permite proteger a API com DASHBOARD_TOKEN sem exigir login na tela.
+  const TOKEN = new URLSearchParams(location.search).get('token') || '';
 
   // ================= ÁUDIO =================
   let audioCtx = null;
   let somLigado = true;
   let vozLigada = true;
 
-  function ativarAudio() {
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    document.getElementById('overlayAtivar').style.display = 'none';
-    buscarDados();
+  function iniciarAudio() {
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    } catch (e) {
+      console.warn('AudioContext não pôde ser criado:', e);
+    }
+  }
+
+  // O navegador pode suspender o AudioContext sozinho (política de
+  // autoplay, ou economia de energia numa aba/tela ligada por horas sem
+  // nenhuma interação) — sem retomar, os sons param de sair mesmo com
+  // "Som: ligado". Qualquer clique real do usuário (ex: o próprio botão
+  // de som) é ocasião válida pra tentar retomar.
+  function retomarAudioSeSuspenso() {
+    if (audioCtx && audioCtx.state === 'suspended') {
+      audioCtx.resume().catch(() => {});
+    }
   }
 
   function tocarTom(freq, duracaoMs, tipo) {
     if (!somLigado || !audioCtx) return;
+    retomarAudioSeSuspenso();
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
     osc.type = tipo || 'sine';
@@ -291,6 +296,7 @@
 
   function alternarSom() {
     somLigado = !somLigado;
+    retomarAudioSeSuspenso(); // clique real do usuário — ocasião certa pra destravar o áudio
     const btn = document.getElementById('btnSom');
     btn.textContent = somLigado ? '🔔 Som: ligado' : '🔕 Som: mudo';
     btn.className = 'btn-icone' + (somLigado ? ' ativo' : '');
@@ -331,6 +337,14 @@
   function calcularHoraColeta(deadlineMs) {
     const dataBrasil = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date(deadlineMs));
     return new Date(`${dataBrasil}T12:00:00-03:00`).getTime();
+  }
+
+  // Mesmo dia-calendário (horário de Brasília) do prazo final — usado pra
+  // apagar visualmente cards cujo prazo só vence amanhã, que não precisam
+  // competir por atenção com os que vencem hoje.
+  function ehHojeBrasil(ms) {
+    const fmt = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' });
+    return fmt.format(new Date(ms)) === fmt.format(new Date());
   }
 
   // ================= ESTADO =================
@@ -399,6 +413,7 @@
       c.fracao = total > 0 ? Math.max(0, 1 - restante / total) : 1;
       c.zona = (c.status === 'coletado' || c.status === 'entregue' || c.status === 'nao_entregue' || c.status === 'cancelado') ? 'concluido' : zonaPorFracao(c.fracao);
       c.msRestante = restante;
+      c.diaSeguinte = c.zona !== 'concluido' && !ehHojeBrasil(c.deadlineMs);
     });
 
     return cards;
@@ -462,6 +477,7 @@
     const concluido = c.status === 'coletado' || c.status === 'entregue' || naoEntregue || cancelado;
     const zonaClasse = concluido ? '' : 'zona-' + c.zona;
     const flashClasse = c._flashNovo ? ' novo-flash' : '';
+    const diaSeguinteClasse = c.diaSeguinte ? ' dia-seguinte' : '';
     const pctBarra = Math.min(100, Math.round(c.fracao * 100));
 
     let statusHtml;
@@ -480,7 +496,7 @@
     const seloColetaHtml = prontoParaColeta ? '<span class="selo-coleta">🚚 Hora de coletar</span>' : '';
 
     return `
-      <div class="card-pedido ${zonaClasse}${concluido ? ' concluido' : ''}${flashClasse}" data-id="${c.id}">
+      <div class="card-pedido ${zonaClasse}${concluido ? ' concluido' : ''}${flashClasse}${diaSeguinteClasse}" data-id="${c.id}">
         <div class="card-topo">
           <span class="selo-tipo ${seloClasse}">${c.tipo}</span>
           <span class="card-conta">${c.conta || ''}</span>
@@ -576,7 +592,7 @@
 
   async function buscarDados() {
     try {
-      const resp = await fetch('/api/dashboard-data');
+      const resp = await fetch('/api/dashboard-data' + (TOKEN ? '?token=' + encodeURIComponent(TOKEN) : ''));
       const dados = await resp.json();
 
       const novosCards = montarCards(dados);
@@ -601,6 +617,13 @@
   setInterval(buscarDados, INTERVALO_BUSCA_MS);
   atualizarRelogio();
 
+  // Sem overlay de "toque pra ativar" — carrega os dados direto. O
+  // AudioContext pode nascer suspenso por política de autoplay (sem
+  // interação do usuário nesse carregamento); retomarAudioSeSuspenso()
+  // tenta destravar em qualquer clique real na tela depois disso.
+  iniciarAudio();
+  buscarDados();
+
   // ================= AUTO-SCROLL =================
   // Numa TV ninguém rola a tela manualmente — sem isso, pedidos abaixo da
   // dobra ficam invisíveis pra sempre quando há mais cards do que cabe na
@@ -608,8 +631,8 @@
   // ativa quando o conteúdo realmente não cabe, e pausa um tempo se alguém
   // interagir manualmente (útil ao testar num navegador comum).
   const VELOCIDADE_SCROLL_PX = 1;
-  const INTERVALO_TICK_SCROLL_MS = 50;
-  const PAUSA_NAS_PONTAS_MS = 4000;
+  const INTERVALO_TICK_SCROLL_MS = 130; // era 50 — rolagem estava rápida demais pra dar tempo de ler
+  const PAUSA_NAS_PONTAS_MS = 6000;
   const PAUSA_APOS_INTERACAO_MS = 15000;
 
   let direcaoScroll = 1; // 1 = descendo, -1 = subindo
@@ -630,7 +653,12 @@
     // container de scroll interno (altura travada na tela, overflow-y:
     // auto por padrão) — confirmado testando ao vivo (window.scrollBy não
     // fazia nada, document.body.scrollTop funcionava).
-    const maxScroll = document.body.scrollHeight - document.body.clientHeight;
+    //
+    // O limite é o fim de "Pedidos em aberto" (#areaCards), não o fim da
+    // página inteira — "Coletados hoje" vem depois só de referência, a
+    // ideia da TV é mostrar o que falta despachar hoje, não rolar até lá.
+    const areaCards = document.getElementById('areaCards');
+    const maxScroll = areaCards.offsetTop + areaCards.offsetHeight - document.body.clientHeight;
     if (maxScroll <= 0) return; // conteúdo cabe na tela, nada pra rolar
 
     const atual = document.body.scrollTop;

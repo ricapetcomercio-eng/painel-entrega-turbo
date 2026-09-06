@@ -14,6 +14,7 @@ const { shopeeGet } = require('../lib/shopeeAuth');
 const { getDb } = require('../lib/db');
 const { getRedis } = require('../lib/redis');
 const { kvGet, kvDel } = require('../lib/kv');
+const { importarContagemFisica, importarSaldoDaPlanilha, completarCatalogoFaltante, corrigirCorArranhadorAdesivoBege, enviarBalancoAgora } = require('../lib/estoqueSaldo');
 
 const TABELAS_SQL = [
   `CREATE TABLE IF NOT EXISTS kv_simples (
@@ -113,6 +114,55 @@ const TABELAS_SQL = [
     itens TEXT
   )`,
   `CREATE INDEX IF NOT EXISTS idx_historico_turbo_live_data ON historico_turbo_live(date_created_ts)`,
+  `CREATE TABLE IF NOT EXISTS estoque_saldo (
+    produto TEXT NOT NULL,
+    cor TEXT NOT NULL,
+    tamanho TEXT NOT NULL,
+    saldo REAL NOT NULL DEFAULT 0,
+    atualizado_em TEXT,
+    PRIMARY KEY (produto, cor, tamanho)
+  )`,
+  `CREATE TABLE IF NOT EXISTS estoque_baixas (
+    id_unico TEXT NOT NULL,
+    item_index INTEGER NOT NULL,
+    produto TEXT,
+    cor TEXT,
+    tamanho TEXT,
+    quantidade REAL,
+    sku TEXT,
+    aplicado_em TEXT,
+    revertido INTEGER NOT NULL DEFAULT 0,
+    revertido_em TEXT,
+    PRIMARY KEY (id_unico, item_index)
+  )`,
+  `CREATE TABLE IF NOT EXISTS estoque_vendas_nao_mapeadas (
+    id_unico TEXT NOT NULL,
+    item_index INTEGER NOT NULL,
+    sku TEXT,
+    quantidade REAL,
+    marketplace TEXT,
+    conta TEXT,
+    registrado_em TEXT,
+    PRIMARY KEY (id_unico, item_index)
+  )`,
+  `CREATE TABLE IF NOT EXISTS funcionarios (
+    id TEXT PRIMARY KEY,
+    nome TEXT NOT NULL,
+    pin_hash TEXT NOT NULL,
+    ativo INTEGER NOT NULL DEFAULT 1,
+    criado_em TEXT
+  )`,
+  `CREATE TABLE IF NOT EXISTS registros_ponto (
+    id TEXT PRIMARY KEY,
+    funcionario_id TEXT NOT NULL,
+    tipo TEXT NOT NULL,
+    registrado_em TEXT NOT NULL,
+    metodo_validacao TEXT NOT NULL,
+    latitude REAL,
+    longitude REAL,
+    distancia_metros REAL
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_registros_ponto_funcionario ON registros_ponto(funcionario_id, registrado_em)`,
 ];
 
 // Corrige shipment_id gravados como "123456789.0" em vez de "123456789" —
@@ -166,6 +216,46 @@ async function debugAdicionarColunaTipo(req, res) {
     }
   }
   res.status(200).json({ ok: true, tipo: 'adicionar-coluna-tipo', adicionadas });
+}
+
+// -------- Saldo de estoque (ver lib/estoqueSaldo.js) --------
+
+async function debugImportarContagemFisica(req, res) {
+  const resultado = await importarContagemFisica();
+  res.status(200).json({ ok: true, tipo: 'importar-contagem-fisica', ...resultado });
+}
+
+async function debugImportarSaldoDaPlanilha(req, res) {
+  const resultado = await importarSaldoDaPlanilha();
+  res.status(200).json({ ok: true, tipo: 'importar-saldo-da-planilha', ...resultado });
+}
+
+async function debugCompletarCatalogoFaltante(req, res) {
+  const resultado = await completarCatalogoFaltante();
+  res.status(200).json({ ok: true, tipo: 'completar-catalogo-faltante', ...resultado });
+}
+
+async function debugCorrigirCorArranhadorAdesivoBege(req, res) {
+  const resultado = await corrigirCorArranhadorAdesivoBege();
+  res.status(200).json({ ok: true, tipo: 'corrigir-cor-arranhador-adesivo-bege', ...resultado });
+}
+
+async function debugEstoqueSaldo(req, res) {
+  const db = getDb();
+  const rs = await db.execute('SELECT produto, cor, tamanho, saldo, atualizado_em FROM estoque_saldo ORDER BY produto, tamanho, cor');
+  const naoMapeadas = await db.execute('SELECT COUNT(*) AS total FROM estoque_vendas_nao_mapeadas');
+  res.status(200).json({
+    ok: true,
+    tipo: 'estoque-saldo',
+    total_produtos: rs.rows.length,
+    vendas_nao_mapeadas: naoMapeadas.rows[0].total,
+    saldo: rs.rows,
+  });
+}
+
+async function debugBalancoMensal(req, res) {
+  const resultado = await enviarBalancoAgora();
+  res.status(200).json({ ok: true, tipo: 'balanco-mensal', resultado });
 }
 
 // -------- Migração única: Redis antigo (compartilhado) -> Turso --------
@@ -337,6 +427,61 @@ async function mlFetch(path, accessToken) {
   const data = await resp.json();
   if (!resp.ok) throw new Error(`Erro ML ${path} (${resp.status}): ${JSON.stringify(data)}`);
   return data;
+}
+
+// Teste isolado da API de Product Ads (impressões/cliques) ANTES de montar
+// a coleta diária de verdade — a API só funciona se o app OAuth do ML
+// tiver o produto "Advertising" liberado e a conta tiver Publicidade
+// habilitada (Mercado Livre > Mi perfil > Publicidade); nunca testado
+// contra produção até rodar isso aqui uma vez.
+async function debugMlAdsTest(req, res) {
+  const conta = req.query.conta;
+  if (!conta) { res.status(400).json({ error: 'Use ?conta=ricapet ou ?conta=thapets' }); return; }
+
+  const { buscarAdvertiserId, buscarMetricasAnuncios, buscarCampanhas, buscarDetalheAnuncio } = require('../lib/mlAds');
+
+  // Janela de 7 dias inteiros, terminando ontem — evita qualquer problema
+  // com "hoje" ainda não estar fechado/consolidado nas métricas do ML.
+  const hoje = new Date();
+  const ontem = new Date(hoje.getTime() - 24 * 60 * 60 * 1000);
+  const seteDiasAtras = new Date(hoje.getTime() - 8 * 24 * 60 * 60 * 1000);
+  const fmt = (d) => d.toISOString().slice(0, 10);
+  const periodo = { de: fmt(seteDiasAtras), ate: fmt(ontem) };
+
+  // Anúncio real, pego da TABELA_AUXILIAR (Código do anúncio da SKU
+  // "Alimentador_Automatico"), só pra testar o endpoint de item único —
+  // pode ser sobrescrito via ?item_id= se quiser testar outro.
+  const itemIdTeste = req.query.item_id || 'MLB5993419290';
+
+  const resultado = { ok: true, tipo: 'ml-ads-test', conta, periodo, item_id_teste: itemIdTeste };
+
+  try {
+    resultado.advertiser_id = await buscarAdvertiserId(conta);
+  } catch (err) {
+    resultado.advertiser_id_erro = err.message;
+  }
+
+  try {
+    const campanhas = await buscarCampanhas(conta, periodo.de, periodo.ate);
+    resultado.campanhas = { total: (campanhas.paging && campanhas.paging.total) || 0, amostra: (campanhas.results || []).slice(0, 3) };
+  } catch (err) {
+    resultado.campanhas_erro = err.message;
+  }
+
+  try {
+    const metricas = await buscarMetricasAnuncios(conta, periodo.de, periodo.ate, { limit: 5 });
+    resultado.anuncios_lista = { total_retornado: metricas.length, amostra: metricas.slice(0, 5) };
+  } catch (err) {
+    resultado.anuncios_lista_erro = err.message;
+  }
+
+  try {
+    resultado.anuncio_unico = await buscarDetalheAnuncio(conta, itemIdTeste);
+  } catch (err) {
+    resultado.anuncio_unico_erro = err.message;
+  }
+
+  res.status(200).json(resultado);
 }
 
 async function debugMlClaims(req, res) {
@@ -590,14 +735,258 @@ async function debugShopeeReturns(req, res) {
   }
 }
 
+// -------- Ponto (app nativo "Ricapet", ver PortalRicapetApp) --------
+// Login por nome + PIN de 4 dígitos (mesma ideia do OPERADORES_EXPEDICAO
+// do checkout_bipagem.py, mas com PIN guardado com hash aqui em vez de
+// texto puro). Token simples (payload + HMAC), sem expiração -- é
+// controle interno de presença, não o ponto oficial da folha.
+
+const crypto = require('crypto');
+
+function hashPin(pin) {
+  return crypto.createHash('sha256').update(`${pin}:${process.env.PONTO_PIN_SALT || ''}`).digest('hex');
+}
+
+function gerarTokenPonto(funcionario) {
+  const payload = Buffer.from(JSON.stringify({ id: funcionario.id, nome: funcionario.nome })).toString('base64url');
+  const assinatura = crypto.createHmac('sha256', process.env.PONTO_TOKEN_SECRET || '').update(payload).digest('hex');
+  return `${payload}.${assinatura}`;
+}
+
+function verificarTokenPonto(token) {
+  const [payload, assinatura] = String(token || '').split('.');
+  if (!payload || !assinatura) return null;
+  const esperado = crypto.createHmac('sha256', process.env.PONTO_TOKEN_SECRET || '').update(payload).digest('hex');
+  const bufAssinatura = Buffer.from(assinatura);
+  const bufEsperado = Buffer.from(esperado);
+  if (bufAssinatura.length !== bufEsperado.length || !crypto.timingSafeEqual(bufAssinatura, bufEsperado)) return null;
+  try {
+    return JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+  } catch {
+    return null;
+  }
+}
+
+async function debugPontoFuncionarios(req, res) {
+  const db = getDb();
+  const rs = await db.execute('SELECT id, nome FROM funcionarios WHERE ativo = 1 ORDER BY nome');
+  res.status(200).json({ ok: true, tipo: 'ponto-funcionarios', funcionarios: rs.rows });
+}
+
+async function debugPontoLogin(req, res) {
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { funcionario_id, pin }' }); return; }
+  const { funcionario_id, pin } = req.body || {};
+  if (!funcionario_id || !pin) { res.status(400).json({ error: 'Use POST { funcionario_id, pin }' }); return; }
+
+  const db = getDb();
+  const rs = await db.execute({
+    sql: 'SELECT id, nome, pin_hash FROM funcionarios WHERE id = ? AND ativo = 1',
+    args: [funcionario_id],
+  });
+  const funcionario = rs.rows[0];
+  if (!funcionario || funcionario.pin_hash !== hashPin(pin)) {
+    res.status(401).json({ ok: false, error: 'Nome ou PIN incorreto, tenta de novo.' });
+    return;
+  }
+  res.status(200).json({ ok: true, tipo: 'ponto-login', token: gerarTokenPonto(funcionario), nome: funcionario.nome });
+}
+
+async function debugPontoBater(req, res) {
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { token, metodo_validacao, ... }' }); return; }
+  const { token, metodo_validacao, latitude, longitude, distancia_metros } = req.body || {};
+  const funcionario = verificarTokenPonto(token);
+  if (!funcionario) { res.status(401).json({ ok: false, error: 'Sessão expirada, faça login de novo.' }); return; }
+  if (!['rede', 'gps', 'rede+gps'].includes(metodo_validacao)) {
+    res.status(400).json({ error: "metodo_validacao precisa ser 'rede', 'gps' ou 'rede+gps'" });
+    return;
+  }
+
+  const db = getDb();
+  const ultimo = await db.execute({
+    sql: 'SELECT tipo FROM registros_ponto WHERE funcionario_id = ? ORDER BY registrado_em DESC LIMIT 1',
+    args: [funcionario.id],
+  });
+  const proximoTipo = ultimo.rows[0]?.tipo === 'entrada' ? 'saida' : 'entrada';
+  const agora = new Date().toISOString();
+
+  await db.execute({
+    sql: `INSERT INTO registros_ponto (id, funcionario_id, tipo, registrado_em, metodo_validacao, latitude, longitude, distancia_metros)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    args: [
+      `${funcionario.id}:${agora}`, funcionario.id, proximoTipo, agora, metodo_validacao,
+      latitude ?? null, longitude ?? null, distancia_metros ?? null,
+    ],
+  });
+
+  res.status(200).json({ ok: true, tipo: 'ponto-bater', registro: proximoTipo, registrado_em: agora, nome: funcionario.nome });
+}
+
+// Só pra gestão (protegido pelo CRON_SECRET, não pelo secret público) --
+// lista os registros de presença dos últimos N dias.
+async function debugPontoRelatorio(req, res) {
+  const dias = Math.min(parseInt(req.query.dias, 10) || 30, 90);
+  const desde = new Date(Date.now() - dias * 24 * 60 * 60 * 1000).toISOString();
+  const db = getDb();
+  const rs = await db.execute({
+    sql: `SELECT r.registrado_em, r.tipo, r.metodo_validacao, r.distancia_metros, f.nome
+          FROM registros_ponto r JOIN funcionarios f ON f.id = r.funcionario_id
+          WHERE r.registrado_em >= ? ORDER BY r.registrado_em DESC`,
+    args: [desde],
+  });
+  res.status(200).json({ ok: true, tipo: 'ponto-relatorio', periodo_dias: dias, total: rs.rows.length, registros: rs.rows });
+}
+
+// Só pra gestão -- cadastra/atualiza um funcionário (nome + PIN). Rode uma
+// vez por pessoa ao configurar o Ponto, ou quando o PIN de alguém mudar.
+async function debugPontoCadastrarFuncionario(req, res) {
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { id, nome, pin }' }); return; }
+  const { id, nome, pin } = req.body || {};
+  if (!id || !nome || !pin) { res.status(400).json({ error: 'Use POST { id, nome, pin }' }); return; }
+
+  const db = getDb();
+  await db.execute({
+    sql: `INSERT INTO funcionarios (id, nome, pin_hash, ativo, criado_em) VALUES (?, ?, ?, 1, ?)
+          ON CONFLICT(id) DO UPDATE SET nome = excluded.nome, pin_hash = excluded.pin_hash, ativo = 1`,
+    args: [id, nome, hashPin(pin), new Date().toISOString()],
+  });
+  res.status(200).json({ ok: true, tipo: 'ponto-cadastrar-funcionario', id, nome });
+}
+
+// Rotas chamadas direto do app nativo (Ricapet) sem exigir o CRON_SECRET --
+// usam o PONTO_PUBLIC_SECRET, próprio e mais fraco, mesma lógica do
+// ESTOQUE_PUBLIC_SECRET abaixo.
+const TIPOS_PUBLICOS_PONTO = new Set(['ponto-funcionarios', 'ponto-login', 'ponto-bater']);
+
+// Rotas chamadas direto do navegador (botão/tela em painel-estoque-adesivo,
+// outro projeto) — usam o ESTOQUE_PUBLIC_SECRET, mais fraco, em vez do
+// CRON_SECRET (que também protege rotas sensíveis como troca de token
+// OAuth), pra não expor esse último num arquivo client-side.
+const TIPOS_PUBLICOS_ESTOQUE = new Set(['importar-contagem-fisica', 'importar-saldo-da-planilha', 'estoque-saldo', 'completar-catalogo-faltante', 'corrigir-cor-arranhador-adesivo-bege']);
+
 module.exports = async (req, res) => {
   const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret || req.query.secret !== cronSecret) {
+  const isRotaPublicaEstoque = TIPOS_PUBLICOS_ESTOQUE.has(req.query.tipo);
+  const isRotaPublicaPonto = TIPOS_PUBLICOS_PONTO.has(req.query.tipo);
+  if (isRotaPublicaEstoque || isRotaPublicaPonto) {
+    // ponto-login/ponto-bater são POST com Content-Type: application/json,
+    // o que faz o navegador mandar um preflight OPTIONS antes -- precisa
+    // responder Allow-Methods/Allow-Headers, não só Allow-Origin (que
+    // bastava pras rotas GET simples do Estoque).
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    if (req.method === 'OPTIONS') { res.status(204).end(); return; }
+  }
+  const estoquePublicSecret = process.env.ESTOQUE_PUBLIC_SECRET;
+  const pontoPublicSecret = process.env.PONTO_PUBLIC_SECRET;
+  const secretAutorizado =
+    (cronSecret && req.query.secret === cronSecret) ||
+    (isRotaPublicaEstoque && estoquePublicSecret && req.query.secret === estoquePublicSecret) ||
+    (isRotaPublicaPonto && pontoPublicSecret && req.query.secret === pontoPublicSecret);
+  if (!secretAutorizado) {
     res.status(401).json({ error: 'Não autorizado' });
     return;
   }
 
   try {
+    if (req.query.tipo === 'ml-oauth-url') {
+      const conta = req.query.conta;
+      const redirectUri = req.query.redirect_uri;
+      if (!conta || !redirectUri) {
+        res.status(400).json({ error: 'Use ?conta=ricapet|thapets&redirect_uri=<uma URI já cadastrada no app>' });
+        return;
+      }
+      const { getContaConfig } = require('../lib/mlAuth');
+      const { clientId } = getContaConfig(conta);
+      const authUrl = `https://auth.mercadolivre.com.br/authorization?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}`;
+      res.status(200).json({ ok: true, tipo: 'ml-oauth-url', conta, redirect_uri: redirectUri, url_para_abrir: authUrl });
+      return;
+    }
+    if (req.query.tipo === 'ml-oauth-exchange') {
+      const conta = req.query.conta;
+      const code = req.query.code;
+      const redirectUri = req.query.redirect_uri;
+      if (!conta || !code || !redirectUri) {
+        res.status(400).json({ error: 'Use ?conta=ricapet|thapets&code=<code recebido>&redirect_uri=<mesma URI usada no ml-oauth-url>' });
+        return;
+      }
+      const { getContaConfig, trocarCodigoPorTokens, salvarToken } = require('../lib/mlAuth');
+      const { clientId, clientSecret } = getContaConfig(conta);
+      const tokenData = await trocarCodigoPorTokens(clientId, clientSecret, code, redirectUri);
+      await salvarToken(conta, {
+        access_token: tokenData.access_token,
+        refresh_token: tokenData.refresh_token,
+        user_id: tokenData.user_id,
+        expires_at: Date.now() + tokenData.expires_in * 1000,
+      });
+      res.status(200).json({ ok: true, tipo: 'ml-oauth-exchange', conta, escopo_concedido: tokenData.scope, user_id: tokenData.user_id });
+      return;
+    }
+    if (req.query.tipo === 'ml-client-ids') {
+      res.status(200).json({
+        ok: true, tipo: 'ml-client-ids',
+        ricapet: process.env.ML_RICAPET_CLIENT_ID || null,
+        thapets: process.env.ML_THAPETS_CLIENT_ID || null,
+      });
+      return;
+    }
+    if (req.query.tipo === 'ml-ads-test') return await debugMlAdsTest(req, res);
+    if (req.query.tipo === 'ml-ads-varios-itens') {
+      const conta = req.query.conta;
+      if (!conta) { res.status(400).json({ error: 'Use ?conta=ricapet ou ?conta=thapets' }); return; }
+      const { getMLAccessToken } = require('../lib/mlAuth');
+      const { chamadaBruta } = require('../lib/mlAds');
+      const accessToken = await getMLAccessToken(conta);
+
+      // Anúncios reais dos produtos mais vendidos (Arranhador Adesivo),
+      // pegos direto da TABELA_AUXILIAR — mais chance de estarem
+      // anunciados de verdade do que um item aleatório.
+      const itensPadrao = [
+        'MLB5266670312', 'MLB4113207571', 'MLB4112797061', 'MLB5473940642',
+        'MLB3959143795', 'MLB3960024607', 'MLB5267523998', 'MLB5266582944',
+        'MLB3959131641', 'MLB3960028631', 'MLB3959960521', 'MLB5266714014',
+      ];
+      const itens = req.query.item_ids ? req.query.item_ids.split(',') : itensPadrao;
+
+      const resultados = {};
+      for (const itemId of itens) {
+        const r = await chamadaBruta(`/advertising/product_ads/items/${itemId}`, accessToken, { 'Api-Version': '2' });
+        resultados[itemId] = { status: r.status, corpo: r.status === 200 ? JSON.parse(r.body) : r.body };
+      }
+
+      res.status(200).json({ ok: true, tipo: 'ml-ads-varios-itens', conta, total_testados: itens.length, resultados });
+      return;
+    }
+    if (req.query.tipo === 'ml-ads-raw') {
+      const conta = req.query.conta;
+      if (!conta) { res.status(400).json({ error: 'Use ?conta=ricapet ou ?conta=thapets' }); return; }
+      const { getMLAccessToken } = require('../lib/mlAuth');
+      const { buscarAdvertiserId, chamadaBruta } = require('../lib/mlAds');
+      const accessToken = await getMLAccessToken(conta);
+      const advertiserId = await buscarAdvertiserId(conta);
+
+      const hoje = new Date();
+      const ontem = new Date(hoje.getTime() - 24 * 60 * 60 * 1000);
+      const seteDiasAtras = new Date(hoje.getTime() - 8 * 24 * 60 * 60 * 1000);
+      const fmt = (d) => d.toISOString().slice(0, 10);
+      const de = fmt(seteDiasAtras), ate = fmt(ontem);
+
+      const tentativas = {
+        campanhas_sem_query: await chamadaBruta(
+          `/advertising/advertisers/${advertiserId}/product_ads/campaigns`, accessToken, { 'Api-Version': '2' }),
+        campanhas_com_datas_sem_metrics: await chamadaBruta(
+          `/advertising/advertisers/${advertiserId}/product_ads/campaigns?date_from=${de}&date_to=${ate}`, accessToken, { 'Api-Version': '2' }),
+        campanhas_header_minusculo: await chamadaBruta(
+          `/advertising/advertisers/${advertiserId}/product_ads/campaigns?date_from=${de}&date_to=${ate}&metrics=clicks,prints`, accessToken, { 'api-version': '2' }),
+        campanhas_sem_header_versao: await chamadaBruta(
+          `/advertising/advertisers/${advertiserId}/product_ads/campaigns?date_from=${de}&date_to=${ate}&metrics=clicks,prints`, accessToken, {}),
+        items_sem_query: await chamadaBruta(
+          `/advertising/advertisers/${advertiserId}/product_ads/items`, accessToken, { 'Api-Version': '2' }),
+      };
+
+      res.status(200).json({ ok: true, tipo: 'ml-ads-raw', conta, advertiser_id: advertiserId, periodo: { de, ate }, tentativas });
+      return;
+    }
     if (req.query.tipo === 'ml-claims') return await debugMlClaims(req, res);
     if (req.query.tipo === 'ml-shipment') return await debugMlShipment(req, res);
     if (req.query.tipo === 'ml-sla') return await debugMlSla(req, res);
@@ -611,6 +1000,17 @@ module.exports = async (req, res) => {
     if (req.query.tipo === 'migrar-redis-turso') return await debugMigrarRedisTurso(req, res);
     if (req.query.tipo === 'corrigir-shipment-id') return await debugCorrigirShipmentId(req, res);
     if (req.query.tipo === 'adicionar-coluna-tipo') return await debugAdicionarColunaTipo(req, res);
+    if (req.query.tipo === 'importar-contagem-fisica') return await debugImportarContagemFisica(req, res);
+    if (req.query.tipo === 'importar-saldo-da-planilha') return await debugImportarSaldoDaPlanilha(req, res);
+    if (req.query.tipo === 'estoque-saldo') return await debugEstoqueSaldo(req, res);
+    if (req.query.tipo === 'completar-catalogo-faltante') return await debugCompletarCatalogoFaltante(req, res);
+    if (req.query.tipo === 'corrigir-cor-arranhador-adesivo-bege') return await debugCorrigirCorArranhadorAdesivoBege(req, res);
+    if (req.query.tipo === 'balanco-mensal') return await debugBalancoMensal(req, res);
+    if (req.query.tipo === 'ponto-funcionarios') return await debugPontoFuncionarios(req, res);
+    if (req.query.tipo === 'ponto-login') return await debugPontoLogin(req, res);
+    if (req.query.tipo === 'ponto-bater') return await debugPontoBater(req, res);
+    if (req.query.tipo === 'ponto-relatorio') return await debugPontoRelatorio(req, res);
+    if (req.query.tipo === 'ponto-cadastrar-funcionario') return await debugPontoCadastrarFuncionario(req, res);
     res.status(400).json({ error: 'Use ?tipo=ml-claims, ?tipo=ml-shipment, ?tipo=ml-sla, ?tipo=shopee-returns, ?tipo=shopee-channels, ?tipo=criar-tabelas, ?tipo=migrar-redis-turso, ?tipo=corrigir-shipment-id ou ?tipo=adicionar-coluna-tipo' });
   } catch (err) {
     res.status(500).json({ error: err.message });
