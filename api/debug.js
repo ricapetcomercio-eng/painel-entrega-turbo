@@ -867,8 +867,14 @@ module.exports = async (req, res) => {
   const cronSecret = process.env.CRON_SECRET;
   const isRotaPublicaEstoque = TIPOS_PUBLICOS_ESTOQUE.has(req.query.tipo);
   const isRotaPublicaPonto = TIPOS_PUBLICOS_PONTO.has(req.query.tipo);
-  if (isRotaPublicaEstoque) {
+  if (isRotaPublicaEstoque || isRotaPublicaPonto) {
+    // ponto-login/ponto-bater são POST com Content-Type: application/json,
+    // o que faz o navegador mandar um preflight OPTIONS antes -- precisa
+    // responder Allow-Methods/Allow-Headers, não só Allow-Origin (que
+    // bastava pras rotas GET simples do Estoque).
     res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     if (req.method === 'OPTIONS') { res.status(204).end(); return; }
   }
   const estoquePublicSecret = process.env.ESTOQUE_PUBLIC_SECRET;
