@@ -1049,10 +1049,10 @@ async function debugPontoAdminVisao(req, res) {
           FROM registros_ponto WHERE registrado_em >= ? AND registrado_em <= ? ORDER BY registrado_em`,
     args: [inicioISO, fimISO],
   });
-  const sols = await db.execute({
-    sql: `SELECT id, funcionario_id, data_referente, motivo, status, criada_em, resolvida_em, resolvida_por, resposta_admin
-          FROM solicitacoes_ponto ORDER BY criada_em DESC LIMIT 300`,
-  });
+  const sols = await db.execute(
+    `SELECT id, funcionario_id, data_referente, motivo, status, criada_em, resolvida_em, resolvida_por, resposta_admin
+     FROM solicitacoes_ponto ORDER BY criada_em DESC LIMIT 300`
+  );
 
   const porFunc = new Map(funcs.rows.map((f) => [f.id, {
     id: f.id, nome: f.nome, admin: f.admin === 1, registros: [], solicitacoes: [],
