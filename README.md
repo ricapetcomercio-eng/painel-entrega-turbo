@@ -57,6 +57,18 @@ Shopee: modalidade **Entrega Turbo**, até 4h).
 - `CRON_SECRET` — string aleatória, usada pra você testar a rota `/api/collect`
   manualmente (`/api/collect?secret=...`) sem precisar do cabeçalho do Vercel Cron.
 
+### Ponto (app nativo Ricapet — controle interno de presença)
+- `PONTO_PUBLIC_SECRET` — string aleatória própria, igual ao `ESTOQUE_PUBLIC_SECRET`
+  mas pro app de Ponto: fica embutida no app nativo, então precisa ser
+  diferente do `CRON_SECRET`. Libera só `ponto-funcionarios`, `ponto-login`
+  e `ponto-bater` — nunca o relatório nem o cadastro de funcionário (esses
+  dois usam o `CRON_SECRET`, de gestão).
+- `PONTO_TOKEN_SECRET` — string aleatória usada só pra assinar o token de
+  sessão devolvido no login (HMAC) — não precisa decorar, só gerar uma vez
+  e configurar na Vercel.
+- `PONTO_PIN_SALT` — string aleatória misturada no hash do PIN de cada
+  funcionário antes de gravar no banco (nunca fica em texto puro).
+
 ### Painel (opcional, mas recomendado)
 - `DASHBOARD_TOKEN` — string aleatória que protege `/api/dashboard-data`
   (pedidos reais, valores, SKUs). Se não estiver configurada, a rota fica

@@ -145,6 +145,24 @@ const TABELAS_SQL = [
     registrado_em TEXT,
     PRIMARY KEY (id_unico, item_index)
   )`,
+  `CREATE TABLE IF NOT EXISTS funcionarios (
+    id TEXT PRIMARY KEY,
+    nome TEXT NOT NULL,
+    pin_hash TEXT NOT NULL,
+    ativo INTEGER NOT NULL DEFAULT 1,
+    criado_em TEXT
+  )`,
+  `CREATE TABLE IF NOT EXISTS registros_ponto (
+    id TEXT PRIMARY KEY,
+    funcionario_id TEXT NOT NULL,
+    tipo TEXT NOT NULL,
+    registrado_em TEXT NOT NULL,
+    metodo_validacao TEXT NOT NULL,
+    latitude REAL,
+    longitude REAL,
+    distancia_metros REAL
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_registros_ponto_funcionario ON registros_ponto(funcionario_id, registrado_em)`,
 ];
 
 // Corrige shipment_id gravados como "123456789.0" em vez de "123456789" —
@@ -717,6 +735,128 @@ async function debugShopeeReturns(req, res) {
   }
 }
 
+// -------- Ponto (app nativo "Ricapet", ver PortalRicapetApp) --------
+// Login por nome + PIN de 4 dígitos (mesma ideia do OPERADORES_EXPEDICAO
+// do checkout_bipagem.py, mas com PIN guardado com hash aqui em vez de
+// texto puro). Token simples (payload + HMAC), sem expiração -- é
+// controle interno de presença, não o ponto oficial da folha.
+
+const crypto = require('crypto');
+
+function hashPin(pin) {
+  return crypto.createHash('sha256').update(`${pin}:${process.env.PONTO_PIN_SALT || ''}`).digest('hex');
+}
+
+function gerarTokenPonto(funcionario) {
+  const payload = Buffer.from(JSON.stringify({ id: funcionario.id, nome: funcionario.nome })).toString('base64url');
+  const assinatura = crypto.createHmac('sha256', process.env.PONTO_TOKEN_SECRET || '').update(payload).digest('hex');
+  return `${payload}.${assinatura}`;
+}
+
+function verificarTokenPonto(token) {
+  const [payload, assinatura] = String(token || '').split('.');
+  if (!payload || !assinatura) return null;
+  const esperado = crypto.createHmac('sha256', process.env.PONTO_TOKEN_SECRET || '').update(payload).digest('hex');
+  const bufAssinatura = Buffer.from(assinatura);
+  const bufEsperado = Buffer.from(esperado);
+  if (bufAssinatura.length !== bufEsperado.length || !crypto.timingSafeEqual(bufAssinatura, bufEsperado)) return null;
+  try {
+    return JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+  } catch {
+    return null;
+  }
+}
+
+async function debugPontoFuncionarios(req, res) {
+  const db = getDb();
+  const rs = await db.execute('SELECT id, nome FROM funcionarios WHERE ativo = 1 ORDER BY nome');
+  res.status(200).json({ ok: true, tipo: 'ponto-funcionarios', funcionarios: rs.rows });
+}
+
+async function debugPontoLogin(req, res) {
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { funcionario_id, pin }' }); return; }
+  const { funcionario_id, pin } = req.body || {};
+  if (!funcionario_id || !pin) { res.status(400).json({ error: 'Use POST { funcionario_id, pin }' }); return; }
+
+  const db = getDb();
+  const rs = await db.execute({
+    sql: 'SELECT id, nome, pin_hash FROM funcionarios WHERE id = ? AND ativo = 1',
+    args: [funcionario_id],
+  });
+  const funcionario = rs.rows[0];
+  if (!funcionario || funcionario.pin_hash !== hashPin(pin)) {
+    res.status(401).json({ ok: false, error: 'Nome ou PIN incorreto, tenta de novo.' });
+    return;
+  }
+  res.status(200).json({ ok: true, tipo: 'ponto-login', token: gerarTokenPonto(funcionario), nome: funcionario.nome });
+}
+
+async function debugPontoBater(req, res) {
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { token, metodo_validacao, ... }' }); return; }
+  const { token, metodo_validacao, latitude, longitude, distancia_metros } = req.body || {};
+  const funcionario = verificarTokenPonto(token);
+  if (!funcionario) { res.status(401).json({ ok: false, error: 'Sessão expirada, faça login de novo.' }); return; }
+  if (!['rede', 'gps', 'rede+gps'].includes(metodo_validacao)) {
+    res.status(400).json({ error: "metodo_validacao precisa ser 'rede', 'gps' ou 'rede+gps'" });
+    return;
+  }
+
+  const db = getDb();
+  const ultimo = await db.execute({
+    sql: 'SELECT tipo FROM registros_ponto WHERE funcionario_id = ? ORDER BY registrado_em DESC LIMIT 1',
+    args: [funcionario.id],
+  });
+  const proximoTipo = ultimo.rows[0]?.tipo === 'entrada' ? 'saida' : 'entrada';
+  const agora = new Date().toISOString();
+
+  await db.execute({
+    sql: `INSERT INTO registros_ponto (id, funcionario_id, tipo, registrado_em, metodo_validacao, latitude, longitude, distancia_metros)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    args: [
+      `${funcionario.id}:${agora}`, funcionario.id, proximoTipo, agora, metodo_validacao,
+      latitude ?? null, longitude ?? null, distancia_metros ?? null,
+    ],
+  });
+
+  res.status(200).json({ ok: true, tipo: 'ponto-bater', registro: proximoTipo, registrado_em: agora, nome: funcionario.nome });
+}
+
+// Só pra gestão (protegido pelo CRON_SECRET, não pelo secret público) --
+// lista os registros de presença dos últimos N dias.
+async function debugPontoRelatorio(req, res) {
+  const dias = Math.min(parseInt(req.query.dias, 10) || 30, 90);
+  const desde = new Date(Date.now() - dias * 24 * 60 * 60 * 1000).toISOString();
+  const db = getDb();
+  const rs = await db.execute({
+    sql: `SELECT r.registrado_em, r.tipo, r.metodo_validacao, r.distancia_metros, f.nome
+          FROM registros_ponto r JOIN funcionarios f ON f.id = r.funcionario_id
+          WHERE r.registrado_em >= ? ORDER BY r.registrado_em DESC`,
+    args: [desde],
+  });
+  res.status(200).json({ ok: true, tipo: 'ponto-relatorio', periodo_dias: dias, total: rs.rows.length, registros: rs.rows });
+}
+
+// Só pra gestão -- cadastra/atualiza um funcionário (nome + PIN). Rode uma
+// vez por pessoa ao configurar o Ponto, ou quando o PIN de alguém mudar.
+async function debugPontoCadastrarFuncionario(req, res) {
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { id, nome, pin }' }); return; }
+  const { id, nome, pin } = req.body || {};
+  if (!id || !nome || !pin) { res.status(400).json({ error: 'Use POST { id, nome, pin }' }); return; }
+
+  const db = getDb();
+  await db.execute({
+    sql: `INSERT INTO funcionarios (id, nome, pin_hash, ativo, criado_em) VALUES (?, ?, ?, 1, ?)
+          ON CONFLICT(id) DO UPDATE SET nome = excluded.nome, pin_hash = excluded.pin_hash, ativo = 1`,
+    args: [id, nome, hashPin(pin), new Date().toISOString()],
+  });
+  res.status(200).json({ ok: true, tipo: 'ponto-cadastrar-funcionario', id, nome });
+}
+
+// Rotas chamadas direto do app nativo (Ricapet) sem exigir o CRON_SECRET --
+// usam o PONTO_PUBLIC_SECRET, próprio e mais fraco, mesma lógica do
+// ESTOQUE_PUBLIC_SECRET abaixo.
+const TIPOS_PUBLICOS_PONTO = new Set(['ponto-funcionarios', 'ponto-login', 'ponto-bater']);
+
 // Rotas chamadas direto do navegador (botão/tela em painel-estoque-adesivo,
 // outro projeto) — usam o ESTOQUE_PUBLIC_SECRET, mais fraco, em vez do
 // CRON_SECRET (que também protege rotas sensíveis como troca de token
@@ -726,14 +866,17 @@ const TIPOS_PUBLICOS_ESTOQUE = new Set(['importar-contagem-fisica', 'importar-sa
 module.exports = async (req, res) => {
   const cronSecret = process.env.CRON_SECRET;
   const isRotaPublicaEstoque = TIPOS_PUBLICOS_ESTOQUE.has(req.query.tipo);
+  const isRotaPublicaPonto = TIPOS_PUBLICOS_PONTO.has(req.query.tipo);
   if (isRotaPublicaEstoque) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     if (req.method === 'OPTIONS') { res.status(204).end(); return; }
   }
   const estoquePublicSecret = process.env.ESTOQUE_PUBLIC_SECRET;
+  const pontoPublicSecret = process.env.PONTO_PUBLIC_SECRET;
   const secretAutorizado =
     (cronSecret && req.query.secret === cronSecret) ||
-    (isRotaPublicaEstoque && estoquePublicSecret && req.query.secret === estoquePublicSecret);
+    (isRotaPublicaEstoque && estoquePublicSecret && req.query.secret === estoquePublicSecret) ||
+    (isRotaPublicaPonto && pontoPublicSecret && req.query.secret === pontoPublicSecret);
   if (!secretAutorizado) {
     res.status(401).json({ error: 'Não autorizado' });
     return;
@@ -857,6 +1000,11 @@ module.exports = async (req, res) => {
     if (req.query.tipo === 'completar-catalogo-faltante') return await debugCompletarCatalogoFaltante(req, res);
     if (req.query.tipo === 'corrigir-cor-arranhador-adesivo-bege') return await debugCorrigirCorArranhadorAdesivoBege(req, res);
     if (req.query.tipo === 'balanco-mensal') return await debugBalancoMensal(req, res);
+    if (req.query.tipo === 'ponto-funcionarios') return await debugPontoFuncionarios(req, res);
+    if (req.query.tipo === 'ponto-login') return await debugPontoLogin(req, res);
+    if (req.query.tipo === 'ponto-bater') return await debugPontoBater(req, res);
+    if (req.query.tipo === 'ponto-relatorio') return await debugPontoRelatorio(req, res);
+    if (req.query.tipo === 'ponto-cadastrar-funcionario') return await debugPontoCadastrarFuncionario(req, res);
     res.status(400).json({ error: 'Use ?tipo=ml-claims, ?tipo=ml-shipment, ?tipo=ml-sla, ?tipo=shopee-returns, ?tipo=shopee-channels, ?tipo=criar-tabelas, ?tipo=migrar-redis-turso, ?tipo=corrigir-shipment-id ou ?tipo=adicionar-coluna-tipo' });
   } catch (err) {
     res.status(500).json({ error: err.message });
