@@ -821,6 +821,26 @@ async function debugPontoBater(req, res) {
   res.status(200).json({ ok: true, tipo: 'ponto-bater', registro: proximoTipo, registrado_em: agora, nome: funcionario.nome });
 }
 
+// Histórico do próprio funcionário logado -- chamado pelo app (portal
+// Ricapet) com o PONTO_PUBLIC_SECRET. Só devolve as batidas de quem é dono
+// do token, nunca as de outra pessoa.
+async function debugPontoHistorico(req, res) {
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { token }' }); return; }
+  const { token } = req.body || {};
+  const funcionario = verificarTokenPonto(token);
+  if (!funcionario) { res.status(401).json({ ok: false, error: 'Sessão expirada, faça login de novo.' }); return; }
+
+  const limite = Math.min(Math.max(parseInt(req.query.limite, 10) || 20, 1), 100);
+  const db = getDb();
+  const rs = await db.execute({
+    sql: `SELECT registrado_em, tipo, metodo_validacao, distancia_metros
+          FROM registros_ponto WHERE funcionario_id = ?
+          ORDER BY registrado_em DESC LIMIT ${limite}`,
+    args: [funcionario.id],
+  });
+  res.status(200).json({ ok: true, tipo: 'ponto-historico', nome: funcionario.nome, total: rs.rows.length, registros: rs.rows });
+}
+
 // Só pra gestão (protegido pelo CRON_SECRET, não pelo secret público) --
 // lista os registros de presença dos últimos N dias.
 async function debugPontoRelatorio(req, res) {
@@ -855,7 +875,7 @@ async function debugPontoCadastrarFuncionario(req, res) {
 // Rotas chamadas direto do app nativo (Ricapet) sem exigir o CRON_SECRET --
 // usam o PONTO_PUBLIC_SECRET, próprio e mais fraco, mesma lógica do
 // ESTOQUE_PUBLIC_SECRET abaixo.
-const TIPOS_PUBLICOS_PONTO = new Set(['ponto-funcionarios', 'ponto-login', 'ponto-bater']);
+const TIPOS_PUBLICOS_PONTO = new Set(['ponto-funcionarios', 'ponto-login', 'ponto-bater', 'ponto-historico']);
 
 // Rotas chamadas direto do navegador (botão/tela em painel-estoque-adesivo,
 // outro projeto) — usam o ESTOQUE_PUBLIC_SECRET, mais fraco, em vez do
@@ -1009,6 +1029,7 @@ module.exports = async (req, res) => {
     if (req.query.tipo === 'ponto-funcionarios') return await debugPontoFuncionarios(req, res);
     if (req.query.tipo === 'ponto-login') return await debugPontoLogin(req, res);
     if (req.query.tipo === 'ponto-bater') return await debugPontoBater(req, res);
+    if (req.query.tipo === 'ponto-historico') return await debugPontoHistorico(req, res);
     if (req.query.tipo === 'ponto-relatorio') return await debugPontoRelatorio(req, res);
     if (req.query.tipo === 'ponto-cadastrar-funcionario') return await debugPontoCadastrarFuncionario(req, res);
     res.status(400).json({ error: 'Use ?tipo=ml-claims, ?tipo=ml-shipment, ?tipo=ml-sla, ?tipo=shopee-returns, ?tipo=shopee-channels, ?tipo=criar-tabelas, ?tipo=migrar-redis-turso, ?tipo=corrigir-shipment-id ou ?tipo=adicionar-coluna-tipo' });
