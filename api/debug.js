@@ -175,6 +175,15 @@ const TABELAS_SQL = [
     resposta_admin TEXT
   )`,
   `CREATE INDEX IF NOT EXISTS idx_solicitacoes_ponto_func ON solicitacoes_ponto(funcionario_id, data_referente)`,
+  `CREATE TABLE IF NOT EXISTS jornadas_ponto (
+    funcionario_id TEXT NOT NULL,
+    dia_semana INTEGER NOT NULL,
+    minutos_previstos INTEGER NOT NULL DEFAULT 0,
+    entrada_ref TEXT,
+    saida_ref TEXT,
+    intervalo_min INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (funcionario_id, dia_semana)
+  )`,
 ];
 
 // Colunas adicionadas depois que as tabelas de ponto já existiam. ALTER é
@@ -801,6 +810,26 @@ async function funcionarioEhAdmin(db, funcionarioId) {
   return !!(rs.rows[0] && rs.rows[0].admin === 1);
 }
 
+// Jornada esperada por dia da semana (0=domingo … 6=sábado), em minutos já
+// líquidos do intervalo. Devolve null quando o funcionário não tem jornada
+// cadastrada -- nesse caso o painel não calcula extras/faltas/saldo dele.
+async function jornadaSemana(db, funcionarioId) {
+  const rs = await db.execute({
+    sql: 'SELECT dia_semana, minutos_previstos, entrada_ref, saida_ref, intervalo_min FROM jornadas_ponto WHERE funcionario_id = ?',
+    args: [funcionarioId],
+  });
+  if (!rs.rows.length) return null;
+  const semana = Array.from({ length: 7 }, () => ({ minutos: 0, entrada: null, saida: null, intervalo: 0 }));
+  rs.rows.forEach((r) => {
+    const d = Number(r.dia_semana);
+    if (d >= 0 && d <= 6) semana[d] = {
+      minutos: Number(r.minutos_previstos) || 0,
+      entrada: r.entrada_ref || null, saida: r.saida_ref || null, intervalo: Number(r.intervalo_min) || 0,
+    };
+  });
+  return semana;
+}
+
 function gerarTokenPonto(funcionario) {
   const payload = Buffer.from(JSON.stringify({ id: funcionario.id, nome: funcionario.nome })).toString('base64url');
   const assinatura = crypto.createHmac('sha256', process.env.PONTO_TOKEN_SECRET || '').update(payload).digest('hex');
@@ -903,6 +932,7 @@ async function debugPontoHistorico(req, res) {
   res.status(200).json({
     ok: true, tipo: 'ponto-historico', nome: funcionario.nome,
     hoje: dataFusoLoja(new Date()),
+    jornada: await jornadaSemana(db, funcionario.id),
     total: rs.rows.length, registros: rs.rows, solicitacoes: sol.rows,
   });
 }
@@ -1054,11 +1084,25 @@ async function debugPontoAdminVisao(req, res) {
      FROM solicitacoes_ponto ORDER BY criada_em DESC LIMIT 300`
   );
 
+  const jorn = await db.execute(
+    'SELECT funcionario_id, dia_semana, minutos_previstos, entrada_ref, saida_ref, intervalo_min FROM jornadas_ponto'
+  );
+
   const porFunc = new Map(funcs.rows.map((f) => [f.id, {
-    id: f.id, nome: f.nome, admin: f.admin === 1, registros: [], solicitacoes: [],
+    id: f.id, nome: f.nome, admin: f.admin === 1, registros: [], solicitacoes: [], jornada: null,
   }]));
   regs.rows.forEach((r) => { const f = porFunc.get(r.funcionario_id); if (f) f.registros.push(r); });
   sols.rows.forEach((s) => { const f = porFunc.get(s.funcionario_id); if (f) f.solicitacoes.push(s); });
+  jorn.rows.forEach((j) => {
+    const f = porFunc.get(j.funcionario_id);
+    if (!f) return;
+    if (!f.jornada) f.jornada = Array.from({ length: 7 }, () => ({ minutos: 0, entrada: null, saida: null, intervalo: 0 }));
+    const d = Number(j.dia_semana);
+    if (d >= 0 && d <= 6) f.jornada[d] = {
+      minutos: Number(j.minutos_previstos) || 0, entrada: j.entrada_ref || null,
+      saida: j.saida_ref || null, intervalo: Number(j.intervalo_min) || 0,
+    };
+  });
 
   res.status(200).json({
     ok: true, tipo: 'ponto-admin-visao',
@@ -1067,6 +1111,66 @@ async function debugPontoAdminVisao(req, res) {
     funcionarios: [...porFunc.values()],
     pendentes: sols.rows.filter((s) => s.status === 'pendente').length,
   });
+}
+
+// Admin define/atualiza a jornada de um funcionário. dias = array de
+// { dia_semana (0-6), entrada "HH:MM", saida "HH:MM", intervalo_min }.
+// Dia ausente do array vira folga (minutos 0).
+async function debugPontoAdminJornada(req, res) {
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { token, funcionario_id, dias }' }); return; }
+  const db = getDb();
+  const admin = await exigirAdmin(req, res, db);
+  if (!admin) return;
+
+  const { funcionario_id, dias } = req.body || {};
+  if (!funcionario_id || !Array.isArray(dias)) { res.status(400).json({ error: 'Use POST { funcionario_id, dias: [...] }' }); return; }
+
+  const minutosEntre = (ent, sai, inter) => {
+    const p = (s) => { const [h, m] = String(s).split(':').map(Number); return h * 60 + m; };
+    let bruto = p(sai) - p(ent);
+    if (bruto < 0) bruto += 1440;
+    return Math.max(bruto - (Number(inter) || 0), 0);
+  };
+
+  await db.execute({ sql: 'DELETE FROM jornadas_ponto WHERE funcionario_id = ?', args: [funcionario_id] });
+  for (const d of dias) {
+    const ds = Number(d.dia_semana);
+    if (!(ds >= 0 && ds <= 6) || !/^\d{1,2}:\d{2}$/.test(d.entrada || '') || !/^\d{1,2}:\d{2}$/.test(d.saida || '')) continue;
+    const inter = Number(d.intervalo_min) || 0;
+    await db.execute({
+      sql: `INSERT INTO jornadas_ponto (funcionario_id, dia_semana, minutos_previstos, entrada_ref, saida_ref, intervalo_min)
+            VALUES (?, ?, ?, ?, ?, ?)`,
+      args: [funcionario_id, ds, minutosEntre(d.entrada, d.saida, inter), d.entrada, d.saida, inter],
+    });
+  }
+  res.status(200).json({ ok: true, tipo: 'ponto-admin-jornada', funcionario_id, jornada: await jornadaSemana(db, funcionario_id) });
+}
+
+// Só pra gestão (CRON_SECRET) -- bulk das jornadas (usado pelo script de setup).
+async function debugPontoConfigJornadas(req, res) {
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { jornadas: { <funcionario_id>: [dias...] } }' }); return; }
+  const jornadas = (req.body && req.body.jornadas) || {};
+  const db = getDb();
+  const minutosEntre = (ent, sai, inter) => {
+    const p = (s) => { const [h, m] = String(s).split(':').map(Number); return h * 60 + m; };
+    let bruto = p(sai) - p(ent);
+    if (bruto < 0) bruto += 1440;
+    return Math.max(bruto - (Number(inter) || 0), 0);
+  };
+  const feitos = [];
+  for (const [fid, dias] of Object.entries(jornadas)) {
+    await db.execute({ sql: 'DELETE FROM jornadas_ponto WHERE funcionario_id = ?', args: [fid] });
+    for (const d of dias || []) {
+      const inter = Number(d.intervalo_min) || 0;
+      await db.execute({
+        sql: `INSERT INTO jornadas_ponto (funcionario_id, dia_semana, minutos_previstos, entrada_ref, saida_ref, intervalo_min)
+              VALUES (?, ?, ?, ?, ?, ?)`,
+        args: [fid, Number(d.dia_semana), minutosEntre(d.entrada, d.saida, inter), d.entrada, d.saida, inter],
+      });
+    }
+    feitos.push(fid);
+  }
+  res.status(200).json({ ok: true, tipo: 'ponto-config-jornadas', funcionarios: feitos });
 }
 
 async function debugPontoAdminEditar(req, res) {
@@ -1175,7 +1279,7 @@ async function debugPontoCadastrarFuncionario(req, res) {
 const TIPOS_PUBLICOS_PONTO = new Set([
   'ponto-funcionarios', 'ponto-login', 'ponto-bater', 'ponto-historico',
   'ponto-editar-proprio', 'ponto-solicitar-correcao',
-  'ponto-admin-visao', 'ponto-admin-editar', 'ponto-admin-resolver',
+  'ponto-admin-visao', 'ponto-admin-editar', 'ponto-admin-resolver', 'ponto-admin-jornada',
 ]);
 
 // Rotas chamadas direto do navegador (botão/tela em painel-estoque-adesivo,
@@ -1337,6 +1441,8 @@ module.exports = async (req, res) => {
     if (req.query.tipo === 'ponto-admin-visao') return await debugPontoAdminVisao(req, res);
     if (req.query.tipo === 'ponto-admin-editar') return await debugPontoAdminEditar(req, res);
     if (req.query.tipo === 'ponto-admin-resolver') return await debugPontoAdminResolver(req, res);
+    if (req.query.tipo === 'ponto-admin-jornada') return await debugPontoAdminJornada(req, res);
+    if (req.query.tipo === 'ponto-config-jornadas') return await debugPontoConfigJornadas(req, res);
     if (req.query.tipo === 'ponto-relatorio') return await debugPontoRelatorio(req, res);
     if (req.query.tipo === 'ponto-cadastrar-funcionario') return await debugPontoCadastrarFuncionario(req, res);
     res.status(400).json({ error: 'Use ?tipo=ml-claims, ?tipo=ml-shipment, ?tipo=ml-sla, ?tipo=shopee-returns, ?tipo=shopee-channels, ?tipo=criar-tabelas, ?tipo=migrar-redis-turso, ?tipo=corrigir-shipment-id ou ?tipo=adicionar-coluna-tipo' });
