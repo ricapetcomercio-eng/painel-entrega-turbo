@@ -162,6 +162,21 @@ FIXIE_URL                # proxy com IP fixo, exigido pela Shopee em produção
 # Cron / segurança de rotas
 CRON_SECRET              # protege /api/collect e /api/marcar-coletado
 DASHBOARD_TOKEN          # opcional; protege /api/dashboard-data (?token=...)
+                         # ⚠️ ARMADILHA: se isso estiver configurado, tv.html
+                         # E index.html PRECISAM ser abertos com ?token=... na
+                         # própria URL (eles repassam pro fetch sozinhos - ver
+                         # `const TOKEN = new URLSearchParams(...)` nos dois
+                         # arquivos), senão a tela fica com tudo zerado (401
+                         # silencioso). Já aconteceu de verdade: alguém
+                         # configurou essa variável sem atualizar o link/script
+                         # que abre a TV, e ninguém percebeu até a tela mostrar
+                         # 0 pedidos por dias. Marcado "Sensitive" na Vercel -
+                         # o valor não é legível de volta nem pela CLI depois
+                         # de criado; se precisar trocar, gera um valor novo
+                         # (não tem como recuperar o antigo) e atualiza em
+                         # TODO lugar que abre a URL com token (RobotOmie/
+                         # abrir_painel_tv.ps1, bookmark de quem usa
+                         # index.html, link "Painel TV" da barra lateral).
 
 # Integrações de estoque (lib/estoqueSaldo.js)
 JSONBIN_ESTOQUE_API_KEY
