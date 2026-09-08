@@ -163,6 +163,48 @@ const TABELAS_SQL = [
     distancia_metros REAL
   )`,
   `CREATE INDEX IF NOT EXISTS idx_registros_ponto_funcionario ON registros_ponto(funcionario_id, registrado_em)`,
+  `CREATE TABLE IF NOT EXISTS solicitacoes_ponto (
+    id TEXT PRIMARY KEY,
+    funcionario_id TEXT NOT NULL,
+    data_referente TEXT NOT NULL,
+    motivo TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pendente',
+    criada_em TEXT NOT NULL,
+    resolvida_em TEXT,
+    resolvida_por TEXT,
+    resposta_admin TEXT
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_solicitacoes_ponto_func ON solicitacoes_ponto(funcionario_id, data_referente)`,
+  `CREATE TABLE IF NOT EXISTS jornadas_ponto (
+    funcionario_id TEXT NOT NULL,
+    dia_semana INTEGER NOT NULL,
+    minutos_previstos INTEGER NOT NULL DEFAULT 0,
+    entrada_ref TEXT,
+    saida_ref TEXT,
+    intervalo_min INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (funcionario_id, dia_semana)
+  )`,
+];
+
+// Colunas adicionadas depois que as tabelas de ponto já existiam. ALTER é
+// idempotente aqui: se a coluna já existe o Turso rejeita com "duplicate
+// column name" e a gente ignora (dá pra rodar criar-tabelas de novo à vontade).
+const ALTERS_PONTO = [
+  "ALTER TABLE funcionarios ADD COLUMN admin INTEGER NOT NULL DEFAULT 0",
+  "ALTER TABLE funcionarios ADD COLUMN cpf TEXT",
+  "ALTER TABLE registros_ponto ADD COLUMN origem TEXT NOT NULL DEFAULT 'batida'",
+  "ALTER TABLE registros_ponto ADD COLUMN motivo TEXT",
+  "ALTER TABLE registros_ponto ADD COLUMN editado_por TEXT",
+  "ALTER TABLE registros_ponto ADD COLUMN editado_em TEXT",
+  "ALTER TABLE registros_ponto ADD COLUMN registrado_em_original TEXT",
+  // Fase 4 -- inalterabilidade: NSR sequencial + hash encadeado. A partir daqui
+  // registros_ponto vira append-only (correção = registro novo de ajuste).
+  "ALTER TABLE registros_ponto ADD COLUMN nsr INTEGER",
+  "ALTER TABLE registros_ponto ADD COLUMN hash TEXT",
+  "ALTER TABLE registros_ponto ADD COLUMN hash_anterior TEXT",
+  "ALTER TABLE registros_ponto ADD COLUMN ref_nsr INTEGER",
+  "ALTER TABLE registros_ponto ADD COLUMN cnpj TEXT",
+  "CREATE TABLE IF NOT EXISTS config_ponto (chave TEXT PRIMARY KEY, valor TEXT)",
 ];
 
 // Corrige shipment_id gravados como "123456789.0" em vez de "123456789" —
@@ -192,6 +234,14 @@ async function debugCriarTabelas(req, res) {
   for (const sql of TABELAS_SQL) {
     await db.execute(sql);
     criadas.push(sql.split('\n')[0].trim());
+  }
+  for (const sql of ALTERS_PONTO) {
+    try {
+      await db.execute(sql);
+      criadas.push(sql);
+    } catch (err) {
+      if (!/duplicate column/i.test(err.message)) throw err;
+    }
   }
   res.status(200).json({ ok: true, tipo: 'criar-tabelas', comandos_executados: criadas.length, detalhe: criadas });
 }
@@ -747,6 +797,120 @@ function hashPin(pin) {
   return crypto.createHash('sha256').update(`${pin}:${process.env.PONTO_PIN_SALT || ''}`).digest('hex');
 }
 
+// O servidor roda em UTC; a loja opera no fuso de São Paulo (UTC-3 fixo desde
+// o fim do horário de verão em 2019). Estas duas funções convertem entre um
+// "AAAA-MM-DD / HH:MM de São Paulo" e o ISO em UTC que vai pro banco.
+function dataFusoLoja(d) {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date(d));
+}
+
+function isoDeDiaHoraLoja(diaAAAAMMDD, horaHHMM) {
+  const [h, m] = String(horaHHMM || '').split(':').map((x) => parseInt(x, 10));
+  if (!Number.isInteger(h) || !Number.isInteger(m) || h < 0 || h > 23 || m < 0 || m > 59) {
+    throw new Error('Hora inválida (use HH:MM).');
+  }
+  const d = new Date(`${diaAAAAMMDD}T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00-03:00`);
+  if (isNaN(d)) throw new Error('Data/hora inválida.');
+  return d.toISOString();
+}
+
+async function funcionarioEhAdmin(db, funcionarioId) {
+  const rs = await db.execute({ sql: 'SELECT admin FROM funcionarios WHERE id = ? AND ativo = 1', args: [funcionarioId] });
+  return !!(rs.rows[0] && rs.rows[0].admin === 1);
+}
+
+// config_ponto: dados do empregador pro comprovante / AFD.
+async function configPonto(db) {
+  const rs = await db.execute('SELECT chave, valor FROM config_ponto');
+  const c = {};
+  rs.rows.forEach((r) => { c[r.chave] = r.valor; });
+  return {
+    empresa: c.empresa || process.env.PONTO_EMPRESA_NOME || 'Ricapet',
+    cnpj: c.cnpj || process.env.PONTO_EMPRESA_CNPJ || '',
+    endereco: c.endereco || process.env.PONTO_EMPRESA_ENDERECO || '',
+  };
+}
+
+// ---- Fase 4: inalterabilidade (NSR + hash encadeado, append-only) ----
+function hashRegistro(hashAnterior, r) {
+  const conteudo = [r.nsr, r.funcionario_id, r.tipo, r.registrado_em, r.origem || 'batida', r.ref_nsr || '', r.cnpj || ''].join('|');
+  return crypto.createHmac('sha256', process.env.PONTO_TOKEN_SECRET || '').update(String(hashAnterior || '') + conteudo).digest('hex');
+}
+
+async function inserirRegistroPonto(db, dados) {
+  const ult = await db.execute('SELECT nsr, hash FROM registros_ponto WHERE nsr IS NOT NULL ORDER BY nsr DESC LIMIT 1');
+  const nsr = (ult.rows[0] ? Number(ult.rows[0].nsr) : 0) + 1;
+  const hashAnterior = ult.rows[0] ? ult.rows[0].hash : '0'.repeat(64);
+  const cfg = await configPonto(db);
+  const linha = {
+    nsr,
+    funcionario_id: dados.funcionario_id,
+    tipo: dados.tipo,
+    registrado_em: dados.registrado_em,
+    origem: dados.origem || 'batida',
+    ref_nsr: dados.ref_nsr || null,
+    cnpj: cfg.cnpj || null,
+  };
+  const hash = hashRegistro(hashAnterior, linha);
+  await db.execute({
+    sql: `INSERT INTO registros_ponto
+          (id, funcionario_id, tipo, registrado_em, metodo_validacao, latitude, longitude, distancia_metros,
+           origem, motivo, editado_por, editado_em, ref_nsr, nsr, hash, hash_anterior, cnpj)
+          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    args: [
+      `${dados.funcionario_id}:${dados.registrado_em}:${nsr}`,
+      dados.funcionario_id, dados.tipo, dados.registrado_em, dados.metodo_validacao || 'edicao',
+      dados.latitude ?? null, dados.longitude ?? null, dados.distancia_metros ?? null,
+      linha.origem, dados.motivo || null, dados.autor_id || null, dados.autor_id ? new Date().toISOString() : null,
+      linha.ref_nsr, nsr, hash, hashAnterior, linha.cnpj,
+    ],
+  });
+  return { nsr, hash, registrado_em: dados.registrado_em };
+}
+
+// Reduz as linhas cruas (batida + ajustes) às marcações vigentes.
+// Cada marcação carrega o `nsr` da linha que a originou -- é por ele que as
+// correções seguintes referenciam (ref_nsr).
+function resolverMarcacoes(rows) {
+  const ordenadas = [...rows].sort((a, b) => (Number(a.nsr) || 0) - (Number(b.nsr) || 0));
+  const efetivas = new Map();
+  for (const r of ordenadas) {
+    const origem = r.origem || 'batida';
+    if (origem === 'batida' || origem === 'ajuste_inclusao') {
+      efetivas.set(Number(r.nsr), {
+        nsr: Number(r.nsr), tipo: r.tipo, registrado_em: r.registrado_em,
+        metodo_validacao: r.metodo_validacao, editado: origem !== 'batida', origem,
+      });
+    } else if (origem === 'ajuste_alteracao') {
+      const alvo = efetivas.get(Number(r.ref_nsr));
+      if (alvo) { alvo.tipo = r.tipo; alvo.registrado_em = r.registrado_em; alvo.editado = true; }
+    } else if (origem === 'ajuste_exclusao') {
+      efetivas.delete(Number(r.ref_nsr));
+    }
+  }
+  return [...efetivas.values()].sort((a, b) => new Date(a.registrado_em) - new Date(b.registrado_em));
+}
+
+// Jornada esperada por dia da semana (0=domingo … 6=sábado), em minutos já
+// líquidos do intervalo. Devolve null quando o funcionário não tem jornada
+// cadastrada -- nesse caso o painel não calcula extras/faltas/saldo dele.
+async function jornadaSemana(db, funcionarioId) {
+  const rs = await db.execute({
+    sql: 'SELECT dia_semana, minutos_previstos, entrada_ref, saida_ref, intervalo_min FROM jornadas_ponto WHERE funcionario_id = ?',
+    args: [funcionarioId],
+  });
+  if (!rs.rows.length) return null;
+  const semana = Array.from({ length: 7 }, () => ({ minutos: 0, entrada: null, saida: null, intervalo: 0 }));
+  rs.rows.forEach((r) => {
+    const d = Number(r.dia_semana);
+    if (d >= 0 && d <= 6) semana[d] = {
+      minutos: Number(r.minutos_previstos) || 0,
+      entrada: r.entrada_ref || null, saida: r.saida_ref || null, intervalo: Number(r.intervalo_min) || 0,
+    };
+  });
+  return semana;
+}
+
 function gerarTokenPonto(funcionario) {
   const payload = Buffer.from(JSON.stringify({ id: funcionario.id, nome: funcionario.nome })).toString('base64url');
   const assinatura = crypto.createHmac('sha256', process.env.PONTO_TOKEN_SECRET || '').update(payload).digest('hex');
@@ -780,7 +944,7 @@ async function debugPontoLogin(req, res) {
 
   const db = getDb();
   const rs = await db.execute({
-    sql: 'SELECT id, nome, pin_hash FROM funcionarios WHERE id = ? AND ativo = 1',
+    sql: 'SELECT id, nome, pin_hash, admin FROM funcionarios WHERE id = ? AND ativo = 1',
     args: [funcionario_id],
   });
   const funcionario = rs.rows[0];
@@ -788,7 +952,10 @@ async function debugPontoLogin(req, res) {
     res.status(401).json({ ok: false, error: 'Nome ou PIN incorreto, tenta de novo.' });
     return;
   }
-  res.status(200).json({ ok: true, tipo: 'ponto-login', token: gerarTokenPonto(funcionario), nome: funcionario.nome });
+  res.status(200).json({
+    ok: true, tipo: 'ponto-login',
+    token: gerarTokenPonto(funcionario), nome: funcionario.nome, admin: funcionario.admin === 1,
+  });
 }
 
 async function debugPontoBater(req, res) {
@@ -802,23 +969,448 @@ async function debugPontoBater(req, res) {
   }
 
   const db = getDb();
-  const ultimo = await db.execute({
-    sql: 'SELECT tipo FROM registros_ponto WHERE funcionario_id = ? ORDER BY registrado_em DESC LIMIT 1',
+  const recentes = await db.execute({
+    sql: `SELECT nsr, tipo, registrado_em, metodo_validacao, origem, ref_nsr
+          FROM registros_ponto WHERE funcionario_id = ? ORDER BY nsr DESC LIMIT 60`,
     args: [funcionario.id],
   });
-  const proximoTipo = ultimo.rows[0]?.tipo === 'entrada' ? 'saida' : 'entrada';
+  const marcacoes = resolverMarcacoes(recentes.rows);
+  const ultima = marcacoes[marcacoes.length - 1];
+  const proximoTipo = ultima && ultima.tipo === 'entrada' ? 'saida' : 'entrada';
   const agora = new Date().toISOString();
 
-  await db.execute({
-    sql: `INSERT INTO registros_ponto (id, funcionario_id, tipo, registrado_em, metodo_validacao, latitude, longitude, distancia_metros)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    args: [
-      `${funcionario.id}:${agora}`, funcionario.id, proximoTipo, agora, metodo_validacao,
-      latitude ?? null, longitude ?? null, distancia_metros ?? null,
-    ],
+  const { nsr, hash } = await inserirRegistroPonto(db, {
+    funcionario_id: funcionario.id, tipo: proximoTipo, registrado_em: agora, metodo_validacao,
+    latitude, longitude, distancia_metros, origem: 'batida',
   });
 
-  res.status(200).json({ ok: true, tipo: 'ponto-bater', registro: proximoTipo, registrado_em: agora, nome: funcionario.nome });
+  const cfg = await configPonto(db);
+  const dadosFunc = await db.execute({ sql: 'SELECT cpf FROM funcionarios WHERE id = ?', args: [funcionario.id] });
+
+  res.status(200).json({
+    ok: true, tipo: 'ponto-bater', registro: proximoTipo, registrado_em: agora, nome: funcionario.nome,
+    comprovante: {
+      nsr, registrado_em: agora, tipo: proximoTipo,
+      empresa: cfg.empresa, cnpj: cfg.cnpj,
+      funcionario: funcionario.nome, cpf: dadosFunc.rows[0]?.cpf || null,
+      codigo: hash.slice(0, 24),
+    },
+  });
+}
+
+// Histórico do próprio funcionário logado -- chamado pelo app (portal
+// Ricapet) com o PONTO_PUBLIC_SECRET. Só devolve as batidas de quem é dono
+// do token, nunca as de outra pessoa.
+async function debugPontoHistorico(req, res) {
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { token }' }); return; }
+  const { token } = req.body || {};
+  const funcionario = verificarTokenPonto(token);
+  if (!funcionario) { res.status(401).json({ ok: false, error: 'Sessão expirada, faça login de novo.' }); return; }
+
+  const limite = Math.min(Math.max(parseInt(req.query.limite, 10) || 600, 1), 2000);
+  const db = getDb();
+  const rs = await db.execute({
+    sql: `SELECT nsr, registrado_em, tipo, metodo_validacao, origem, ref_nsr
+          FROM registros_ponto WHERE funcionario_id = ?
+          ORDER BY nsr DESC LIMIT ${limite}`,
+    args: [funcionario.id],
+  });
+  const sol = await db.execute({
+    sql: `SELECT id, data_referente, motivo, status, criada_em, resolvida_em, resposta_admin
+          FROM solicitacoes_ponto WHERE funcionario_id = ? ORDER BY criada_em DESC LIMIT 90`,
+    args: [funcionario.id],
+  });
+  res.status(200).json({
+    ok: true, tipo: 'ponto-historico', nome: funcionario.nome,
+    hoje: dataFusoLoja(new Date()),
+    jornada: await jornadaSemana(db, funcionario.id),
+    marcacoes: resolverMarcacoes(rs.rows),
+    solicitacoes: sol.rows,
+  });
+}
+
+// -------- Correções do próprio funcionário --------
+// Regra: sem autorização só no MESMO DIA (fuso da loja) e sempre com motivo.
+// Dias anteriores -> só via solicitação (debugPontoSolicitarCorrecao), que um
+// admin resolve no painel.
+async function debugPontoEditarProprio(req, res) {
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { token, acao, ... }' }); return; }
+  const { token, acao, ref_nsr, tipo, hora, motivo } = req.body || {};
+  const funcionario = verificarTokenPonto(token);
+  if (!funcionario) { res.status(401).json({ ok: false, error: 'Sessão expirada, faça login de novo.' }); return; }
+  if (!motivo || !String(motivo).trim()) { res.status(400).json({ error: 'Informe o motivo da alteração.' }); return; }
+  const motivoLimpo = String(motivo).trim().slice(0, 500);
+
+  const db = getDb();
+  const hoje = dataFusoLoja(new Date());
+
+  // marcação vigente referenciada por ref_nsr (tem que ser do funcionário e de hoje)
+  async function marcacaoDeHoje(nsrAlvo) {
+    const rs = await db.execute({
+      sql: `SELECT nsr, tipo, registrado_em, metodo_validacao, origem, ref_nsr
+            FROM registros_ponto WHERE funcionario_id = ? ORDER BY nsr`,
+      args: [funcionario.id],
+    });
+    const m = resolverMarcacoes(rs.rows).find((x) => x.nsr === Number(nsrAlvo));
+    if (!m) { res.status(404).json({ error: 'Batida não encontrada.' }); return null; }
+    if (dataFusoLoja(m.registrado_em) !== hoje) {
+      res.status(403).json({ error: 'Sem autorização, só dá pra mexer nas batidas de hoje. Pra outro dia, peça a correção.' });
+      return null;
+    }
+    return m;
+  }
+
+  try {
+    if (acao === 'adicionar') {
+      if (!['entrada', 'saida'].includes(tipo)) { res.status(400).json({ error: "tipo precisa ser 'entrada' ou 'saida'" }); return; }
+      const iso = isoDeDiaHoraLoja(hoje, hora);
+      const r = await inserirRegistroPonto(db, {
+        funcionario_id: funcionario.id, tipo, registrado_em: iso,
+        origem: 'ajuste_inclusao', motivo: motivoLimpo, autor_id: funcionario.id,
+      });
+      res.status(200).json({ ok: true, tipo: 'ponto-editar-proprio', acao, nsr: r.nsr });
+      return;
+    }
+
+    if (acao === 'editar') {
+      const m = await marcacaoDeHoje(ref_nsr);
+      if (!m) return;
+      const iso = isoDeDiaHoraLoja(hoje, hora);
+      const r = await inserirRegistroPonto(db, {
+        funcionario_id: funcionario.id, tipo: ['entrada', 'saida'].includes(tipo) ? tipo : m.tipo,
+        registrado_em: iso, origem: 'ajuste_alteracao', ref_nsr: m.nsr,
+        motivo: motivoLimpo, autor_id: funcionario.id,
+      });
+      res.status(200).json({ ok: true, tipo: 'ponto-editar-proprio', acao, nsr: r.nsr });
+      return;
+    }
+
+    if (acao === 'remover') {
+      const m = await marcacaoDeHoje(ref_nsr);
+      if (!m) return;
+      const r = await inserirRegistroPonto(db, {
+        funcionario_id: funcionario.id, tipo: m.tipo, registrado_em: m.registrado_em,
+        origem: 'ajuste_exclusao', ref_nsr: m.nsr, motivo: motivoLimpo, autor_id: funcionario.id,
+      });
+      res.status(200).json({ ok: true, tipo: 'ponto-editar-proprio', acao, nsr: r.nsr });
+      return;
+    }
+
+    res.status(400).json({ error: "acao precisa ser 'adicionar', 'editar' ou 'remover'" });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+}
+
+// Pede pro admin liberar a correção de um dia anterior. Só motivo.
+async function debugPontoSolicitarCorrecao(req, res) {
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { token, data, motivo }' }); return; }
+  const { token, data, motivo } = req.body || {};
+  const funcionario = verificarTokenPonto(token);
+  if (!funcionario) { res.status(401).json({ ok: false, error: 'Sessão expirada, faça login de novo.' }); return; }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(data || ''))) { res.status(400).json({ error: 'Data inválida (use AAAA-MM-DD).' }); return; }
+  if (!motivo || !String(motivo).trim()) { res.status(400).json({ error: 'Informe o motivo do pedido.' }); return; }
+
+  const db = getDb();
+  const jaTem = await db.execute({
+    sql: "SELECT id FROM solicitacoes_ponto WHERE funcionario_id = ? AND data_referente = ? AND status = 'pendente'",
+    args: [funcionario.id, data],
+  });
+  if (jaTem.rows[0]) { res.status(409).json({ ok: false, error: 'Você já tem um pedido pendente pra esse dia.' }); return; }
+
+  await db.execute({
+    sql: `INSERT INTO solicitacoes_ponto (id, funcionario_id, data_referente, motivo, status, criada_em)
+          VALUES (?, ?, ?, ?, 'pendente', ?)`,
+    args: [`${funcionario.id}:${data}:${Date.now()}`, funcionario.id, data, String(motivo).trim().slice(0, 500), new Date().toISOString()],
+  });
+  res.status(200).json({ ok: true, tipo: 'ponto-solicitar-correcao', data });
+}
+
+// Só pra gestão (CRON_SECRET) -- marca quem são os admins do painel de ponto.
+async function debugPontoDefinirAdmins(req, res) {
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { nomes: ["Fulano", ...] }' }); return; }
+  const nomes = (req.body && req.body.nomes) || [];
+  if (!Array.isArray(nomes) || !nomes.length) { res.status(400).json({ error: 'Use POST { nomes: [...] }' }); return; }
+  const db = getDb();
+  await db.execute('UPDATE funcionarios SET admin = 0');
+  for (const nome of nomes) {
+    await db.execute({ sql: 'UPDATE funcionarios SET admin = 1 WHERE lower(nome) = lower(?)', args: [String(nome).trim()] });
+  }
+  const rs = await db.execute('SELECT nome FROM funcionarios WHERE admin = 1 ORDER BY nome');
+  res.status(200).json({ ok: true, tipo: 'ponto-definir-admins', admins: rs.rows.map((r) => r.nome) });
+}
+
+// ===== Painel de administração do ponto =====
+// Chamado pelo site do admin (outro domínio) com o PONTO_PUBLIC_SECRET na porta
+// + um token de login (ponto-login) de alguém com admin = 1, que é o gate real.
+async function exigirAdmin(req, res, db) {
+  const funcionario = verificarTokenPonto((req.body && req.body.token) || req.query.token);
+  if (!funcionario) { res.status(401).json({ ok: false, error: 'Sessão expirada, faça login de novo.' }); return null; }
+  if (!(await funcionarioEhAdmin(db, funcionario.id))) {
+    res.status(403).json({ ok: false, error: 'Seu usuário não tem acesso ao painel de ponto.' });
+    return null;
+  }
+  return funcionario;
+}
+
+async function debugPontoAdminVisao(req, res) {
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { token, de, ate }' }); return; }
+  const db = getDb();
+  const admin = await exigirAdmin(req, res, db);
+  if (!admin) return;
+
+  const { de, ate } = req.body || {};
+  const validaDia = (d) => /^\d{4}-\d{2}-\d{2}$/.test(String(d || ''));
+  const inicioISO = validaDia(de) ? isoDeDiaHoraLoja(de, '00:00') : new Date(Date.now() - 30 * 864e5).toISOString();
+  const fimISO = validaDia(ate) ? isoDeDiaHoraLoja(ate, '23:59') : new Date().toISOString();
+
+  // pega uma janela um pouco maior que o período pra não perder ajustes
+  // feitos fora dele que corrigem marcações de dentro.
+  const janelaISO = new Date(new Date(inicioISO).getTime() - 90 * 864e5).toISOString();
+
+  const funcs = await db.execute('SELECT id, nome, admin, cpf FROM funcionarios WHERE ativo = 1 ORDER BY nome');
+  const regs = await db.execute({
+    sql: `SELECT id, funcionario_id, tipo, registrado_em, metodo_validacao, latitude, longitude,
+                 distancia_metros, origem, motivo, editado_por, editado_em, nsr, hash, ref_nsr
+          FROM registros_ponto WHERE registrado_em >= ? ORDER BY nsr`,
+    args: [janelaISO],
+  });
+  const sols = await db.execute(
+    `SELECT id, funcionario_id, data_referente, motivo, status, criada_em, resolvida_em, resolvida_por, resposta_admin
+     FROM solicitacoes_ponto ORDER BY criada_em DESC LIMIT 300`
+  );
+
+  const jorn = await db.execute(
+    'SELECT funcionario_id, dia_semana, minutos_previstos, entrada_ref, saida_ref, intervalo_min FROM jornadas_ponto'
+  );
+
+  const porFunc = new Map(funcs.rows.map((f) => [f.id, {
+    id: f.id, nome: f.nome, admin: f.admin === 1, cpf: f.cpf || null,
+    registros: [], marcacoes: [], solicitacoes: [], jornada: null,
+  }]));
+  const rawPorFunc = new Map();
+  regs.rows.forEach((r) => {
+    if (!rawPorFunc.has(r.funcionario_id)) rawPorFunc.set(r.funcionario_id, []);
+    rawPorFunc.get(r.funcionario_id).push(r);
+    const f = porFunc.get(r.funcionario_id);
+    if (f && r.registrado_em >= inicioISO && r.registrado_em <= fimISO) f.registros.push(r);
+  });
+  for (const [fid, linhas] of rawPorFunc) {
+    const f = porFunc.get(fid);
+    if (f) f.marcacoes = resolverMarcacoes(linhas).filter((m) => m.registrado_em >= inicioISO && m.registrado_em <= fimISO);
+  }
+  sols.rows.forEach((s) => { const f = porFunc.get(s.funcionario_id); if (f) f.solicitacoes.push(s); });
+  jorn.rows.forEach((j) => {
+    const f = porFunc.get(j.funcionario_id);
+    if (!f) return;
+    if (!f.jornada) f.jornada = Array.from({ length: 7 }, () => ({ minutos: 0, entrada: null, saida: null, intervalo: 0 }));
+    const d = Number(j.dia_semana);
+    if (d >= 0 && d <= 6) f.jornada[d] = {
+      minutos: Number(j.minutos_previstos) || 0, entrada: j.entrada_ref || null,
+      saida: j.saida_ref || null, intervalo: Number(j.intervalo_min) || 0,
+    };
+  });
+
+  res.status(200).json({
+    ok: true, tipo: 'ponto-admin-visao',
+    hoje: dataFusoLoja(new Date()),
+    periodo: { de: validaDia(de) ? de : dataFusoLoja(inicioISO), ate: validaDia(ate) ? ate : dataFusoLoja(fimISO) },
+    funcionarios: [...porFunc.values()],
+    pendentes: sols.rows.filter((s) => s.status === 'pendente').length,
+  });
+}
+
+// Admin define/atualiza a jornada de um funcionário. dias = array de
+// { dia_semana (0-6), entrada "HH:MM", saida "HH:MM", intervalo_min }.
+// Dia ausente do array vira folga (minutos 0).
+async function debugPontoAdminJornada(req, res) {
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { token, funcionario_id, dias }' }); return; }
+  const db = getDb();
+  const admin = await exigirAdmin(req, res, db);
+  if (!admin) return;
+
+  const { funcionario_id, dias } = req.body || {};
+  if (!funcionario_id || !Array.isArray(dias)) { res.status(400).json({ error: 'Use POST { funcionario_id, dias: [...] }' }); return; }
+
+  const minutosEntre = (ent, sai, inter) => {
+    const p = (s) => { const [h, m] = String(s).split(':').map(Number); return h * 60 + m; };
+    let bruto = p(sai) - p(ent);
+    if (bruto < 0) bruto += 1440;
+    return Math.max(bruto - (Number(inter) || 0), 0);
+  };
+
+  await db.execute({ sql: 'DELETE FROM jornadas_ponto WHERE funcionario_id = ?', args: [funcionario_id] });
+  for (const d of dias) {
+    const ds = Number(d.dia_semana);
+    if (!(ds >= 0 && ds <= 6) || !/^\d{1,2}:\d{2}$/.test(d.entrada || '') || !/^\d{1,2}:\d{2}$/.test(d.saida || '')) continue;
+    const inter = Number(d.intervalo_min) || 0;
+    await db.execute({
+      sql: `INSERT INTO jornadas_ponto (funcionario_id, dia_semana, minutos_previstos, entrada_ref, saida_ref, intervalo_min)
+            VALUES (?, ?, ?, ?, ?, ?)`,
+      args: [funcionario_id, ds, minutosEntre(d.entrada, d.saida, inter), d.entrada, d.saida, inter],
+    });
+  }
+  res.status(200).json({ ok: true, tipo: 'ponto-admin-jornada', funcionario_id, jornada: await jornadaSemana(db, funcionario_id) });
+}
+
+// Só pra gestão (CRON_SECRET) -- bulk das jornadas (usado pelo script de setup).
+async function debugPontoConfigJornadas(req, res) {
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { jornadas: { <funcionario_id>: [dias...] } }' }); return; }
+  const jornadas = (req.body && req.body.jornadas) || {};
+  const db = getDb();
+  const minutosEntre = (ent, sai, inter) => {
+    const p = (s) => { const [h, m] = String(s).split(':').map(Number); return h * 60 + m; };
+    let bruto = p(sai) - p(ent);
+    if (bruto < 0) bruto += 1440;
+    return Math.max(bruto - (Number(inter) || 0), 0);
+  };
+  const feitos = [];
+  for (const [fid, dias] of Object.entries(jornadas)) {
+    await db.execute({ sql: 'DELETE FROM jornadas_ponto WHERE funcionario_id = ?', args: [fid] });
+    for (const d of dias || []) {
+      const inter = Number(d.intervalo_min) || 0;
+      await db.execute({
+        sql: `INSERT INTO jornadas_ponto (funcionario_id, dia_semana, minutos_previstos, entrada_ref, saida_ref, intervalo_min)
+              VALUES (?, ?, ?, ?, ?, ?)`,
+        args: [fid, Number(d.dia_semana), minutosEntre(d.entrada, d.saida, inter), d.entrada, d.saida, inter],
+      });
+    }
+    feitos.push(fid);
+  }
+  res.status(200).json({ ok: true, tipo: 'ponto-config-jornadas', funcionarios: feitos });
+}
+
+async function debugPontoAdminEditar(req, res) {
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { token, funcionario_id, acao, ... }' }); return; }
+  const db = getDb();
+  const admin = await exigirAdmin(req, res, db);
+  if (!admin) return;
+
+  const { funcionario_id, acao, ref_nsr, tipo, dia, hora, motivo } = req.body || {};
+  if (!motivo || !String(motivo).trim()) { res.status(400).json({ error: 'Informe o motivo da alteração.' }); return; }
+  const motivoLimpo = String(motivo).trim().slice(0, 500);
+
+  try {
+    if (acao === 'adicionar') {
+      if (!funcionario_id || !['entrada', 'saida'].includes(tipo)) { res.status(400).json({ error: 'Informe funcionário, tipo e hora.' }); return; }
+      const iso = isoDeDiaHoraLoja(dia, hora);
+      const r = await inserirRegistroPonto(db, {
+        funcionario_id, tipo, registrado_em: iso, origem: 'ajuste_inclusao',
+        motivo: motivoLimpo, autor_id: admin.id,
+      });
+      res.status(200).json({ ok: true, tipo: 'ponto-admin-editar', acao, nsr: r.nsr });
+      return;
+    }
+
+    // acha a marcação vigente pelo NSR
+    const rs = await db.execute({
+      sql: `SELECT nsr, funcionario_id, tipo, registrado_em, origem, ref_nsr
+            FROM registros_ponto WHERE funcionario_id = ? ORDER BY nsr`,
+      args: [funcionario_id],
+    });
+    const m = resolverMarcacoes(rs.rows).find((x) => x.nsr === Number(ref_nsr));
+    if (!m) { res.status(404).json({ error: 'Batida não encontrada.' }); return; }
+
+    if (acao === 'remover') {
+      const r = await inserirRegistroPonto(db, {
+        funcionario_id, tipo: m.tipo, registrado_em: m.registrado_em,
+        origem: 'ajuste_exclusao', ref_nsr: m.nsr, motivo: motivoLimpo, autor_id: admin.id,
+      });
+      res.status(200).json({ ok: true, tipo: 'ponto-admin-editar', acao, nsr: r.nsr });
+      return;
+    }
+    if (acao === 'editar') {
+      const diaBase = /^\d{4}-\d{2}-\d{2}$/.test(String(dia || '')) ? dia : dataFusoLoja(m.registrado_em);
+      const iso = isoDeDiaHoraLoja(diaBase, hora);
+      const r = await inserirRegistroPonto(db, {
+        funcionario_id, tipo: ['entrada', 'saida'].includes(tipo) ? tipo : m.tipo,
+        registrado_em: iso, origem: 'ajuste_alteracao', ref_nsr: m.nsr,
+        motivo: motivoLimpo, autor_id: admin.id,
+      });
+      res.status(200).json({ ok: true, tipo: 'ponto-admin-editar', acao, nsr: r.nsr });
+      return;
+    }
+    res.status(400).json({ error: "acao precisa ser 'adicionar', 'editar' ou 'remover'" });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+}
+
+// Verifica a cadeia de hash de todos os registros (só admin).
+async function debugPontoAdminIntegridade(req, res) {
+  const db = getDb();
+  const admin = await exigirAdmin(req, res, db);
+  if (!admin) return;
+
+  const rs = await db.execute('SELECT nsr, funcionario_id, tipo, registrado_em, origem, ref_nsr, cnpj, hash, hash_anterior FROM registros_ponto WHERE nsr IS NOT NULL ORDER BY nsr');
+  let anterior = '0'.repeat(64);
+  const quebras = [];
+  for (const r of rs.rows) {
+    const esperado = hashRegistro(anterior, r);
+    if (r.hash !== esperado) quebras.push({ nsr: Number(r.nsr), registrado_em: r.registrado_em });
+    anterior = r.hash;
+  }
+  res.status(200).json({
+    ok: true, tipo: 'ponto-admin-integridade',
+    total: rs.rows.length, ultimo_nsr: rs.rows.length ? Number(rs.rows[rs.rows.length - 1].nsr) : 0,
+    integro: quebras.length === 0, quebras,
+  });
+}
+
+// Bootstrap (CRON_SECRET): atribui NSR + cadeia de hash aos registros que já
+// existiam antes da Fase 4. Roda uma vez. Idempotente: se todos já têm nsr,
+// não faz nada.
+async function debugPontoReindexarCadeia(req, res) {
+  const db = getDb();
+  const cfg = await configPonto(db);
+  const rs = await db.execute("SELECT id, funcionario_id, tipo, registrado_em, origem FROM registros_ponto ORDER BY registrado_em, id");
+  let anterior = '0'.repeat(64);
+  let n = 0;
+  for (const r of rs.rows) {
+    n += 1;
+    const origem = (r.origem && ['batida', 'ajuste_inclusao', 'ajuste_alteracao', 'ajuste_exclusao'].includes(r.origem)) ? r.origem : 'batida';
+    const linha = { nsr: n, funcionario_id: r.funcionario_id, tipo: r.tipo, registrado_em: r.registrado_em, origem, ref_nsr: '', cnpj: cfg.cnpj || '' };
+    const hash = hashRegistro(anterior, linha);
+    await db.execute({
+      sql: "UPDATE registros_ponto SET nsr = ?, hash = ?, hash_anterior = ?, origem = ?, cnpj = ?, ref_nsr = NULL WHERE id = ?",
+      args: [n, hash, anterior, origem, cfg.cnpj || null, r.id],
+    });
+    anterior = hash;
+  }
+  res.status(200).json({ ok: true, tipo: 'ponto-reindexar-cadeia', registros_reindexados: n });
+}
+
+// Config do empregador pro comprovante/AFD (CRON_SECRET).
+async function debugPontoConfigEmpresa(req, res) {
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { empresa, cnpj, endereco }' }); return; }
+  const { empresa, cnpj, endereco } = req.body || {};
+  const db = getDb();
+  for (const [chave, valor] of [['empresa', empresa], ['cnpj', cnpj], ['endereco', endereco]]) {
+    if (valor == null) continue;
+    await db.execute({
+      sql: 'INSERT INTO config_ponto (chave, valor) VALUES (?, ?) ON CONFLICT(chave) DO UPDATE SET valor = excluded.valor',
+      args: [chave, String(valor)],
+    });
+  }
+  res.status(200).json({ ok: true, tipo: 'ponto-config-empresa', config: await configPonto(db) });
+}
+
+async function debugPontoAdminResolver(req, res) {
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { token, solicitacao_id, decisao }' }); return; }
+  const db = getDb();
+  const admin = await exigirAdmin(req, res, db);
+  if (!admin) return;
+
+  const { solicitacao_id, decisao, resposta } = req.body || {};
+  if (!['aprovar', 'recusar'].includes(decisao)) { res.status(400).json({ error: "decisao precisa ser 'aprovar' ou 'recusar'" }); return; }
+  const status = decisao === 'aprovar' ? 'aprovada' : 'recusada';
+  const r = await db.execute({
+    sql: `UPDATE solicitacoes_ponto SET status = ?, resolvida_em = ?, resolvida_por = ?, resposta_admin = ?
+          WHERE id = ? AND status = 'pendente'`,
+    args: [status, new Date().toISOString(), admin.id, String(resposta || '').slice(0, 500), solicitacao_id],
+  });
+  if (!r.rowsAffected) { res.status(409).json({ ok: false, error: 'Pedido não encontrado ou já resolvido.' }); return; }
+  res.status(200).json({ ok: true, tipo: 'ponto-admin-resolver', status });
 }
 
 // Só pra gestão (protegido pelo CRON_SECRET, não pelo secret público) --
@@ -836,11 +1428,10 @@ async function debugPontoRelatorio(req, res) {
   res.status(200).json({ ok: true, tipo: 'ponto-relatorio', periodo_dias: dias, total: rs.rows.length, registros: rs.rows });
 }
 
-// Só pra gestão -- cadastra/atualiza um funcionário (nome + PIN). Rode uma
-// vez por pessoa ao configurar o Ponto, ou quando o PIN de alguém mudar.
+// Só pra gestão -- cadastra/atualiza um funcionário (nome + PIN + CPF opcional).
 async function debugPontoCadastrarFuncionario(req, res) {
-  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { id, nome, pin }' }); return; }
-  const { id, nome, pin } = req.body || {};
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { id, nome, pin, cpf? }' }); return; }
+  const { id, nome, pin, cpf } = req.body || {};
   if (!id || !nome || !pin) { res.status(400).json({ error: 'Use POST { id, nome, pin }' }); return; }
 
   const db = getDb();
@@ -849,13 +1440,91 @@ async function debugPontoCadastrarFuncionario(req, res) {
           ON CONFLICT(id) DO UPDATE SET nome = excluded.nome, pin_hash = excluded.pin_hash, ativo = 1`,
     args: [id, nome, hashPin(pin), new Date().toISOString()],
   });
+  if (cpf != null) {
+    await db.execute({ sql: 'UPDATE funcionarios SET cpf = ? WHERE id = ?', args: [String(cpf).replace(/\D/g, '') || null, id] });
+  }
   res.status(200).json({ ok: true, tipo: 'ponto-cadastrar-funcionario', id, nome });
+}
+
+// Admin: define o CPF de um funcionário (pro comprovante/AFD).
+async function debugPontoAdminCpf(req, res) {
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { token, funcionario_id, cpf }' }); return; }
+  const db = getDb();
+  const admin = await exigirAdmin(req, res, db);
+  if (!admin) return;
+  const { funcionario_id, cpf } = req.body || {};
+  if (!funcionario_id) { res.status(400).json({ error: 'Informe funcionario_id.' }); return; }
+  await db.execute({ sql: 'UPDATE funcionarios SET cpf = ? WHERE id = ?', args: [String(cpf || '').replace(/\D/g, '') || null, funcionario_id] });
+  res.status(200).json({ ok: true, tipo: 'ponto-admin-cpf' });
+}
+
+// AFD -- Arquivo Fonte de Dados (Portaria MTP 671/2021), best-effort.
+// ⚠️ O layout exato deve ser conferido com o contador / software do DP antes
+// de usar oficialmente -- este arquivo serve pra conferência e importação
+// assistida, não como AFD assinado de REP-P certificado.
+async function debugPontoAdminAFD(req, res) {
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { token, de, ate }' }); return; }
+  const db = getDb();
+  const admin = await exigirAdmin(req, res, db);
+  if (!admin) return;
+
+  const { de, ate } = req.body || {};
+  const validaDia = (d) => /^\d{4}-\d{2}-\d{2}$/.test(String(d || ''));
+  const inicioISO = validaDia(de) ? isoDeDiaHoraLoja(de, '00:00') : new Date(Date.now() - 30 * 864e5).toISOString();
+  const fimISO = validaDia(ate) ? isoDeDiaHoraLoja(ate, '23:59') : new Date().toISOString();
+  const cfg = await configPonto(db);
+
+  const funcs = await db.execute('SELECT id, nome, cpf FROM funcionarios');
+  const cpfPorId = new Map(funcs.rows.map((f) => [f.id, (f.cpf || '').replace(/\D/g, '')]));
+
+  const rs = await db.execute({
+    sql: `SELECT nsr, funcionario_id, tipo, registrado_em, origem, ref_nsr, hash
+          FROM registros_ponto WHERE nsr IS NOT NULL AND registrado_em >= ? AND registrado_em <= ? ORDER BY nsr`,
+    args: [inicioISO, fimISO],
+  });
+
+  const isoLoja = (s) => {
+    const d = new Date(s);
+    const p = (n) => String(n).padStart(2, '0');
+    const t = new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/Sao_Paulo', hour12: false,
+      year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(d);
+    return t.replace(' ', 'T') + '-03:00';
+  };
+  const pad = (v, n) => String(v == null ? '' : v).padEnd(n).slice(0, n);
+  const padN = (v, n) => String(v == null ? '' : v).replace(/\D/g, '').padStart(n, '0').slice(-n);
+
+  const linhas = [];
+  const cnpj14 = padN(cfg.cnpj, 14);
+  // tipo 1 -- cabeçalho
+  linhas.push(`${padN('', 9)}1${'1'}${cnpj14}${padN('', 12)}${pad(cfg.empresa, 150)}${isoLoja(inicioISO)}${isoLoja(fimISO)}${isoLoja(new Date().toISOString())}`);
+  // tipo 3 -- marcações (batida + ajustes)
+  let qtd3 = 0;
+  for (const r of rs.rows) {
+    const flag = r.origem === 'batida' ? 'P' : r.origem === 'ajuste_exclusao' ? 'X' : 'A';
+    linhas.push(`${padN(r.nsr, 9)}3${isoLoja(r.registrado_em)}${padN(cpfPorId.get(r.funcionario_id), 12)}${flag}${r.hash || ''}`);
+    qtd3 += 1;
+  }
+  // tipo 9 -- trailer
+  linhas.push(`${padN('', 9)}9${padN(0, 9)}${padN(0, 9)}${padN(qtd3, 9)}${padN(0, 9)}${padN(0, 9)}9`);
+
+  const afd = linhas.join('\r\n') + '\r\n';
+  res.status(200).json({
+    ok: true, tipo: 'ponto-admin-afd',
+    nome_arquivo: `AFD_${(cfg.cnpj || 'empresa').replace(/\D/g, '')}_${validaDia(de) ? de : dataFusoLoja(inicioISO)}_${validaDia(ate) ? ate : dataFusoLoja(fimISO)}.txt`,
+    registros: qtd3, afd,
+    aviso: 'Layout best-effort da Portaria 671/2021 (P=batida, A=ajuste, X=exclusão). Confira com o contador/DP antes de uso oficial.',
+  });
 }
 
 // Rotas chamadas direto do app nativo (Ricapet) sem exigir o CRON_SECRET --
 // usam o PONTO_PUBLIC_SECRET, próprio e mais fraco, mesma lógica do
 // ESTOQUE_PUBLIC_SECRET abaixo.
-const TIPOS_PUBLICOS_PONTO = new Set(['ponto-funcionarios', 'ponto-login', 'ponto-bater']);
+const TIPOS_PUBLICOS_PONTO = new Set([
+  'ponto-funcionarios', 'ponto-login', 'ponto-bater', 'ponto-historico',
+  'ponto-editar-proprio', 'ponto-solicitar-correcao',
+  'ponto-admin-visao', 'ponto-admin-editar', 'ponto-admin-resolver', 'ponto-admin-jornada',
+  'ponto-admin-integridade', 'ponto-admin-cpf', 'ponto-admin-afd',
+]);
 
 // Rotas chamadas direto do navegador (botão/tela em painel-estoque-adesivo,
 // outro projeto) — usam o ESTOQUE_PUBLIC_SECRET, mais fraco, em vez do
@@ -1009,6 +1678,20 @@ module.exports = async (req, res) => {
     if (req.query.tipo === 'ponto-funcionarios') return await debugPontoFuncionarios(req, res);
     if (req.query.tipo === 'ponto-login') return await debugPontoLogin(req, res);
     if (req.query.tipo === 'ponto-bater') return await debugPontoBater(req, res);
+    if (req.query.tipo === 'ponto-historico') return await debugPontoHistorico(req, res);
+    if (req.query.tipo === 'ponto-editar-proprio') return await debugPontoEditarProprio(req, res);
+    if (req.query.tipo === 'ponto-solicitar-correcao') return await debugPontoSolicitarCorrecao(req, res);
+    if (req.query.tipo === 'ponto-definir-admins') return await debugPontoDefinirAdmins(req, res);
+    if (req.query.tipo === 'ponto-admin-visao') return await debugPontoAdminVisao(req, res);
+    if (req.query.tipo === 'ponto-admin-editar') return await debugPontoAdminEditar(req, res);
+    if (req.query.tipo === 'ponto-admin-resolver') return await debugPontoAdminResolver(req, res);
+    if (req.query.tipo === 'ponto-admin-jornada') return await debugPontoAdminJornada(req, res);
+    if (req.query.tipo === 'ponto-admin-integridade') return await debugPontoAdminIntegridade(req, res);
+    if (req.query.tipo === 'ponto-admin-cpf') return await debugPontoAdminCpf(req, res);
+    if (req.query.tipo === 'ponto-admin-afd') return await debugPontoAdminAFD(req, res);
+    if (req.query.tipo === 'ponto-config-jornadas') return await debugPontoConfigJornadas(req, res);
+    if (req.query.tipo === 'ponto-config-empresa') return await debugPontoConfigEmpresa(req, res);
+    if (req.query.tipo === 'ponto-reindexar-cadeia') return await debugPontoReindexarCadeia(req, res);
     if (req.query.tipo === 'ponto-relatorio') return await debugPontoRelatorio(req, res);
     if (req.query.tipo === 'ponto-cadastrar-funcionario') return await debugPontoCadastrarFuncionario(req, res);
     res.status(400).json({ error: 'Use ?tipo=ml-claims, ?tipo=ml-shipment, ?tipo=ml-sla, ?tipo=shopee-returns, ?tipo=shopee-channels, ?tipo=criar-tabelas, ?tipo=migrar-redis-turso, ?tipo=corrigir-shipment-id ou ?tipo=adicionar-coluna-tipo' });
