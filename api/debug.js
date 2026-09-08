@@ -986,15 +986,14 @@ async function debugPontoFuncionarios(req, res) {
 }
 
 async function debugPontoLogin(req, res) {
-  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { funcionario_id, pin }' }); return; }
-  const { funcionario_id, pin } = req.body || {};
-  if (!funcionario_id || !pin) { res.status(400).json({ error: 'Use POST { funcionario_id, pin }' }); return; }
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { funcionario_id | nome, pin }' }); return; }
+  const { funcionario_id, nome, pin } = req.body || {};
+  if ((!funcionario_id && !nome) || !pin) { res.status(400).json({ error: 'Use POST { funcionario_id | nome, pin }' }); return; }
 
   const db = getDb();
-  const rs = await db.execute({
-    sql: 'SELECT id, nome, pin_hash, admin FROM funcionarios WHERE id = ? AND ativo = 1',
-    args: [funcionario_id],
-  });
+  const rs = funcionario_id
+    ? await db.execute({ sql: 'SELECT id, nome, pin_hash, admin FROM funcionarios WHERE id = ? AND ativo = 1', args: [funcionario_id] })
+    : await db.execute({ sql: 'SELECT id, nome, pin_hash, admin FROM funcionarios WHERE lower(nome) = lower(?) AND ativo = 1', args: [String(nome).trim()] });
   const funcionario = rs.rows[0];
   if (!funcionario || funcionario.pin_hash !== hashPin(pin)) {
     res.status(401).json({ ok: false, error: 'Nome ou PIN incorreto, tenta de novo.' });
