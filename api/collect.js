@@ -405,6 +405,22 @@ async function enriquecerDevolucoesShopee(loja, erros) {
   }
 }
 
+// Instrumentação temporária pra medir o custo real de CPU de cada bloco
+// (Flex, Todos ML, Shopee, Devoluções) - ver CLAUDE.md, seção de orçamento
+// de CPU. Os números de antes eram estimativa por frequência, não medição;
+// isso loga o tempo de parede de cada bloco pra puxar dos logs da Vercel
+// depois de rodar um tempo, e decidir com dado real quais throttles dá
+// pra alargar. Remover depois de decidido (baixo custo, mas é só ruído
+// permanente se ficar pra sempre).
+async function medirTempo(nome, fn) {
+  const inicio = Date.now();
+  try {
+    return await fn();
+  } finally {
+    console.log(`[collect-timing] ${nome}=${Date.now() - inicio}ms`);
+  }
+}
+
 module.exports = async (req, res) => {
   const cronSecret = process.env.CRON_SECRET;
   const isVercelCron = req.headers['x-vercel-cron'] !== undefined;
@@ -436,6 +452,7 @@ module.exports = async (req, res) => {
   let totalShopeeTurbo = null; // null = não rodou nesta execução
 
   if (deveRodarShopee) {
+    await medirTempo('shopee', async () => {
     await kvSet('entrega_turbo:ultima_execucao_shopee_ts', agora);
 
     let pedidosShopee = [];
@@ -494,13 +511,16 @@ module.exports = async (req, res) => {
     };
     await kvSet('entrega_turbo:ultima_coleta', resultado);
     totalShopeeTurbo = resultado.total;
+    });
   }
 
   // -------- Mercado Livre: roda toda vez (não usa proxy, sem limite de cota) --------
-  for (const conta of Object.keys(SELLER_IDS)) {
-    await coletarNovosFlex(conta, erros);
-  }
-  await reverificarPendentesFlex(erros);
+  await medirTempo('flex', async () => {
+    for (const conta of Object.keys(SELLER_IDS)) {
+      await coletarNovosFlex(conta, erros);
+    }
+    await reverificarPendentesFlex(erros);
+  });
 
   const pedidosFlexAtuais = await listarRecentes(HORAS_JANELA_FLEX);
   const resultadoFlex = {
@@ -518,23 +538,27 @@ module.exports = async (req, res) => {
   const ultimaExecucaoTodosML = await kvGet('entrega_turbo:ultima_execucao_todos_ml_ts');
   const deveRodarTodosML = !ultimaExecucaoTodosML || (agora - ultimaExecucaoTodosML >= INTERVALO_MINIMO_TODOS_ML_MS);
   if (deveRodarTodosML) {
-    await kvSet('entrega_turbo:ultima_execucao_todos_ml_ts', agora);
-    for (const conta of Object.keys(SELLER_IDS)) {
-      await coletarNovosParaHistoricoTodos(conta, erros);
-    }
+    await medirTempo('todos_ml', async () => {
+      await kvSet('entrega_turbo:ultima_execucao_todos_ml_ts', agora);
+      for (const conta of Object.keys(SELLER_IDS)) {
+        await coletarNovosParaHistoricoTodos(conta, erros);
+      }
+    });
   }
 
   // -------- Devoluções: enriquece pedidos já coletados, throttle próprio --------
   const ultimaExecucaoDevolucoes = await kvGet('entrega_turbo:ultima_execucao_devolucoes_ts');
   const deveRodarDevolucoes = !ultimaExecucaoDevolucoes || (agora - ultimaExecucaoDevolucoes >= INTERVALO_MINIMO_DEVOLUCOES_MS);
   if (deveRodarDevolucoes) {
-    await kvSet('entrega_turbo:ultima_execucao_devolucoes_ts', agora);
-    for (const conta of Object.keys(SELLER_IDS)) {
-      await enriquecerDevolucoes(conta, erros);
-    }
-    for (const loja of LOJAS_SHOPEE) {
-      await enriquecerDevolucoesShopee(loja, erros);
-    }
+    await medirTempo('devolucoes', async () => {
+      await kvSet('entrega_turbo:ultima_execucao_devolucoes_ts', agora);
+      for (const conta of Object.keys(SELLER_IDS)) {
+        await enriquecerDevolucoes(conta, erros);
+      }
+      for (const loja of LOJAS_SHOPEE) {
+        await enriquecerDevolucoesShopee(loja, erros);
+      }
+    });
   }
 
   // Se a Shopee não rodou nesta execução, mantém o último total conhecido
