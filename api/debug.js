@@ -1006,6 +1006,15 @@ async function debugPontoLogin(req, res) {
   });
 }
 
+// Valida um token de login do portal (usado pelo checkout_bipagem.py pra
+// criar a sessão da expedição sem pedir senha de novo).
+async function debugPontoValidarToken(req, res) {
+  const token = (req.body && req.body.token) || req.query.token;
+  const funcionario = verificarTokenPonto(token);
+  if (!funcionario) { res.status(401).json({ ok: false, error: 'Token inválido ou expirado.' }); return; }
+  res.status(200).json({ ok: true, tipo: 'ponto-validar-token', id: funcionario.id, nome: funcionario.nome });
+}
+
 async function debugPontoBater(req, res) {
   if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { token, metodo_validacao, ... }' }); return; }
   const { token, metodo_validacao, latitude, longitude, distancia_metros } = req.body || {};
@@ -1651,7 +1660,7 @@ async function debugPontoAdminAFD(req, res) {
 // ESTOQUE_PUBLIC_SECRET abaixo.
 const TIPOS_PUBLICOS_PONTO = new Set([
   'ponto-funcionarios', 'ponto-login', 'ponto-bater', 'ponto-historico',
-  'ponto-editar-proprio', 'ponto-solicitar-correcao',
+  'ponto-editar-proprio', 'ponto-solicitar-correcao', 'ponto-validar-token',
   'ponto-admin-visao', 'ponto-admin-editar', 'ponto-admin-resolver', 'ponto-admin-jornada',
   'ponto-admin-integridade', 'ponto-admin-cpf', 'ponto-admin-afd', 'ponto-admin-abono',
   'ponto-admin-empresa',
@@ -1808,6 +1817,7 @@ module.exports = async (req, res) => {
     if (req.query.tipo === 'balanco-mensal') return await debugBalancoMensal(req, res);
     if (req.query.tipo === 'ponto-funcionarios') return await debugPontoFuncionarios(req, res);
     if (req.query.tipo === 'ponto-login') return await debugPontoLogin(req, res);
+    if (req.query.tipo === 'ponto-validar-token') return await debugPontoValidarToken(req, res);
     if (req.query.tipo === 'ponto-bater') return await debugPontoBater(req, res);
     if (req.query.tipo === 'ponto-historico') return await debugPontoHistorico(req, res);
     if (req.query.tipo === 'ponto-editar-proprio') return await debugPontoEditarProprio(req, res);
