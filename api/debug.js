@@ -828,6 +828,45 @@ async function funcionarioEhAdmin(db, funcionarioId) {
   return !!(rs.rows[0] && rs.rows[0].admin === 1);
 }
 
+// Auto-migração das tabelas de ponto -- roda na primeira chamada que precisar
+// (dispensa o script com CRON_SECRET). Idempotente e barata depois da 1ª vez.
+let _esquemaPontoOk = false;
+async function garantirEsquemaPonto(db) {
+  if (_esquemaPontoOk) return;
+  try {
+    await db.execute('SELECT nsr, hash, ref_nsr, cnpj FROM registros_ponto LIMIT 1');
+    await db.execute('SELECT 1 FROM abonos_ponto LIMIT 1');
+    await db.execute('SELECT 1 FROM config_ponto LIMIT 1');
+    _esquemaPontoOk = true;
+    return;
+  } catch (e) { /* falta coluna/tabela -> migra abaixo */ }
+
+  for (const sql of TABELAS_SQL) {
+    if (!/(_ponto|funcionarios)/.test(sql)) continue;
+    try { await db.execute(sql); } catch (e) { if (!/already exists/i.test(e.message)) throw e; }
+  }
+  for (const sql of ALTERS_PONTO) {
+    try { await db.execute(sql); } catch (e) { if (!/duplicate column/i.test(e.message)) throw e; }
+  }
+  const rs = await db.execute('SELECT id, funcionario_id, tipo, registrado_em, origem, nsr FROM registros_ponto ORDER BY registrado_em, id');
+  if (rs.rows.some((r) => r.nsr == null)) {
+    const cfg = await configPonto(db);
+    let anterior = '0'.repeat(64);
+    let n = 0;
+    for (const r of rs.rows) {
+      n += 1;
+      const origem = ['batida', 'ajuste_inclusao', 'ajuste_alteracao', 'ajuste_exclusao'].includes(r.origem) ? r.origem : 'batida';
+      const hash = hashRegistro(anterior, { nsr: n, funcionario_id: r.funcionario_id, tipo: r.tipo, registrado_em: r.registrado_em, origem, ref_nsr: '', cnpj: cfg.cnpj || '' });
+      await db.execute({
+        sql: 'UPDATE registros_ponto SET nsr = ?, hash = ?, hash_anterior = ?, origem = ?, cnpj = ?, ref_nsr = NULL WHERE id = ?',
+        args: [n, hash, anterior, origem, cfg.cnpj || null, r.id],
+      });
+      anterior = hash;
+    }
+  }
+  _esquemaPontoOk = true;
+}
+
 // config_ponto: dados do empregador pro comprovante / AFD.
 async function configPonto(db) {
   const rs = await db.execute('SELECT chave, valor FROM config_ponto');
@@ -978,6 +1017,7 @@ async function debugPontoBater(req, res) {
   }
 
   const db = getDb();
+  await garantirEsquemaPonto(db);
   const recentes = await db.execute({
     sql: `SELECT nsr, tipo, registrado_em, metodo_validacao, origem, ref_nsr
           FROM registros_ponto WHERE funcionario_id = ? ORDER BY nsr DESC LIMIT 60`,
@@ -1018,6 +1058,7 @@ async function debugPontoHistorico(req, res) {
 
   const limite = Math.min(Math.max(parseInt(req.query.limite, 10) || 600, 1), 2000);
   const db = getDb();
+  await garantirEsquemaPonto(db);
   const rs = await db.execute({
     sql: `SELECT nsr, registrado_em, tipo, metodo_validacao, origem, ref_nsr
           FROM registros_ponto WHERE funcionario_id = ?
@@ -1056,6 +1097,7 @@ async function debugPontoEditarProprio(req, res) {
   const motivoLimpo = String(motivo).trim().slice(0, 500);
 
   const db = getDb();
+  await garantirEsquemaPonto(db);
   const hoje = dataFusoLoja(new Date());
 
   // marcação vigente referenciada por ref_nsr (tem que ser do funcionário e de hoje)
@@ -1126,6 +1168,7 @@ async function debugPontoSolicitarCorrecao(req, res) {
   if (!motivo || !String(motivo).trim()) { res.status(400).json({ error: 'Informe o motivo do pedido.' }); return; }
 
   const db = getDb();
+  await garantirEsquemaPonto(db);
   const jaTem = await db.execute({
     sql: "SELECT id FROM solicitacoes_ponto WHERE funcionario_id = ? AND data_referente = ? AND status = 'pendente'",
     args: [funcionario.id, data],
@@ -1164,7 +1207,25 @@ async function exigirAdmin(req, res, db) {
     res.status(403).json({ ok: false, error: 'Seu usuário não tem acesso ao painel de ponto.' });
     return null;
   }
+  await garantirEsquemaPonto(db);
   return funcionario;
+}
+
+// Admin: define razão social / CNPJ / endereço (comprovante e AFD).
+async function debugPontoAdminEmpresa(req, res) {
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { token, empresa, cnpj, endereco }' }); return; }
+  const db = getDb();
+  const admin = await exigirAdmin(req, res, db);
+  if (!admin) return;
+  const { empresa, cnpj, endereco } = req.body || {};
+  for (const [k, v] of [['empresa', empresa], ['cnpj', cnpj], ['endereco', endereco]]) {
+    if (v == null) continue;
+    await db.execute({
+      sql: 'INSERT INTO config_ponto (chave, valor) VALUES (?, ?) ON CONFLICT(chave) DO UPDATE SET valor = excluded.valor',
+      args: [k, String(v).trim()],
+    });
+  }
+  res.status(200).json({ ok: true, tipo: 'ponto-admin-empresa', config: await configPonto(db) });
 }
 
 async function debugPontoAdminVisao(req, res) {
@@ -1233,6 +1294,7 @@ async function debugPontoAdminVisao(req, res) {
     periodo: { de: validaDia(de) ? de : dataFusoLoja(inicioISO), ate: validaDia(ate) ? ate : dataFusoLoja(fimISO) },
     funcionarios: [...porFunc.values()],
     pendentes: sols.rows.filter((s) => s.status === 'pendente').length,
+    empresa: await configPonto(db),
   });
 }
 
@@ -1592,6 +1654,7 @@ const TIPOS_PUBLICOS_PONTO = new Set([
   'ponto-editar-proprio', 'ponto-solicitar-correcao',
   'ponto-admin-visao', 'ponto-admin-editar', 'ponto-admin-resolver', 'ponto-admin-jornada',
   'ponto-admin-integridade', 'ponto-admin-cpf', 'ponto-admin-afd', 'ponto-admin-abono',
+  'ponto-admin-empresa',
 ]);
 
 // Rotas chamadas direto do navegador (botão/tela em painel-estoque-adesivo,
@@ -1754,6 +1817,7 @@ module.exports = async (req, res) => {
     if (req.query.tipo === 'ponto-admin-editar') return await debugPontoAdminEditar(req, res);
     if (req.query.tipo === 'ponto-admin-resolver') return await debugPontoAdminResolver(req, res);
     if (req.query.tipo === 'ponto-admin-abono') return await debugPontoAdminAbono(req, res);
+    if (req.query.tipo === 'ponto-admin-empresa') return await debugPontoAdminEmpresa(req, res);
     if (req.query.tipo === 'ponto-admin-jornada') return await debugPontoAdminJornada(req, res);
     if (req.query.tipo === 'ponto-admin-integridade') return await debugPontoAdminIntegridade(req, res);
     if (req.query.tipo === 'ponto-admin-cpf') return await debugPontoAdminCpf(req, res);
