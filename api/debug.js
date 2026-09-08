@@ -1280,6 +1280,30 @@ async function debugPontoConfigJornadas(req, res) {
   res.status(200).json({ ok: true, tipo: 'ponto-config-jornadas', funcionarios: feitos });
 }
 
+// Só pra TESTE (CRON_SECRET) -- injeta batidas de exemplo. dias = array de
+// { data "AAAA-MM-DD", marcacoes: ["HH:MM", ...] } -- cada horário vira uma
+// batida 'batida' alternando entrada/saída, na cadeia normal.
+async function debugPontoConfigSimular(req, res) {
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { funcionario_id, dias }' }); return; }
+  const { funcionario_id, dias } = req.body || {};
+  if (!funcionario_id || !Array.isArray(dias)) { res.status(400).json({ error: 'Use POST { funcionario_id, dias: [{data, marcacoes:[...]}] }' }); return; }
+  const db = getDb();
+  let n = 0;
+  for (const d of dias) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(d.data || ''))) continue;
+    const horas = (d.marcacoes || []).slice().sort();
+    for (let i = 0; i < horas.length; i++) {
+      const iso = isoDeDiaHoraLoja(d.data, horas[i]);
+      await inserirRegistroPonto(db, {
+        funcionario_id, tipo: i % 2 === 0 ? 'entrada' : 'saida', registrado_em: iso,
+        metodo_validacao: 'simulado', origem: 'batida',
+      });
+      n += 1;
+    }
+  }
+  res.status(200).json({ ok: true, tipo: 'ponto-config-simular', batidas_inseridas: n });
+}
+
 async function debugPontoAdminEditar(req, res) {
   if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { token, funcionario_id, acao, ... }' }); return; }
   const db = getDb();
@@ -1690,6 +1714,7 @@ module.exports = async (req, res) => {
     if (req.query.tipo === 'ponto-admin-cpf') return await debugPontoAdminCpf(req, res);
     if (req.query.tipo === 'ponto-admin-afd') return await debugPontoAdminAFD(req, res);
     if (req.query.tipo === 'ponto-config-jornadas') return await debugPontoConfigJornadas(req, res);
+    if (req.query.tipo === 'ponto-config-simular') return await debugPontoConfigSimular(req, res);
     if (req.query.tipo === 'ponto-config-empresa') return await debugPontoConfigEmpresa(req, res);
     if (req.query.tipo === 'ponto-reindexar-cadeia') return await debugPontoReindexarCadeia(req, res);
     if (req.query.tipo === 'ponto-relatorio') return await debugPontoRelatorio(req, res);
