@@ -184,6 +184,15 @@ const TABELAS_SQL = [
     intervalo_min INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (funcionario_id, dia_semana)
   )`,
+  `CREATE TABLE IF NOT EXISTS abonos_ponto (
+    funcionario_id TEXT NOT NULL,
+    data TEXT NOT NULL,
+    tipo TEXT NOT NULL,
+    observacao TEXT,
+    criado_por TEXT,
+    criado_em TEXT NOT NULL,
+    PRIMARY KEY (funcionario_id, data)
+  )`,
 ];
 
 // Colunas adicionadas depois que as tabelas de ponto já existiam. ALTER é
@@ -1020,12 +1029,17 @@ async function debugPontoHistorico(req, res) {
           FROM solicitacoes_ponto WHERE funcionario_id = ? ORDER BY criada_em DESC LIMIT 90`,
     args: [funcionario.id],
   });
+  const abo = await db.execute({
+    sql: 'SELECT data, tipo, observacao FROM abonos_ponto WHERE funcionario_id = ? ORDER BY data DESC LIMIT 200',
+    args: [funcionario.id],
+  });
   res.status(200).json({
     ok: true, tipo: 'ponto-historico', nome: funcionario.nome,
     hoje: dataFusoLoja(new Date()),
     jornada: await jornadaSemana(db, funcionario.id),
     marcacoes: resolverMarcacoes(rs.rows),
     solicitacoes: sol.rows,
+    abonos: abo.rows,
   });
 }
 
@@ -1183,10 +1197,11 @@ async function debugPontoAdminVisao(req, res) {
   const jorn = await db.execute(
     'SELECT funcionario_id, dia_semana, minutos_previstos, entrada_ref, saida_ref, intervalo_min FROM jornadas_ponto'
   );
+  const abon = await db.execute('SELECT funcionario_id, data, tipo, observacao FROM abonos_ponto');
 
   const porFunc = new Map(funcs.rows.map((f) => [f.id, {
     id: f.id, nome: f.nome, admin: f.admin === 1, cpf: f.cpf || null,
-    registros: [], marcacoes: [], solicitacoes: [], jornada: null,
+    registros: [], marcacoes: [], solicitacoes: [], jornada: null, abonos: [],
   }]));
   const rawPorFunc = new Map();
   regs.rows.forEach((r) => {
@@ -1200,6 +1215,7 @@ async function debugPontoAdminVisao(req, res) {
     if (f) f.marcacoes = resolverMarcacoes(linhas).filter((m) => m.registrado_em >= inicioISO && m.registrado_em <= fimISO);
   }
   sols.rows.forEach((s) => { const f = porFunc.get(s.funcionario_id); if (f) f.solicitacoes.push(s); });
+  abon.rows.forEach((a) => { const f = porFunc.get(a.funcionario_id); if (f) f.abonos.push({ data: a.data, tipo: a.tipo, observacao: a.observacao }); });
   jorn.rows.forEach((j) => {
     const f = porFunc.get(j.funcionario_id);
     if (!f) return;
@@ -1278,6 +1294,30 @@ async function debugPontoConfigJornadas(req, res) {
     feitos.push(fid);
   }
   res.status(200).json({ ok: true, tipo: 'ponto-config-jornadas', funcionarios: feitos });
+}
+
+// Só pra TESTE (CRON_SECRET) -- injeta batidas de exemplo. dias = array de
+// { data "AAAA-MM-DD", marcacoes: ["HH:MM", ...] } -- cada horário vira uma
+// batida 'batida' alternando entrada/saída, na cadeia normal.
+async function debugPontoConfigSimular(req, res) {
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { funcionario_id, dias }' }); return; }
+  const { funcionario_id, dias } = req.body || {};
+  if (!funcionario_id || !Array.isArray(dias)) { res.status(400).json({ error: 'Use POST { funcionario_id, dias: [{data, marcacoes:[...]}] }' }); return; }
+  const db = getDb();
+  let n = 0;
+  for (const d of dias) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(d.data || ''))) continue;
+    const horas = (d.marcacoes || []).slice().sort();
+    for (let i = 0; i < horas.length; i++) {
+      const iso = isoDeDiaHoraLoja(d.data, horas[i]);
+      await inserirRegistroPonto(db, {
+        funcionario_id, tipo: i % 2 === 0 ? 'entrada' : 'saida', registrado_em: iso,
+        metodo_validacao: 'simulado', origem: 'batida',
+      });
+      n += 1;
+    }
+  }
+  res.status(200).json({ ok: true, tipo: 'ponto-config-simular', batidas_inseridas: n });
 }
 
 async function debugPontoAdminEditar(req, res) {
@@ -1393,6 +1433,34 @@ async function debugPontoConfigEmpresa(req, res) {
     });
   }
   res.status(200).json({ ok: true, tipo: 'ponto-config-empresa', config: await configPonto(db) });
+}
+
+// Abono / atestado de um dia (só admin). Um dia abonado não gera falta.
+const TIPOS_ABONO = ['atestado', 'ferias', 'folga', 'falta_abonada', 'feriado', 'licenca', 'outro'];
+async function debugPontoAdminAbono(req, res) {
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { token, funcionario_id, data, tipo, observacao } ou { ..., remover:true }' }); return; }
+  const db = getDb();
+  const admin = await exigirAdmin(req, res, db);
+  if (!admin) return;
+
+  const { funcionario_id, data, tipo, observacao, remover } = req.body || {};
+  if (!funcionario_id || !/^\d{4}-\d{2}-\d{2}$/.test(String(data || ''))) {
+    res.status(400).json({ error: 'Informe funcionario_id e data (AAAA-MM-DD).' }); return;
+  }
+  if (remover) {
+    await db.execute({ sql: 'DELETE FROM abonos_ponto WHERE funcionario_id = ? AND data = ?', args: [funcionario_id, data] });
+    res.status(200).json({ ok: true, tipo: 'ponto-admin-abono', acao: 'remover' });
+    return;
+  }
+  if (!TIPOS_ABONO.includes(tipo)) { res.status(400).json({ error: 'tipo inválido. Use: ' + TIPOS_ABONO.join(', ') }); return; }
+  await db.execute({
+    sql: `INSERT INTO abonos_ponto (funcionario_id, data, tipo, observacao, criado_por, criado_em)
+          VALUES (?, ?, ?, ?, ?, ?)
+          ON CONFLICT(funcionario_id, data) DO UPDATE SET tipo = excluded.tipo, observacao = excluded.observacao,
+            criado_por = excluded.criado_por, criado_em = excluded.criado_em`,
+    args: [funcionario_id, data, tipo, String(observacao || '').slice(0, 500), admin.id, new Date().toISOString()],
+  });
+  res.status(200).json({ ok: true, tipo: 'ponto-admin-abono', acao: 'salvar' });
 }
 
 async function debugPontoAdminResolver(req, res) {
@@ -1523,7 +1591,7 @@ const TIPOS_PUBLICOS_PONTO = new Set([
   'ponto-funcionarios', 'ponto-login', 'ponto-bater', 'ponto-historico',
   'ponto-editar-proprio', 'ponto-solicitar-correcao',
   'ponto-admin-visao', 'ponto-admin-editar', 'ponto-admin-resolver', 'ponto-admin-jornada',
-  'ponto-admin-integridade', 'ponto-admin-cpf', 'ponto-admin-afd',
+  'ponto-admin-integridade', 'ponto-admin-cpf', 'ponto-admin-afd', 'ponto-admin-abono',
 ]);
 
 // Rotas chamadas direto do navegador (botão/tela em painel-estoque-adesivo,
@@ -1685,11 +1753,13 @@ module.exports = async (req, res) => {
     if (req.query.tipo === 'ponto-admin-visao') return await debugPontoAdminVisao(req, res);
     if (req.query.tipo === 'ponto-admin-editar') return await debugPontoAdminEditar(req, res);
     if (req.query.tipo === 'ponto-admin-resolver') return await debugPontoAdminResolver(req, res);
+    if (req.query.tipo === 'ponto-admin-abono') return await debugPontoAdminAbono(req, res);
     if (req.query.tipo === 'ponto-admin-jornada') return await debugPontoAdminJornada(req, res);
     if (req.query.tipo === 'ponto-admin-integridade') return await debugPontoAdminIntegridade(req, res);
     if (req.query.tipo === 'ponto-admin-cpf') return await debugPontoAdminCpf(req, res);
     if (req.query.tipo === 'ponto-admin-afd') return await debugPontoAdminAFD(req, res);
     if (req.query.tipo === 'ponto-config-jornadas') return await debugPontoConfigJornadas(req, res);
+    if (req.query.tipo === 'ponto-config-simular') return await debugPontoConfigSimular(req, res);
     if (req.query.tipo === 'ponto-config-empresa') return await debugPontoConfigEmpresa(req, res);
     if (req.query.tipo === 'ponto-reindexar-cadeia') return await debugPontoReindexarCadeia(req, res);
     if (req.query.tipo === 'ponto-relatorio') return await debugPontoRelatorio(req, res);
