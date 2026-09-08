@@ -50,7 +50,13 @@ const HORAS_RETROATIVAS = 7 * 24;
 const HORAS_JANELA_FLEX = 48; // "coleta só amanhã" — precisa de folga
 const HORAS_JANELA_SHOPEE_TODOS = 48; // mesma folga usada no restante do backfill
 
-const INTERVALO_MINIMO_MS = 2 * 60 * 1000; // 2 minutos
+// Também é, na prática, o ritmo do Flex (ver comentário "roda toda vez"
+// mais abaixo - ele não tem throttle próprio, corre atrás desse gate
+// externo). Medido em produção (ver CLAUDE.md, seção de CPU): ~2s por
+// execução e é de longe o bloco que mais roda, então é o maior peso no
+// orçamento de CPU do Hobby. Alargado de 2 pra 5 min de propósito - custa
+// a TV ficar até 5 min defasada (era ~2 min) em troca de bem menos CPU.
+const INTERVALO_MINIMO_MS = 5 * 60 * 1000; // 5 minutos
 // A Shopee (produção) exige proxy com IP fixo (Fixie), que tem cota
 // limitada de requisições/mês. Rodando no mesmo ritmo do ML (a cada
 // ~2min) estourava a cota rapidamente. O Mercado Livre não usa esse

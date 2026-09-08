@@ -14,20 +14,33 @@ levar isso em conta:
 
 - Limite: 4h de Fluid Active CPU por 30 dias (Vercel Hobby).
 - Em set/2026 o projeto estava consumindo ~3h04m/4h (76,7%) — quase no limite.
-- Causa: um scheduler externo (cron-job.org, ver abaixo) bate em `/api/collect`
-  24/7 a cada 1-2 min, e cada tipo de dado dentro dela roda em intervalos
-  próprios (throttle interno) para não desperdiçar CPU.
-- Mitigação em andamento: restringir a janela do cron-job.org para
-  **6h-18h, segunda a sábado** (72h/semana ativas em vez de 168h/semana),
-  redução estimada de ~57% no consumo → projeção de ~33% do limite em vez de 77%.
+  `painel-entrega-turbo` sozinho é ~99,7% de todo o uso da conta `ricapet1`.
+- Causa: um scheduler externo (cron-job.org, ver abaixo) bate em `/api/collect`,
+  e cada tipo de dado dentro dela roda em intervalos próprios (throttle
+  interno) para não desperdiçar CPU. Medido em produção (log
+  `[collect-timing]`, ver `medirTempo` em `api/collect.js`): Flex ~2s por
+  execução, Todos ML ~1s — como o Flex roda muito mais vezes que os outros,
+  ele é de longe o maior custo (frequência importa mais que custo por
+  chamada aqui).
+- Mitigações aplicadas:
+  - cron-job.org restrito a **6h-18h, segunda a sábado** (72h/semana ativas
+    em vez de 168h/semana) — redução estimada de ~57%.
+  - Throttle do Flex alargado de 2 para **5 min** (`INTERVALO_MINIMO_MS` em
+    `api/collect.js`) — é o bloco que mais pesa, então o que mais economiza,
+    mas em troca a TV fica com até 5 min de atraso (era ~2 min). Trade-off
+    aceito deliberadamente pelo dono do projeto.
+- Se o consumo real (Vercel → Usage → Fluid Active CPU) continuar alto depois
+  dessas duas mudanças, o próximo candidato é alargar "Todos os pedidos"
+  (BI/Desempenho, hoje 5 min) — não é usado em tempo real, sobra folga ali.
 - `/api/dashboard-data.js` (consumido pelo frontend) é, por design, CPU quase
   zero — só lê dado já pronto do banco. **NUNCA colocar lógica pesada ali.**
 
 ## Fluxo de dados
 
 ```
-cron-job.org (externo, 24/7 hoje → proposto 6h-18h seg-sáb)
-   │  GET /api/collect?secret=CRON_SECRET  (a cada 1-2 min)
+cron-job.org (externo, restrito a 6h-18h seg-sáb)
+   │  GET /api/collect?secret=CRON_SECRET  (chamada a cada 1 min, mas o
+   │  próprio endpoint só faz trabalho de verdade a cada 5 min - ver throttles)
    ▼
 api/collect.js  ──► chama API do Mercado Livre + Shopee, processa em lotes
    │                 paralelos, grava resultado pronto no Turso (SQLite cloud)
@@ -45,7 +58,7 @@ Throttles internos em `api/collect.js` (constantes no topo do arquivo):
 
 | Dado | Intervalo mínimo | Motivo |
 |---|---|---|
-| Pedidos Flex (ML, tempo real p/ TV) | 2 min | é o que a TV mostra ao vivo |
+| Pedidos Flex (ML, tempo real p/ TV) | 5 min (era 2 min) | é o que a TV mostra ao vivo, mas também o maior custo de CPU |
 | "Todos os pedidos" ML (BI/dashboard) | 5 min | não precisa do ritmo do Flex |
 | Shopee | 15 min | cota limitada do proxy Fixie (IP fixo) |
 | Devoluções | 30 min | mudam devagar |
