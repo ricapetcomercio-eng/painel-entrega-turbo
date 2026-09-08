@@ -623,58 +623,6 @@
   // tenta destravar em qualquer clique real na tela depois disso.
   iniciarAudio();
   buscarDados();
-
-  // ================= AUTO-SCROLL =================
-  // Numa TV ninguém rola a tela manualmente — sem isso, pedidos abaixo da
-  // dobra ficam invisíveis pra sempre quando há mais cards do que cabe na
-  // tela. Desce devagar, pausa embaixo, sobe, pausa em cima, repete. Só
-  // ativa quando o conteúdo realmente não cabe, e pausa um tempo se alguém
-  // interagir manualmente (útil ao testar num navegador comum).
-  const VELOCIDADE_SCROLL_PX = 1;
-  const INTERVALO_TICK_SCROLL_MS = 130; // era 50 — rolagem estava rápida demais pra dar tempo de ler
-  const PAUSA_NAS_PONTAS_MS = 6000;
-  const PAUSA_APOS_INTERACAO_MS = 15000;
-
-  let direcaoScroll = 1; // 1 = descendo, -1 = subindo
-  let autoScrollPausadoAte = 0;
-
-  function pausarAutoScroll() {
-    autoScrollPausadoAte = Date.now() + PAUSA_APOS_INTERACAO_MS;
-  }
-  ['mousedown', 'touchstart', 'keydown', 'wheel'].forEach((evt) => {
-    window.addEventListener(evt, pausarAutoScroll, { passive: true });
-  });
-
-  function tickAutoScroll() {
-    if (Date.now() < autoScrollPausadoAte) return;
-
-    // Quem rola de verdade aqui é o <body>, não o window: o CSS define
-    // "html, body { height: 100% }", o que faz o <body> virar seu próprio
-    // container de scroll interno (altura travada na tela, overflow-y:
-    // auto por padrão) — confirmado testando ao vivo (window.scrollBy não
-    // fazia nada, document.body.scrollTop funcionava).
-    //
-    // O limite é o fim de "Pedidos em aberto" (#areaCards), não o fim da
-    // página inteira — "Coletados hoje" vem depois só de referência, a
-    // ideia da TV é mostrar o que falta despachar hoje, não rolar até lá.
-    const areaCards = document.getElementById('areaCards');
-    const maxScroll = areaCards.offsetTop + areaCards.offsetHeight - document.body.clientHeight;
-    if (maxScroll <= 0) return; // conteúdo cabe na tela, nada pra rolar
-
-    const atual = document.body.scrollTop;
-    if (direcaoScroll === 1 && atual >= maxScroll - 1) {
-      direcaoScroll = -1;
-      autoScrollPausadoAte = Date.now() + PAUSA_NAS_PONTAS_MS;
-      return;
-    }
-    if (direcaoScroll === -1 && atual <= 1) {
-      direcaoScroll = 1;
-      autoScrollPausadoAte = Date.now() + PAUSA_NAS_PONTAS_MS;
-      return;
-    }
-    document.body.scrollTop = atual + direcaoScroll * VELOCIDADE_SCROLL_PX;
-  }
-  setInterval(tickAutoScroll, INTERVALO_TICK_SCROLL_MS);
 </script>
 </body>
 </html>
