@@ -876,6 +876,10 @@ async function configPonto(db) {
     empresa: c.empresa || process.env.PONTO_EMPRESA_NOME || 'Ricapet',
     cnpj: c.cnpj || process.env.PONTO_EMPRESA_CNPJ || '',
     endereco: c.endereco || process.env.PONTO_EMPRESA_ENDERECO || '',
+    // batidas por dia (bate-ponto) antes de bloquear; tolerancia em minutos
+    // pra nao contar atraso/extra dentro dela (CLT art. 58: ate 10 min/dia).
+    limite_batidas_dia: Math.max(parseInt(c.limite_batidas_dia, 10) || 8, 2),
+    tolerancia_min: c.tolerancia_min != null ? Math.max(parseInt(c.tolerancia_min, 10) || 0, 0) : 10,
   };
 }
 
@@ -1032,6 +1036,19 @@ async function debugPontoBater(req, res) {
     args: [funcionario.id],
   });
   const marcacoes = resolverMarcacoes(recentes.rows);
+  const cfg = await configPonto(db);
+
+  // limite de batidas por dia (fuso da loja)
+  const hojeLoja = dataFusoLoja(new Date());
+  const batidasHoje = marcacoes.filter((m) => dataFusoLoja(m.registrado_em) === hojeLoja).length;
+  if (batidasHoje >= cfg.limite_batidas_dia) {
+    res.status(429).json({
+      ok: false,
+      error: `Você já bateu ${batidasHoje} vezes hoje (limite ${cfg.limite_batidas_dia}). Se precisar ajustar, fale com o administrador.`,
+    });
+    return;
+  }
+
   const ultima = marcacoes[marcacoes.length - 1];
   const proximoTipo = ultima && ultima.tipo === 'entrada' ? 'saida' : 'entrada';
   const agora = new Date().toISOString();
@@ -1041,7 +1058,6 @@ async function debugPontoBater(req, res) {
     latitude, longitude, distancia_metros, origem: 'batida',
   });
 
-  const cfg = await configPonto(db);
   const dadosFunc = await db.execute({ sql: 'SELECT cpf FROM funcionarios WHERE id = ?', args: [funcionario.id] });
 
   res.status(200).json({
@@ -1082,6 +1098,7 @@ async function debugPontoHistorico(req, res) {
     sql: 'SELECT data, tipo, observacao FROM abonos_ponto WHERE funcionario_id = ? ORDER BY data DESC LIMIT 200',
     args: [funcionario.id],
   });
+  const cfg = await configPonto(db);
   res.status(200).json({
     ok: true, tipo: 'ponto-historico', nome: funcionario.nome,
     hoje: dataFusoLoja(new Date()),
@@ -1089,6 +1106,8 @@ async function debugPontoHistorico(req, res) {
     marcacoes: resolverMarcacoes(rs.rows),
     solicitacoes: sol.rows,
     abonos: abo.rows,
+    config: { tolerancia_min: cfg.tolerancia_min, limite_batidas_dia: cfg.limite_batidas_dia },
+    empresa: { empresa: cfg.empresa, cnpj: cfg.cnpj },
   });
 }
 
@@ -1219,15 +1238,20 @@ async function exigirAdmin(req, res, db) {
   return funcionario;
 }
 
-// Admin: define razão social / CNPJ / endereço (comprovante e AFD).
+// Admin: define razão social / CNPJ / endereço + ajustes (limite de batidas
+// por dia, tolerância em minutos).
 async function debugPontoAdminEmpresa(req, res) {
-  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { token, empresa, cnpj, endereco }' }); return; }
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { token, empresa, cnpj, endereco, limite_batidas_dia, tolerancia_min }' }); return; }
   const db = getDb();
   const admin = await exigirAdmin(req, res, db);
   if (!admin) return;
-  const { empresa, cnpj, endereco } = req.body || {};
-  for (const [k, v] of [['empresa', empresa], ['cnpj', cnpj], ['endereco', endereco]]) {
-    if (v == null) continue;
+  const { empresa, cnpj, endereco, limite_batidas_dia, tolerancia_min } = req.body || {};
+  const pares = [
+    ['empresa', empresa], ['cnpj', cnpj], ['endereco', endereco],
+    ['limite_batidas_dia', limite_batidas_dia], ['tolerancia_min', tolerancia_min],
+  ];
+  for (const [k, v] of pares) {
+    if (v == null || v === '') continue;
     await db.execute({
       sql: 'INSERT INTO config_ponto (chave, valor) VALUES (?, ?) ON CONFLICT(chave) DO UPDATE SET valor = excluded.valor',
       args: [k, String(v).trim()],
