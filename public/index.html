@@ -23,6 +23,8 @@
     --red: #eb5757;
     --brand: #16a34a;
     --brand-light: #dcfce7;
+    --bg-grad-a: #e3f9ec;
+    --bg-grad-b: #e5f0fd;
   }
   body.tema-escuro {
     --bg: #12151c;
@@ -35,6 +37,8 @@
     --blue-light: #1e3a63;
     --brand: #22c55e;
     --brand-light: #123a24;
+    --bg-grad-a: #0f1a15;
+    --bg-grad-b: #101726;
   }
   body.tema-escuro .sidebar-link:hover, body.tema-escuro .aba-btn:hover { background: #232837; }
   body.tema-escuro .sidebar-link.ativo { color: #fff; }
@@ -48,7 +52,7 @@
   body {
     margin: 0;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    background: var(--bg);
+    background: linear-gradient(150deg, var(--bg-grad-a) 0%, var(--bg-grad-b) 100%) fixed;
     color: var(--text);
     padding: 24px;
   }
@@ -143,12 +147,16 @@
   .secao-titulo { font-size: 15px; font-weight: 700; margin: 28px 0 12px; color: var(--text); }
 
   .stat-card { position: relative; background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); display: flex; flex-direction: column; }
-  .stat-card::after { content: ''; position: absolute; top: 14px; right: 14px; width: 28px; height: 28px; border-radius: 8px; background: var(--kpi-tint, var(--blue-light)); }
-  .stat-card:nth-of-type(5n+1)::after { --kpi-tint: var(--brand-light); }
-  .stat-card:nth-of-type(5n+2)::after { --kpi-tint: var(--blue-light); }
-  .stat-card:nth-of-type(5n+3)::after { --kpi-tint: #ffe9d6; }
-  .stat-card:nth-of-type(5n+4)::after { --kpi-tint: #fdeaea; }
-  .stat-card:nth-of-type(5n+5)::after { --kpi-tint: #f1e6fb; }
+  .stat-icon-wrap { position: absolute; top: 14px; right: 14px; width: 30px; height: 30px; border-radius: 9px; display: flex; align-items: center; justify-content: center; }
+  .stat-icon-wrap svg { width: 16px; height: 16px; }
+  .tone-green { background: var(--brand-light); color: var(--brand); }
+  .tone-blue { background: var(--blue-light); color: var(--blue); }
+  .tone-orange { background: #ffe9d6; color: #c2650a; }
+  .tone-red { background: #fdeaea; color: var(--red); }
+  .tone-purple { background: #f1e6fb; color: #7c3aed; }
+  .tone-gray { background: #f0f1f3; color: var(--muted); }
+  .tone-yellow { background: #fff7d6; color: #a3810c; }
+  .tone-shopee { background: #ffe4dc; color: #ee4d2d; }
   .stat-card .value { order: 2; font-size: 26px; font-weight: 800; padding-right: 34px; }
   .stat-card .label { order: 1; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.02em; font-weight: 700; margin-bottom: 6px; padding-right: 34px; }
   .stat-card .kpi-delta { order: 3; }
@@ -342,15 +350,15 @@
   <div class="subtitle" id="atualizado-em">Carregando...</div>
 
   <div class="periodo-controle">
-    <button class="periodo-btn" id="btnUltimas24h" onclick="definirUltimas24h(event)">Últimas 24 horas</button>
-    <button class="periodo-btn" id="btnEsteMes" onclick="definirPeriodo('mes', event)">Este mês</button>
-    <button class="periodo-btn" onclick="definirPeriodo('7dias', event)">Últimos 7 dias</button>
-    <button class="periodo-btn" onclick="definirPeriodo('30dias', event)">Últimos 30 dias</button>
-    <button class="periodo-btn" onclick="definirPeriodo('tudo', event)">Tudo</button>
-    <button class="periodo-btn" id="btnPeriodoEspecifico" onclick="ativarPeriodoEspecifico()">Período específico</button>
+    <button class="periodo-btn" id="btnUltimas24h" onclick="definirUltimas24h(event)">🕐 Últimas 24 horas</button>
+    <button class="periodo-btn" id="btnEsteMes" onclick="definirPeriodo('mes', event)">📅 Este mês</button>
+    <button class="periodo-btn" onclick="definirPeriodo('7dias', event)">📆 Últimos 7 dias</button>
+    <button class="periodo-btn" onclick="definirPeriodo('30dias', event)">📆 Últimos 30 dias</button>
+    <button class="periodo-btn" onclick="definirPeriodo('tudo', event)">🗂️ Tudo</button>
+    <button class="periodo-btn" id="btnPeriodoEspecifico" onclick="ativarPeriodoEspecifico()">🎯 Período específico</button>
     <label>De <input type="date" id="periodoDe" onchange="ativarPeriodoEspecifico()"></label>
     <label>Até <input type="date" id="periodoAte" onchange="ativarPeriodoEspecifico()"></label>
-    <button class="periodo-btn periodo-aplicar" onclick="aplicarPeriodoManual()">Aplicar</button>
+    <button class="periodo-btn periodo-aplicar" onclick="aplicarPeriodoManual()">✅ Aplicar</button>
     <span id="periodoLabel" class="periodo-label"></span>
   </div>
 
@@ -360,47 +368,47 @@
     <div id="alertasInteligentes" style="margin-bottom:20px;"></div>
 
     <div class="grid-stats">
-      <div class="stat-card">
+      <div class="stat-card"><div class="stat-icon-wrap tone-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div>
         <div class="value" id="execFaturamento">–</div>
         <div class="label">Faturamento Total</div>
         <div class="kpi-delta" id="execFaturamentoDelta">–</div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card"><div class="stat-icon-wrap tone-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg></div>
         <div class="value" id="execPedidos">–</div>
         <div class="label">Quantidade de Pedidos</div>
         <div class="kpi-delta" id="execPedidosDelta">–</div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card"><div class="stat-icon-wrap tone-orange"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41L11 3.83V3H4v7h.83l9.58 9.59a2 2 0 002.83 0l3.35-3.35a2 2 0 000-2.83z"/><circle cx="7.5" cy="7.5" r="1"/></svg></div>
         <div class="value" id="execTicket">–</div>
         <div class="label">Ticket Médio</div>
         <div class="kpi-delta" id="execTicketDelta">–</div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card"><div class="stat-icon-wrap tone-purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div>
         <div class="value" id="execTempoColeta">–</div>
         <div class="label">Tempo Médio até Coleta</div>
         <div class="kpi-delta" id="execTempoColetaDelta">–</div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card"><div class="stat-icon-wrap tone-purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="7" width="15" height="10" rx="1"/><path d="M16 10h4l3 3v4h-7z"/><circle cx="5.5" cy="19.5" r="1.5"/><circle cx="18.5" cy="19.5" r="1.5"/></svg></div>
         <div class="value" id="execTempoEntrega">–</div>
         <div class="label">Tempo Médio até Entrega</div>
         <div class="kpi-delta" id="execTempoEntregaDelta">–</div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card"><div class="stat-icon-wrap tone-red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg></div>
         <div class="value" id="execCancelamentos">–</div>
         <div class="label">Cancelamentos</div>
         <div class="kpi-delta" id="execCancelamentosDelta">–</div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card"><div class="stat-icon-wrap tone-orange"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg></div>
         <div class="value" id="execAtrasados">–</div>
         <div class="label">Pedidos Atrasados</div>
         <div class="kpi-delta" id="execAtrasadosDelta">–</div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card"><div class="stat-icon-wrap tone-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg></div>
         <div class="value" id="execSLA">–</div>
         <div class="label">SLA (dentro do prazo)</div>
         <div class="kpi-delta" id="execSLADelta">–</div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card"><div class="stat-icon-wrap tone-red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg></div>
         <div class="value" id="execDevolucoes">–</div>
         <div class="label">Devoluções</div>
         <div class="kpi-delta" id="execDevolucoesDelta">–</div>
@@ -455,11 +463,11 @@
       Curva ABC calculada por <b>quantidade vendida</b> — o histórico ainda não guarda o preço unitário de cada item, só o valor total do pedido, então ainda não é possível montar a curva por faturamento real. Usa o filtro de período no topo (aba "Todos os pedidos"/"Executivo").
     </div>
     <div class="grid-stats">
-      <div class="stat-card"><div class="value" id="prodDistintos">–</div><div class="label">Produtos distintos vendidos</div></div>
-      <div class="stat-card"><div class="value" id="prodUnidades">–</div><div class="label">Unidades totais vendidas</div></div>
-      <div class="stat-card"><div class="value" id="prodClasseA">–</div><div class="label">Produtos Classe A</div></div>
-      <div class="stat-card"><div class="value" id="prodClasseB">–</div><div class="label">Produtos Classe B</div></div>
-      <div class="stat-card"><div class="value" id="prodClasseC">–</div><div class="label">Produtos Classe C</div></div>
+      <div class="stat-card"><div class="stat-icon-wrap tone-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><path d="M3.27 6.96L12 12l8.73-5.04M12 22.08V12"/></svg></div><div class="value" id="prodDistintos">–</div><div class="label">Produtos distintos vendidos</div></div>
+      <div class="stat-card"><div class="stat-icon-wrap tone-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg></div><div class="value" id="prodUnidades">–</div><div class="label">Unidades totais vendidas</div></div>
+      <div class="stat-card"><div class="stat-icon-wrap tone-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div><div class="value" id="prodClasseA">–</div><div class="label">Produtos Classe A</div></div>
+      <div class="stat-card"><div class="stat-icon-wrap tone-orange"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div><div class="value" id="prodClasseB">–</div><div class="label">Produtos Classe B</div></div>
+      <div class="stat-card"><div class="stat-icon-wrap tone-gray"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div><div class="value" id="prodClasseC">–</div><div class="label">Produtos Classe C</div></div>
     </div>
 
     <div class="secao-titulo">Curva ABC (Pareto) — Top 20 por quantidade</div>
@@ -513,16 +521,16 @@
         <label style="display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted);">Até
           <select id="desFiltroMesAte" class="desempenho-select" onchange="carregarDesempenho(true)"></select>
         </label>
-        <button class="periodo-btn" onclick="desempenhoLimparFiltros()" style="margin-left:auto;">Limpar filtros</button>
+        <button class="periodo-btn" onclick="desempenhoLimparFiltros()" style="margin-left:auto;">🧹 Limpar filtros</button>
       </div>
     </div>
 
     <div class="grid-stats">
-      <div class="stat-card"><div class="value" id="desProdutosDistintos">–</div><div class="label">Produtos distintos</div></div>
-      <div class="stat-card"><div class="value" id="desFaturamentoTotal">–</div><div class="label">Faturamento total (histórico coletado)</div></div>
-      <div class="stat-card"><div class="value" id="desUnidadesTotal">–</div><div class="label">Unidades totais</div></div>
-      <div class="stat-card"><div class="value" id="desCobertura">–</div><div class="label">Itens com preço capturado</div></div>
-      <div class="stat-card"><div class="value" id="desNaoMapeados">–</div><div class="label">Itens com SKU não mapeado</div></div>
+      <div class="stat-card"><div class="stat-icon-wrap tone-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><path d="M3.27 6.96L12 12l8.73-5.04M12 22.08V12"/></svg></div><div class="value" id="desProdutosDistintos">–</div><div class="label">Produtos distintos</div></div>
+      <div class="stat-card"><div class="stat-icon-wrap tone-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div><div class="value" id="desFaturamentoTotal">–</div><div class="label">Faturamento total (histórico coletado)</div></div>
+      <div class="stat-card"><div class="stat-icon-wrap tone-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg></div><div class="value" id="desUnidadesTotal">–</div><div class="label">Unidades totais</div></div>
+      <div class="stat-card"><div class="stat-icon-wrap tone-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg></div><div class="value" id="desCobertura">–</div><div class="label">Itens com preço capturado</div></div>
+      <div class="stat-card"><div class="stat-icon-wrap tone-orange"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg></div><div class="value" id="desNaoMapeados">–</div><div class="label">Itens com SKU não mapeado</div></div>
     </div>
 
     <div class="secao-titulo" id="desEvoTitulo">Evolução Mensal Total — Soma de Vendas (Pedido Pago) (BRL)</div>
@@ -613,9 +621,9 @@
   <!-- ABA: TURBO / EXPRESSA -->
   <div id="painelTurbo" class="oculto">
     <div class="grid-stats">
-      <div class="stat-card"><div class="value" id="total-pedidos">–</div><div class="label">Pedidos expressos (últimas horas)</div></div>
-      <div class="stat-card"><div class="value" id="total-ml">–</div><div class="label">Mercado Livre</div></div>
-      <div class="stat-card"><div class="value" id="total-shopee">–</div><div class="label">Shopee (Entrega Turbo)</div></div>
+      <div class="stat-card"><div class="stat-icon-wrap tone-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div><div class="value" id="total-pedidos">–</div><div class="label">Pedidos expressos (últimas horas)</div></div>
+      <div class="stat-card"><div class="stat-icon-wrap tone-yellow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l1-5h16l1 5"/><path d="M3 9a2 2 0 002 2h14a2 2 0 002-2M5 11v9a1 1 0 001 1h12a1 1 0 001-1v-9"/></svg></div><div class="value" id="total-ml">–</div><div class="label">Mercado Livre</div></div>
+      <div class="stat-card"><div class="stat-icon-wrap tone-shopee"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div><div class="value" id="total-shopee">–</div><div class="label">Shopee (Entrega Turbo)</div></div>
     </div>
     <table>
       <thead><tr><th>Marketplace</th><th>Conta/Loja</th><th>Pedido</th><th>Data</th><th>Valor</th><th>Itens</th></tr></thead>
@@ -736,10 +744,10 @@
     </div>
 
     <div class="grid-stats">
-      <div class="stat-card"><div class="value" id="flex-total-periodo">–</div><div class="label">Total no período</div></div>
-      <div class="stat-card"><div class="value status-coletado" id="flex-entregues">–</div><div class="label">Entregues</div></div>
-      <div class="stat-card"><div class="value status-transito" id="flex-coletados-nao-entregues">–</div><div class="label">Coletados, não entregues</div></div>
-      <div class="stat-card"><div class="value status-aguardando" id="flex-a-coletar">–</div><div class="label">A coletar</div></div>
+      <div class="stat-card"><div class="stat-icon-wrap tone-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg></div><div class="value" id="flex-total-periodo">–</div><div class="label">Total no período</div></div>
+      <div class="stat-card"><div class="stat-icon-wrap tone-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg></div><div class="value status-coletado" id="flex-entregues">–</div><div class="label">Entregues</div></div>
+      <div class="stat-card"><div class="stat-icon-wrap tone-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="7" width="15" height="10" rx="1"/><path d="M16 10h4l3 3v4h-7z"/><circle cx="5.5" cy="19.5" r="1.5"/><circle cx="18.5" cy="19.5" r="1.5"/></svg></div><div class="value status-transito" id="flex-coletados-nao-entregues">–</div><div class="label">Coletados, não entregues</div></div>
+      <div class="stat-card"><div class="stat-icon-wrap tone-orange"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 22h14M5 2h14M5 22v-4a7 7 0 0114 0v4M5 2v4a7 7 0 0014 0V2"/></svg></div><div class="value status-aguardando" id="flex-a-coletar">–</div><div class="label">A coletar</div></div>
     </div>
 
     <div class="secao-titulo">Análise complementar</div>
@@ -774,12 +782,12 @@
         </select>
       </label>
       <div id="chipsFiltroContainer" style="display:inline-flex; gap:8px; flex-wrap:wrap;"></div>
-      <button class="periodo-btn" onclick="limparTodosFiltrosDrill()" style="margin-left:auto;">Limpar filtros</button>
+      <button class="periodo-btn" onclick="limparTodosFiltrosDrill()" style="margin-left:auto;">🧹 Limpar filtros</button>
     </div>
 
     <div class="grid-stats">
-      <div class="stat-card"><div class="value" id="todos-total">–</div><div class="label">Total no período (com filtro aplicado)</div></div>
-      <div class="stat-card"><div class="value" id="todos-ticket-medio">–</div><div class="label">Ticket médio</div></div>
+      <div class="stat-card"><div class="stat-icon-wrap tone-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg></div><div class="value" id="todos-total">–</div><div class="label">Total no período (com filtro aplicado)</div></div>
+      <div class="stat-card"><div class="stat-icon-wrap tone-orange"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41L11 3.83V3H4v7h.83l9.58 9.59a2 2 0 002.83 0l3.35-3.35a2 2 0 000-2.83z"/><circle cx="7.5" cy="7.5" r="1"/></svg></div><div class="value" id="todos-ticket-medio">–</div><div class="label">Ticket médio</div></div>
     </div>
 
     <div class="secao-titulo">Análise do período</div>
