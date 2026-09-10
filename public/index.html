@@ -18,8 +18,8 @@
     --teal-light: #d7f0ec;
     --yellow: #f2c94c;
     --gray: #bdc3c7;
-    --blue: #2f80ed;
-    --blue-light: #e8f0fd;
+    --blue: #1d4ed8;
+    --blue-light: #bfdbfe;
     --red: #eb5757;
     --brand: #16a34a;
     --brand-light: #dcfce7;
@@ -31,7 +31,8 @@
     --text: #e6e8ec;
     --muted: #9099ab;
     --teal-light: #123a30;
-    --blue-light: #17233d;
+    --blue: #60a5fa;
+    --blue-light: #1e3a63;
     --brand: #22c55e;
     --brand-light: #123a24;
   }
@@ -187,7 +188,7 @@
   .mov-tag { font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 20px; white-space: nowrap; }
   .mov-tag.up { color: #1a9c6b; background: #e3f7f0; }
   .mov-tag.down { color: var(--red); background: #fdeaea; }
-  .mov-tag.novo { color: #2f80ed; background: #e8f0fd; }
+  .mov-tag.novo { color: var(--blue); background: var(--blue-light); }
   .mov-tag.sumiu { color: var(--muted); background: #f0f1f3; }
 
   .desempenho-select, .desempenho-input {
@@ -688,7 +689,7 @@
         <div class="card-body">
           <div class="icon-stat">
             <div class="icone">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2f80ed" stroke-width="2"><path d="M3 12l4-8h10l4 8M3 12v6a1 1 0 001 1h1a2 2 0 004 0h6a2 2 0 004 0h1a1 1 0 001-1v-6M3 12h18"/></svg>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" stroke-width="2"><path d="M3 12l4-8h10l4 8M3 12v6a1 1 0 001 1h1a2 2 0 004 0h6a2 2 0 004 0h1a1 1 0 001-1v-6M3 12h18"/></svg>
             </div>
             <div>
               <div class="valor" id="statTempoAteEntrega">–</div>
@@ -882,7 +883,7 @@
   }
 
   const CORES = {
-    teal: '#17a389', yellow: '#f2c94c', gray: '#bdc3c7', blue: '#2f80ed', red: '#eb5757',
+    teal: '#17a389', yellow: '#f2c94c', gray: '#bdc3c7', blue: '#1d4ed8', red: '#eb5757',
     ml: '#f2b90c', shopee: '#ee4d2d',
     get muted() { return corMuted(); },
     get grid() { return corGrid(); },
