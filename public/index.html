@@ -18,8 +18,13 @@
     --teal-light: #d7f0ec;
     --yellow: #f2c94c;
     --gray: #bdc3c7;
-    --blue: #2f80ed;
+    --blue: #1d4ed8;
+    --blue-light: #bfdbfe;
     --red: #eb5757;
+    --brand: #16a34a;
+    --brand-light: #dcfce7;
+    --bg-grad-a: #e3f9ec;
+    --bg-grad-b: #e5f0fd;
   }
   body.tema-escuro {
     --bg: #12151c;
@@ -28,11 +33,18 @@
     --text: #e6e8ec;
     --muted: #9099ab;
     --teal-light: #123a30;
+    --blue: #60a5fa;
+    --blue-light: #1e3a63;
+    --brand: #22c55e;
+    --brand-light: #123a24;
+    --bg-grad-a: #0f1a15;
+    --bg-grad-b: #101726;
   }
-  body.tema-escuro .sidebar-link:hover { background: #232837; }
-  body.tema-escuro .sidebar-link.ativo { color: #4fd8b8; }
-  body.tema-escuro .sidebar-link.ativo svg { stroke: #4fd8b8; }
-  body.tema-escuro .periodo-controle select, body.tema-escuro .periodo-controle input[type="date"], body.tema-escuro .periodo-btn { background: var(--card); color: var(--text); }
+  body.tema-escuro .sidebar-link:hover, body.tema-escuro .aba-btn:hover { background: #232837; }
+  body.tema-escuro .sidebar-link.ativo { color: #fff; }
+  body.tema-escuro .sidebar-link.ativo svg { stroke: #fff; }
+  body.tema-escuro .aba-btn.ativa { background: var(--brand); color: #fff; border-left-color: #fff; }
+  body.tema-escuro .periodo-controle select, body.tema-escuro .periodo-controle input[type="date"], body.tema-escuro .periodo-btn:not(.periodo-ativo):not(.periodo-aplicar) { background: var(--card); color: var(--text); }
   body.tema-escuro .comparativo-linha { border-bottom-color: var(--border); }
   body.tema-escuro .tabela-abc tbody tr:hover { background: #232837; }
   body.tema-escuro .mov-lista li { border-bottom-color: var(--border); }
@@ -40,7 +52,7 @@
   body {
     margin: 0;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    background: var(--bg);
+    background: linear-gradient(150deg, var(--bg-grad-a) 0%, var(--bg-grad-b) 100%) fixed;
     color: var(--text);
     padding: 24px;
   }
@@ -48,9 +60,16 @@
   h2 { font-size: 13px; margin: 0; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
   .subtitle { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
 
-  .abas { display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 1px solid var(--border); }
-  .aba-btn { background: none; border: none; color: var(--muted); font-size: 14px; font-weight: 700; padding: 10px 18px; cursor: pointer; border-bottom: 3px solid transparent; }
-  .aba-btn.ativa { color: var(--teal); border-bottom-color: var(--teal); }
+  .aba-btn {
+    display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+    background: none; border: none; border-left: 3px solid transparent; color: var(--text);
+    font-size: 13px; font-weight: 600; padding: 9px 10px; border-radius: 8px;
+    margin-bottom: 4px; cursor: pointer; white-space: nowrap; font-family: inherit;
+  }
+  .aba-btn svg { flex-shrink: 0; }
+  .aba-btn:hover { background: #f4f5f7; }
+  .aba-btn.ativa { background: var(--brand); color: #fff; border-left-color: var(--brand); font-weight: 700; }
+  .aba-btn.ativa svg { stroke: #fff; }
   .oculto { display: none; }
 
   .periodo-controle {
@@ -65,15 +84,22 @@
     border-radius: 6px; padding: 5px 8px; font-size: 12px;
   }
   .periodo-btn { background: #fff; border: 1px solid var(--border); color: var(--muted); border-radius: 6px; padding: 5px 10px; font-size: 12px; cursor: pointer; }
-  .periodo-btn.periodo-ativo { color: #fff; background: var(--teal); border-color: var(--teal); }
-  .periodo-aplicar { color: #fff; background: var(--blue); border-color: var(--blue); }
+  .periodo-btn.periodo-ativo { color: #fff; background: var(--brand); border-color: var(--brand); }
+  .periodo-aplicar { color: #fff; background: var(--brand); border-color: var(--brand); }
   .periodo-label { color: var(--muted); margin-left: auto; }
 
+  .topbar { display: flex; align-items: center; justify-content: space-between; padding: 2px 0 18px; }
+  .topbar-left { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  .icon-btn { background: var(--card); border: 1px solid var(--border); border-radius: 999px; padding: 6px 14px; font-size: 12px; font-weight: 600; color: var(--text); cursor: pointer; font-family: inherit; }
+  .icon-btn:hover { background: #f4f5f7; }
+  body.tema-escuro .icon-btn:hover { background: #232837; }
+  .page-eyebrow { text-transform: uppercase; letter-spacing: 0.06em; font-size: 11px; font-weight: 800; color: var(--text); opacity: 0.5; margin-bottom: 4px; }
+
   .card {
-    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    background: var(--card); border: 1px solid var(--border); border-radius: 16px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.04);
   }
-  .card-head {
+  .card-head, .card-header {
     padding: 12px 16px; border-bottom: 1px solid var(--border);
     font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em;
   }
@@ -120,9 +146,20 @@
   .empty { text-align: center; padding: 40px; color: var(--muted); }
   .secao-titulo { font-size: 15px; font-weight: 700; margin: 28px 0 12px; color: var(--text); }
 
-  .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
-  .stat-card .value { font-size: 24px; font-weight: 800; }
-  .stat-card .label { color: var(--muted); font-size: 12px; }
+  .stat-card { position: relative; background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); display: flex; flex-direction: column; }
+  .stat-icon-wrap { position: absolute; top: 14px; right: 14px; width: 30px; height: 30px; border-radius: 9px; display: flex; align-items: center; justify-content: center; }
+  .stat-icon-wrap svg { width: 16px; height: 16px; }
+  .tone-green { background: var(--brand-light); color: var(--brand); }
+  .tone-blue { background: var(--blue-light); color: var(--blue); }
+  .tone-orange { background: #ffe9d6; color: #c2650a; }
+  .tone-red { background: #fdeaea; color: var(--red); }
+  .tone-purple { background: #f1e6fb; color: #7c3aed; }
+  .tone-gray { background: #f0f1f3; color: var(--muted); }
+  .tone-yellow { background: #fff7d6; color: #a3810c; }
+  .tone-shopee { background: #ffe4dc; color: #ee4d2d; }
+  .stat-card .value { order: 2; font-size: 26px; font-weight: 800; padding-right: 34px; }
+  .stat-card .label { order: 1; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.02em; font-weight: 700; margin-bottom: 6px; padding-right: 34px; }
+  .stat-card .kpi-delta { order: 3; }
   .grid-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 20px; }
 
   .kpi-delta { font-size: 11px; font-weight: 700; margin-top: 4px; color: var(--muted); }
@@ -132,7 +169,7 @@
   .grid-evolucao { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin-bottom: 20px; }
 
   .grid-comparativos { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 24px; }
-  .comparativo-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+  .comparativo-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
   .comparativo-titulo { font-size: 13px; font-weight: 700; margin-bottom: 10px; color: var(--text); }
   .comparativo-linha { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
   .comparativo-linha:last-child { border-bottom: none; }
@@ -159,7 +196,7 @@
   .mov-tag { font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 20px; white-space: nowrap; }
   .mov-tag.up { color: #1a9c6b; background: #e3f7f0; }
   .mov-tag.down { color: var(--red); background: #fdeaea; }
-  .mov-tag.novo { color: #2f80ed; background: #e8f0fd; }
+  .mov-tag.novo { color: var(--blue); background: var(--blue-light); }
   .mov-tag.sumiu { color: var(--muted); background: #f0f1f3; }
 
   .desempenho-select, .desempenho-input {
@@ -190,19 +227,18 @@
   .heatmap-table td { width: 26px; height: 22px; text-align: center; border-radius: 3px; cursor: default; }
   .heatmap-table td .heatmap-cell { display: block; width: 100%; height: 100%; border-radius: 3px; }
 
-  /* ---- Menu lateral (oculto, aparece ao passar o mouse) ---- */
+  /* ---- Menu lateral: fixo, sempre visível ---- */
   body { padding: 0; }
   .sidebar {
-    width: 232px; height: 100vh; position: fixed; top: 0; left: 0; z-index: 1000;
+    width: 240px; height: 100vh; position: fixed; top: 0; left: 0; z-index: 1000;
     background: var(--card); border-right: 1px solid var(--border);
     padding: 20px 14px; box-sizing: border-box; overflow-y: auto;
-    transform: translateX(-216px);
-    transition: transform 0.18s ease-out, box-shadow 0.18s ease-out;
+    display: flex; flex-direction: column;
   }
-  .sidebar:hover {
-    transform: translateX(0);
-    box-shadow: 4px 0 16px rgba(0,0,0,0.12);
-  }
+  .sidebar-brand { display: flex; align-items: center; gap: 10px; padding: 2px 10px 16px; margin-bottom: 12px; border-bottom: 1px solid var(--border); }
+  .sidebar-brand-icon { width: 34px; height: 34px; border-radius: 9px; background: var(--brand-light); display: flex; align-items: center; justify-content: center; font-size: 17px; flex-shrink: 0; }
+  .sidebar-brand-name { font-size: 14px; font-weight: 800; color: var(--text); line-height: 1.2; }
+  .sidebar-brand-sub { font-size: 11px; color: var(--muted); }
   .sidebar-titulo {
     font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
     color: var(--muted); padding: 0 10px; margin-bottom: 10px;
@@ -213,22 +249,69 @@
     transition: background 0.15s; white-space: nowrap;
   }
   .sidebar-link:hover { background: #f4f5f7; }
-  .sidebar-link.ativo { background: var(--teal-light); color: #0F6E56; }
-  .sidebar-link.ativo svg { stroke: #0F6E56; }
+  .sidebar-link.ativo { background: var(--brand); color: #fff; }
+  .sidebar-link.ativo svg { stroke: #fff; }
   .sidebar-link svg { flex-shrink: 0; }
   .sidebar-separador { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+  .sidebar-submenu { margin: 2px 0 8px 14px; padding-left: 10px; border-left: 2px solid var(--border); }
+  .sidebar-submenu.oculto { display: none; }
   .sidebar-externo-icone { margin-left: auto; opacity: 0.5; }
-  .conteudo-principal { padding: 24px 24px 24px 34px; }
+  .sidebar-footer { display: flex; align-items: center; gap: 10px; padding: 10px; margin-top: auto; border-top: 1px solid var(--border); }
+  .sidebar-avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--brand); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; flex-shrink: 0; }
+  .sidebar-footer-name { font-size: 12px; font-weight: 700; color: var(--text); }
+  .sidebar-footer-sub { font-size: 11px; color: var(--muted); }
+  .conteudo-principal { padding: 24px 28px; margin-left: 240px; }
+  @media (max-width: 900px) {
+    .sidebar { position: static; width: 100%; height: auto; flex-direction: row; flex-wrap: wrap; border-right: none; border-bottom: 1px solid var(--border); }
+    .sidebar-brand, .sidebar-footer, .sidebar-separador { display: none; }
+    .conteudo-principal { margin-left: 0; }
+  }
 </style>
 </head>
 <body>
   <nav class="sidebar">
+    <div class="sidebar-brand">
+      <div class="sidebar-brand-icon">🐾</div>
+      <div>
+        <div class="sidebar-brand-name">Ricapet</div>
+        <div class="sidebar-brand-sub">Entrega Flex / Turbo</div>
+      </div>
+    </div>
+
     <div class="sidebar-titulo">Painéis Ricapet</div>
 
-    <a class="sidebar-link ativo" href="#" id="linkPainelNativo" onclick="mostrarPainelNativo(); return false;">
+    <a class="sidebar-link ativo" href="#" id="linkPainelNativo" onclick="mostrarPainelNativo(); toggleVisoes(); return false;">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
-      Entrega Flex / Turbo
+      Dashboard
+      <svg id="chevronDashboard" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:auto; transition: transform 0.15s;"><path d="M9 18l6-6-6-6"/></svg>
     </a>
+
+    <div id="grupoVisoes" class="sidebar-submenu oculto">
+      <button class="aba-btn ativa" id="abaBtnExecutivo" onclick="mudarAba('executivo')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-4"/></svg>
+        Executivo
+      </button>
+      <button class="aba-btn" id="abaBtnProdutos" onclick="mudarAba('produtos')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8L12 3 3 8l9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/></svg>
+        Produtos
+      </button>
+      <button class="aba-btn" id="abaBtnDesempenho" onclick="mudarAba('desempenho')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l6-6 4 4 7-8"/><path d="M14 6h7v7"/></svg>
+        Desempenho
+      </button>
+      <button class="aba-btn" id="abaBtnTodos" onclick="mudarAba('todos')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/></svg>
+        Todos os pedidos
+      </button>
+      <button class="aba-btn" id="abaBtnFlex" onclick="mudarAba('flex')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="7" width="15" height="10" rx="1"/><path d="M16 10h4l3 3v4h-7z"/><circle cx="5.5" cy="19.5" r="1.5"/><circle cx="18.5" cy="19.5" r="1.5"/></svg>
+        Flex
+      </button>
+      <button class="aba-btn" id="abaBtnTurbo" onclick="mudarAba('turbo')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg>
+        Turbo / Expressa
+      </button>
+    </div>
 
     <a class="sidebar-link" href="#" onclick="abrirPainelExterno('https://ricapet-concorrencia.vercel.app', this); return false;">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 15l4-6 3 3 5-7"/></svg>
@@ -240,45 +323,50 @@
       Estoque Adesivo
     </a>
 
+    <a class="sidebar-link" href="#" onclick="abrirPainelExterno('https://ricapet-ponto-admin.vercel.app', this); return false;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+      Ponto
+    </a>
+
     <a class="sidebar-link" href="/tv.html" id="linkPainelTV" target="_blank" rel="noopener">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
       Painel TV
     </a>
 
     <hr class="sidebar-separador">
+
+    <div class="sidebar-footer">
+      <div class="sidebar-avatar">R</div>
+      <div>
+        <div class="sidebar-footer-name">Ricapet</div>
+        <div class="sidebar-footer-sub">Minha conta</div>
+      </div>
+    </div>
   </nav>
 
   <div class="conteudo-principal" id="conteudoPrincipalWrap">
   <iframe id="painelExternoFrame" class="oculto" style="width:100%; height:100vh; border:none;"></iframe>
 
   <div id="painelNativoWrap">
-  <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
-    <div>
-      <h1>Painel de Logística — Flex / Turbo</h1>
-      <div class="subtitle" id="atualizado-em">Carregando...</div>
-    </div>
-    <button class="periodo-btn" id="btnAlternarTema" onclick="alternarTema()" style="white-space:nowrap;">🌙 Modo escuro</button>
-  </div>
+  <header class="topbar">
+    <div class="topbar-left">Ricapet &amp; Thapets</div>
+    <button class="icon-btn" id="btnAlternarTema" onclick="alternarTema()">🌙 Modo escuro</button>
+  </header>
 
-  <div class="abas">
-    <button class="aba-btn" id="abaBtnExecutivo" onclick="mudarAba('executivo')">Executivo</button>
-    <button class="aba-btn" id="abaBtnProdutos" onclick="mudarAba('produtos')">Produtos</button>
-    <button class="aba-btn" id="abaBtnDesempenho" onclick="mudarAba('desempenho')">Desempenho</button>
-    <button class="aba-btn" id="abaBtnTodos" onclick="mudarAba('todos')">Todos os pedidos</button>
-    <button class="aba-btn" id="abaBtnFlex" onclick="mudarAba('flex')">Flex</button>
-    <button class="aba-btn" id="abaBtnTurbo" onclick="mudarAba('turbo')">Turbo / Expressa</button>
-  </div>
+  <div class="page-eyebrow">Logística</div>
+  <h1>Painel de Logística — Flex / Turbo</h1>
+  <div class="subtitle" id="atualizado-em">Carregando...</div>
 
   <div class="periodo-controle">
-    <button class="periodo-btn" id="btnUltimas24h" onclick="definirUltimas24h(event)">Últimas 24 horas</button>
-    <button class="periodo-btn" id="btnEsteMes" onclick="definirPeriodo('mes', event)">Este mês</button>
-    <button class="periodo-btn" onclick="definirPeriodo('7dias', event)">Últimos 7 dias</button>
-    <button class="periodo-btn" onclick="definirPeriodo('30dias', event)">Últimos 30 dias</button>
-    <button class="periodo-btn" onclick="definirPeriodo('tudo', event)">Tudo</button>
-    <button class="periodo-btn" id="btnPeriodoEspecifico" onclick="ativarPeriodoEspecifico()">Período específico</button>
+    <button class="periodo-btn" id="btnUltimas24h" onclick="definirUltimas24h(event)">🕐 Últimas 24 horas</button>
+    <button class="periodo-btn" id="btnEsteMes" onclick="definirPeriodo('mes', event)">📅 Este mês</button>
+    <button class="periodo-btn" onclick="definirPeriodo('7dias', event)">📆 Últimos 7 dias</button>
+    <button class="periodo-btn" onclick="definirPeriodo('30dias', event)">📆 Últimos 30 dias</button>
+    <button class="periodo-btn" onclick="definirPeriodo('tudo', event)">🗂️ Tudo</button>
+    <button class="periodo-btn" id="btnPeriodoEspecifico" onclick="ativarPeriodoEspecifico()">🎯 Período específico</button>
     <label>De <input type="date" id="periodoDe" onchange="ativarPeriodoEspecifico()"></label>
     <label>Até <input type="date" id="periodoAte" onchange="ativarPeriodoEspecifico()"></label>
-    <button class="periodo-btn periodo-aplicar" onclick="aplicarPeriodoManual()">Aplicar</button>
+    <button class="periodo-btn periodo-aplicar" onclick="aplicarPeriodoManual()">✅ Aplicar</button>
     <span id="periodoLabel" class="periodo-label"></span>
   </div>
 
@@ -288,47 +376,47 @@
     <div id="alertasInteligentes" style="margin-bottom:20px;"></div>
 
     <div class="grid-stats">
-      <div class="stat-card">
+      <div class="stat-card"><div class="stat-icon-wrap tone-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div>
         <div class="value" id="execFaturamento">–</div>
         <div class="label">Faturamento Total</div>
         <div class="kpi-delta" id="execFaturamentoDelta">–</div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card"><div class="stat-icon-wrap tone-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg></div>
         <div class="value" id="execPedidos">–</div>
         <div class="label">Quantidade de Pedidos</div>
         <div class="kpi-delta" id="execPedidosDelta">–</div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card"><div class="stat-icon-wrap tone-orange"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41L11 3.83V3H4v7h.83l9.58 9.59a2 2 0 002.83 0l3.35-3.35a2 2 0 000-2.83z"/><circle cx="7.5" cy="7.5" r="1"/></svg></div>
         <div class="value" id="execTicket">–</div>
         <div class="label">Ticket Médio</div>
         <div class="kpi-delta" id="execTicketDelta">–</div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card"><div class="stat-icon-wrap tone-purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div>
         <div class="value" id="execTempoColeta">–</div>
         <div class="label">Tempo Médio até Coleta</div>
         <div class="kpi-delta" id="execTempoColetaDelta">–</div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card"><div class="stat-icon-wrap tone-purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="7" width="15" height="10" rx="1"/><path d="M16 10h4l3 3v4h-7z"/><circle cx="5.5" cy="19.5" r="1.5"/><circle cx="18.5" cy="19.5" r="1.5"/></svg></div>
         <div class="value" id="execTempoEntrega">–</div>
         <div class="label">Tempo Médio até Entrega</div>
         <div class="kpi-delta" id="execTempoEntregaDelta">–</div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card"><div class="stat-icon-wrap tone-red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg></div>
         <div class="value" id="execCancelamentos">–</div>
         <div class="label">Cancelamentos</div>
         <div class="kpi-delta" id="execCancelamentosDelta">–</div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card"><div class="stat-icon-wrap tone-orange"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg></div>
         <div class="value" id="execAtrasados">–</div>
         <div class="label">Pedidos Atrasados</div>
         <div class="kpi-delta" id="execAtrasadosDelta">–</div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card"><div class="stat-icon-wrap tone-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg></div>
         <div class="value" id="execSLA">–</div>
         <div class="label">SLA (dentro do prazo)</div>
         <div class="kpi-delta" id="execSLADelta">–</div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card"><div class="stat-icon-wrap tone-red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg></div>
         <div class="value" id="execDevolucoes">–</div>
         <div class="label">Devoluções</div>
         <div class="kpi-delta" id="execDevolucoesDelta">–</div>
@@ -383,11 +471,11 @@
       Curva ABC calculada por <b>quantidade vendida</b> — o histórico ainda não guarda o preço unitário de cada item, só o valor total do pedido, então ainda não é possível montar a curva por faturamento real. Usa o filtro de período no topo (aba "Todos os pedidos"/"Executivo").
     </div>
     <div class="grid-stats">
-      <div class="stat-card"><div class="value" id="prodDistintos">–</div><div class="label">Produtos distintos vendidos</div></div>
-      <div class="stat-card"><div class="value" id="prodUnidades">–</div><div class="label">Unidades totais vendidas</div></div>
-      <div class="stat-card"><div class="value" id="prodClasseA">–</div><div class="label">Produtos Classe A</div></div>
-      <div class="stat-card"><div class="value" id="prodClasseB">–</div><div class="label">Produtos Classe B</div></div>
-      <div class="stat-card"><div class="value" id="prodClasseC">–</div><div class="label">Produtos Classe C</div></div>
+      <div class="stat-card"><div class="stat-icon-wrap tone-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><path d="M3.27 6.96L12 12l8.73-5.04M12 22.08V12"/></svg></div><div class="value" id="prodDistintos">–</div><div class="label">Produtos distintos vendidos</div></div>
+      <div class="stat-card"><div class="stat-icon-wrap tone-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg></div><div class="value" id="prodUnidades">–</div><div class="label">Unidades totais vendidas</div></div>
+      <div class="stat-card"><div class="stat-icon-wrap tone-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div><div class="value" id="prodClasseA">–</div><div class="label">Produtos Classe A</div></div>
+      <div class="stat-card"><div class="stat-icon-wrap tone-orange"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div><div class="value" id="prodClasseB">–</div><div class="label">Produtos Classe B</div></div>
+      <div class="stat-card"><div class="stat-icon-wrap tone-gray"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div><div class="value" id="prodClasseC">–</div><div class="label">Produtos Classe C</div></div>
     </div>
 
     <div class="secao-titulo">Curva ABC (Pareto) — Top 20 por quantidade</div>
@@ -441,16 +529,16 @@
         <label style="display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted);">Até
           <select id="desFiltroMesAte" class="desempenho-select" onchange="carregarDesempenho(true)"></select>
         </label>
-        <button class="periodo-btn" onclick="desempenhoLimparFiltros()" style="margin-left:auto;">Limpar filtros</button>
+        <button class="periodo-btn" onclick="desempenhoLimparFiltros()" style="margin-left:auto;">🧹 Limpar filtros</button>
       </div>
     </div>
 
     <div class="grid-stats">
-      <div class="stat-card"><div class="value" id="desProdutosDistintos">–</div><div class="label">Produtos distintos</div></div>
-      <div class="stat-card"><div class="value" id="desFaturamentoTotal">–</div><div class="label">Faturamento total (histórico coletado)</div></div>
-      <div class="stat-card"><div class="value" id="desUnidadesTotal">–</div><div class="label">Unidades totais</div></div>
-      <div class="stat-card"><div class="value" id="desCobertura">–</div><div class="label">Itens com preço capturado</div></div>
-      <div class="stat-card"><div class="value" id="desNaoMapeados">–</div><div class="label">Itens com SKU não mapeado</div></div>
+      <div class="stat-card"><div class="stat-icon-wrap tone-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><path d="M3.27 6.96L12 12l8.73-5.04M12 22.08V12"/></svg></div><div class="value" id="desProdutosDistintos">–</div><div class="label">Produtos distintos</div></div>
+      <div class="stat-card"><div class="stat-icon-wrap tone-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div><div class="value" id="desFaturamentoTotal">–</div><div class="label">Faturamento total (histórico coletado)</div></div>
+      <div class="stat-card"><div class="stat-icon-wrap tone-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg></div><div class="value" id="desUnidadesTotal">–</div><div class="label">Unidades totais</div></div>
+      <div class="stat-card"><div class="stat-icon-wrap tone-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg></div><div class="value" id="desCobertura">–</div><div class="label">Itens com preço capturado</div></div>
+      <div class="stat-card"><div class="stat-icon-wrap tone-orange"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg></div><div class="value" id="desNaoMapeados">–</div><div class="label">Itens com SKU não mapeado</div></div>
     </div>
 
     <div class="secao-titulo" id="desEvoTitulo">Evolução Mensal Total — Soma de Vendas (Pedido Pago) (BRL)</div>
@@ -541,9 +629,9 @@
   <!-- ABA: TURBO / EXPRESSA -->
   <div id="painelTurbo" class="oculto">
     <div class="grid-stats">
-      <div class="stat-card"><div class="value" id="total-pedidos">–</div><div class="label">Pedidos expressos (últimas horas)</div></div>
-      <div class="stat-card"><div class="value" id="total-ml">–</div><div class="label">Mercado Livre</div></div>
-      <div class="stat-card"><div class="value" id="total-shopee">–</div><div class="label">Shopee (Entrega Turbo)</div></div>
+      <div class="stat-card"><div class="stat-icon-wrap tone-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div><div class="value" id="total-pedidos">–</div><div class="label">Pedidos expressos (últimas horas)</div></div>
+      <div class="stat-card"><div class="stat-icon-wrap tone-yellow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l1-5h16l1 5"/><path d="M3 9a2 2 0 002 2h14a2 2 0 002-2M5 11v9a1 1 0 001 1h12a1 1 0 001-1v-9"/></svg></div><div class="value" id="total-ml">–</div><div class="label">Mercado Livre</div></div>
+      <div class="stat-card"><div class="stat-icon-wrap tone-shopee"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div><div class="value" id="total-shopee">–</div><div class="label">Shopee (Entrega Turbo)</div></div>
     </div>
     <table>
       <thead><tr><th>Marketplace</th><th>Conta/Loja</th><th>Pedido</th><th>Data</th><th>Valor</th><th>Itens</th></tr></thead>
@@ -617,7 +705,7 @@
         <div class="card-body">
           <div class="icon-stat">
             <div class="icone">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2f80ed" stroke-width="2"><path d="M3 12l4-8h10l4 8M3 12v6a1 1 0 001 1h1a2 2 0 004 0h6a2 2 0 004 0h1a1 1 0 001-1v-6M3 12h18"/></svg>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" stroke-width="2"><path d="M3 12l4-8h10l4 8M3 12v6a1 1 0 001 1h1a2 2 0 004 0h6a2 2 0 004 0h1a1 1 0 001-1v-6M3 12h18"/></svg>
             </div>
             <div>
               <div class="valor" id="statTempoAteEntrega">–</div>
@@ -664,10 +752,10 @@
     </div>
 
     <div class="grid-stats">
-      <div class="stat-card"><div class="value" id="flex-total-periodo">–</div><div class="label">Total no período</div></div>
-      <div class="stat-card"><div class="value status-coletado" id="flex-entregues">–</div><div class="label">Entregues</div></div>
-      <div class="stat-card"><div class="value status-transito" id="flex-coletados-nao-entregues">–</div><div class="label">Coletados, não entregues</div></div>
-      <div class="stat-card"><div class="value status-aguardando" id="flex-a-coletar">–</div><div class="label">A coletar</div></div>
+      <div class="stat-card"><div class="stat-icon-wrap tone-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg></div><div class="value" id="flex-total-periodo">–</div><div class="label">Total no período</div></div>
+      <div class="stat-card"><div class="stat-icon-wrap tone-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg></div><div class="value status-coletado" id="flex-entregues">–</div><div class="label">Entregues</div></div>
+      <div class="stat-card"><div class="stat-icon-wrap tone-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="7" width="15" height="10" rx="1"/><path d="M16 10h4l3 3v4h-7z"/><circle cx="5.5" cy="19.5" r="1.5"/><circle cx="18.5" cy="19.5" r="1.5"/></svg></div><div class="value status-transito" id="flex-coletados-nao-entregues">–</div><div class="label">Coletados, não entregues</div></div>
+      <div class="stat-card"><div class="stat-icon-wrap tone-orange"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 22h14M5 2h14M5 22v-4a7 7 0 0114 0v4M5 2v4a7 7 0 0014 0V2"/></svg></div><div class="value status-aguardando" id="flex-a-coletar">–</div><div class="label">A coletar</div></div>
     </div>
 
     <div class="secao-titulo">Análise complementar</div>
@@ -702,12 +790,12 @@
         </select>
       </label>
       <div id="chipsFiltroContainer" style="display:inline-flex; gap:8px; flex-wrap:wrap;"></div>
-      <button class="periodo-btn" onclick="limparTodosFiltrosDrill()" style="margin-left:auto;">Limpar filtros</button>
+      <button class="periodo-btn" onclick="limparTodosFiltrosDrill()" style="margin-left:auto;">🧹 Limpar filtros</button>
     </div>
 
     <div class="grid-stats">
-      <div class="stat-card"><div class="value" id="todos-total">–</div><div class="label">Total no período (com filtro aplicado)</div></div>
-      <div class="stat-card"><div class="value" id="todos-ticket-medio">–</div><div class="label">Ticket médio</div></div>
+      <div class="stat-card"><div class="stat-icon-wrap tone-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg></div><div class="value" id="todos-total">–</div><div class="label">Total no período (com filtro aplicado)</div></div>
+      <div class="stat-card"><div class="stat-icon-wrap tone-orange"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41L11 3.83V3H4v7h.83l9.58 9.59a2 2 0 002.83 0l3.35-3.35a2 2 0 000-2.83z"/><circle cx="7.5" cy="7.5" r="1"/></svg></div><div class="value" id="todos-ticket-medio">–</div><div class="label">Ticket médio</div></div>
     </div>
 
     <div class="secao-titulo">Análise do período</div>
@@ -766,6 +854,14 @@
   </div><!-- fecha .conteudo-principal -->
 
 <script>
+  function toggleVisoes(forcar) {
+    const grupo = document.getElementById('grupoVisoes');
+    const chevron = document.getElementById('chevronDashboard');
+    const expandir = typeof forcar === 'boolean' ? forcar : grupo.classList.contains('oculto');
+    grupo.classList.toggle('oculto', !expandir);
+    if (chevron) chevron.style.transform = expandir ? 'rotate(90deg)' : 'rotate(0deg)';
+  }
+
   function abrirPainelExterno(url, elLink) {
     document.getElementById('painelNativoWrap').style.display = 'none';
     const frame = document.getElementById('painelExternoFrame');
@@ -775,12 +871,13 @@
 
     document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('ativo'));
     elLink.classList.add('ativo');
+    toggleVisoes(false);
   }
 
   function mostrarPainelNativo() {
     document.getElementById('painelExternoFrame').classList.add('oculto');
     document.getElementById('painelNativoWrap').style.display = '';
-    document.getElementById('conteudoPrincipalWrap').style.padding = '24px 24px 24px 34px';
+    document.getElementById('conteudoPrincipalWrap').style.padding = '24px 28px';
 
     document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('ativo'));
     document.getElementById('linkPainelNativo').classList.add('ativo');
@@ -811,7 +908,7 @@
   }
 
   const CORES = {
-    teal: '#17a389', yellow: '#f2c94c', gray: '#bdc3c7', blue: '#2f80ed', red: '#eb5757',
+    teal: '#17a389', yellow: '#f2c94c', gray: '#bdc3c7', blue: '#1d4ed8', red: '#eb5757',
     ml: '#f2b90c', shopee: '#ee4d2d',
     get muted() { return corMuted(); },
     get grid() { return corGrid(); },
