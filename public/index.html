@@ -88,11 +88,14 @@
   .periodo-aplicar { color: var(--ink-on-accent); background: var(--blue); border-color: var(--blue); }
   .periodo-label { color: var(--muted); margin-left: auto; }
 
-  .topbar { display: flex; align-items: center; justify-content: space-between; padding: 2px 0 18px; }
-  .topbar-left { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
-  .icon-btn { background: var(--card); border: 1px solid var(--border); border-radius: 999px; padding: 6px 14px; font-size: 12px; font-weight: 600; color: var(--text); cursor: pointer; font-family: inherit; }
-  .icon-btn:hover { background: #f4f5f7; }
-  body.tema-escuro .icon-btn:hover { background: #232837; }
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 28px; margin: -24px -28px 18px; background: var(--sidebar-bg);
+    border-radius: 0 0 16px 16px;
+  }
+  .topbar-left { font-size: 12px; font-weight: 700; color: rgba(255,255,255,0.75); text-transform: uppercase; letter-spacing: 0.05em; }
+  .icon-btn { background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.3); border-radius: 999px; padding: 6px 14px; font-size: 12px; font-weight: 600; color: #fff; cursor: pointer; font-family: inherit; }
+  .icon-btn:hover { background: rgba(255,255,255,0.22); }
   .page-eyebrow { text-transform: uppercase; letter-spacing: 0.06em; font-size: 11px; font-weight: 800; color: var(--text); opacity: 0.5; margin-bottom: 4px; }
 
   .card {
