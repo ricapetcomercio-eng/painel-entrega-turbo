@@ -1,0 +1,1571 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel de Reposição — Ricapet · Thapets</title>
+<script src="assets/auth.js"></script>
+<style>
+  :root {
+    --bg: #F3F6F5;
+    --surface: #FFFFFF;
+    --surface-2: #EAEFED;
+    --surface-3: #DEE6E3;
+    --ink: #15211D;
+    --ink-soft: #4E5D57;
+    --ink-muted: #8A9791;
+    --border: #DCE3DF;
+    --accent: #f5a623;
+    --accent-dark: #272456;
+    --accent-light: #fdecc8;
+    --ink-on-accent: #241f4d;
+    --danger-bg: #FCEBEB; --danger-text: #8A2A24; --danger-solid: #C94A3F;
+    --warning-bg: #FBF0DC; --warning-text: #6B4308; --warning-solid: #C98500;
+    --success-bg: #E7F3E2; --success-text: #29551A; --success-solid: #3E8E41;
+    --neutral-bg: #EAEFED; --neutral-text: #5C6864;
+    --radius: 14px;
+    --radius-sm: 9px;
+    --font-display: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-mono: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --brand: #16a34a;
+    --brand-light: #dcfce7;
+    --page-bg: #e7e9f7;
+    --sidebar-bg: var(--accent-dark);
+    --sidebar-text: #eef2ff;
+    --sidebar-muted: #9db0dd;
+    --sidebar-hover: rgba(255,255,255,0.08);
+    --sidebar-border: rgba(255,255,255,0.14);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; padding: 0; background: var(--page-bg); color: var(--ink); font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection { background: var(--accent-light); color: var(--accent-dark); }
+
+  /* ---------- sidebar (mesmo padrão dos outros painéis Ricapet) ---------- */
+  .sidebar {
+    width: 240px; height: 100vh; position: fixed; top: 0; left: 0; z-index: 1000;
+    background: var(--sidebar-bg); border-right: 1px solid var(--sidebar-border);
+    padding: 20px 14px; box-sizing: border-box; overflow-y: auto;
+    display: flex; flex-direction: column; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  .sidebar-brand { display: flex; align-items: center; gap: 10px; padding: 2px 10px 16px; margin-bottom: 12px; border-bottom: 1px solid var(--sidebar-border); }
+  .sidebar-brand-icon { width: 40px; height: 40px; object-fit: contain; flex-shrink: 0; }
+  .sidebar-brand-name { font-size: 14px; font-weight: 800; color: var(--sidebar-text); line-height: 1.2; }
+  .sidebar-brand-sub { font-size: 11px; color: var(--sidebar-muted); }
+  .sidebar-titulo { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sidebar-muted); padding: 0 10px; margin-bottom: 10px; }
+  .sidebar-link {
+    display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px;
+    color: var(--sidebar-text); text-decoration: none; font-size: 13px; font-weight: 600; margin-bottom: 4px;
+    white-space: nowrap;
+  }
+  .sidebar-link:hover { background: var(--sidebar-hover); }
+  .sidebar-link.ativo { background: var(--accent); color: var(--ink-on-accent); }
+  .sidebar-link.ativo svg { stroke: var(--ink-on-accent); }
+  .sidebar-link svg { flex-shrink: 0; }
+  .sidebar-separador { border: none; border-top: 1px solid var(--sidebar-border); margin: 14px 0; }
+  .sidebar-footer { display: flex; align-items: center; gap: 10px; padding: 10px; margin-top: auto; border-top: 1px solid var(--sidebar-border); }
+  .sidebar-avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--accent); color: var(--ink-on-accent); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; flex-shrink: 0; }
+  .sidebar-footer-name { font-size: 12px; font-weight: 700; color: var(--sidebar-text); }
+  .sidebar-footer-sub { font-size: 11px; color: var(--sidebar-muted); }
+  .conteudo-principal { margin-left: 240px; }
+  @media (max-width: 900px) {
+    .sidebar { position: static; width: 100%; height: auto; flex-direction: row; flex-wrap: wrap; border-right: none; border-bottom: 1px solid var(--border); }
+    .sidebar-brand, .sidebar-footer, .sidebar-separador { display: none; }
+    .conteudo-principal { margin-left: 0; }
+  }
+
+  /* ---------- shell ---------- */
+  .shell { max-width: 1180px; margin: 0 auto; padding: 0 24px 80px; }
+
+  /* Barra cheia no topo do conteúdo, mesmo azul-marinho da sidebar e do
+     header do painel de Ponto — igual ao topbar do painel-entrega-turbo. */
+  .topbar-full { background: var(--sidebar-bg); margin-bottom: 20px; min-height: 64px; box-sizing: border-box; position: sticky; top: 0; z-index: 5; }
+
+  .kpi-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 28px; }
+  .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 13px 16px; }
+  .kpi .k-label { font-size: 11.5px; color: var(--ink-muted); margin-bottom: 5px; }
+  .kpi .k-value { font-family: var(--font-mono); font-size: 19px; font-weight: 600; color: var(--ink); }
+
+  /* ---------- layout: stepper rail + content ---------- */
+  .layout { display: grid; grid-template-columns: 56px 1fr; gap: 24px; align-items: start; }
+  @media (max-width: 760px) { .layout { grid-template-columns: 1fr; } .rail { display: none; } }
+
+  .rail { position: sticky; top: 24px; display: flex; flex-direction: column; align-items: center; padding-top: 6px; }
+  .rail .dot-wrap { display: flex; flex-direction: column; align-items: center; }
+  .rail .dot { width: 34px; height: 34px; border-radius: 50%; background: var(--surface); border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: var(--ink-muted); transition: all .15s ease; cursor: pointer; flex-shrink: 0; }
+  .rail .dot.done { border-color: var(--success-solid); color: var(--success-solid); background: var(--success-bg); }
+  .rail .dot.current { border-color: var(--accent); color: var(--accent); background: var(--accent-light); box-shadow: 0 0 0 4px var(--accent-light); }
+  .rail .line { width: 2px; flex: 1; min-height: 46px; background: var(--border); margin: 2px 0; }
+  .rail .line.done { background: var(--success-solid); }
+
+  /* ---------- step cards ---------- */
+  .step { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 18px; overflow: hidden; scroll-margin-top: 20px; }
+  .step-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 22px; cursor: pointer; }
+  .step-head .htext .step-eyebrow { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-muted); margin-bottom: 3px; }
+  .step-head h2 { font-family: var(--font-display); font-size: 16.5px; font-weight: 600; margin: 0; }
+  .step-head .sub { font-size: 12.5px; color: var(--ink-soft); margin: 3px 0 0; }
+  .step-head .chev { color: var(--ink-muted); transition: transform .2s ease; flex-shrink: 0; }
+  .step.collapsed .chev { transform: rotate(-90deg); }
+  .step-body { padding: 0 22px 22px; }
+  .step.collapsed .step-body { display: none; }
+  .step-status { font-size: 11px; font-family: var(--font-mono); padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+  .step-status.ok { background: var(--success-bg); color: var(--success-text); }
+  .step-status.pending { background: var(--neutral-bg); color: var(--neutral-text); }
+
+  /* ---------- upload (step 1) ---------- */
+  .upload-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+  .upload-box { border: 1.5px dashed var(--border); border-radius: var(--radius-sm); padding: 14px; background: var(--surface-2); }
+  .upload-box label { display: block; font-size: 12px; font-weight: 500; color: var(--ink-soft); margin-bottom: 7px; }
+  .upload-box input[type=file] { font-size: 12px; width: 100%; color: var(--ink-soft); }
+  .upload-box .fname { font-size: 11px; color: var(--ink-muted); margin-top: 6px; word-break: break-all; }
+  .btn { font-family: var(--font-body); font-size: 13.5px; padding: 9px 18px; border-radius: 8px; border: none; background: var(--accent); color: var(--ink-on-accent); font-weight: 600; cursor: pointer; transition: background .15s, color .15s; }
+  .btn:hover:not(:disabled) { background: var(--accent-dark); color: #fff; }
+  .btn:disabled { background: var(--surface-3); color: var(--ink-muted); cursor: not-allowed; }
+  .btn.ghost { background: transparent; color: var(--accent); border: 1px solid var(--border); }
+  .btn.ghost:hover:not(:disabled) { background: var(--accent-light); }
+  .status-line { font-size: 12.5px; margin-top: 12px; white-space: pre-line; line-height: 1.5; }
+  .status-line.err { color: var(--danger-text); }
+  .status-line.ok { color: var(--success-text); }
+  .status-line.muted { color: var(--ink-muted); }
+
+  /* ---------- period (step 2) ---------- */
+  .period-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: var(--surface-2); border-radius: var(--radius-sm); padding: 12px 16px; margin-bottom: 16px; }
+  .period-controls label { font-size: 13px; color: var(--ink-soft); font-weight: 500; }
+  .period-controls select { font-family: var(--font-mono); font-size: 13px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); color: var(--ink); }
+  .period-controls .n-months { margin-left: auto; font-family: var(--font-mono); font-size: 12px; color: var(--accent); background: var(--accent-light); padding: 4px 10px; border-radius: 999px; }
+  .metric-toggle { display: flex; gap: 6px; margin-bottom: 12px; }
+  .metric-toggle button { font-size: 12.5px; padding: 6px 13px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface); color: var(--ink-soft); cursor: pointer; }
+  .metric-toggle button.active { background: var(--accent-light); border-color: var(--accent); color: var(--accent-dark); font-weight: 600; }
+  .legend-row { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 10px; font-size: 12px; color: var(--ink-soft); }
+  .legend-row .chip { display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; }
+  .sw { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+  .chart-wrap { position: relative; width: 100%; height: 230px; }
+
+  /* ---------- product / color tabs (shared steps 3 & 4) ---------- */
+  .product-tabs { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; align-items: center; }
+  .product-tabs button { font-size: 13px; padding: 7px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--ink-soft); cursor: pointer; display: flex; align-items: center; gap: 7px; font-weight: 500; }
+  .product-tabs button.active { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .product-select { font-size: 13.5px; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); font-weight: 500; min-width: 220px; }
+  .geral-toggle-btn { font-size: 13px; padding: 7px 14px; border-radius: 8px; border: 1px solid var(--accent); background: var(--surface); color: var(--accent); cursor: pointer; font-weight: 700; }
+  .geral-toggle-btn.active { background: var(--accent); color: var(--ink-on-accent); }
+
+  /* ---------- step 3: estoque ---------- */
+  .lead-row { display: flex; align-items: center; gap: 10px; background: var(--accent-light); border-radius: var(--radius-sm); padding: 12px 16px; margin-bottom: 16px; flex-wrap: wrap; }
+  .lead-row label { font-size: 13px; color: var(--accent-dark); font-weight: 500; }
+  .lead-row input { font-family: var(--font-mono); width: 70px; font-size: 13.5px; padding: 6px 9px; border: 1px solid var(--accent); border-radius: 7px; background: var(--surface); color: var(--ink); }
+  .lead-row .hint { font-size: 11.5px; color: var(--accent-dark); opacity: .8; }
+
+  .cor-block { border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 10px; overflow: hidden; }
+  .roll-stock-wrap { border: 1px solid var(--accent); border-radius: var(--radius-sm); overflow: hidden; background: var(--accent-light); }
+  .roll-stock-title { padding: 10px 16px 4px; font-size: 13.5px; font-weight: 700; color: var(--accent-dark); }
+  .roll-stock-sub { padding: 0 16px 10px; font-size: 11.5px; color: var(--accent-dark); opacity: .85; }
+  table.roll-tbl { width: 100%; border-collapse: collapse; font-size: 12.5px; background: var(--surface); }
+  table.roll-tbl th { text-align: right; padding: 7px 10px; font-weight: 500; color: var(--ink-muted); background: var(--surface-2); font-size: 11px; text-transform: uppercase; letter-spacing: .02em; }
+  table.roll-tbl th:first-child, table.roll-tbl td:first-child { text-align: left; }
+  table.roll-tbl td { padding: 6px 10px; text-align: right; border-top: 1px solid var(--border); }
+  table.roll-tbl input { width: 80px; font-family: var(--font-mono); text-align: right; padding: 5px 7px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--ink); }
+  .cor-block-head { display: flex; align-items: center; gap: 9px; padding: 10px 14px; background: var(--surface-2); font-weight: 600; font-size: 13.5px; }
+  .cor-block-head .rp-dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; }
+  .medida-rows { }
+  .medida-row { display: grid; grid-template-columns: 1fr 120px 120px; align-items: center; gap: 12px; padding: 9px 14px; border-top: 1px solid var(--border); }
+  .medida-row .m-name { font-size: 12.5px; color: var(--ink-soft); }
+  .medida-row .m-name .tag { font-size: 10px; color: var(--ink-muted); margin-left: 6px; }
+  .medida-row .m-field label { display: block; font-size: 10px; color: var(--ink-muted); margin-bottom: 3px; }
+  .medida-row .m-field input { width: 100%; font-family: var(--font-mono); font-size: 13px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--ink); }
+  @media (max-width: 560px) { .medida-row { grid-template-columns: 1fr; gap: 6px; } }
+
+  /* ---------- step 4: resultado ---------- */
+  .hero-total { background: linear-gradient(135deg, var(--accent-dark), var(--accent)); border-radius: var(--radius); padding: 22px 26px; margin-bottom: 16px; color: #fff; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .hero-total .h-label { font-size: 13px; opacity: .85; margin-bottom: 4px; }
+  .hero-total .h-label strong { opacity: 1; }
+  .hero-total .h-value { font-family: var(--font-mono); font-size: 34px; font-weight: 600; }
+  .hero-total .h-sub { font-size: 11.5px; opacity: .75; margin-top: 4px; }
+
+  .cor-result-card { border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 10px; overflow: hidden; }
+  .cor-result-summary { display: flex; align-items: center; gap: 12px; padding: 13px 16px; cursor: pointer; }
+  .cor-simple-row { display: flex; align-items: center; gap: 12px; padding: 13px 16px; border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 8px; }
+  .cor-simple-row .r-name { font-size: 14px; font-weight: 600; flex: 1; }
+  .cor-simple-row .r-value { font-family: var(--font-mono); font-size: 17px; font-weight: 700; color: var(--ink); }
+  .cor-result-summary .rp-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+  .cor-result-summary .r-name { font-size: 14px; font-weight: 600; flex: 1; }
+  .cor-result-summary .r-value { font-family: var(--font-mono); font-size: 17px; font-weight: 600; }
+  .cor-result-summary .r-badge { font-size: 11px; padding: 3px 9px; border-radius: 999px; font-weight: 600; }
+  .cor-result-summary .chev { color: var(--ink-muted); transition: transform .2s ease; }
+  .cor-result-card.open .chev { transform: rotate(180deg); }
+  .cor-result-detail { display: none; border-top: 1px solid var(--border); }
+  .cor-result-card.open .cor-result-detail { display: block; }
+  table.detail-tbl { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  table.detail-tbl th { text-align: right; padding: 8px 12px; font-weight: 500; color: var(--ink-muted); background: var(--surface-2); font-size: 11px; text-transform: uppercase; letter-spacing: .03em; }
+  table.detail-tbl th:first-child, table.detail-tbl td:first-child { text-align: left; }
+  table.detail-tbl td { padding: 8px 12px; text-align: right; border-top: 1px solid var(--border); font-family: var(--font-mono); }
+  table.detail-tbl td:first-child { font-family: var(--font-body); }
+  .badge { display: inline-block; padding: 2px 9px; border-radius: 6px; font-weight: 600; font-size: 11.5px; }
+
+  .empty-note { text-align: center; padding: 30px 20px; color: var(--ink-muted); font-size: 13px; }
+  footer.foot { text-align: center; font-size: 11.5px; color: var(--ink-muted); margin-top: 26px; }
+  footer.foot a { color: var(--accent); }
+</style>
+</head>
+<body>
+<nav class="sidebar">
+  <div class="sidebar-brand">
+    <img class="sidebar-brand-icon" src="logo-ricapet.png" alt="Ricapet">
+    <div>
+      <div class="sidebar-brand-name">Ricapet</div>
+      <div class="sidebar-brand-sub">Estoque Adesivo</div>
+    </div>
+  </div>
+
+  <div class="sidebar-titulo" id="tituloPaineis">Painéis Ricapet</div>
+
+  <a class="sidebar-link" href="/" data-menu-key="dashboard">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+    Dashboard
+  </a>
+
+  <a class="sidebar-link" href="https://ricapet-concorrencia.vercel.app" data-menu-key="concorrencia">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 15l4-6 3 3 5-7"/></svg>
+    Análise de Concorrência
+  </a>
+
+  <a class="sidebar-link ativo" href="#" data-menu-key="estoque">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8L12 3 3 8l9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>
+    Estoque Adesivo
+  </a>
+
+  <a class="sidebar-link" href="/ponto.html" data-menu-key="ponto">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+    Ponto
+  </a>
+
+  <a class="sidebar-link" href="/tv.html" target="_blank" rel="noopener" data-menu-key="tv">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+    Painel TV
+  </a>
+
+  <hr class="sidebar-separador">
+
+  <div class="sidebar-titulo" id="tituloVisoes">Visões</div>
+
+  <a class="sidebar-link ativo" href="estoque.html" data-menu-key="reposicao">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-4"/></svg>
+    Painel de Reposição
+  </a>
+  <a class="sidebar-link" href="estoque-saldo.html" data-menu-key="saldo">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+    Saldo de Estoque
+  </a>
+  <a class="sidebar-link" href="estoque-atualizar.html" data-menu-key="atualizar">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 18h6"/></svg>
+    Atualizar Estoque
+  </a>
+
+  <div class="sidebar-footer">
+    <div class="sidebar-avatar" id="sidebarAvatarInicial">R</div>
+    <div>
+      <div class="sidebar-footer-name" id="sidebarNomeUsuario">Ricapet</div>
+      <div class="sidebar-footer-sub"><a href="#" id="linkSair" style="color:inherit">Sair</a></div>
+    </div>
+  </div>
+</nav>
+
+<div class="conteudo-principal">
+<header class="topbar-full"></header>
+<div id="last-updated" hidden></div>
+<div id="stock-updated" hidden></div>
+<div class="shell">
+
+  <div class="kpi-strip" id="kpi-strip"></div>
+
+  <div class="shared-note" id="shared-note" style="display:none;font-size:11.5px;color:var(--ink-muted);background:var(--accent-light);border-radius:8px;padding:8px 12px;margin:-14px 0 18px;"></div>
+
+  <div class="layout">
+    <div class="rail" id="rail"></div>
+    <main>
+
+      <section class="step" id="step-1" data-step="1">
+        <div class="step-head" data-toggle="1">
+          <div class="htext">
+            <div class="step-eyebrow">Passo 1</div>
+            <h2>Atualizar dados de vendas</h2>
+            <p class="sub">Envie os relatórios do Mercado Livre e da Shopee para recalcular as unidades vendidas.</p>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span class="step-status pending" id="step1-status">opcional</span>
+            <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+        </div>
+        <div class="step-body">
+          <div class="upload-grid">
+            <div class="upload-box">
+              <label>Relatório Mercado Livre (.xlsx)</label>
+              <input type="file" id="file-ml" accept=".xlsx" />
+              <div class="fname" id="fname-ml">Nenhum arquivo selecionado</div>
+            </div>
+            <div class="upload-box">
+              <label>Relatório Shopee (.xlsx)</label>
+              <input type="file" id="file-sh" accept=".xlsx" />
+              <div class="fname" id="fname-sh">Nenhum arquivo selecionado</div>
+            </div>
+          </div>
+          <button class="btn" id="process-btn" disabled>Processar e atualizar</button>
+          <div class="status-line muted" id="status-line"></div>
+        </div>
+      </section>
+
+      <section class="step" id="step-2" data-step="2">
+        <div class="step-head" data-toggle="2">
+          <div class="htext">
+            <div class="step-eyebrow">Passo 2</div>
+            <h2>Período considerado no consumo médio</h2>
+            <p class="sub">Escolha os meses que representam o ritmo normal de vendas — isso define a média usada nos cálculos.</p>
+          </div>
+          <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="step-body">
+          <div class="metric-toggle" id="metric-toggle">
+            <button data-metric="units">Unidades vendidas</button>
+            <button data-metric="m2">m² consumidos</button>
+          </div>
+          <div class="legend-row" id="legend-row"></div>
+          <div class="chart-wrap"><canvas id="trend-chart"></canvas></div>
+          <div class="period-controls">
+            <label>Considerar de</label>
+            <select id="period-start"></select>
+            <label>até</label>
+            <select id="period-end"></select>
+            <span class="n-months" id="period-info"></span>
+          </div>
+        </div>
+      </section>
+
+      <section class="step" id="step-3" data-step="3">
+        <div class="step-head" data-toggle="3">
+          <div class="htext">
+            <div class="step-eyebrow">Passo 3</div>
+            <h2>Estoque atual</h2>
+            <p class="sub">Informe a quantidade em unidades (peças ou rolos) que você contou no estoque próprio (Ricapet) e no FULL. O sistema converte para m² quando necessário e desconta automaticamente o consumo dos dias que passarem até a próxima contagem.</p>
+          </div>
+          <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="step-body">
+          <div class="lead-row">
+            <label>Prazo de entrega do fornecedor (lead time):</label>
+            <input type="number" id="lead-time-input" min="0" step="1" value="15" />
+            <span class="hint">dias entre pedir e receber a matéria-prima</span>
+            <span class="hint" id="save-indicator" style="margin-left:auto;font-weight:600;"></span>
+          </div>
+          <div class="upload-grid" style="margin-bottom:16px;">
+            <div class="upload-box">
+              <label>Relatório Estoque FULL — Mercado Livre (.xlsx)</label>
+              <input type="file" id="file-full-ml" accept=".xlsx" />
+              <div class="fname" id="fname-full-ml">Nenhum arquivo selecionado</div>
+            </div>
+            <div class="upload-box">
+              <label>Relatório Estoque FULL — Shopee (.xlsx)</label>
+              <input type="file" id="file-full-sh" accept=".xlsx" />
+              <div class="fname" id="fname-full-sh">Nenhum arquivo selecionado</div>
+            </div>
+          </div>
+          <button class="btn" id="process-full-btn" disabled>Atualizar Estoque FULL a partir dos relatórios</button>
+          <div class="status-line muted" id="status-line-full" style="margin-bottom:16px;"></div>
+
+          <div id="roll-stock-section" style="margin-bottom:20px;"></div>
+          <div class="product-tabs" id="stock-product-tabs"></div>
+          <div id="stock-cores"></div>
+        </div>
+      </section>
+
+      <section class="step" id="step-4" data-step="4">
+        <div class="step-head" data-toggle="4">
+          <div class="htext">
+            <div class="step-eyebrow">Passo 4</div>
+            <h2>Quantidade a comprar por cor</h2>
+            <p class="sub">Resultado final: quanto encomendar de cada cor, já descontando o que você tem em estoque.</p>
+          </div>
+          <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="step-body">
+          <div class="product-tabs" id="result-product-tabs"></div>
+          <div class="hero-total" id="hero-total"></div>
+          <div id="result-cores"></div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <footer class="foot">Ricapet · Thapets — dados unificados de Mercado Livre e Shopee · <a href="estoque-saldo.html">Ver saldo automático</a> · <a href="estoque-atualizar.html">Contagem física</a></footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+(function(){
+  // ===================================================================
+  // ARMAZENAMENTO COMPARTILHADO (contagem física) — proxy pro JSONBin
+  // ===================================================================
+  // Antes este arquivo falava direto com o JSONBin, com a chave em texto
+  // puro aqui embaixo. Agora passa por /api/estoque (mesma origem), que
+  // guarda a chave só no servidor (env vars JSONBIN_CONTAGEM_*) e exige a
+  // sessão de login do painel.
+  function jsonbinConfigured(){
+    return true;
+  }
+  async function jsonbinGet(){
+    try {
+      const sessao = window.RicapetAuth.sessao;
+      const resp = await fetch('/api/estoque?tipo=contagem-get&sessao=' + encodeURIComponent(sessao.token));
+      if(!resp.ok) return null;
+      const json = await resp.json();
+      return (json.ok && json.record) || null;
+    } catch(e){ console.error('Erro ao ler contagem:', e); return null; }
+  }
+  async function jsonbinPut(record){
+    try {
+      const sessao = window.RicapetAuth.sessao;
+      const resp = await fetch('/api/estoque?tipo=contagem-set&sessao=' + encodeURIComponent(sessao.token), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ record })
+      });
+      const json = await resp.json().catch(() => ({}));
+      return !!(resp.ok && json.ok);
+    } catch(e){ console.error('Erro ao salvar contagem:', e); return false; }
+  }
+  async function jsonbinUpdatePart(key, value){
+    const current = (await jsonbinGet()) || {};
+    current[key] = value;
+    return jsonbinPut(current);
+  }
+
+  // Sessão do login único (RicapetAuth.sessao vem de assets/auth.js, que já
+  // redirecionou pra /login.html se não houver sessão válida).
+  const sessaoAtual = window.RicapetAuth.sessao;
+  const elNomeUsuario = document.getElementById('sidebarNomeUsuario');
+  const elAvatarUsuario = document.getElementById('sidebarAvatarInicial');
+  if (sessaoAtual && elNomeUsuario && elAvatarUsuario) {
+    elNomeUsuario.textContent = sessaoAtual.nome;
+    elAvatarUsuario.textContent = sessaoAtual.nome.charAt(0).toUpperCase();
+  }
+  const elLinkSair = document.getElementById('linkSair');
+  if (elLinkSair) elLinkSair.addEventListener('click', (ev) => { ev.preventDefault(); window.RicapetAuth.sair(); });
+
+  const TARGET_PRODUCTS = ["Arranhador Adesivo","Arranhador Adesivo Gato","Arranhador Cara de Gato","Arranhador Parede","Arranhador Rampa","Arranhador Túnel","Brinquedo Interativo","Casinha 09","Degrau","Nicho Grande","Nicho Playground","Piso Carpete","Playground","Playground 02","Playground 03","Playground 04","Playground 05","Playground 06","Rampa 6mm"];
+  const COR_HEX = { "Cinza":"#9e9e94","Bege":"#d9c9a3","Marrom":"#6b4423","Grafite":"#3a3a3a","Preto":"#1a1a1a","Azul":"#2a5fa8","Chumbo":"#5a5f66" };
+  const ROLL_COLORS = ["Azul","Bege","Chumbo","Cinza","Grafite","Marrom","Preto"];
+  const TAM_LABEL = { "100x7000":"1m × 70m (rolo)", "50x7000":"50cm × 70m (rolo)" };
+  const ROLL_TAMS = ["100x7000","50x7000"];
+  const MESES_PT = {'janeiro':0,'fevereiro':1,'março':2,'marco':2,'abril':3,'maio':4,'junho':5,'julho':6,'agosto':7,'setembro':8,'outubro':9,'novembro':10,'dezembro':11};
+
+  // Produtos que NÃO consomem adesivo (peça 100% pronta, sem material de rolo).
+  // Caminha 02, Casinha 03, Casinha 12 e Poste Arranhador foram removidos do painel
+  // inteiramente (não usam adesivo e não são mais acompanhados aqui).
+  const NO_ADHESIVE_PRODUCTS = [];
+
+  // Área fixa de adesivo consumida por unidade vendida (m² por peça), para produtos
+  // que não variam de medida entre as vendas — baseado na tabela informada.
+  // "Arranhador Adesivo" e "Piso Carpete" NÃO entram aqui: eles variam de medida
+  // por venda (a própria coluna TAMANHO dos relatórios já diz qual foi usada).
+  const FIXED_AREA_PER_UNIT = {
+    "Arranhador Adesivo Gato": 0.50 * 0.30,
+    "Arranhador Cara de Gato": 0.50 * 0.40,
+    "Arranhador Parede": 0.46 * 0.16,
+    "Arranhador Rampa": 0.38 * 0.23,
+    "Arranhador Túnel": 0.50 * 0.40,
+    "Brinquedo Interativo": 0.30 * 0.30,
+    "Casinha 09": 0.76 * 0.70,
+    "Degrau": 0.30 * 0.20,
+    "Nicho Grande": 0.75 * 0.30,
+    "Nicho Playground": 1.00 * 0.45,
+    "Playground": 0.70 * 0.35,
+    "Playground 02": 1.10 * 0.70,
+    "Playground 03": 1.10 * 0.70,
+    "Playground 04": 1.10 * 0.70,
+    "Playground 05": 1.10 * 0.70,
+    "Playground 06": 1.10 * 0.70,
+    "Rampa 6mm": 0.35 * 0.38
+  };
+
+  // Gera uma cor distinta para cada produto (evita ter que cadastrar cor manualmente para cada um).
+  const PRODUCT_COLOR = {};
+  TARGET_PRODUCTS.forEach((p, i) => {
+    const hue = Math.round((360 * i / TARGET_PRODUCTS.length));
+    PRODUCT_COLOR[p] = `hsl(${hue}, 62%, 45%)`;
+  });
+
+  function tamAreaM2(tam){
+    if(!tam || tam === '-') return null;
+    const m = String(tam).match(/^(\d+)[xX](\d+)/);
+    if(!m) return null;
+    return (parseInt(m[1],10)/100) * (parseInt(m[2],10)/100);
+  }
+  const CLOTHING_ORDER = ['PP','P','M','G','GG','XG','XGG','XXG'];
+  function tamSortKey(tam){
+    const area = tamAreaM2(tam);
+    if(area !== null) return [0, area, tam];
+    const idxRoupa = CLOTHING_ORDER.indexOf(String(tam).toUpperCase());
+    if(idxRoupa !== -1) return [1, idxRoupa, tam];
+    if(tam === '-') return [2, 0, tam];
+    return [3, 0, String(tam).toLowerCase()];
+  }
+  function sortedTamanhos(tams){
+    return [...tams].sort((a,b) => {
+      const ka = tamSortKey(a), kb = tamSortKey(b);
+      if(ka[0] !== kb[0]) return ka[0]-kb[0];
+      if(ka[1] !== kb[1]) return ka[1]-kb[1];
+      return String(ka[2]).localeCompare(String(kb[2]), 'pt-BR');
+    });
+  }
+  function sortedCores(cores){
+    return [...cores].sort((a,b) => (a==='-') - (b==='-') || String(a).localeCompare(String(b), 'pt-BR'));
+  }
+  // Área (m²) consumida por unidade de um produto/medida específicos. Unifica os
+  // dois casos: produtos com área fixa por peça (tabela) e produtos que variam de
+  // medida por venda (Arranhador Adesivo, Piso Carpete). null = não consome adesivo.
+  function areaPerUnitFor(produto, tam){
+    if(NO_ADHESIVE_PRODUCTS.includes(produto)) return null;
+    if(FIXED_AREA_PER_UNIT[produto] !== undefined) return FIXED_AREA_PER_UNIT[produto];
+    return tamAreaM2(tam);
+  }
+  // Um produto é "medido em m²" se qualquer uma de suas combinações cor/medida
+  // consumir área — seja por área fixa cadastrada, seja por medida variável de venda.
+  function hasM2(produto, nest){
+    if(NO_ADHESIVE_PRODUCTS.includes(produto)) return false;
+    if(FIXED_AREA_PER_UNIT[produto] !== undefined) return true;
+    const cores = nest[produto];
+    if(!cores) return false;
+    return Object.values(cores).some(tamObj => Object.keys(tamObj).some(tam => tamAreaM2(tam) !== null));
+  }
+
+  let currentData = null;
+  let activeFlushFn = null;
+  window.addEventListener('beforeunload', () => { if(activeFlushFn) activeFlushFn(); });
+  const DEFAULT_DATA = {"months":["Jan/26","Fev/26","Mar/26","Abr/26","Mai/26","Jun/26"],"monthKeys":["2026-01","2026-02","2026-03","2026-04","2026-05","2026-06"],"unitsMonthly":{"Arranhador Adesivo":[5172,6429,7095,6821,6252,7251],"Piso Carpete":[312,392,506,1086,1274,762],"Arranhador Adesivo Gato":[192,299,376,296,309,219],"Arranhador Cara de Gato":[3,9,15,4,6,4]},"m2Monthly":{"Arranhador Adesivo":[1876.5019999999854,2152.1879999999705,2620.8879999999745,2578.9999999999714,2433.4939999999715,3159.40000000005],"Piso Carpete":[78,98,126.5,271.5,318.5,190.5],"Arranhador Adesivo Gato":[0,0,0,0,0,0],"Arranhador Cara de Gato":[0,0,0,0,0,0]},"revMonthly":{"Arranhador Adesivo":[111057.02000000134,121915.49000000166,152963.77999999985,155955.67999999964,144123.4499999986,175146.65999999753],"Piso Carpete":[4393.719999999999,6650.8200000000015,6995.780000000004,15147.820000000005,17850.730000000018,9602.259999999998],"Arranhador Adesivo Gato":[2463.0500000000006,3753.1900000000082,4981.080000000002,3772.939999999995,4008.9099999999903,3016.4899999999884],"Arranhador Cara de Gato":[83.54,243.15999999999997,443.12000000000006,120.45999999999998,202.44,127.96]},"nest":{"Arranhador Adesivo":{"Preto":{"50x30":{"units":[367,443,525,489,396,481],"m2":[55.04999999999989,66.44999999999987,78.74999999999987,73.34999999999998,59.399999999999835,72.14999999999996]},"200x50":{"units":[94,129,206,193,230,178],"m2":[94,129,206,193,230,178]},"70x50":{"units":[8,15,17,18,16,14],"m2":[2.8,5.25,5.949999999999999,6.299999999999999,5.6,4.9]},"48X30":{"units":[8,2,2,0,1,0],"m2":[1.152,0.288,0.288,0,0.144,0]},"100x50":{"units":[5,15,22,44,48,13],"m2":[2.5,7.5,11,22,24,6.5]},"120x50":{"units":[0,6,1,7,8,5],"m2":[0,3.5999999999999996,0.6,4.2,4.8,3]},"100x7000":{"units":[0,0,0,0,0,0],"m2":[0,0,0,0,0,0]},"50x7000":{"units":[0,0,0,0,0,0],"m2":[0,0,0,0,0,0]}},"Grafite":{"50x30":{"units":[611,615,644,566,592,475],"m2":[91.64999999999992,92.24999999999996,96.5999999999998,84.9,88.79999999999997,71.24999999999997]},"200x50":{"units":[172,167,207,246,217,382],"m2":[172,167,207,246,217,382]},"70x50":{"units":[22,18,19,35,40,36],"m2":[7.699999999999998,6.299999999999998,6.649999999999999,12.249999999999995,13.999999999999995,12.599999999999993]},"100x50":{"units":[13,13,64,43,52,24],"m2":[6.5,6.5,32,21.5,26,12]},"120x50":{"units":[5,8,10,11,21,7],"m2":[3,4.8,5.999999999999999,6.599999999999999,12.599999999999996,4.2]},"100x7000":{"units":[0,0,0,0,0,0],"m2":[0,0,0,0,0,0]},"50x7000":{"units":[0,0,0,0,0,0],"m2":[0,0,0,0,0,0]}},"Bege":{"200x50":{"units":[285,312,384,398,356,525],"m2":[285,312,384,398,356,525]},"50x30":{"units":[765,1237,1191,1209,889,1187],"m2":[114.74999999999973,185.55000000000084,178.65000000000055,181.3500000000007,133.3499999999999,178.05000000000047]},"70x50":{"units":[46,28,55,75,62,54],"m2":[16.09999999999999,9.799999999999997,19.249999999999996,26.250000000000007,21.70000000000001,18.899999999999995]},"100x50":{"units":[13,10,24,33,66,30],"m2":[6.5,5,12,16.5,33,15]},"120x50":{"units":[9,4,18,26,28,25],"m2":[5.3999999999999995,2.4,10.799999999999997,15.599999999999994,16.799999999999997,14.999999999999995]},"100x7000":{"units":[0,0,0,0,0,0],"m2":[0,0,0,0,0,0]},"50x7000":{"units":[0,0,0,0,0,0],"m2":[0,0,0,0,0,0]}},"Marrom":{"200x50":{"units":[135,133,204,179,168,317],"m2":[135,133,204,179,168,317]},"50x30":{"units":[464,702,715,641,619,610],"m2":[69.59999999999985,105.2999999999998,107.24999999999966,96.14999999999985,92.84999999999992,91.49999999999996]},"70x50":{"units":[29,17,25,33,33,25],"m2":[10.149999999999997,5.949999999999999,8.749999999999998,11.549999999999997,11.549999999999994,8.749999999999998]},"120x50":{"units":[3,5,5,12,14,20],"m2":[1.7999999999999998,3,3,7.199999999999999,8.399999999999999,11.999999999999998]},"100x50":{"units":[7,5,19,32,18,13],"m2":[3.5,2.5,9.5,16,9,6.5]},"100x7000":{"units":[0,0,0,0,0,0],"m2":[0,0,0,0,0,0]},"50x7000":{"units":[0,0,0,0,0,0],"m2":[0,0,0,0,0,0]}},"Cinza":{"50x30":{"units":[1228,1562,1678,1382,1318,1483],"m2":[184.2000000000007,234.30000000000186,251.7000000000025,207.30000000000143,197.70000000000147,222.45000000000192]},"200x50":{"units":[415,493,589,488,442,723],"m2":[415,493,589,488,442,723]},"70x50":{"units":[79,61,42,78,73,54],"m2":[27.65000000000001,21.350000000000005,14.699999999999992,27.30000000000001,25.550000000000008,18.9]},"100x50":{"units":[12,17,26,51,37,34],"m2":[6,8.5,13,25.5,18.5,17]},"120x50":{"units":[12,5,16,33,40,19],"m2":[7.199999999999999,3,9.599999999999996,19.799999999999997,24.000000000000007,11.399999999999997]},"100x7000":{"units":[0,0,0,0,0,0],"m2":[0,0,0,0,0,0]},"50x7000":{"units":[0,0,0,0,0,0],"m2":[0,0,0,0,0,0]}},"Azul":{"50x30":{"units":[239,298,258,324,287,316],"m2":[35.849999999999966,44.69999999999996,38.699999999999996,48.599999999999945,43.049999999999955,47.39999999999994]},"200x50":{"units":[110,82,107,119,121,170],"m2":[110,82,107,119,121,170]},"70x50":{"units":[11,12,13,18,16,11],"m2":[3.8500000000000005,4.199999999999999,4.549999999999999,6.299999999999999,5.6,3.85]},"120x50":{"units":[1,2,1,5,11,11],"m2":[0.6,1.2,0.6,3,6.599999999999999,6.599999999999999]},"100x50":{"units":[4,13,8,33,33,9],"m2":[2,6.5,4,16.5,16.5,4.5]},"100x7000":{"units":[0,0,0,0,0,0],"m2":[0,0,0,0,0,0]},"50x7000":{"units":[0,0,0,0,0,0],"m2":[0,0,0,0,0,0]}}},"Piso Carpete":{"Marrom":{"50x50":{"units":[12,60,8,0,0,4],"m2":[3,15,2,0,0,1]},"100x7000":{"units":[0,0,0,0,0,0],"m2":[0,0,0,0,0,0]},"50x7000":{"units":[0,0,0,0,0,0],"m2":[0,0,0,0,0,0]}},"Grafite":{"50x50":{"units":[132,172,194,336,548,572],"m2":[33,43,48.5,84,137,143]},"100x7000":{"units":[0,0,0,0,0,0],"m2":[0,0,0,0,0,0]},"50x7000":{"units":[0,0,0,0,0,0],"m2":[0,0,0,0,0,0]}},"Preto":{"50x50":{"units":[120,8,108,318,524,96],"m2":[30,2,27,79.5,131,24]},"100x7000":{"units":[0,0,0,0,0,0],"m2":[0,0,0,0,0,0]},"50x7000":{"units":[0,0,0,0,0,0],"m2":[0,0,0,0,0,0]}},"Azul":{"50x50":{"units":[44,132,168,412,186,50],"m2":[11,33,42,103,46.5,12.5]},"100x7000":{"units":[0,0,0,0,0,0],"m2":[0,0,0,0,0,0]},"50x7000":{"units":[0,0,0,0,0,0],"m2":[0,0,0,0,0,0]}},"Bege":{"50x50":{"units":[0,0,24,4,16,0],"m2":[0,0,6,1,4,0]},"100x7000":{"units":[0,0,0,0,0,0],"m2":[0,0,0,0,0,0]},"50x7000":{"units":[0,0,0,0,0,0],"m2":[0,0,0,0,0,0]}},"Cinza":{"50x50":{"units":[4,20,4,16,0,40],"m2":[1,5,1,4,0,10]},"100x7000":{"units":[0,0,0,0,0,0],"m2":[0,0,0,0,0,0]},"50x7000":{"units":[0,0,0,0,0,0],"m2":[0,0,0,0,0,0]}}},"Arranhador Adesivo Gato":{"Bege":{"-":{"units":[52,69,76,57,61,72],"m2":[0,0,0,0,0,0]}},"Cinza":{"-":{"units":[35,31,54,75,53,39],"m2":[0,0,0,0,0,0]}},"Grafite":{"-":{"units":[30,37,76,39,53,25],"m2":[0,0,0,0,0,0]}},"Preto":{"-":{"units":[39,54,59,60,39,33],"m2":[0,0,0,0,0,0]}},"Marrom":{"-":{"units":[20,77,74,43,64,37],"m2":[0,0,0,0,0,0]}},"Azul":{"-":{"units":[16,31,37,22,39,13],"m2":[0,0,0,0,0,0]}}},"Arranhador Cara de Gato":{"Bege":{"-":{"units":[2,1,5,3,4,2],"m2":[0,0,0,0,0,0]}},"Cinza":{"-":{"units":[1,7,4,1,1,2],"m2":[0,0,0,0,0,0]}},"Preto":{"-":{"units":[0,1,5,0,0,0],"m2":[0,0,0,0,0,0]}},"Azul":{"-":{"units":[0,0,1,0,1,0],"m2":[0,0,0,0,0,0]}}}},"updatedAt":"2026-07-04T11:54:34.937Z","stats":{}}
+;
+
+  // ---------------- utilidades ----------------
+  function sum(arr){ return arr.reduce((a,b)=>a+b,0); }
+  function fmt(n, d){ return Number(n||0).toLocaleString('pt-BR', {minimumFractionDigits:d||0, maximumFractionDigits:d||0}); }
+  function fmtDate(d){ return d.toLocaleDateString('pt-BR'); }
+
+  function parseMLDate(raw){
+    if(!raw) return null;
+    if(raw instanceof Date) return raw;
+    const s = String(raw).trim();
+    const parts = s.split(' de ');
+    if(parts.length < 3) return null;
+    const day = parseInt(parts[0], 10);
+    const monthName = parts[1].trim().toLowerCase();
+    const rest = parts[2].trim();
+    const restParts = rest.split(/\s+/);
+    const year = parseInt(restParts[0], 10);
+    const timeStr = restParts[1] || '00:00';
+    const timeParts = timeStr.split(':').map(Number);
+    const hh = timeParts[0] || 0, mm = timeParts[1] || 0;
+    const monthIdx = MESES_PT[monthName];
+    if(monthIdx === undefined || isNaN(day) || isNaN(year)) return null;
+    return new Date(year, monthIdx, day, hh, mm);
+  }
+  function parseShopeeDate(raw){
+    if(!raw) return null;
+    if(raw instanceof Date) return raw;
+    const s = String(raw).trim().replace(' ', 'T');
+    const d = new Date(s);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  function anoMes(d){ if(!d) return null; return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'); }
+  function parseAreaM2(tamanho){
+    if(!tamanho) return null;
+    const m = String(tamanho).trim().match(/^(\d+)[xX](\d+)/);
+    if(!m) return null;
+    return (parseInt(m[1],10)/100) * (parseInt(m[2],10)/100);
+  }
+  function monthLabel(anoMesStr){
+    const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    const [y, m] = anoMesStr.split('-');
+    return meses[parseInt(m,10)-1] + '/' + y.slice(2);
+  }
+
+  // ---------------- passo 1: upload ----------------
+  let filesSelected = { ml: null, sh: null };
+  const fileMlInput = document.getElementById('file-ml');
+  const fileShInput = document.getElementById('file-sh');
+  const fnameMlEl = document.getElementById('fname-ml');
+  const fnameShEl = document.getElementById('fname-sh');
+  const processBtn = document.getElementById('process-btn');
+  const statusLineEl = document.getElementById('status-line');
+  const lastUpdatedEl = document.getElementById('last-updated');
+  const step1StatusEl = document.getElementById('step1-status');
+
+  fileMlInput.addEventListener('change', () => {
+    filesSelected.ml = fileMlInput.files[0] || null;
+    fnameMlEl.textContent = filesSelected.ml ? filesSelected.ml.name : 'Nenhum arquivo selecionado';
+    updateProcessBtn();
+  });
+  fileShInput.addEventListener('change', () => {
+    filesSelected.sh = fileShInput.files[0] || null;
+    fnameShEl.textContent = filesSelected.sh ? filesSelected.sh.name : 'Nenhum arquivo selecionado';
+    updateProcessBtn();
+  });
+  function updateProcessBtn(){ processBtn.disabled = !(filesSelected.ml && filesSelected.sh); }
+
+  function setStatus(msg, kind){
+    statusLineEl.textContent = msg;
+    statusLineEl.className = 'status-line' + (kind ? (' ' + kind) : ' muted');
+  }
+  function readFileAsArrayBuffer(file){
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsArrayBuffer(file);
+    });
+  }
+
+  async function processFiles(){
+    processBtn.disabled = true;
+    setStatus('Lendo os arquivos...', 'muted');
+    try {
+      const [mlBuf, shBuf] = await Promise.all([
+        readFileAsArrayBuffer(filesSelected.ml),
+        readFileAsArrayBuffer(filesSelected.sh)
+      ]);
+      setStatus('Processando planilhas...', 'muted');
+      const mlWb = XLSX.read(mlBuf, { type: 'array', cellDates: true });
+      const shWb = XLSX.read(shBuf, { type: 'array', cellDates: true });
+      if(!mlWb.Sheets['Base Final']) throw new Error('Aba "Base Final" não encontrada no relatório do Mercado Livre.');
+      if(!shWb.Sheets['Base Final']) throw new Error('Aba "Base Final" não encontrada no relatório da Shopee.');
+      const mlRows = XLSX.utils.sheet_to_json(mlWb.Sheets['Base Final'], { defval: null });
+      const shRows = XLSX.utils.sheet_to_json(shWb.Sheets['Base Final'], { defval: null });
+
+      const unified = [];
+      let mlKept = 0;
+      mlRows.forEach(r => {
+        if(r['MANTER'] === 'Não') return;
+        const d = parseMLDate(r['Data da venda']);
+        if(!d) return;
+        mlKept++;
+        unified.push({ produto:r['PRODUTO'], cor:r['COR'], tamanho:r['TAMANHO'], totalUnidades:Number(r['TOTAL UNIDADES'])||0, totalBRL:Number(r['Total (BRL)'])||0, anoMes:anoMes(d) });
+      });
+      let shKept = 0;
+      shRows.forEach(r => {
+        const totalUnid = Number(r['TOTAL UNIDADES']) || 0;
+        if(totalUnid <= 0) return;
+        const d = parseShopeeDate(r['Data de criação do pedido']);
+        if(!d) return;
+        shKept++;
+        unified.push({ produto:r['PRODUTO'], cor:r['COR'], tamanho:r['TAMANHO'], totalUnidades:totalUnid, totalBRL:Number(r['Total (BRL)'])||0, anoMes:anoMes(d) });
+      });
+      if(unified.length === 0) throw new Error('Nenhuma linha válida encontrada nos dois relatórios.');
+
+      const prod = unified.filter(r => TARGET_PRODUCTS.includes(r.produto) && r.anoMes);
+      const monthsSet = new Set(prod.map(r => r.anoMes));
+      const months = Array.from(monthsSet).sort();
+      if(months.length === 0) throw new Error('Nenhum mês válido encontrado para os produtos selecionados.');
+
+      const unitsMonthly = {}, m2Monthly = {}, revMonthly = {};
+      TARGET_PRODUCTS.forEach(p => { unitsMonthly[p]=months.map(()=>0); m2Monthly[p]=months.map(()=>0); revMonthly[p]=months.map(()=>0); });
+      const nest = {};
+      TARGET_PRODUCTS.forEach(p => { nest[p] = {}; });
+
+      prod.forEach(r => {
+        const mi = months.indexOf(r.anoMes);
+        if(mi < 0) return;
+        unitsMonthly[r.produto][mi] += r.totalUnidades;
+        revMonthly[r.produto][mi] += r.totalBRL;
+        const area = parseAreaM2(r.tamanho);
+        const areaTotal = area !== null ? area * r.totalUnidades : 0;
+        m2Monthly[r.produto][mi] += areaTotal;
+        const cor = r.cor || 'Sem cor';
+        const tam = r.tamanho || '-';
+        if(!nest[r.produto][cor]) nest[r.produto][cor] = {};
+        if(!nest[r.produto][cor][tam]) nest[r.produto][cor][tam] = { units: months.map(()=>0), m2: months.map(()=>0) };
+        nest[r.produto][cor][tam].units[mi] += r.totalUnidades;
+        nest[r.produto][cor][tam].m2[mi] += areaTotal;
+      });
+
+      const monthLabels = months.map(monthLabel);
+      const data = { months: monthLabels, monthKeys: months, unitsMonthly, m2Monthly, revMonthly, nest, updatedAt: new Date().toISOString() };
+
+      currentData = data;
+      const storageOk = await jsonbinUpdatePart('vendas', data);
+
+      setStatus(
+        `Concluído! Mercado Livre: ${mlKept} linhas válidas · Shopee: ${shKept} linhas válidas · Período: ${monthLabels[0]} a ${monthLabels[monthLabels.length-1]}` +
+        (storageOk ? '' : '\nAviso: não foi possível salvar de forma compartilhada (confira as variáveis JSONBIN_CONTAGEM_API_KEY e JSONBIN_CONTAGEM_BIN_ID no servidor) — os dados valem só para esta sessão.'),
+        storageOk ? 'ok' : 'err'
+      );
+      renderLastUpdated();
+      const savedStock = await loadStockData();
+      safeRenderApp(data, savedStock);
+      collapseStep(1, true);
+
+    } catch(err){
+      console.error(err);
+      setStatus('Erro ao processar: ' + err.message, 'err');
+    } finally {
+      updateProcessBtn();
+    }
+  }
+  processBtn.addEventListener('click', processFiles);
+
+  function debounce(fn, wait){
+    let t = null;
+    return function(...args){
+      clearTimeout(t);
+      t = setTimeout(() => fn.apply(this, args), wait);
+    };
+  }
+
+  async function loadStockData(){
+    const record = await jsonbinGet();
+    return (record && record.estoque) || null;
+  }
+
+  const stockUpdatedEl = document.getElementById('stock-updated');
+  function renderStockUpdated(iso){
+    if(!iso){ stockUpdatedEl.innerHTML = ''; return; }
+    const d = new Date(iso);
+    stockUpdatedEl.innerHTML = 'Estoque contado em<br><strong>' + d.toLocaleString('pt-BR') + '</strong>';
+  }
+
+  function setSaveIndicator(state){
+    const el = document.getElementById('save-indicator');
+    if(!el) return;
+    if(state === 'saving'){ el.textContent = 'Salvando…'; el.style.color = 'var(--accent-dark)'; }
+    else if(state === 'saved'){ el.textContent = '✓ Salvo'; el.style.color = 'var(--success-solid)'; setTimeout(() => { if(el.textContent === '✓ Salvo') el.textContent = ''; }, 2500); }
+    else if(state === 'error'){ el.textContent = '⚠ Erro ao salvar — tente de novo'; el.style.color = 'var(--danger-solid)'; }
+    else if(state === 'unavailable'){ el.textContent = '⚠ Configure JSONBIN_CONTAGEM_API_KEY e JSONBIN_CONTAGEM_BIN_ID no servidor para salvar'; el.style.color = 'var(--warning-solid)'; }
+  }
+
+  function renderLastUpdated(){
+    if(currentData && currentData.updatedAt){
+      const d = new Date(currentData.updatedAt);
+      lastUpdatedEl.innerHTML = 'Última atualização<br><strong>' + d.toLocaleString('pt-BR') + '</strong>';
+      step1StatusEl.textContent = 'atualizado';
+      step1StatusEl.className = 'step-status ok';
+    }
+  }
+
+  // ---------------- stepper rail + collapse ----------------
+  const railEl = document.getElementById('rail');
+  const STEP_META = [
+    {n:1, icon:'upload'}, {n:2, icon:'calendar'}, {n:3, icon:'box'}, {n:4, icon:'cart'}
+  ];
+  function railIcon(name){
+    const icons = {
+      upload: '<path d="M12 16V4M12 4l4 4M12 4L8 8" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/>',
+      calendar: '<rect x="4" y="5" width="16" height="15" rx="2" stroke="currentColor" stroke-width="1.8" fill="none"/><path d="M4 9h16M8 3v3M16 3v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+      box: '<path d="M3 8l9-5 9 5-9 5-9-5z" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linejoin="round"/><path d="M3 8v9l9 5 9-5V8M12 13v9" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linejoin="round"/>',
+      cart: '<circle cx="9" cy="20" r="1.4" fill="currentColor"/><circle cx="17" cy="20" r="1.4" fill="currentColor"/><path d="M3 4h2l2.2 11.2a2 2 0 002 1.8h7.7a2 2 0 002-1.8L20 8H6" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'
+    };
+    return icons[name] || '';
+  }
+  function renderRail(){
+    railEl.innerHTML = '';
+    STEP_META.forEach((s, i) => {
+      const wrap = document.createElement('div'); wrap.className = 'dot-wrap';
+      const dot = document.createElement('div'); dot.className = 'dot'; dot.dataset.step = s.n;
+      dot.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24">${railIcon(s.icon)}</svg>`;
+      dot.title = 'Passo ' + s.n;
+      dot.onclick = () => { document.getElementById('step-' + s.n).scrollIntoView({behavior:'smooth', block:'start'}); collapseStep(s.n, false); };
+      wrap.appendChild(dot);
+      railEl.appendChild(wrap);
+      if(i < STEP_META.length - 1){
+        const line = document.createElement('div'); line.className = 'line'; line.dataset.afterStep = s.n;
+        railEl.appendChild(line);
+      }
+    });
+  }
+  function updateRailState(){
+    const dataLoaded = !!currentData;
+    document.querySelectorAll('.rail .dot').forEach(dot => {
+      const n = parseInt(dot.dataset.step, 10);
+      dot.classList.remove('done', 'current');
+      if(n === 1 && dataLoaded) dot.classList.add('done');
+      else if(n > 1 && dataLoaded) dot.classList.add('done');
+    });
+    document.querySelectorAll('.rail .line').forEach(line => {
+      line.classList.toggle('done', dataLoaded);
+    });
+  }
+
+  function collapseStep(n, collapsed){
+    const el = document.getElementById('step-' + n);
+    if(!el) return;
+    el.classList.toggle('collapsed', collapsed);
+  }
+  document.querySelectorAll('[data-toggle]').forEach(head => {
+    head.addEventListener('click', () => {
+      const n = head.dataset.toggle;
+      const el = document.getElementById('step-' + n);
+      el.classList.toggle('collapsed');
+    });
+  });
+
+  // ---------------- render principal (passos 2, 3, 4) ----------------
+  function safeRenderApp(data, savedStock){
+    try {
+      renderApp(data, savedStock);
+      updateRailState();
+    } catch(err){
+      console.error('Erro ao renderizar painel:', err);
+      setStatus('Os dados foram processados, mas houve um erro ao desenhar o painel. Detalhe: ' + err.message, 'err');
+    }
+  }
+
+  let chartInstance = null;
+
+  function renderApp(data, savedStock){
+    const MONTHS = data.months;
+    const UNITS = data.unitsMonthly;
+    const M2 = data.m2Monthly;
+    const REVENUE = data.revMonthly;
+    const NEST = data.nest;
+
+    // Combinações de Produto/Cor/Medida que sabemos ser inválidas (ex: erro de
+    // classificação num relatório de venda) e que nunca devem aparecer no painel,
+    // mesmo que voltem a surgir em um upload futuro.
+    const COMBOS_EXCLUIDOS = [
+      { produto: "Degrau", cor: "Grafite", medida: "P" }
+    ];
+    COMBOS_EXCLUIDOS.forEach(({produto, cor, medida}) => {
+      if(NEST[produto] && NEST[produto][cor] && NEST[produto][cor][medida]){
+        delete NEST[produto][cor][medida];
+        if(Object.keys(NEST[produto][cor]).length === 0) delete NEST[produto][cor];
+      }
+    });
+
+    // Garante que todo produto da lista tenha ao menos uma entrada vazia,
+    // mesmo que ainda não tenha aparecido em nenhum relatório processado.
+    TARGET_PRODUCTS.forEach(p => {
+      if(!NEST[p]) NEST[p] = {};
+      if(!UNITS[p]) UNITS[p] = MONTHS.map(()=>0);
+      if(!M2[p]) M2[p] = MONTHS.map(()=>0);
+      if(!REVENUE[p]) REVENUE[p] = MONTHS.map(()=>0);
+    });
+    const HAS_M2 = {};
+    TARGET_PRODUCTS.forEach(p => { HAS_M2[p] = hasM2(p, NEST); });
+    const UNIT_LABEL = {};
+    TARGET_PRODUCTS.forEach(p => { UNIT_LABEL[p] = HAS_M2[p] ? 'm²' : 'un'; });
+
+    // Recalcula o consumo em m² mês a mês usando a área por unidade (fixa ou por
+    // medida de venda), em vez de confiar apenas no que foi salvo no upload —
+    // isso garante que os produtos de área fixa (tabela) entrem no cálculo mesmo
+    // que o relatório original não tivesse medida na coluna TAMANHO.
+    TARGET_PRODUCTS.forEach(p => {
+      if(!HAS_M2[p]) return;
+      const recomputed = MONTHS.map(()=>0);
+      Object.keys(NEST[p]).forEach(cor => {
+        Object.keys(NEST[p][cor]).forEach(tam => {
+          if(ROLL_TAMS.includes(tam)) return; // resíduo de versões antigas — ignorar
+          const area = areaPerUnitFor(p, tam);
+          if(area === null) return;
+          const rec = NEST[p][cor][tam];
+          rec.units.forEach((u, mi) => { recomputed[mi] += u * area; });
+        });
+      });
+      M2[p] = recomputed;
+    });
+
+    // ---- KPIs ----
+    const totalUnits = sum(TARGET_PRODUCTS.map(p => sum(UNITS[p]||[0])));
+    const totalM2 = sum(TARGET_PRODUCTS.map(p => sum(M2[p]||[0])));
+    const totalRev = sum(TARGET_PRODUCTS.map(p => sum(REVENUE[p]||[0])));
+    const topProduct = TARGET_PRODUCTS.reduce((a,b) => sum(UNITS[a]||[0]) > sum(UNITS[b]||[0]) ? a : b);
+    const kpiStrip = document.getElementById('kpi-strip');
+    kpiStrip.innerHTML = '';
+    [
+      {label:`Unidades vendidas (${MONTHS[0]}–${MONTHS[MONTHS.length-1]})`, value: fmt(totalUnits)},
+      {label:'m² consumidos (adesivos)', value: fmt(totalM2,1) + ' m²'},
+      {label:'Receita total', value: 'R$ ' + fmt(totalRev,0)},
+      {label:'Produto mais vendido', value: topProduct}
+    ].forEach(k => {
+      const div = document.createElement('div'); div.className = 'kpi';
+      div.innerHTML = `<div class="k-label">${k.label}</div><div class="k-value">${k.value}</div>`;
+      kpiStrip.appendChild(div);
+    });
+
+    // ---- passo 2: periodo + grafico ----
+    let periodStart = 0;
+    let periodEnd = MONTHS.length - 1;
+    function avgPeriod(arr){
+      const s = arr.slice(periodStart, periodEnd + 1);
+      return s.length ? sum(s) / s.length : 0;
+    }
+
+    const activeProducts = new Set(TARGET_PRODUCTS);
+    let currentMetric = 'units';
+    const legendRow = document.getElementById('legend-row');
+    function renderLegend(){
+      legendRow.innerHTML = '';
+      TARGET_PRODUCTS.forEach(p => {
+        const disabled = currentMetric === 'm2' && !HAS_M2[p];
+        const chip = document.createElement('span'); chip.className = 'chip';
+        chip.style.opacity = disabled ? 0.3 : (activeProducts.has(p) ? 1 : 0.45);
+        chip.style.cursor = disabled ? 'default' : 'pointer';
+        chip.innerHTML = `<span class="sw" style="background:${PRODUCT_COLOR[p]};"></span>${p}`;
+        if(!disabled){ chip.onclick = () => { if(activeProducts.has(p)) activeProducts.delete(p); else activeProducts.add(p); renderLegend(); updateChart(); }; }
+        legendRow.appendChild(chip);
+      });
+    }
+    if(chartInstance){ chartInstance.destroy(); chartInstance = null; }
+    const ctx = document.getElementById('trend-chart');
+    chartInstance = new Chart(ctx, {
+      type: 'line', data: { labels: MONTHS, datasets: [] },
+      options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${fmt(c.parsed.y, currentMetric==='m2'?1:0)}${currentMetric==='m2'?' m²':' un'}` } } },
+        scales: { x: { grid: { display:false }, ticks: { color: '#8A9791', font: { size: 11 } } }, y: { grid: { color: '#E4E9E7' }, ticks: { color: '#8A9791', font: { size: 11 } }, beginAtZero: true } } }
+    });
+    function updateChart(){
+      const src = currentMetric === 'units' ? UNITS : M2;
+      chartInstance.data.datasets = TARGET_PRODUCTS.filter(p => activeProducts.has(p) && (currentMetric==='units' || HAS_M2[p])).map(p => ({
+        label: p, data: src[p], borderColor: PRODUCT_COLOR[p], backgroundColor: PRODUCT_COLOR[p], borderWidth: 2, pointRadius: 3, pointBackgroundColor: PRODUCT_COLOR[p], tension: 0.25
+      }));
+      chartInstance.update();
+    }
+    document.getElementById('metric-toggle').onclick = (e) => {
+      const btn = e.target.closest('button'); if(!btn) return;
+      document.querySelectorAll('#metric-toggle button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active'); currentMetric = btn.dataset.metric;
+      if(currentMetric === 'm2'){ TARGET_PRODUCTS.forEach(p=>{ if(HAS_M2[p]) activeProducts.add(p); else activeProducts.delete(p); }); }
+      else { TARGET_PRODUCTS.forEach(p => activeProducts.add(p)); }
+      renderLegend(); updateChart();
+    };
+    document.querySelector('#metric-toggle button').classList.add('active');
+    renderLegend(); updateChart();
+
+    const periodStartEl = document.getElementById('period-start');
+    const periodEndEl = document.getElementById('period-end');
+    const periodInfoEl = document.getElementById('period-info');
+    periodStartEl.innerHTML = ''; periodEndEl.innerHTML = '';
+    MONTHS.forEach((m, i) => {
+      const o1 = document.createElement('option'); o1.value = i; o1.textContent = m; periodStartEl.appendChild(o1);
+      const o2 = document.createElement('option'); o2.value = i; o2.textContent = m; periodEndEl.appendChild(o2);
+    });
+    periodStartEl.value = periodStart; periodEndEl.value = periodEnd;
+    function updatePeriodInfo(){
+      const n = periodEnd - periodStart + 1;
+      periodInfoEl.textContent = `média de ${n} ${n===1?'mês':'meses'}`;
+    }
+    periodStartEl.onchange = periodEndEl.onchange = () => {
+      let s = parseInt(periodStartEl.value), e = parseInt(periodEndEl.value);
+      if(s > e){ e = s; periodEndEl.value = e; }
+      periodStart = s; periodEnd = e;
+      updatePeriodInfo();
+      renderStockSection();
+      renderResultSection();
+    };
+    updatePeriodInfo();
+
+    // ---- estado de estoque (passos 3 e 4 compartilham) ----
+    const savedStockMap = (savedStock && savedStock.stock) || {};
+    const STATE = {};
+    TARGET_PRODUCTS.forEach(p => {
+      STATE[p] = {};
+      Object.keys(NEST[p]).forEach(cor => {
+        STATE[p][cor] = {};
+        Object.keys(NEST[p][cor]).forEach(tam => {
+          if(ROLL_TAMS.includes(tam)) return; // resíduo de versões antigas — rolo agora é estado à parte
+          const saved = savedStockMap[p] && savedStockMap[p][cor] && savedStockMap[p][cor][tam];
+          STATE[p][cor][tam] = { proprio: (saved && saved.proprio) || 0, full: (saved && saved.full) || 0 };
+        });
+      });
+    });
+
+    // Estoque de matéria-prima (rolos), um único pool por cor, compartilhado por
+    // todos os produtos que consomem adesivo — não pertence a nenhum produto específico.
+    const savedRollsMap = (savedStock && savedStock.rolls) || {};
+    const ROLL_STATE = {};
+    ROLL_COLORS.forEach(cor => {
+      ROLL_STATE[cor] = {};
+      ROLL_TAMS.forEach(tam => {
+        const saved = savedRollsMap[cor] && savedRollsMap[cor][tam];
+        ROLL_STATE[cor][tam] = { proprio: (saved && saved.proprio) || 0, full: (saved && saved.full) || 0 };
+      });
+    });
+
+    let leadTimeDays = (savedStock && typeof savedStock.leadTimeDays === 'number') ? savedStock.leadTimeDays : 15;
+    let stockUpdatedAt = (savedStock && savedStock.updatedAt) || null;
+    renderStockUpdated(stockUpdatedAt);
+
+    const storageAvailable = jsonbinConfigured();
+    if(!storageAvailable) setSaveIndicator('unavailable');
+
+    async function flushStockSave(){
+      if(!storageAvailable){
+        setSaveIndicator('unavailable');
+        return;
+      }
+      setSaveIndicator('saving');
+      const payload = { leadTimeDays, stock: STATE, rolls: ROLL_STATE, updatedAt: new Date().toISOString() };
+      const ok = await jsonbinUpdatePart('estoque', payload);
+      if(ok){
+        stockUpdatedAt = payload.updatedAt;
+        renderStockUpdated(stockUpdatedAt);
+        setSaveIndicator('saved');
+      } else {
+        setSaveIndicator('error');
+      }
+    }
+    const saveStockData = debounce(flushStockSave, 400);
+    activeFlushFn = flushStockSave;
+
+    document.getElementById('lead-time-input').value = leadTimeDays;
+    document.getElementById('lead-time-input').onchange = (e) => {
+      leadTimeDays = parseFloat(e.target.value) || 0;
+      renderResultSection();
+      flushStockSave();
+    };
+
+    // ---- Importar Estoque FULL a partir dos relatórios ML + Shopee ----
+    let fullFilesSelected = { ml: null, sh: null };
+    const fileFullMlInput = document.getElementById('file-full-ml');
+    const fileFullShInput = document.getElementById('file-full-sh');
+    const fnameFullMlEl = document.getElementById('fname-full-ml');
+    const fnameFullShEl = document.getElementById('fname-full-sh');
+    const processFullBtn = document.getElementById('process-full-btn');
+    const statusLineFullEl = document.getElementById('status-line-full');
+
+    function readFileAsArrayBufferLocal(file){
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsArrayBuffer(file);
+      });
+    }
+    function setStatusFull(msg, kind){
+      statusLineFullEl.textContent = msg;
+      statusLineFullEl.className = 'status-line' + (kind ? (' ' + kind) : ' muted');
+    }
+    function updateProcessFullBtn(){ processFullBtn.disabled = !(fullFilesSelected.ml && fullFilesSelected.sh); }
+    fileFullMlInput.addEventListener('change', () => {
+      fullFilesSelected.ml = fileFullMlInput.files[0] || null;
+      fnameFullMlEl.textContent = fullFilesSelected.ml ? fullFilesSelected.ml.name : 'Nenhum arquivo selecionado';
+      updateProcessFullBtn();
+    });
+    fileFullShInput.addEventListener('change', () => {
+      fullFilesSelected.sh = fileFullShInput.files[0] || null;
+      fnameFullShEl.textContent = fullFilesSelected.sh ? fullFilesSelected.sh.name : 'Nenhum arquivo selecionado';
+      updateProcessFullBtn();
+    });
+
+    // Extrai {PRODUTO,COR,TAMANHO,QUANTIDADE_TOTAL} de uma aba "Resumo Unificado",
+    // localizando as colunas pelo nome do cabeçalho (não pela posição), já que ML
+    // e Shopee têm layouts diferentes.
+    function extrairResumoUnificado(workbook){
+      const sheet = workbook.Sheets['Resumo Unificado'];
+      if(!sheet) return [];
+      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true });
+      if(rows.length < 2) return [];
+      const header = rows[0].map(h => String(h || '').trim().toUpperCase());
+      const idxProduto = header.indexOf('PRODUTO');
+      const idxCor = header.indexOf('COR');
+      const idxTamanho = header.indexOf('TAMANHO');
+      const idxQtd = header.indexOf('QUANTIDADE_TOTAL');
+      if(idxProduto === -1 || idxQtd === -1) return [];
+      const out = [];
+      for(let i = 1; i < rows.length; i++){
+        const r = rows[i];
+        if(!r || !r[idxProduto]) continue;
+        const qtd = parseFloat(r[idxQtd]);
+        out.push({
+          produto: String(r[idxProduto]).trim(),
+          cor: idxCor !== -1 ? (String(r[idxCor] || '-').trim() || '-') : '-',
+          tamanho: idxTamanho !== -1 ? (String(r[idxTamanho] || '-').trim() || '-') : '-',
+          qtd: isNaN(qtd) ? 0 : qtd
+        });
+      }
+      return out;
+    }
+
+    async function processFullFiles(){
+      processFullBtn.disabled = true;
+      setStatusFull('Lendo os arquivos...', 'muted');
+      try {
+        const [mlBuf, shBuf] = await Promise.all([
+          readFileAsArrayBufferLocal(fullFilesSelected.ml),
+          readFileAsArrayBufferLocal(fullFilesSelected.sh)
+        ]);
+        setStatusFull('Processando planilhas...', 'muted');
+        const mlWb = XLSX.read(mlBuf, { type: 'array', cellDates: true });
+        const shWb = XLSX.read(shBuf, { type: 'array', cellDates: true });
+
+        const linhas = [...extrairResumoUnificado(mlWb), ...extrairResumoUnificado(shWb)];
+        if(linhas.length === 0){
+          setStatusFull('Não encontrei a aba "Resumo Unificado" com as colunas esperadas nos arquivos enviados.', 'err');
+          processFullBtn.disabled = false;
+          return;
+        }
+
+        // agrega por Produto+Cor+Medida, somando as duas empresas e os dois relatórios juntos
+        const agregado = {};
+        linhas.forEach(l => {
+          const chave = l.produto + '||' + l.cor + '||' + l.tamanho;
+          agregado[chave] = (agregado[chave] || 0) + l.qtd;
+        });
+
+        let atualizados = 0, criados = 0;
+        Object.keys(agregado).forEach(chave => {
+          const [produto, cor, tamanho] = chave.split('||');
+          const qtd = agregado[chave];
+          if(!STATE[produto]) STATE[produto] = {};
+          if(!STATE[produto][cor]) STATE[produto][cor] = {};
+          if(!STATE[produto][cor][tamanho]){
+            STATE[produto][cor][tamanho] = { proprio: 0, full: qtd };
+            criados++;
+          } else {
+            STATE[produto][cor][tamanho].full = qtd;
+            atualizados++;
+          }
+        });
+
+        renderStockSection();
+        renderResultSection();
+        await flushStockSave();
+
+        setStatusFull(`✓ Estoque FULL atualizado: ${atualizados} combinações atualizadas, ${criados} novas criadas (${Object.keys(agregado).length} no total).`, 'ok');
+      } catch(err){
+        console.error('Erro ao processar arquivos de Estoque FULL:', err);
+        setStatusFull('⚠ Erro ao processar os arquivos: ' + err.message, 'err');
+      } finally {
+        processFullBtn.disabled = false;
+      }
+    }
+    processFullBtn.addEventListener('click', processFullFiles);
+
+    let currentProduct = TARGET_PRODUCTS.find(p => Object.keys(NEST[p]).length > 0) || TARGET_PRODUCTS[0];
+    let showGeralView = false;
+
+    function elapsedDaysSinceCount(){
+      if(!stockUpdatedAt) return 0;
+      const now = new Date();
+      const then = new Date(stockUpdatedAt);
+      return Math.max(0, (now - then) / 86400000);
+    }
+    // Toda contagem de estoque é feita em UNIDADES (peças ou rolos). Convertemos
+    // para m² usando a área por unidade daquele produto/medida quando aplicável.
+    function stockUnitsToM2(st, produto, tam){
+      const unidades = st.proprio + st.full;
+      const area = areaPerUnitFor(produto, tam);
+      return area === null ? unidades : unidades * area;
+    }
+    function effectiveStock(st, avgDaily, produto, tam){
+      const raw = stockUnitsToM2(st, produto, tam);
+      if(avgDaily <= 0) return raw;
+      return Math.max(0, raw - elapsedDaysSinceCount()*avgDaily);
+    }
+
+    function calcQtd(produto, cor, tam){
+      const rec = NEST[produto][cor][tam];
+      const area = areaPerUnitFor(produto, tam);
+      const src = area !== null ? rec.units.map(u => u*area) : rec.units;
+      const avgDaily = avgPeriod(src) / 30;
+      const st = STATE[produto][cor][tam];
+      if(avgDaily <= 0) return 0;
+      const estoqueEfetivo = effectiveStock(st, avgDaily, produto, tam);
+      return Math.max(0, avgDaily*leadTimeDays - estoqueEfetivo);
+    }
+    // Total de matéria-prima (m²) disponível em estoque para uma cor — compartilhado
+    // entre todos os produtos que usam adesivo dessa cor.
+    function rollStockSharedTotal(cor){
+      let t = 0;
+      ROLL_TAMS.forEach(tam => {
+        const st = ROLL_STATE[cor][tam];
+        const area = tamAreaM2(tam) || 0;
+        t += (st.proprio + st.full) * area;
+      });
+      return t;
+    }
+    // Necessidade bruta de um produto/cor (m² ou un), já descontando o estoque de
+    // peças prontas daquele produto — SEM descontar o rolo (que é somado uma única
+    // vez no Total Geral, para não contar o mesmo rolo mais de uma vez).
+    function calcCorTotal(produto, cor){
+      let t = 0;
+      Object.keys(NEST[produto][cor]).forEach(tam => { t += calcQtd(produto, cor, tam); });
+      return Math.max(0, t);
+    }
+    function corMinDaysLeft(produto, cor){
+      let minDays = Infinity;
+      Object.keys(NEST[produto][cor]).forEach(tam => {
+        const rec = NEST[produto][cor][tam];
+        const area = areaPerUnitFor(produto, tam);
+        const src = area !== null ? rec.units.map(u => u*area) : rec.units;
+        const avgDaily = avgPeriod(src) / 30;
+        if(avgDaily <= 0) return;
+        const st = STATE[produto][cor][tam];
+        const dias = effectiveStock(st, avgDaily, produto, tam) / avgDaily;
+        if(dias < minDays) minDays = dias;
+      });
+      return minDays;
+    }
+
+    function renderProductTabsInto(container){
+      container.innerHTML = '';
+      const select = document.createElement('select');
+      select.className = 'product-select';
+      TARGET_PRODUCTS.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p; opt.textContent = p;
+        if(p === currentProduct) opt.selected = true;
+        select.appendChild(opt);
+      });
+      select.onchange = () => { currentProduct = select.value; renderStockSection(); renderResultSection(); };
+      container.appendChild(select);
+    }
+
+    function renderResultTabs(){
+      const container = document.getElementById('result-product-tabs');
+      container.innerHTML = '';
+      const geralBtn = document.createElement('button');
+      geralBtn.className = 'geral-toggle-btn' + (showGeralView ? ' active' : '');
+      geralBtn.innerHTML = `Σ Total Geral (todos os produtos)`;
+      geralBtn.onclick = () => { showGeralView = true; renderResultSection(); };
+      container.appendChild(geralBtn);
+
+      const select = document.createElement('select');
+      select.className = 'product-select';
+      const placeholderOpt = document.createElement('option');
+      placeholderOpt.value = ''; placeholderOpt.textContent = 'Ou escolha um produto específico...';
+      placeholderOpt.disabled = true;
+      if(showGeralView) placeholderOpt.selected = true;
+      select.appendChild(placeholderOpt);
+      TARGET_PRODUCTS.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p; opt.textContent = p;
+        if(!showGeralView && p === currentProduct) opt.selected = true;
+        select.appendChild(opt);
+      });
+      select.onchange = () => { showGeralView = false; currentProduct = select.value; renderResultSection(); };
+      container.appendChild(select);
+    }
+
+    function colorStatus(minDays){
+      if(minDays === Infinity) return { key:'neutral', label:'Sem histórico' };
+      if(minDays <= 0) return { key:'danger', label:'Comprar agora' };
+      if(minDays <= leadTimeDays) return { key:'warning', label:'Providenciar em breve' };
+      return { key:'success', label:'Estoque OK' };
+    }
+
+    function renderGeralView(){
+      const heroEl = document.getElementById('hero-total');
+      const M2_PRODUCTS = TARGET_PRODUCTS.filter(p => HAS_M2[p]);
+      const UN_PRODUCTS = TARGET_PRODUCTS.filter(p => !HAS_M2[p]);
+
+      const colorUnion = new Set();
+      TARGET_PRODUCTS.forEach(p => Object.keys(NEST[p]).forEach(c => colorUnion.add(c)));
+
+      let totalM2 = 0, totalUn = 0, totalRollStock = 0;
+      const perColor = [];
+      colorUnion.forEach(cor => {
+        let m2Bruto = 0, un = 0, minDays = Infinity;
+        const byProduct = {};
+        TARGET_PRODUCTS.forEach(p => {
+          if(!NEST[p][cor]) return;
+          const v = calcCorTotal(p, cor);
+          byProduct[p] = v;
+          if(HAS_M2[p]) m2Bruto += v; else un += v;
+          const d = corMinDaysLeft(p, cor);
+          if(d < minDays) minDays = d;
+        });
+        const rollDisponivel = ROLL_COLORS.includes(cor) ? rollStockSharedTotal(cor) : 0;
+        const m2Liquido = Math.max(0, m2Bruto - rollDisponivel);
+        totalM2 += m2Liquido; totalUn += un; totalRollStock += rollDisponivel;
+        perColor.push({ cor, m2Bruto, m2Liquido, rollDisponivel, un, minDays, byProduct });
+      });
+      perColor.sort((a,b) => (b.m2Liquido + b.un) - (a.m2Liquido + a.un));
+
+      const m2ProductsList = M2_PRODUCTS.length ? M2_PRODUCTS.join(' + ') : '—';
+      const unProductsList = UN_PRODUCTS.length ? UN_PRODUCTS.join(' + ') : '—';
+
+      heroEl.innerHTML = `
+        <div>
+          <div class="h-label">Total geral a comprar — <strong>todos os produtos</strong>, por cor</div>
+          <div class="h-sub">Período: ${MONTHS[periodStart]}–${MONTHS[periodEnd]} · lead time: ${leadTimeDays} dias · estoque contado há ${fmt(elapsedDaysSinceCount(),1)} dia(s) · já descontando ${fmt(totalRollStock,1)} m² de rolo em estoque</div>
+        </div>
+        <div style="display:flex;gap:22px;flex-wrap:wrap;">
+          <div class="h-value" title="${m2ProductsList}">${fmt(totalM2,1)} <span style="font-size:14px;font-weight:500;opacity:.8;">m²<br><span style="font-size:10.5px;">produtos por m², já líquido do rolo</span></span></div>
+          <div class="h-value" title="${unProductsList}">${fmt(totalUn,0)} <span style="font-size:14px;font-weight:500;opacity:.8;">un<br><span style="font-size:10.5px;">produtos por unidade</span></span></div>
+        </div>
+      `;
+
+      const resWrap = document.getElementById('result-cores');
+      resWrap.innerHTML = '';
+      if(perColor.length === 0){ resWrap.innerHTML = '<div class="empty-note">Sem dados de vendas no período carregado.</div>'; return; }
+
+      perColor.forEach(({cor, m2Bruto, m2Liquido, un, byProduct}) => {
+        const valueParts = [];
+        if(m2Bruto > 0 || M2_PRODUCTS.some(p => byProduct[p] !== undefined)) valueParts.push(`${fmt(m2Liquido,1)} m²`);
+        if(un > 0 || UN_PRODUCTS.some(p => byProduct[p] !== undefined)) valueParts.push(`${fmt(un,0)} un`);
+        const row = document.createElement('div'); row.className = 'cor-simple-row';
+        row.innerHTML = `
+          <span class="rp-dot" style="background:${COR_HEX[cor]||'#999'};"></span>
+          <span class="r-name">${cor}</span>
+          <span class="r-value">${valueParts.join(' · ')}</span>
+        `;
+        resWrap.appendChild(row);
+      });
+    }
+
+    // ---- passo 3: estoque ----
+    function renderRollStockSection(){
+      const wrap = document.getElementById('roll-stock-section');
+      wrap.innerHTML = `
+        <div class="roll-stock-wrap">
+          <div class="roll-stock-title">Estoque de matéria-prima (rolos) — compartilhado entre todos os produtos</div>
+          <div class="roll-stock-sub">Um único estoque por cor, usado para abater a necessidade de adesivo de todos os produtos daquela cor (ver "Total Geral" no Passo 4). Rolo fica só na empresa, não tem FULL.</div>
+          <table class="roll-tbl">
+            <thead><tr><th>Cor</th><th>Estoque 1m×70m</th><th>Estoque 50cm×70m</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      `;
+      const tbody = wrap.querySelector('tbody');
+      ROLL_COLORS.forEach(cor => {
+        const tr = document.createElement('tr');
+        const st1 = ROLL_STATE[cor]['100x7000'];
+        const st2 = ROLL_STATE[cor]['50x7000'];
+        tr.innerHTML = `
+          <td><span class="rp-dot" style="background:${COR_HEX[cor]||'#999'};display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;"></span>${cor}</td>
+          <td><input type="number" min="0" step="1" value="${st1.proprio}" class="roll-in" data-cor="${cor}" data-tam="100x7000" data-field="proprio"/></td>
+          <td><input type="number" min="0" step="1" value="${st2.proprio}" class="roll-in" data-cor="${cor}" data-tam="50x7000" data-field="proprio"/></td>
+        `;
+        tbody.appendChild(tr);
+      });
+      wrap.querySelectorAll('.roll-in').forEach(input => {
+        const update = () => {
+          const cor = input.dataset.cor, tam = input.dataset.tam, field = input.dataset.field;
+          ROLL_STATE[cor][tam][field] = parseFloat(input.value) || 0;
+          renderResultSection();
+          saveStockData();
+        };
+        input.addEventListener('input', update);
+        input.addEventListener('blur', flushStockSave);
+      });
+    }
+
+    function renderStockSection(){
+      renderProductTabsInto(document.getElementById('stock-product-tabs'));
+      renderRollStockSection();
+      const wrap = document.getElementById('stock-cores');
+      wrap.innerHTML = '';
+      const cores = sortedCores(Object.keys(NEST[currentProduct]));
+      if(cores.length === 0){ wrap.innerHTML = '<div class="empty-note">Sem dados de vendas para este produto no período carregado.</div>'; return; }
+      cores.forEach(cor => {
+        const block = document.createElement('div'); block.className = 'cor-block';
+        const head = document.createElement('div'); head.className = 'cor-block-head';
+        head.innerHTML = `<span class="rp-dot" style="background:${COR_HEX[cor]||'#999'};"></span>${cor}`;
+        block.appendChild(head);
+        const rowsWrap = document.createElement('div'); rowsWrap.className = 'medida-rows';
+        const tamKeys = sortedTamanhos(Object.keys(NEST[currentProduct][cor]).filter(tam => !ROLL_TAMS.includes(tam)));
+        if(tamKeys.length === 0){
+          rowsWrap.innerHTML = '<div class="medida-row" style="color:var(--ink-muted);font-size:12.5px;">Sem estoque de peças a controlar aqui — este produto usa apenas o estoque de rolo acima.</div>';
+        }
+        tamKeys.forEach(tam => {
+          const st = STATE[currentProduct][cor][tam];
+          const tamLabel = tam === '-' ? 'Estoque geral' : tam;
+          const row = document.createElement('div'); row.className = 'medida-row';
+          row.innerHTML = `
+            <div class="m-name">${tamLabel}</div>
+            <div class="m-field"><label>Estoque Ricapet (un)</label><input type="number" min="0" step="1" value="${st.proprio}" class="in-proprio" /></div>
+            <div class="m-field"><label>Estoque FULL (un)</label><input type="number" min="0" step="1" value="${st.full}" class="in-full" /></div>
+          `;
+          const proprioInput = row.querySelector('.in-proprio');
+          const fullInput = row.querySelector('.in-full');
+          proprioInput.addEventListener('input', () => { st.proprio = parseFloat(proprioInput.value) || 0; renderResultSection(); saveStockData(); });
+          fullInput.addEventListener('input', () => { st.full = parseFloat(fullInput.value) || 0; renderResultSection(); saveStockData(); });
+          proprioInput.addEventListener('blur', flushStockSave);
+          fullInput.addEventListener('blur', flushStockSave);
+          rowsWrap.appendChild(row);
+        });
+        block.appendChild(rowsWrap);
+        wrap.appendChild(block);
+      });
+    }
+
+    // ---- passo 4: resultado ----
+    const openCards = new Set();
+    function renderResultSection(){
+      renderResultTabs();
+      if(showGeralView){ renderGeralView(); return; }
+      const unitLabel = UNIT_LABEL[currentProduct];
+      const cores = sortedCores(Object.keys(NEST[currentProduct]));
+
+      const heroEl = document.getElementById('hero-total');
+      let total = 0;
+      const porCor = cores.map(cor => { const v = calcCorTotal(currentProduct, cor); total += v; return {cor, v}; });
+      porCor.sort((a,b) => b.v - a.v);
+      heroEl.innerHTML = `
+        <div>
+          <div class="h-label">Total a comprar de <strong>${currentProduct}</strong> — todas as cores</div>
+          <div class="h-sub">Período: ${MONTHS[periodStart]}–${MONTHS[periodEnd]} · lead time: ${leadTimeDays} dias · estoque contado há ${fmt(elapsedDaysSinceCount(),1)} dia(s) · ainda não desconta o estoque de rolo (compartilhado) — veja "Total Geral" para o número líquido</div>
+        </div>
+        <div class="h-value">${fmt(total, unitLabel==='m²'?1:0)} <span style="font-size:16px;font-weight:500;opacity:.8;">${unitLabel}</span></div>
+      `;
+
+      const resWrap = document.getElementById('result-cores');
+      resWrap.innerHTML = '';
+      if(cores.length === 0){ resWrap.innerHTML = '<div class="empty-note">Sem dados de vendas para este produto no período carregado.</div>'; return; }
+
+      porCor.forEach(({cor, v}) => {
+        const minDays = corMinDaysLeft(currentProduct, cor);
+        let statusKey = 'neutral', statusLabel = 'Sem histórico';
+        if(minDays !== Infinity){
+          if(minDays <= 0){ statusKey='danger'; statusLabel='Comprar agora'; }
+          else if(minDays <= leadTimeDays){ statusKey='warning'; statusLabel='Providenciar em breve'; }
+          else { statusKey='success'; statusLabel='Estoque OK'; }
+        }
+        const card = document.createElement('div'); card.className = 'cor-result-card';
+        if(openCards.has(cor)) card.classList.add('open');
+        const daysText = minDays === Infinity ? 'sem consumo no período' : (minDays <= 0 ? 'estoque zerado' : `${fmt(minDays,0)} dias de estoque restante`);
+        const summary = document.createElement('div'); summary.className = 'cor-result-summary';
+        summary.innerHTML = `
+          <span class="rp-dot" style="background:${COR_HEX[cor]||'#999'};"></span>
+          <span class="r-name">${cor}<br><span style="font-size:11px;font-weight:400;color:var(--ink-muted);">${daysText}</span></span>
+          <span class="r-badge" style="background:var(--${statusKey}-bg);color:var(--${statusKey}-text);">${statusLabel}</span>
+          <span class="r-value">${fmt(v, unitLabel==='m²'?1:0)} ${unitLabel}</span>
+          <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        `;
+        summary.onclick = () => {
+          if(openCards.has(cor)) openCards.delete(cor); else openCards.add(cor);
+          card.classList.toggle('open');
+        };
+        card.appendChild(summary);
+
+        const detail = document.createElement('div'); detail.className = 'cor-result-detail';
+        const tbl = document.createElement('table'); tbl.className = 'detail-tbl';
+        tbl.innerHTML = `<thead><tr>
+          <th title="O tamanho específico dessa peça/corte.">Medida</th>
+          <th title="Quanto você vende, em média, por dia dessa medida (calculado a partir do período escolhido no Passo 2).">Consumo/dia (${unitLabel})</th>
+          <th title="Quantidade em unidades que você contou e digitou na última contagem de estoque.">Contado (un)</th>
+          <th title="O estoque contado, já convertido para ${unitLabel} e descontando o consumo desde a última contagem até hoje.">Estimado hoje (${unitLabel})</th>
+          <th title="Em quantos dias esse estoque estimado deve acabar, no ritmo atual de vendas.">Dias restantes</th>
+          <th title="Data limite para fazer o pedido ao fornecedor, já considerando o prazo de entrega (lead time) — depois dessa data o estoque pode zerar antes do pedido novo chegar.">Comprar até</th>
+          <th title="Quanto pedir agora para cobrir o consumo até a próxima entrega, já descontando o que ainda resta.">Qtd a comprar</th>
+        </tr></thead><tbody></tbody>`;
+        const tbody = tbl.querySelector('tbody');
+        const today = new Date(); today.setHours(0,0,0,0);
+        sortedTamanhos(Object.keys(NEST[currentProduct][cor]).filter(tam => !ROLL_TAMS.includes(tam))).forEach(tam => {
+          const rec = NEST[currentProduct][cor][tam];
+          const area = areaPerUnitFor(currentProduct, tam);
+          const src = area !== null ? rec.units.map(u => u*area) : rec.units;
+          const avgDaily = avgPeriod(src) / 30;
+          const st = STATE[currentProduct][cor][tam];
+          const estoqueContadoUn = st.proprio + st.full;
+          const estoqueContadoConvertido = stockUnitsToM2(st, currentProduct, tam);
+          const tamLabel = tam === '-' ? 'Estoque geral' : tam;
+          const tr = document.createElement('tr');
+          const tituloUn = (valorM2) => (area && area > 0) ? `≈ ${fmt(valorM2/area,0)} un` : '';
+          if(avgDaily <= 0){
+            tr.innerHTML = `<td>${tamLabel}</td><td>0</td><td>${fmt(estoqueContadoUn,0)}</td><td title="${tituloUn(estoqueContadoConvertido)}">${fmt(estoqueContadoConvertido,unitLabel==='m²'?1:0)}</td><td>—</td><td>—</td><td>sem consumo</td>`;
+          } else {
+            const estoqueEfetivo = effectiveStock(st, avgDaily, currentProduct, tam);
+            const diasRestantes = estoqueEfetivo / avgDaily;
+            const esgDate = new Date(today.getTime() + diasRestantes*86400000);
+            const compraDate = new Date(esgDate.getTime() - leadTimeDays*86400000);
+            const qtd = calcQtd(currentProduct, cor, tam);
+            let badgeBg = 'var(--success-bg)', badgeText = 'var(--success-text)';
+            if(compraDate <= today){ badgeBg='var(--danger-bg)'; badgeText='var(--danger-text)'; }
+            else if((compraDate-today)/86400000 <= 7){ badgeBg='var(--warning-bg)'; badgeText='var(--warning-text)'; }
+            const tituloComprarAte = `${fmt(qtd,unitLabel==='m²'?1:0)} ${unitLabel} a comprar${tituloUn(qtd) ? ' (' + tituloUn(qtd) + ')' : ''}`;
+            tr.innerHTML = `<td>${tamLabel}</td><td title="${tituloUn(avgDaily)}${tituloUn(avgDaily)?' por dia':''}">${fmt(avgDaily,2)}</td><td>${fmt(estoqueContadoUn,0)}</td><td title="${tituloUn(estoqueEfetivo)}">${fmt(estoqueEfetivo,unitLabel==='m²'?1:0)}</td><td>${fmt(diasRestantes,0)}</td><td><span class="badge" style="background:${badgeBg};color:${badgeText};" title="${tituloComprarAte}">${fmtDate(compraDate)}</span></td><td style="font-weight:600;" title="${tituloUn(qtd)}">${fmt(qtd,unitLabel==='m²'?1:0)}</td>`;
+          }
+          tbody.appendChild(tr);
+        });
+        detail.appendChild(tbl);
+        card.appendChild(detail);
+        resWrap.appendChild(card);
+      });
+    }
+
+    renderStockSection();
+    renderResultSection();
+
+    if(window.__estoqueRefreshTimer) clearInterval(window.__estoqueRefreshTimer);
+    window.__estoqueRefreshTimer = setInterval(() => { renderResultSection(); }, 5 * 60 * 1000);
+  }
+
+  // ---------------- init ----------------
+  async function init(){
+    renderRail();
+    const sharedNoteEl = document.getElementById('shared-note');
+    if(jsonbinConfigured()){
+      sharedNoteEl.style.display = 'block';
+      sharedNoteEl.textContent = 'O estoque, o lead time e a data da última atualização ficam salvos e visíveis para qualquer pessoa que abrir este painel.';
+    } else {
+      sharedNoteEl.style.display = 'block';
+      sharedNoteEl.style.background = 'var(--warning-bg)';
+      sharedNoteEl.style.color = 'var(--warning-text)';
+      sharedNoteEl.innerHTML = '⚠ Este painel ainda não está configurado para compartilhar dados. Configure JSONBIN_CONTAGEM_API_KEY e JSONBIN_CONTAGEM_BIN_ID nas variáveis de ambiente do servidor. Até lá, os dados só valem para esta sessão.';
+    }
+
+    const record = await jsonbinGet();
+    if(record && record.vendas){
+      currentData = record.vendas;
+      renderLastUpdated();
+      const savedStock = record.estoque || null;
+      safeRenderApp(currentData, savedStock);
+      setStatus('Dados carregados do último processamento salvo.', 'ok');
+      collapseStep(1, true);
+      updateRailState();
+      return;
+    }
+
+    if(typeof DEFAULT_DATA !== 'undefined' && DEFAULT_DATA){
+      currentData = DEFAULT_DATA;
+      renderLastUpdated();
+      const savedStock = (record && record.estoque) || null;
+      safeRenderApp(DEFAULT_DATA, savedStock);
+      setStatus('Exibindo dados do último relatório processado. Envie novos relatórios acima somente quando quiser atualizar.', 'ok');
+      collapseStep(1, true);
+      updateRailState();
+      if(jsonbinConfigured() && !(record && record.vendas)){ await jsonbinUpdatePart('vendas', DEFAULT_DATA); }
+    } else {
+      updateRailState();
+    }
+  }
+  init();
+})();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</script>
+</body>
+</html>

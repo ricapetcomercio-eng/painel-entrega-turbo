@@ -338,7 +338,7 @@
       <span style="display:block; padding:9px 10px; font-size:12px; color:var(--sidebar-muted);">Carregando…</span>
     </div>
 
-    <a class="sidebar-link" href="#" id="linkEstoque" data-menu-key="estoque" onclick="abrirPainelExterno('https://painel-estoque-adesivo-three.vercel.app/', this); return false;">
+    <a class="sidebar-link" href="/estoque.html" id="linkEstoque" data-menu-key="estoque">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8L12 3 3 8l9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>
       Estoque Adesivo
     </a>
@@ -2413,7 +2413,7 @@
     const primeiro = document.querySelector('.sidebar-link[data-menu-key]');
     const chave = primeiro ? primeiro.dataset.menuKey : 'dashboard';
     if (chave === 'concorrencia') abrirPainelExterno(CONCORRENCIA_URL, document.getElementById('linkConcorrencia'));
-    else if (chave === 'estoque') abrirPainelExterno('https://painel-estoque-adesivo-three.vercel.app/', document.getElementById('linkEstoque'));
+    else if (chave === 'estoque') location.href = '/estoque.html';
     else if (chave === 'ponto') location.href = '/ponto.html';
     else mostrarPainelNativo();
   }

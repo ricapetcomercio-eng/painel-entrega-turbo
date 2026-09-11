@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Saldo de Estoque — Ricapet · Thapets</title>
+<script src="assets/auth.js"></script>
+<style>
+  :root {
+    --bg: #F3F6F5; --surface: #FFFFFF; --surface-2: #EAEFED;
+    --ink: #15211D; --ink-soft: #4E5D57; --ink-muted: #8A9791; --border: #DCE3DF;
+    --accent: #f5a623; --accent-dark: #272456; --accent-light: #fdecc8;
+    --ink-on-accent: #241f4d;
+    --danger-bg: #FCEBEB; --danger-text: #8A2A24; --danger-solid: #C94A3F;
+    --warning-bg: #FBF0DC; --warning-text: #6B4308;
+    --font-display: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-mono: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --brand: #16a34a;
+    --brand-light: #dcfce7;
+    --page-bg: #e7e9f7;
+    --sidebar-bg: var(--accent-dark);
+    --sidebar-text: #eef2ff;
+    --sidebar-muted: #9db0dd;
+    --sidebar-hover: rgba(255,255,255,0.08);
+    --sidebar-border: rgba(255,255,255,0.14);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 0; background: var(--page-bg); color: var(--ink); font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
+
+  .sidebar {
+    width: 240px; height: 100vh; position: fixed; top: 0; left: 0; z-index: 1000;
+    background: var(--sidebar-bg); border-right: 1px solid var(--sidebar-border);
+    padding: 20px 14px; box-sizing: border-box; overflow-y: auto;
+    display: flex; flex-direction: column;
+  }
+  .sidebar-brand { display: flex; align-items: center; gap: 10px; padding: 2px 10px 16px; margin-bottom: 12px; border-bottom: 1px solid var(--sidebar-border); }
+  .sidebar-brand-icon { width: 40px; height: 40px; object-fit: contain; flex-shrink: 0; }
+  .sidebar-brand-name { font-size: 14px; font-weight: 800; color: var(--sidebar-text); line-height: 1.2; }
+  .sidebar-brand-sub { font-size: 11px; color: var(--sidebar-muted); }
+  .sidebar-titulo { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sidebar-muted); padding: 0 10px; margin-bottom: 10px; }
+  .sidebar-link {
+    display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px;
+    color: var(--sidebar-text); text-decoration: none; font-size: 13px; font-weight: 600; margin-bottom: 4px;
+    white-space: nowrap;
+  }
+  .sidebar-link:hover { background: var(--sidebar-hover); }
+  .sidebar-link.ativo { background: var(--accent); color: var(--ink-on-accent); }
+  .sidebar-link.ativo svg { stroke: var(--ink-on-accent); }
+  .sidebar-link svg { flex-shrink: 0; }
+  .sidebar-separador { border: none; border-top: 1px solid var(--sidebar-border); margin: 14px 0; }
+  .sidebar-footer { display: flex; align-items: center; gap: 10px; padding: 10px; margin-top: auto; border-top: 1px solid var(--sidebar-border); }
+  .sidebar-avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--accent); color: var(--ink-on-accent); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; flex-shrink: 0; }
+  .sidebar-footer-name { font-size: 12px; font-weight: 700; color: var(--sidebar-text); }
+  .sidebar-footer-sub { font-size: 11px; color: var(--sidebar-muted); }
+  .conteudo-principal { margin-left: 240px; }
+  @media (max-width: 900px) {
+    .sidebar { position: static; width: 100%; height: auto; flex-direction: row; flex-wrap: wrap; border-right: none; border-bottom: 1px solid var(--border); }
+    .sidebar-brand, .sidebar-footer, .sidebar-separador { display: none; }
+    .conteudo-principal { margin-left: 0; }
+  }
+
+  .shell { max-width: 900px; margin: 0 auto; padding: 28px 20px 60px; }
+  h1 { font-family: var(--font-display); font-size: 22px; font-weight: 700; margin: 0 0 4px; }
+  .sub { font-size: 13.5px; color: var(--ink-soft); margin: 0 0 20px; max-width: 60ch; }
+
+  .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 18px; }
+  .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+  .kpi .k-label { font-size: 11px; color: var(--ink-muted); margin-bottom: 4px; }
+  .kpi .k-value { font-family: var(--font-mono); font-size: 18px; font-weight: 600; }
+  .kpi.warn .k-value { color: var(--warning-text); }
+  .kpi.danger .k-value { color: var(--danger-text); }
+
+  .toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
+  .toolbar input[type="text"] {
+    flex: 1; min-width: 180px; padding: 9px 12px; border: 1.5px solid var(--border);
+    border-radius: 8px; font-size: 14px; font-family: var(--font-body); background: var(--surface);
+  }
+  .refresh-btn, .checkbox-label {
+    font-size: 13px; padding: 9px 14px; border-radius: 8px; border: 1.5px solid var(--border);
+    background: var(--surface); cursor: pointer; color: var(--ink-soft); font-weight: 600;
+    display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  }
+  .refresh-btn:hover { border-color: var(--accent); color: var(--accent-dark); }
+  .checkbox-label input { margin: 0; }
+
+  table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  th, td { text-align: left; padding: 9px 12px; font-size: 13.5px; border-bottom: 1px solid var(--border); }
+  th { background: var(--surface-2); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-muted); font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  td.num { font-family: var(--font-mono); text-align: right; font-weight: 600; }
+  tr.negativo td.num { color: var(--danger-text); }
+  tr.negativo { background: var(--danger-bg); }
+  tr.zerado td.num { color: var(--warning-text); }
+  .updated-cell { color: var(--ink-muted); font-size: 12px; }
+
+  .empty-note, .error-note, .loading-note { text-align: center; padding: 30px; color: var(--ink-muted); font-size: 14px; }
+  .error-note { color: var(--danger-text); }
+
+  footer.foot { text-align: center; font-size: 12px; color: var(--ink-muted); margin-top: 24px; }
+  footer.foot a { color: var(--accent); }
+</style>
+</head>
+<body>
+<nav class="sidebar">
+  <div class="sidebar-brand">
+    <img class="sidebar-brand-icon" src="logo-ricapet.png" alt="Ricapet">
+    <div>
+      <div class="sidebar-brand-name">Ricapet</div>
+      <div class="sidebar-brand-sub">Estoque Adesivo</div>
+    </div>
+  </div>
+
+  <div class="sidebar-titulo" id="tituloPaineis">Painéis Ricapet</div>
+
+  <a class="sidebar-link" href="/" data-menu-key="dashboard">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+    Dashboard
+  </a>
+
+  <a class="sidebar-link" href="https://ricapet-concorrencia.vercel.app" data-menu-key="concorrencia">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 15l4-6 3 3 5-7"/></svg>
+    Análise de Concorrência
+  </a>
+
+  <a class="sidebar-link ativo" href="#" data-menu-key="estoque">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8L12 3 3 8l9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>
+    Estoque Adesivo
+  </a>
+
+  <a class="sidebar-link" href="/ponto.html" data-menu-key="ponto">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+    Ponto
+  </a>
+
+  <a class="sidebar-link" href="/tv.html" target="_blank" rel="noopener" data-menu-key="tv">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+    Painel TV
+  </a>
+
+  <hr class="sidebar-separador">
+
+  <div class="sidebar-titulo" id="tituloVisoes">Visões</div>
+
+  <a class="sidebar-link" href="estoque.html" data-menu-key="reposicao">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-4"/></svg>
+    Painel de Reposição
+  </a>
+  <a class="sidebar-link ativo" href="estoque-saldo.html" data-menu-key="saldo">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+    Saldo de Estoque
+  </a>
+  <a class="sidebar-link" href="estoque-atualizar.html" data-menu-key="atualizar">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 18h6"/></svg>
+    Atualizar Estoque
+  </a>
+
+  <div class="sidebar-footer">
+    <div class="sidebar-avatar" id="sidebarAvatarInicial">R</div>
+    <div>
+      <div class="sidebar-footer-name" id="sidebarNomeUsuario">Ricapet</div>
+      <div class="sidebar-footer-sub"><a href="#" id="linkSair" style="color:inherit">Sair</a></div>
+    </div>
+  </div>
+</nav>
+
+<div class="conteudo-principal">
+<div class="shell">
+  <h1>Saldo de Estoque</h1>
+  <p class="sub">Saldo calculado automaticamente: começa da última contagem física importada e desce sozinho a cada venda registrada (Mercado Livre / Shopee), voltando a subir se o pedido for cancelado ou devolvido depois.</p>
+
+  <div class="kpi-row" id="kpi-row"></div>
+
+  <div class="toolbar">
+    <input type="text" id="filtro" placeholder="Filtrar por produto ou cor…">
+    <label class="checkbox-label"><input type="checkbox" id="so-negativos"> Só saldo ≤ 0</label>
+    <button class="refresh-btn" id="refresh-btn">↻ Atualizar</button>
+  </div>
+
+  <div id="conteudo"><div class="loading-note">Carregando…</div></div>
+
+  <footer class="foot">
+    Contagem física em <a href="estoque-atualizar.html">estoque-atualizar.html</a> ·
+    Visão de vendas em <a href="estoque.html">estoque.html</a>
+  </footer>
+</div>
+</div>
+
+<script>
+(function(){
+  const ESTOQUE_SALDO_URL = '/api/debug?tipo=estoque-saldo&secret=631ac83f9b7c5ae518c3dfe378b09ba64cd96aaba9c87f5f';
+
+  // Sessão do login único (RicapetAuth.sessao vem de assets/auth.js, que já
+  // redirecionou pra /login.html se não houver sessão válida).
+  const sessaoAtual = window.RicapetAuth.sessao;
+  const elNomeUsuario = document.getElementById('sidebarNomeUsuario');
+  const elAvatarUsuario = document.getElementById('sidebarAvatarInicial');
+  if (sessaoAtual && elNomeUsuario && elAvatarUsuario) {
+    elNomeUsuario.textContent = sessaoAtual.nome;
+    elAvatarUsuario.textContent = sessaoAtual.nome.charAt(0).toUpperCase();
+  }
+  const elLinkSair = document.getElementById('linkSair');
+  if (elLinkSair) elLinkSair.addEventListener('click', (ev) => { ev.preventDefault(); window.RicapetAuth.sair(); });
+
+  let ultimoDado = null;
+
+  function fmtData(iso){
+    if(!iso) return '—';
+    try { return new Date(iso).toLocaleString('pt-BR'); } catch(e){ return iso; }
+  }
+
+  const CLOTHING_ORDER = ['PP','P','M','G','GG','XG','XGG','XXG'];
+  function tamSortKey(tam){
+    if(tam === '-') return [2, 0, tam];
+    const m = String(tam).match(/^(\d+)[xX](\d+)/);
+    if(m) return [0, (parseInt(m[1],10)/100) * (parseInt(m[2],10)/100), tam];
+    const idx = CLOTHING_ORDER.indexOf(String(tam).toUpperCase());
+    if(idx !== -1) return [1, idx, tam];
+    return [3, 0, String(tam).toLowerCase()];
+  }
+
+  function ordenar(linhas){
+    return [...linhas].sort((a,b) => {
+      const p = a.produto.localeCompare(b.produto, 'pt-BR'); if(p !== 0) return p;
+      const ka = tamSortKey(a.tamanho), kb = tamSortKey(b.tamanho);
+      if(ka[0] !== kb[0]) return ka[0]-kb[0];
+      if(ka[1] !== kb[1]) return ka[1]-kb[1];
+      const t = String(ka[2]).localeCompare(String(kb[2]), 'pt-BR'); if(t !== 0) return t;
+      return a.cor.localeCompare(b.cor, 'pt-BR');
+    });
+  }
+
+  function renderKpis(dado){
+    const negativos = dado.saldo.filter(r => r.saldo < 0).length;
+    document.getElementById('kpi-row').innerHTML = `
+      <div class="kpi"><div class="k-label">Produtos/cor/tamanho</div><div class="k-value">${dado.total_produtos}</div></div>
+      <div class="kpi ${negativos > 0 ? 'danger' : ''}"><div class="k-label">Com saldo negativo</div><div class="k-value">${negativos}</div></div>
+      <div class="kpi ${dado.vendas_nao_mapeadas > 0 ? 'warn' : ''}"><div class="k-label">Vendas sem mapeamento</div><div class="k-value">${dado.vendas_nao_mapeadas}</div></div>
+    `;
+  }
+
+  function renderTabela(){
+    if(!ultimoDado){ return; }
+    const filtro = document.getElementById('filtro').value.trim().toLowerCase();
+    const soNegativos = document.getElementById('so-negativos').checked;
+    let linhas = ordenar(ultimoDado.saldo);
+    if(filtro){
+      linhas = linhas.filter(r => (r.produto + ' ' + r.cor).toLowerCase().includes(filtro));
+    }
+    if(soNegativos){
+      linhas = linhas.filter(r => r.saldo <= 0);
+    }
+    const wrap = document.getElementById('conteudo');
+    if(linhas.length === 0){
+      wrap.innerHTML = '<div class="empty-note">Nenhum produto encontrado com esse filtro.</div>';
+      return;
+    }
+    const linhasHtml = linhas.map(r => {
+      const classe = r.saldo < 0 ? 'negativo' : (r.saldo === 0 ? 'zerado' : '');
+      const tamanhoLabel = r.tamanho === '-' ? 'única' : r.tamanho;
+      return `<tr class="${classe}">
+        <td>${r.produto}</td>
+        <td>${r.cor}</td>
+        <td>${tamanhoLabel}</td>
+        <td class="num">${r.saldo}</td>
+        <td class="updated-cell">${fmtData(r.atualizado_em)}</td>
+      </tr>`;
+    }).join('');
+    wrap.innerHTML = `
+      <table>
+        <thead><tr><th>Produto</th><th>Cor</th><th>Tamanho</th><th>Saldo</th><th>Atualizado</th></tr></thead>
+        <tbody>${linhasHtml}</tbody>
+      </table>
+    `;
+  }
+
+  async function carregar(){
+    document.getElementById('conteudo').innerHTML = '<div class="loading-note">Carregando…</div>';
+    try {
+      const resp = await fetch(ESTOQUE_SALDO_URL);
+      const json = await resp.json();
+      if(!resp.ok || !json.ok) throw new Error(json.error || ('HTTP ' + resp.status));
+      ultimoDado = json;
+      renderKpis(json);
+      renderTabela();
+    } catch(e){
+      console.error('Erro ao carregar saldo:', e);
+      document.getElementById('conteudo').innerHTML = '<div class="error-note">⚠ Erro ao carregar o saldo: ' + (e.message || e) + '</div>';
+    }
+  }
+
+  document.getElementById('refresh-btn').addEventListener('click', carregar);
+  document.getElementById('filtro').addEventListener('input', renderTabela);
+  document.getElementById('so-negativos').addEventListener('change', renderTabela);
+
+  carregar();
+})();
+
+</script>
+</body>
+</html>
