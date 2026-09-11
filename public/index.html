@@ -2439,13 +2439,26 @@
 
   mudarAba('executivo');
 
+  // O painel que abre ao entrar no link é sempre o primeiro item do menu
+  // "Painéis Ricapet" — que pode ter sido reordenado por arrastar-e-soltar
+  // (ver aplicarOrdemSalva(), já rodou antes daqui). Ou seja: se a pessoa
+  // arrastou "Ponto" pro topo do menu, é o Ponto que abre por padrão.
+  function ativarPainelPadrao() {
+    const primeiro = document.querySelector('.sidebar-link[data-menu-key]');
+    const chave = primeiro ? primeiro.dataset.menuKey : 'dashboard';
+    if (chave === 'concorrencia') abrirPainelExterno(CONCORRENCIA_URL, document.getElementById('linkConcorrencia'));
+    else if (chave === 'estoque') abrirPainelExterno('https://painel-estoque-adesivo-three.vercel.app/', document.getElementById('linkEstoque'));
+    else if (chave === 'ponto') abrirPainelExterno(PONTO_URL, document.getElementById('linkPonto'));
+    else mostrarPainelNativo();
+  }
+  ativarPainelPadrao();
+
   // Ao voltar pra essa aba via cache do navegador (bfcache — ex.: clicar
   // "voltar"/reabrir o link já visitado), o navegador restaura o estado
-  // exato de antes de sair, incluindo qual painel externo (Ponto, etc.)
-  // estava aberto no iframe. Isso fazia o link sempre "cair" onde a pessoa
-  // tinha deixado da última vez, em vez de sempre abrir no Dashboard.
+  // exato de antes de sair. Refaz a mesma escolha do primeiro item do menu,
+  // em vez de manter o que tava aberto quando a pessoa saiu.
   window.addEventListener('pageshow', (ev) => {
-    if (ev.persisted) mostrarPainelNativo();
+    if (ev.persisted) ativarPainelPadrao();
   });
 </script>
 </body>
