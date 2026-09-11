@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Atualizar Estoque — Expedição</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Estoque Ricapet">
+<meta name="theme-color" content="#272456">
+<script src="assets/auth.js"></script>
+<style>
+  :root {
+    --bg: #F3F6F5; --surface: #FFFFFF; --surface-2: #EAEFED;
+    --ink: #15211D; --ink-soft: #4E5D57; --ink-muted: #8A9791; --border: #DCE3DF;
+    --accent: #f5a623; --accent-dark: #272456; --accent-light: #fdecc8;
+    --ink-on-accent: #241f4d;
+    --success-bg: #E7F3E2; --success-text: #29551A; --success-solid: #3E8E41;
+    --warning-bg: #FBF0DC; --warning-text: #6B4308; --warning-solid: #C98500;
+    --danger-bg: #FCEBEB; --danger-text: #8A2A24; --danger-solid: #C94A3F;
+    --font-display: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-mono: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --brand: #16a34a;
+    --page-bg: #e7e9f7;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; background: var(--page-bg); color: var(--ink); font-family: var(--font-body); }
+  body { padding-bottom: 96px; }
+  .gravar-bar {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+    background: var(--surface); border-top: 1.5px solid var(--border);
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+    box-shadow: 0 -4px 14px rgba(0,0,0,.06);
+  }
+  .gravar-btn {
+    width: 100%; font-family: var(--font-display); font-size: 15.5px; font-weight: 700;
+    padding: 14px; border: none; border-radius: 12px; background: var(--accent); color: var(--ink-on-accent); cursor: pointer;
+  }
+  .gravar-btn:active { background: var(--accent-dark); color: #fff; }
+  .gravar-btn:disabled { background: var(--border); color: var(--ink-muted); }
+  .saldo-inicial-btn { margin-top: 10px; background: var(--ink-soft); font-size: 13px; padding: 11px; }
+  .saldo-inicial-btn:active { background: var(--ink); }
+  .gravar-status { text-align: center; font-size: 12px; margin-top: 8px; min-height: 15px; }
+  .gravar-status.ok { color: var(--success-solid); font-weight: 600; }
+  .gravar-status.err { color: var(--danger-solid); font-weight: 600; }
+
+  header.topbar { position: sticky; top: 0; z-index: 10; background: var(--accent-dark); color: #fff; padding: 16px 18px 14px; }
+  header.topbar h1 { font-family: var(--font-display); font-size: 18px; font-weight: 700; margin: 0 0 2px; }
+  header.topbar p { font-size: 12px; margin: 0; opacity: .85; }
+  header.topbar .save-pill { display: inline-block; margin-top: 8px; font-size: 11.5px; font-weight: 600; padding: 4px 10px; border-radius: 999px; background: rgba(255,255,255,.15); }
+
+  main { padding: 16px; max-width: 560px; margin: 0 auto; }
+
+  .field-block { margin-bottom: 18px; }
+  .field-block label { display: block; font-size: 13px; font-weight: 600; color: var(--ink-soft); margin-bottom: 8px; }
+  select.big-select {
+    width: 100%; font-size: 16px; padding: 14px 14px; border-radius: 12px; border: 1.5px solid var(--border);
+    background: var(--surface); color: var(--ink); font-weight: 500; -webkit-appearance: none; appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%234E5D57' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 12px center;
+  }
+
+  .color-pills { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+  .color-pill {
+    display: flex; align-items: center; gap: 7px; padding: 10px 14px; border-radius: 999px;
+    border: 1.5px solid var(--border); background: var(--surface); font-size: 14px; font-weight: 600; color: var(--ink-soft);
+  }
+  .color-pill.active { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .color-pill.completo { border-color: var(--success-solid); }
+  .color-pill.completo.active { background: var(--success-solid); border-color: var(--success-solid); }
+  .color-pill .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .pill-badge { font-size: 10.5px; font-weight: 700; padding: 1px 6px; border-radius: 999px; background: var(--surface-2); color: var(--ink-muted); }
+  .color-pill.completo .pill-badge { background: var(--success-bg); color: var(--success-text); }
+  .color-pill.active .pill-badge { background: rgba(255,255,255,.25); color: #fff; }
+
+  .medida-card {
+    background: var(--surface); border: 1.5px solid var(--border); border-radius: 14px;
+    padding: 14px 16px; margin-bottom: 12px; transition: border-color .15s ease, background .15s ease;
+  }
+  .medida-card.pendente { border-color: var(--warning-solid); background: var(--warning-bg); }
+  .medida-card.feito { border-color: var(--success-solid); background: var(--success-bg); }
+  .medida-card .m-title { font-size: 14.5px; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .status-badge { font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+  .preco-tag { font-family: var(--font-mono); font-size: 12px; font-weight: 600; color: var(--ink-muted); white-space: nowrap; }
+  .medida-card.pendente .status-badge { background: var(--warning-solid); color: #fff; }
+  .medida-card.feito .status-badge { background: var(--success-solid); color: #fff; }
+  .input-row { display: flex; gap: 10px; }
+  .input-group { flex: 1; }
+  .input-group label { display: block; font-size: 11.5px; color: var(--ink-muted); margin-bottom: 5px; font-weight: 600; text-transform: uppercase; letter-spacing: .02em; }
+  .input-group input {
+    width: 100%; font-family: var(--font-mono); font-size: 20px; font-weight: 600; text-align: center;
+    padding: 12px 8px; border: 1.5px solid var(--border); border-radius: 10px; background: var(--surface-2); color: var(--ink);
+  }
+  .input-group input:focus { outline: none; border-color: var(--accent); background: var(--accent-light); }
+  .input-group.solo label { font-size: 12.5px; text-align: center; }
+  .input-group.solo input { font-size: 28px; padding: 16px 10px; font-weight: 700; }
+  .medida-card:has(.solo) { padding: 16px 18px; }
+
+  section.card {
+    background: var(--surface); border: 1.5px solid var(--border); border-radius: 16px;
+    padding: 16px; margin-bottom: 16px;
+  }
+  section.card h2 { font-family: var(--font-display); font-size: 16px; font-weight: 700; margin: 0 0 4px; }
+  section.card .sub { font-size: 12.5px; color: var(--ink-soft); margin: 0 0 14px; }
+
+  .empty-note { text-align: center; padding: 24px 10px; color: var(--ink-muted); font-size: 13.5px; }
+
+  .roll-toggle {
+    display: flex; align-items: center; justify-content: space-between; width: 100%;
+    background: none; border: none; padding: 0; cursor: pointer; font-family: var(--font-display);
+    font-size: 16px; font-weight: 700; color: var(--ink);
+  }
+  .roll-toggle .chev { transition: transform .2s ease; color: var(--ink-muted); }
+  .roll-toggle.open .chev { transform: rotate(180deg); }
+  .roll-body { display: none; margin-top: 12px; }
+  .roll-body.open { display: block; }
+
+  footer.foot { text-align: center; font-size: 11.5px; color: var(--ink-muted); margin-top: 20px; padding: 0 16px; }
+  footer.foot a { color: var(--accent); }
+  .status-banner {
+    font-size: 12.5px; padding: 10px 14px; border-radius: 10px; margin-bottom: 16px; line-height: 1.5;
+  }
+  .status-banner.warn { background: var(--warning-bg); color: var(--warning-text); }
+  .status-banner.err { background: var(--danger-bg); color: var(--danger-text); }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <a href="estoque.html" style="display:inline-flex;align-items:center;gap:4px;color:#fff;opacity:.85;text-decoration:none;font-size:11.5px;font-weight:600;margin-bottom:6px;">← Painéis Ricapet</a>
+  <h1>Atualizar Estoque</h1>
+  <p>Ricapet · Thapets — contagem mensal da expedição</p>
+  <span class="save-pill" id="save-pill">Carregando...</span>
+</header>
+
+<main>
+  <div id="status-area"></div>
+
+  <section class="card">
+    <h2>Peças prontas</h2>
+    <p class="sub">Escolha o produto e a cor, depois informe quantas unidades você contou.</p>
+
+    <div class="field-block">
+      <label>Produto</label>
+      <select class="big-select" id="product-select"></select>
+    </div>
+
+    <div class="field-block">
+      <label>Cor</label>
+      <div class="color-pills" id="color-pills"></div>
+    </div>
+
+    <div id="medida-list"></div>
+  </section>
+
+  <footer class="foot">Os dados são salvos automaticamente e aparecem no painel de gestão em tempo real. · <a href="estoque-saldo.html">Ver saldo automático</a></footer>
+</main>
+
+<div class="gravar-bar">
+  <button id="gravar-btn" class="gravar-btn">Gravar no Google Sheets</button>
+  <div id="gravar-status" class="gravar-status"></div>
+  <button id="saldo-inicial-btn" class="gravar-btn saldo-inicial-btn">Usar esta contagem como saldo inicial do sistema automático</button>
+  <div id="saldo-inicial-status" class="gravar-status"></div>
+</div>
+
+
+<script>
+
+
+
+
+
+
+
+
+
+(function(){
+  // ===================================================================
+  // Armazenamento compartilhado (contagem física) — proxy pro JSONBin,
+  // mesmo endpoint usado por estoque.html (a chave fica só no servidor).
+  // ===================================================================
+  function jsonbinConfigured(){
+    return true;
+  }
+  async function jsonbinGet(){
+    try {
+      const sessao = window.RicapetAuth.sessao;
+      // cache:'no-store' + parametro de cache-busting: sem isso, o navegador (ou um
+      // proxy no meio do caminho) pode devolver uma resposta antiga desse mesmo GET
+      // em vez de ir buscar no servidor. Como flushSaveOnce usa esse retorno pra
+      // decidir o que "absorver" de volta pro estado local (absorverStockRemoto),
+      // uma leitura velha fazia um campo recem-salvo aparentar ter "voltado" pro
+      // valor de antes assim que qualquer outro campo era salvo em seguida.
+      const resp = await fetch('/api/estoque?tipo=contagem-get&sessao=' + encodeURIComponent(sessao.token) + '&_=' + Date.now(), {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache' }
+      });
+      if(!resp.ok) return null;
+      const json = await resp.json();
+      return (json.ok && json.record) || null;
+    } catch(e){ console.error('Erro ao ler contagem:', e); return null; }
+  }
+  async function jsonbinPut(record){
+    try {
+      const sessao = window.RicapetAuth.sessao;
+      const resp = await fetch('/api/estoque?tipo=contagem-set&sessao=' + encodeURIComponent(sessao.token), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ record })
+      });
+      const json = await resp.json().catch(() => ({}));
+      return !!(resp.ok && json.ok);
+    } catch(e){ console.error('Erro ao salvar contagem:', e); return false; }
+  }
+
+  // Catálogo completo de produtos/cores/tamanhos da empresa (planilha Produtos_Estoque.xlsx).
+  // Este app cobre TODO o estoque — diferente do painel de gestão, que só acompanha
+  // os produtos com dados de venda processados.
+  // IMPORTANTE: ao editar este CATALOG, rode `python scripts/gerar_catalog_json.py`
+  // e comite o catalog.json atualizado — o painel-entrega-turbo lê esse arquivo pra
+  // saber todos os produto/cor/tamanho que existem (ver importarContagemFisica em
+  // lib/estoqueSaldo.js nesse outro projeto).
+  const CATALOG = {"Alimentador Automático":{"Branco":["-"]},"Areia de Mandioca":{"Bege":["-"]},"Arranhador Adesivo":{"Preto":["48X30","50X30","70X50","100X50","120X50","200X50"],"Azul":["50X30","70X50","100X50","120X50","200X50"],"Bege":["50X30","70X50","100X50","120X50","200X50"],"Cinza":["50X30","70X50","100X50","120X50","200X50"],"Grafite":["50X30","70X50","100X50","120X50","200X50"],"Marrom":["50X30","70X50","100X50","120X50","200X50"]},"Arranhador Adesivo Gato":{"Azul":["-"],"Bege":["-"],"Cinza":["-"],"Grafite":["-"],"Marrom":["-"],"Preto":["-"]},"Arranhador Cara de Gato Sem Carpete":{"-":["-"]},"Arranhador Carpete 1 Folha":{"Azul":["P","M","G"],"Bege":["P","M","G"],"Cinza":["P","M","G"]},"Arranhador de Braço Lado Direito":{"Azul":["P","M","G"],"Bege":["P","M","G"],"Cinza":["P","M","G"]},"Arranhador de Braço Lado Esquerdo":{"Azul":["P","M","G"],"Bege":["P","M","G"],"Cinza":["P","M","G"]},"Arranhador de Braço Simples":{"Azul":["P","M","G"],"Bege":["P","M","G"],"Cinza":["P","M","G"]},"Arranhador de Madeira Sem Carpete":{"-":["-"]},"Arranhador Parede Sem Carpete":{"-":["-"]},"Arranhador Rampa Sem Carpete":{"-":["-"]},"Arranhador Túnel Sem Carpete":{"-":["-"]},"Banheiro Inteligente (Automaático)":{"Cinza":["-"]},"Bolinhas (Brinquedo Interativo)":{"-":["-"]},"Brinquedo Interativo Sem Carpete":{"-":["-"]},"Cama Suspensa Sem Tecido":{"-":["-"]},"Camisa Dryfit":{"Branco":["P","M","G","GG","XGG"],"Cinza":["P","M","G","GG","XGG"],"Preto":["P","M","G","GG","XGG"],"Verde":["P","M","G","GG","XGG"]},"Capa Carro":{"Preto":["-"]},"Carpete Arranhador Rampa":{"Azul":["-"],"Bege":["-"],"Cinza":["-"]},"Carpete Cama Suspensa":{"Azul":["-"],"Bege":["-"],"Cinza":["-"]},"Carpete do Brinquedo Interativo":{"Azul":["-"],"Bege":["-"],"Cinza":["-"],"Grafite":["-"],"Marrom":["-"],"Preto":["-"]},"Carpete/Sisal Arranhador de Madeira":{"Marrom":["G"],"Azul":["G"],"Bege":["G"],"Cinza":["G"]},"Carpete/Sisal Arranhador Parede":{"Azul":["-"],"Bege":["-"],"Cinza":["-"],"Grafite":["-"],"Juta":["-"],"Marrom":["-"],"Preto":["-"]},"Casinha 01 Sem Carpete":{"Madeira":["-"]},"Casinha 02 Sem Carpete":{"Madeira":["-"]},"Casinha 03 Sem Carpete":{"Madeira":["-"]},"Casinha 04 Sem Carpete":{"Madeira":["-"]},"Casinha 05 Sem Carpete":{"Madeira":["-"]},"Casinha 06 Sem Carpete":{"Madeira":["-"]},"Casinha 07 Sem Carpete":{"Madeira":["-"]},"Casinha 08 Sem Carpete":{"Madeira":["-"]},"Casinha 09 Sem Carpete":{"Madeira":["-"]},"Casinha 10 Sem Carpete":{"Madeira":["-"]},"Casinha 11 Sem Carpete":{"Madeira":["-"]},"Casinha 12 Sem Carpete":{"Madeira":["-"]},"Casinha 13 Sem Carpete":{"Madeira":["-"]},"Casinha 14 Sem Carpete":{"Madeira":["-"]},"Casinha 15 Sem Carpete":{"Madeira":["-"]},"Casinha 16 Sem Carpete":{"Madeira":["-"]},"Casinha Toca":{"Azul":["-"],"Bege":["-"],"Caramelo":["-"],"Chumbo":["-"],"Cinza":["-"],"Grafite":["-"],"Verde":["-"]},"Chuchups":{"Atum":["-"],"Frango":["-"],"Frango com Atum":["-"],"Salmão":["-"]},"Colchão 38x37 9/10":{"Azul":["-"],"Bege":["-"],"Cinza":["-"]},"Colchão 41x44 12/01/13":{"Azul":["-"],"Bege":["-"],"Cinza":["-"]},"Colchão 47x37-06/15":{"Azul":["-"],"Bege":["-"],"Cinza":["-"]},"Colchão 58x30 07/04/11/2":{"Azul":["-"],"Bege":["-"],"Cinza":["-"]},"Colchão 68x30 08/":{"Azul":["-"],"Bege":["-"],"Cinza":["-"]},"Coletor de Areia":{"Branco":["100X60"],"Preto":["100X60"],"Cinza":["100X60"]},"Comedouro Inteligente":{"Branco":["-"]},"Degrau Sem Carpete":{"-":["-"]},"Nicho Grande":{"Cinza":["-"]},"Nicho Playground":{"Azul":["-"],"Bege":["-"],"Cinza":["-"]},"Parafusos":{"-":["-"]},"Pato Interativo":{"Amarelo":["-"]},"Pega Areia":{"Amarelo":["-"],"Azul":["-"],"Preto":["-"],"Rosa":["-"]},"Piso Carpete":{"Azul":["50X50"],"Bege":["50X50"],"Cinza":["50X50"],"Grafite":["50X50"],"Marrom":["50X50"],"Preto":["50X50"]},"Playground":{"Cinza":["-"]},"Playground 02":{"Cinza":["-"]},"Playground 03":{"Cinza":["-"]},"Playground 04":{"Cinza":["-"]},"Playground 05":{"Cinza":["-"]},"Playground 06":{"Cinza":["-"]},"Poste Arranhador":{"Sisal":["-"]},"Presilhas Aspirais":{"-":["-"]},"Sanitário":{"Bege":["-"],"Cinza":["-"],"Preto":["-"],"Verde":["-"]},"Tapete Comedouro":{"Azul":["-"],"Vermelho":["-"],"Verde":["-"],"Laranja":["-"],"Amarelo":["-"]},"Tapete Lavável":{"Azul":["P"],"Rosa":["P","M"],"Vermelho":["P","M"]}};
+  const PRICE_TABLE = {"Alimentador Automático":{"Branco":{"-":14.63}},"Areia de Mandioca":{"Bege":{"-":11.9}},"Arranhador Adesivo":{"Preto":{"48X30":3.15,"50X30":3.15,"70X50":7.34,"100X50":10.49,"120X50":12.58,"200X50":20.97},"Azul":{"50X30":3.15,"70X50":7.34,"100X50":10.49,"120X50":12.58,"200X50":20.97},"Bege":{"50X30":3.15,"70X50":7.34,"100X50":10.49,"120X50":12.58,"200X50":20.97},"Cinza":{"50X30":3.15,"70X50":7.34,"100X50":10.49,"120X50":12.58,"200X50":20.97},"Grafite":{"50X30":3.15,"70X50":7.34,"100X50":10.49,"120X50":12.58,"200X50":20.97},"Marrom":{"50X30":3.15,"70X50":7.34,"100X50":10.49,"120X50":12.58,"200X50":20.97}},"Arranhador Adesivo Gato":{"Azul":{"-":3.15},"Bege":{"-":3.15},"Cinza":{"-":3.15},"Grafite":{"-":3.15},"Marrom":{"-":3.15},"Preto":{"-":3.15}},"Arranhador Cara de Gato Sem Carpete":{"-":{"-":0}},"Arranhador Carpete 1 Folha":{"Azul":{"P":9.61,"M":12.45,"G":14.62},"Bege":{"P":9.61,"M":12.45,"G":14.62},"Cinza":{"P":9.61,"M":12.45,"G":14.62}},"Arranhador de Braço Lado Direito":{"Azul":{"P":18.4,"M":23.17,"G":26.68},"Bege":{"P":18.4,"M":23.17,"G":26.68},"Cinza":{"P":18.4,"M":23.17,"G":26.68}},"Arranhador de Braço Lado Esquerdo":{"Azul":{"P":18.4,"M":23.17,"G":26.68},"Bege":{"P":18.4,"M":23.17,"G":26.68},"Cinza":{"P":18.4,"M":23.17,"G":26.68}},"Arranhador de Braço Simples":{"Azul":{"P":14.7,"M":19.47,"G":22.99},"Bege":{"P":14.7,"M":19.47,"G":22.99},"Cinza":{"P":14.7,"M":19.47,"G":22.99}},"Arranhador de Madeira Sem Carpete":{"-":{"-":8.49}},"Arranhador Parede Sem Carpete":{"-":{"-":3.55}},"Arranhador Rampa Sem Carpete":{"-":{"-":5.77}},"Arranhador Túnel Sem Carpete":{"-":{"-":16.78}},"Banheiro Inteligente (Automaático)":{"Cinza":{"-":5.56}},"Bolinhas (Brinquedo Interativo)":{"-":{"-":0}},"Brinquedo Interativo Sem Carpete":{"-":{"-":0}},"Cama Suspensa Sem Tecido":{"-":{"-":0}},"Camisa Dryfit":{"Branco":{"P":5.75,"M":5.75,"G":5.75,"GG":5.75,"XGG":5.75},"Cinza":{"P":5.75,"M":5.75,"G":5.75,"GG":5.75,"XGG":5.75},"Preto":{"P":5.75,"M":5.75,"G":5.75,"GG":5.75,"XGG":5.75},"Verde":{"P":5.75,"M":5.75,"G":5.75,"GG":5.75,"XGG":5.75}},"Capa Carro":{"Preto":{"-":13.11}},"Carpete Arranhador Rampa":{"Azul":{"-":0},"Bege":{"-":0},"Cinza":{"-":0}},"Carpete Cama Suspensa":{"Azul":{"-":0},"Bege":{"-":0},"Cinza":{"-":0}},"Carpete do Brinquedo Interativo":{"Azul":{"-":1.8873},"Bege":{"-":1.8873},"Cinza":{"-":1.8873},"Grafite":{"-":1.8873},"Marrom":{"-":1.8873},"Preto":{"-":1.8873}},"Carpete/Sisal Arranhador de Madeira":{"Marrom":{"G":0},"Azul":{"G":0},"Bege":{"G":0},"Cinza":{"G":0}},"Carpete/Sisal Arranhador Parede":{"Azul":{"-":0.873632},"Bege":{"-":0.873632},"Cinza":{"-":0.873632},"Grafite":{"-":0.873632},"Juta":{"-":0.873632},"Marrom":{"-":0.873632},"Preto":{"-":0.873632}},"Casinha 01 Sem Carpete":{"Madeira":{"-":5.71}},"Casinha 02 Sem Carpete":{"Madeira":{"-":7.48}},"Casinha 03 Sem Carpete":{"Madeira":{"-":7.98}},"Casinha 04 Sem Carpete":{"Madeira":{"-":20.48}},"Casinha 05 Sem Carpete":{"Madeira":{"-":8.55}},"Casinha 06 Sem Carpete":{"Madeira":{"-":14.96}},"Casinha 07 Sem Carpete":{"Madeira":{"-":13.86}},"Casinha 08 Sem Carpete":{"Madeira":{"-":24.57}},"Casinha 09 Sem Carpete":{"Madeira":{"-":11.71}},"Casinha 10 Sem Carpete":{"Madeira":{"-":17.28}},"Casinha 11 Sem Carpete":{"Madeira":{"-":15.08}},"Casinha 12 Sem Carpete":{"Madeira":{"-":17.94}},"Casinha 13 Sem Carpete":{"Madeira":{"-":17.28}},"Casinha 14 Sem Carpete":{"Madeira":{"-":17.65}},"Casinha 15 Sem Carpete":{"Madeira":{"-":27.65}},"Casinha 16 Sem Carpete":{"Madeira":{"-":27.65}},"Casinha Toca":{"Azul":{"-":27.23},"Bege":{"-":27.23},"Caramelo":{"-":27.23},"Chumbo":{"-":27.23},"Cinza":{"-":27.23},"Grafite":{"-":27.23},"Verde":{"-":27.23}},"Chuchups":{"Atum":{"-":5.99},"Frango":{"-":5.99},"Frango com Atum":{"-":5.99},"Salmão":{"-":5.99}},"Colchão 38x37 9/10":{"Azul":{"-":5.21},"Bege":{"-":5.21},"Cinza":{"-":5.21}},"Colchão 41x44 12/01/13":{"Azul":{"-":5.21},"Bege":{"-":5.21},"Cinza":{"-":5.21}},"Colchão 47x37-06/15":{"Azul":{"-":5.81},"Bege":{"-":5.81},"Cinza":{"-":5.81}},"Colchão 58x30 07/04/11/2":{"Azul":{"-":6.42},"Bege":{"-":6.42},"Cinza":{"-":6.42}},"Colchão 68x30 08/":{"Azul":{"-":7.03},"Bege":{"-":7.03},"Cinza":{"-":7.03}},"Coletor de Areia":{"Branco":{"100X60":28.13},"Preto":{"100X60":28.13},"Cinza":{"100X60":28.13}},"Comedouro Inteligente":{"Branco":{"-":130.43}},"Degrau Sem Carpete":{"-":{"-":0}},"Nicho Grande":{"Cinza":{"-":0}},"Nicho Playground":{"Azul":{"-":21.87},"Bege":{"-":21.87},"Cinza":{"-":21.87}},"Parafusos":{"-":{"-":0.08}},"Pato Interativo":{"Amarelo":{"-":10.62}},"Pega Areia":{"Amarelo":{"-":8.32},"Azul":{"-":8.32},"Preto":{"-":8.32},"Rosa":{"-":8.32}},"Piso Carpete":{"Azul":{"50X50":0},"Bege":{"50X50":0},"Cinza":{"50X50":0},"Grafite":{"50X50":0},"Marrom":{"50X50":0},"Preto":{"50X50":0}},"Playground":{"Cinza":{"-":16.28}},"Playground 02":{"Cinza":{"-":0}},"Playground 03":{"Cinza":{"-":0}},"Playground 04":{"Cinza":{"-":0}},"Playground 05":{"Cinza":{"-":0}},"Playground 06":{"Cinza":{"-":0}},"Poste Arranhador":{"Sisal":{"-":4.08}},"Presilhas Aspirais":{"-":{"-":0.38}},"Sanitário":{"Bege":{"-":51.6},"Cinza":{"-":51.6},"Preto":{"-":51.6},"Verde":{"-":51.6}},"Tapete Comedouro":{"Azul":{"-":0},"Vermelho":{"-":0},"Verde":{"-":0},"Laranja":{"-":0},"Amarelo":{"-":0}},"Tapete Lavável":{"Azul":{"P":4.1},"Rosa":{"P":4.1,"M":0},"Vermelho":{"P":4.1,"M":0}}};
+  const ROLL_COLORS = ["Cinza","Bege","Grafite","Marrom","Preto","Azul"];
+  const TAM_LABEL = { "100x7000":"1m × 70m (rolo)", "50x7000":"50cm × 70m (rolo)" };
+  const ROLL_TAMS = ["100x7000","50x7000"];
+  const COR_HEX = { "Cinza":"#9e9e94","Bege":"#d9c9a3","Marrom":"#6b4423","Grafite":"#3a3a3a","Preto":"#1a1a1a","Azul":"#2a5fa8","Chumbo":"#5a5f66","Branco":"#f2f2f0","Vermelho":"#c0392b","Amarelo":"#e0b400","Rosa":"#e78ea6","Verde":"#3a7d3a","Caramelo":"#b5651d","Roxo":"#6a3d9a","Lilas":"#b19cd9","Violeta":"#7f4fa3","Sisal":"#c2a06b","Laranja":"#e07b1a" };
+
+  const TARGET_PRODUCTS_RAW = Object.keys(CATALOG).sort((a,b) => a.localeCompare(b, 'pt-BR'));
+  const ROLL_PSEUDO_PRODUCT = "Rolo de Matéria-Prima (Adesivo)";
+
+  // Nome de exibição: produtos "Jel Plast" mostram a marca entre parênteses no final.
+  function displayNameFor(produto){
+    if(produto.indexOf('Jel Plast') === -1) return produto;
+    const semMarca = produto.replace(/\s*Jel Plast\s*/g, ' ').replace(/\s+/g,' ').trim();
+    return semMarca + ' (Jel Plast)';
+  }
+
+  // Ordem final: produtos normais (A-Z) → Rolo de matéria-prima → produtos Jel Plast (A-Z, por nome de exibição).
+  const NAO_JEL_PLAST = TARGET_PRODUCTS_RAW.filter(p => p.indexOf('Jel Plast') === -1);
+  const JEL_PLAST = TARGET_PRODUCTS_RAW.filter(p => p.indexOf('Jel Plast') !== -1)
+    .sort((a,b) => displayNameFor(a).localeCompare(displayNameFor(b), 'pt-BR'));
+  const TARGET_PRODUCTS = [...NAO_JEL_PLAST, ROLL_PSEUDO_PRODUCT, ...JEL_PLAST];
+
+  function precoFor(produto, cor, tam){
+    const porProduto = PRICE_TABLE[produto];
+    const porCor = porProduto && porProduto[cor];
+    const valor = porCor && porCor[tam];
+    return typeof valor === 'number' ? valor : null;
+  }
+  function fmtPreco(valor){
+    return 'R$ ' + valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function debounce(fn, wait){
+    let t = null;
+    return function(...args){ clearTimeout(t); t = setTimeout(() => fn.apply(this, args), wait); };
+  }
+
+  function todayStr(){
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+  function contadoHoje(st){
+    return !!(st && st.atualizadoEm === todayStr());
+  }
+
+  const statusArea = document.getElementById('status-area');
+  const savePill = document.getElementById('save-pill');
+  function setSavePill(state){
+    if(state === 'saving'){ savePill.textContent = 'Salvando…'; }
+    else if(state === 'saved'){ savePill.textContent = '✓ Salvo'; }
+    else if(state === 'error'){ savePill.textContent = '⚠ Erro ao salvar'; }
+    else if(state === 'unavailable'){ savePill.textContent = '⚠ Sem conexão configurada'; }
+  }
+  function showBanner(msg, kind){
+    statusArea.innerHTML = `<div class="status-banner ${kind||'warn'}">${msg}</div>`;
+  }
+
+  let STATE = {};     // produto -> cor -> medida -> {proprio, full}
+  let ROLL_STATE = {};
+  let leadTimeDays = 15;
+  let currentProduct = null;
+  let currentCor = null;
+
+  // Células editadas neste aparelho desde o último salvamento bem-sucedido.
+  // flushSave usa isto para mesclar só o que mudou aqui com o que já estiver
+  // salvo (possivelmente alterado por outro aparelho), em vez de sobrescrever
+  // a árvore inteira com o snapshot (potencialmente desatualizado) carregado
+  // no início da sessão — era isso que fazia um celular "apagar" a contagem
+  // que outro tinha acabado de salvar.
+  let dirtyStock = new Set(); // chave "produto|cor|medida"
+  let dirtyRolls = new Set(); // chave "cor|medida"
+
+  // ===================================================================
+  // Rascunho local (localStorage) de edições ainda não confirmadas como
+  // salvas no servidor. O Safari no iPhone recarrega abas em segundo plano
+  // com bastante frequência pra liberar memória, e isso zera STATE/dirtyStock
+  // inteiros na hora -- se acontecer entre uma digitação e o salvamento
+  // terminar, a contagem digitada "volta" para o valor antigo sem aviso.
+  // Gravando cada edição aqui (sincronamente, a cada tecla) e reaplicando no
+  // init(), a contagem sobrevive a esse recarregamento, seja qual for a causa.
+  const DRAFT_KEY = 'estoque_ricapet_rascunho_v1';
+  function lerRascunho(){
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      return raw ? JSON.parse(raw) : { stock: {}, rolls: {} };
+    } catch(e){ return { stock: {}, rolls: {} }; }
+  }
+  function salvarRascunhoStock(key, st){
+    try {
+      const draft = lerRascunho();
+      draft.stock[key] = st;
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+    } catch(e){ /* localStorage indisponível: segue sem rascunho */ }
+  }
+  function salvarRascunhoRoll(key, st){
+    try {
+      const draft = lerRascunho();
+      draft.rolls[key] = st;
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+    } catch(e){ /* localStorage indisponível: segue sem rascunho */ }
+  }
+  function limparRascunho(keysStock, keysRolls){
+    try {
+      const draft = lerRascunho();
+      keysStock.forEach(k => delete draft.stock[k]);
+      keysRolls.forEach(k => delete draft.rolls[k]);
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+    } catch(e){ /* localStorage indisponível: segue sem rascunho */ }
+  }
+
+  const saveStockDebounced = debounce(flushSave, 500);
+
+  let saveInFlight = false;
+  let saveQueued = false;
+
+  async function flushSave(){
+    if(!jsonbinConfigured()){ setSavePill('unavailable'); return; }
+    if(saveInFlight){ saveQueued = true; return; }
+    saveInFlight = true;
+    try {
+      do {
+        saveQueued = false;
+        await flushSaveOnce();
+      } while(saveQueued);
+    } finally {
+      saveInFlight = false;
+    }
+  }
+
+  async function flushSaveOnce(){
+    setSavePill('saving');
+
+    // Congela as edições feitas até agora; qualquer edição que aconteça
+    // durante o salvamento fica marcada de novo e entra na próxima rodada.
+    const pendingStock = Array.from(dirtyStock);
+    const pendingRolls = Array.from(dirtyRolls);
+    dirtyStock.clear();
+    dirtyRolls.clear();
+
+    const record = await jsonbinGet();
+    const remoteEstoque = (record && record.estoque) || {};
+    const mergedStock = remoteEstoque.stock ? JSON.parse(JSON.stringify(remoteEstoque.stock)) : {};
+    const mergedRolls = remoteEstoque.rolls ? JSON.parse(JSON.stringify(remoteEstoque.rolls)) : {};
+
+    pendingStock.forEach(key => {
+      const [produto, cor, tam] = key.split('|');
+      if(!mergedStock[produto]) mergedStock[produto] = {};
+      if(!mergedStock[produto][cor]) mergedStock[produto][cor] = {};
+      mergedStock[produto][cor][tam] = STATE[produto][cor][tam];
+    });
+    pendingRolls.forEach(key => {
+      const [cor, tam] = key.split('|');
+      if(!mergedRolls[cor]) mergedRolls[cor] = {};
+      mergedRolls[cor][tam] = ROLL_STATE[cor][tam];
+    });
+    const mergedLeadTime = typeof remoteEstoque.leadTimeDays === 'number' ? remoteEstoque.leadTimeDays : leadTimeDays;
+
+    const payload = { leadTimeDays: mergedLeadTime, stock: mergedStock, rolls: mergedRolls, updatedAt: new Date().toISOString() };
+    // Reaproveita o `record` já buscado acima (jsonbinGet no início desta função) em vez de
+    // buscar de novo (era o que jsonbinUpdatePart fazia): um segundo GET nesse meio-tempo podia
+    // voltar desatualizado (ex.: outro aparelho/aba salvando ao mesmo tempo) e, como o valor era
+    // usado sem mesclar, o PUT final sobrescrevia o campo "estoque" inteiro com esse instantâneo
+    // velho -- é isso que fazia uma contagem recém-digitada "voltar" para um valor antigo.
+    const fullRecord = record || {};
+    fullRecord.estoque = payload;
+    const ok = await jsonbinPut(fullRecord);
+
+    if(ok){
+      leadTimeDays = mergedLeadTime;
+      absorverStockRemoto(mergedStock, mergedRolls);
+      limparRascunho(pendingStock, pendingRolls);
+      setSavePill('saved');
+    } else {
+      pendingStock.forEach(k => dirtyStock.add(k));
+      pendingRolls.forEach(k => dirtyRolls.add(k));
+      setSavePill('error');
+    }
+  }
+
+  // Traz para o estado local qualquer célula que outro aparelho tenha salvo
+  // enquanto esta sessão estava aberta — exceto as que este aparelho acabou
+  // de editar (dirty de novo), para não sobrescrever uma digitação em
+  // andamento com um valor mais antigo. Não redesenha a tela sozinho: só
+  // evita que o próximo salvamento local mande um dado velho pra frente.
+  function absorverStockRemoto(mergedStock, mergedRolls){
+    TARGET_PRODUCTS_RAW.forEach(p => {
+      Object.keys(CATALOG[p]).forEach(cor => {
+        (CATALOG[p][cor] || []).forEach(tam => {
+          if(ROLL_TAMS.includes(tam)) return;
+          const key = p + '|' + cor + '|' + tam;
+          if(dirtyStock.has(key)) return;
+          const remoto = mergedStock[p] && mergedStock[p][cor] && mergedStock[p][cor][tam];
+          if(remoto) STATE[p][cor][tam] = { proprio: remoto.proprio || 0, full: remoto.full || 0, atualizadoEm: remoto.atualizadoEm || null };
+        });
+      });
+    });
+    ROLL_COLORS.forEach(cor => {
+      ROLL_TAMS.forEach(tam => {
+        const key = cor + '|' + tam;
+        if(dirtyRolls.has(key)) return;
+        const remoto = mergedRolls[cor] && mergedRolls[cor][tam];
+        if(remoto) ROLL_STATE[cor][tam] = { proprio: remoto.proprio || 0, full: remoto.full || 0, atualizadoEm: remoto.atualizadoEm || null };
+      });
+    });
+  }
+
+  function progressoCor(produto, cor){
+    if(produto === ROLL_PSEUDO_PRODUCT){
+      const tams = ROLL_TAMS;
+      const feitos = tams.filter(t => contadoHoje(ROLL_STATE[cor] && ROLL_STATE[cor][t])).length;
+      return { feitos, total: tams.length };
+    }
+    const tams = (CATALOG[produto][cor] || []).filter(t => !ROLL_TAMS.includes(t));
+    const feitos = tams.filter(t => contadoHoje(STATE[produto][cor] && STATE[produto][cor][t])).length;
+    return { feitos, total: tams.length };
+  }
+  function progressoProduto(produto){
+    const cores = produto === ROLL_PSEUDO_PRODUCT ? ROLL_COLORS : Object.keys(CATALOG[produto] || {});
+    let feitos = 0, total = 0;
+    cores.forEach(cor => { const p = progressoCor(produto, cor); feitos += p.feitos; total += p.total; });
+    return { feitos, total };
+  }
+
+  function renderProductSelect(){
+    const sel = document.getElementById('product-select');
+    sel.innerHTML = '';
+    TARGET_PRODUCTS.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p;
+      const prog = progressoProduto(p);
+      const marcador = prog.total === 0 ? '' : (prog.feitos === prog.total ? ' ✓' : ` (${prog.feitos}/${prog.total})`);
+      opt.textContent = displayNameFor(p) + marcador;
+      if(p === currentProduct) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    sel.onchange = () => { currentProduct = sel.value; currentCor = null; renderColorPills(); renderMedidaList(); };
+  }
+
+  function renderColorPills(){
+    const wrap = document.getElementById('color-pills');
+    wrap.innerHTML = '';
+    const cores = currentProduct === ROLL_PSEUDO_PRODUCT ? ROLL_COLORS : Object.keys(CATALOG[currentProduct] || {});
+    if(!cores.includes(currentCor)) currentCor = cores[0] || null;
+    if(cores.length === 0){ wrap.innerHTML = '<span style="font-size:13px;color:var(--ink-muted);">Nenhuma cor cadastrada para este produto.</span>'; return; }
+    cores.forEach(cor => {
+      const btn = document.createElement('button');
+      const prog = progressoCor(currentProduct, cor);
+      const completo = prog.total > 0 && prog.feitos === prog.total;
+      btn.className = 'color-pill' + (cor === currentCor ? ' active' : '') + (completo ? ' completo' : '');
+      const dotColor = COR_HEX[cor] || '#999';
+      const badge = prog.total > 0 ? `<span class="pill-badge">${completo ? '✓' : prog.feitos + '/' + prog.total}</span>` : '';
+      btn.innerHTML = `<span class="dot" style="background:${dotColor};"></span>${cor}${badge}`;
+      btn.onclick = () => { currentCor = cor; renderColorPills(); renderMedidaList(); };
+      wrap.appendChild(btn);
+    });
+  }
+
+  function renderMedidaList(){
+    const wrap = document.getElementById('medida-list');
+    wrap.innerHTML = '';
+    if(!currentProduct || !currentCor){
+      wrap.innerHTML = '<div class="empty-note">Nenhuma cor disponível para este produto.</div>';
+      return;
+    }
+
+    if(currentProduct === ROLL_PSEUDO_PRODUCT){
+      ROLL_TAMS.forEach(tam => {
+        const st = ROLL_STATE[currentCor][tam];
+        const tamLabel = TAM_LABEL[tam] || tam;
+        const feito = contadoHoje(st);
+        const card = document.createElement('div'); card.className = 'medida-card' + (feito ? ' feito' : ' pendente');
+        card.innerHTML = `
+          <div class="m-title">${tamLabel}<span class="status-badge">${feito ? '✓ Contado hoje' : 'Pendente hoje'}</span></div>
+          <div class="input-row">
+            <div class="input-group solo">
+              <label>Estoque (un)</label>
+              <input type="number" inputmode="numeric" min="0" step="1" value="${st.proprio}" class="in-proprio" />
+            </div>
+          </div>
+        `;
+        const proprioInput = card.querySelector('.in-proprio');
+        const marcarContado = () => {
+          st.proprio = parseFloat(proprioInput.value) || 0;
+          st.atualizadoEm = todayStr();
+          dirtyRolls.add(currentCor + '|' + tam);
+          salvarRascunhoRoll(currentCor + '|' + tam, st);
+          card.classList.remove('pendente'); card.classList.add('feito');
+          card.querySelector('.status-badge').textContent = '✓ Contado hoje';
+          renderColorPills();
+          saveStockDebounced();
+        };
+        proprioInput.addEventListener('input', marcarContado);
+        proprioInput.addEventListener('blur', flushSave);
+        proprioInput.addEventListener('focus', () => proprioInput.select());
+        wrap.appendChild(card);
+      });
+      return;
+    }
+
+    const medidas = (CATALOG[currentProduct][currentCor] || []).filter(t => !ROLL_TAMS.includes(t));
+    if(medidas.length === 0){
+      wrap.innerHTML = '<div class="empty-note">Sem medidas cadastradas para esta cor.</div>';
+      return;
+    }
+    medidas.forEach(tam => {
+      if(!STATE[currentProduct][currentCor][tam]) STATE[currentProduct][currentCor][tam] = { proprio: 0, full: 0 };
+      const st = STATE[currentProduct][currentCor][tam];
+      const tamLabel = tam === '-' ? 'Estoque geral' : tam;
+      const preco = precoFor(currentProduct, currentCor, tam);
+      const precoLabel = preco !== null ? `<span class="preco-tag">${fmtPreco(preco)}</span>` : '';
+      const feito = contadoHoje(st);
+      const card = document.createElement('div'); card.className = 'medida-card' + (feito ? ' feito' : ' pendente');
+      card.innerHTML = `
+        <div class="m-title">${tamLabel}${precoLabel}<span class="status-badge">${feito ? '✓ Contado hoje' : 'Pendente hoje'}</span></div>
+        <div class="input-row">
+          <div class="input-group solo">
+            <label>Estoque Ricapet (un)</label>
+            <input type="number" inputmode="numeric" min="0" step="1" value="${st.proprio}" class="in-proprio" />
+          </div>
+        </div>
+      `;
+      const proprioInput = card.querySelector('.in-proprio');
+      const marcarContado = () => {
+        st.proprio = parseFloat(proprioInput.value) || 0;
+        st.atualizadoEm = todayStr();
+        dirtyStock.add(currentProduct + '|' + currentCor + '|' + tam);
+        salvarRascunhoStock(currentProduct + '|' + currentCor + '|' + tam, st);
+        card.classList.remove('pendente'); card.classList.add('feito');
+        card.querySelector('.status-badge').textContent = '✓ Contado hoje';
+        renderColorPills();
+        saveStockDebounced();
+      };
+      proprioInput.addEventListener('input', marcarContado);
+      proprioInput.addEventListener('blur', flushSave);
+        proprioInput.addEventListener('focus', () => proprioInput.select());
+      wrap.appendChild(card);
+    });
+  }
+
+
+  async function init(){
+    if(!jsonbinConfigured()){
+      showBanner('⚠ Este app ainda não está configurado. Configure JSONBIN_CONTAGEM_API_KEY e JSONBIN_CONTAGEM_BIN_ID nas variáveis de ambiente do servidor.', 'err');
+      setSavePill('unavailable');
+    }
+
+    const record = await jsonbinGet();
+    const estoque = record && record.estoque;
+
+    const savedStockMap = (estoque && estoque.stock) || {};
+    STATE = {};
+    TARGET_PRODUCTS_RAW.forEach(p => {
+      STATE[p] = {};
+      Object.keys(CATALOG[p]).forEach(cor => {
+        STATE[p][cor] = {};
+        (CATALOG[p][cor] || []).forEach(tam => {
+          if(ROLL_TAMS.includes(tam)) return;
+          const saved = savedStockMap[p] && savedStockMap[p][cor] && savedStockMap[p][cor][tam];
+          STATE[p][cor][tam] = { proprio: (saved && saved.proprio) || 0, full: (saved && saved.full) || 0, atualizadoEm: (saved && saved.atualizadoEm) || null };
+        });
+      });
+    });
+
+    const savedRollsMap = (estoque && estoque.rolls) || {};
+    ROLL_STATE = {};
+    ROLL_COLORS.forEach(cor => {
+      ROLL_STATE[cor] = {};
+      ROLL_TAMS.forEach(tam => {
+        const saved = savedRollsMap[cor] && savedRollsMap[cor][tam];
+        ROLL_STATE[cor][tam] = { proprio: (saved && saved.proprio) || 0, full: (saved && saved.full) || 0, atualizadoEm: (saved && saved.atualizadoEm) || null };
+      });
+    });
+
+    leadTimeDays = (estoque && typeof estoque.leadTimeDays === 'number') ? estoque.leadTimeDays : 15;
+
+    // Reaplica por cima qualquer edição que ainda não tinha sido confirmada como
+    // salva antes desta carga (ver salvarRascunhoStock/salvarRascunhoRoll acima) —
+    // é o que faz uma contagem digitada sobreviver a um recarregamento inesperado
+    // da página (comum no Safari do iPhone) em vez de "voltar" pro valor do servidor.
+    const rascunho = lerRascunho();
+    let rascunhoReaplicado = false;
+    Object.keys(rascunho.stock || {}).forEach(key => {
+      const [p, cor, tam] = key.split('|');
+      if(STATE[p] && STATE[p][cor] && (tam in STATE[p][cor])){
+        STATE[p][cor][tam] = rascunho.stock[key];
+        dirtyStock.add(key);
+        rascunhoReaplicado = true;
+      }
+    });
+    Object.keys(rascunho.rolls || {}).forEach(key => {
+      const [cor, tam] = key.split('|');
+      if(ROLL_STATE[cor] && (tam in ROLL_STATE[cor])){
+        ROLL_STATE[cor][tam] = rascunho.rolls[key];
+        dirtyRolls.add(key);
+        rascunhoReaplicado = true;
+      }
+    });
+
+    currentProduct = TARGET_PRODUCTS[0];
+
+    renderProductSelect();
+    renderColorPills();
+    renderMedidaList();
+    setSavePill(jsonbinConfigured() ? 'saved' : 'unavailable');
+
+    if(rascunhoReaplicado) flushSave();
+  }
+
+  // ===================================================================
+  // Gravação no Google Sheets — via /api/estoque?tipo=sheets-log (proxy;
+  // a URL do Apps Script agora fica só no servidor, GOOGLE_SHEETS_CONTAGEM_WEBAPP_URL).
+  // ===================================================================
+  function sheetsConfigured(){
+    return true;
+  }
+
+  // Ordenação de medida para a planilha: numérica por área (ex: 50x30 antes de
+  // 70x50) e P/M/G na ordem de tamanho de roupa, em vez de ordem alfabética crua.
+  const CLOTHING_ORDER_SHEET = ['PP','P','M','G','GG','XG','XGG','XXG'];
+  function tamSortKeyForSheet(tam){
+    if(tam === '-') return [2, 0, tam];
+    const m = String(tam).match(/^(\d+)[xX](\d+)/);
+    if(m) return [0, (parseInt(m[1],10)/100) * (parseInt(m[2],10)/100), tam];
+    const idxRoupa = CLOTHING_ORDER_SHEET.indexOf(String(tam).toUpperCase());
+    if(idxRoupa !== -1) return [1, idxRoupa, tam];
+    return [3, 0, String(tam).toLowerCase()];
+  }
+
+  function buildRowsForSheet(){
+    const rows = [];
+    TARGET_PRODUCTS_RAW.forEach(p => {
+      Object.keys(STATE[p] || {}).forEach(cor => {
+        Object.keys(STATE[p][cor]).forEach(tam => {
+          const st = STATE[p][cor][tam];
+          rows.push({ produto: p, cor, tam, medida: tam === '-' ? 'ÚNICA' : tam, ricapet: st.proprio, full: st.full, valor: precoFor(p, cor, tam) });
+        });
+      });
+    });
+    ROLL_COLORS.forEach(cor => {
+      ROLL_TAMS.forEach(tam => {
+        const st = ROLL_STATE[cor][tam];
+        rows.push({ produto: ROLL_PSEUDO_PRODUCT, cor, tam, medida: TAM_LABEL[tam], ricapet: st.proprio, full: 0, valor: null });
+      });
+    });
+    // Ordena por Produto, Medida, Cor e Valor, nessa ordem de prioridade.
+    rows.sort((a, b) => {
+      const porProduto = a.produto.localeCompare(b.produto, 'pt-BR');
+      if(porProduto !== 0) return porProduto;
+      const porCor = a.cor.localeCompare(b.cor, 'pt-BR');
+      if(porCor !== 0) return porCor;
+      const ka = tamSortKeyForSheet(a.tam), kb = tamSortKeyForSheet(b.tam);
+      if(ka[0] !== kb[0]) return ka[0] - kb[0];
+      if(ka[1] !== kb[1]) return ka[1] - kb[1];
+      const porMedida = String(ka[2]).localeCompare(String(kb[2]), 'pt-BR');
+      if(porMedida !== 0) return porMedida;
+      const porQtd = (a.ricapet || 0) - (b.ricapet || 0);
+      if(porQtd !== 0) return porQtd;
+      return (a.valor || 0) - (b.valor || 0);
+    });
+    return rows.map(({ produto, cor, medida, ricapet, full }) => ({ produto, cor, medida, ricapet, full }));
+  }
+
+  async function gravarNoSheets(){
+    const statusEl = document.getElementById('gravar-status');
+    const btn = document.getElementById('gravar-btn');
+    btn.disabled = true;
+    statusEl.textContent = 'Gravando…';
+    statusEl.className = 'gravar-status';
+    try {
+      const rows = buildRowsForSheet();
+      const sessao = window.RicapetAuth.sessao;
+      const resp = await fetch('/api/estoque?tipo=sheets-log&sessao=' + encodeURIComponent(sessao.token), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rows, data: new Date().toISOString() })
+      });
+      let json = {};
+      try { json = await resp.json(); } catch(e){ /* ignora corpo vazio/errado */ }
+      if(resp.ok && json.ok){
+        statusEl.textContent = '✓ Gravado na planilha às ' + new Date().toLocaleTimeString('pt-BR') + ' (' + rows.length + ' linhas)';
+        statusEl.className = 'gravar-status ok';
+      } else {
+        statusEl.textContent = '⚠ Erro ao gravar na planilha. Confira a URL e a implantação do Apps Script.';
+        statusEl.className = 'gravar-status err';
+      }
+    } catch(e){
+      console.error('Erro ao gravar no Sheets:', e);
+      statusEl.textContent = '⚠ Erro de conexão ao gravar.';
+      statusEl.className = 'gravar-status err';
+    } finally {
+      btn.disabled = false;
+    }
+  }
+  document.getElementById('gravar-btn').addEventListener('click', gravarNoSheets);
+
+  // ===================================================================
+  // Saldo inicial do sistema automático (painel-entrega-turbo)
+  // ===================================================================
+  // Manda a contagem física atual pro endpoint que define o saldo inicial
+  // do estoque que passa a descer sozinho a cada venda (ver
+  // lib/estoqueSaldo.js no projeto painel-entrega-turbo). O secret aqui é
+  // um secret PRÓPRIO desse endpoint (não o CRON_SECRET do outro projeto),
+  // pensado pra ficar embutido num arquivo client-side como este.
+  const PAINEL_ENTREGA_TURBO_ESTOQUE_URL = '/api/debug?tipo=importar-contagem-fisica&secret=631ac83f9b7c5ae518c3dfe378b09ba64cd96aaba9c87f5f';
+
+  async function enviarComoSaldoInicial(){
+    const statusEl = document.getElementById('saldo-inicial-status');
+    const btn = document.getElementById('saldo-inicial-btn');
+    btn.disabled = true;
+    statusEl.textContent = 'Salvando contagem e definindo como saldo inicial…';
+    statusEl.className = 'gravar-status';
+    try {
+      await flushSave(); // garante que a contagem atual já está salva antes de importar
+      const resp = await fetch(PAINEL_ENTREGA_TURBO_ESTOQUE_URL);
+      let json = {};
+      try { json = await resp.json(); } catch(e){ /* ignora corpo vazio/errado */ }
+      if(resp.ok && json.ok){
+        statusEl.textContent = `✓ Saldo inicial definido para ${json.atualizados} produto(s) às ` + new Date().toLocaleTimeString('pt-BR');
+        statusEl.className = 'gravar-status ok';
+      } else {
+        statusEl.textContent = '⚠ Erro ao definir saldo inicial: ' + (json.error || resp.status);
+        statusEl.className = 'gravar-status err';
+      }
+    } catch(e){
+      console.error('Erro ao definir saldo inicial:', e);
+      statusEl.textContent = '⚠ Erro de conexão ao definir saldo inicial.';
+      statusEl.className = 'gravar-status err';
+    } finally {
+      btn.disabled = false;
+    }
+  }
+  document.getElementById('saldo-inicial-btn').addEventListener('click', enviarComoSaldoInicial);
+
+  init();
+})();
+
+
+
+
+
+
+
+
+
+</script>
+</body>
+</html>
