@@ -2438,6 +2438,15 @@
   setInterval(carregarAnalytics, 60000);
 
   mudarAba('executivo');
+
+  // Ao voltar pra essa aba via cache do navegador (bfcache — ex.: clicar
+  // "voltar"/reabrir o link já visitado), o navegador restaura o estado
+  // exato de antes de sair, incluindo qual painel externo (Ponto, etc.)
+  // estava aberto no iframe. Isso fazia o link sempre "cair" onde a pessoa
+  // tinha deixado da última vez, em vez de sempre abrir no Dashboard.
+  window.addEventListener('pageshow', (ev) => {
+    if (ev.persisted) mostrarPainelNativo();
+  });
 </script>
 </body>
 </html>
