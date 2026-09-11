@@ -86,12 +86,18 @@
   const btnEntrar = document.getElementById('btnEntrar');
   const erroLogin = document.getElementById('erroLogin');
 
+  // /api/debug exige este secret pra qualquer tipo=ponto-* (gate fraco,
+  // pré-compartilhado — quem realmente autoriza é o PIN do funcionário,
+  // validado no ponto-login abaixo). Mesmo valor já usado hoje em produção
+  // pelo ricapet-ponto-admin (PONTO_PUBLIC_SECRET).
+  const PONTO_PUBLIC_SECRET = 'f3BqH1JDY6dWb-n4aEhSVcZJrSPvU0Rf';
+
   form.addEventListener('submit', async (ev) => {
     ev.preventDefault();
     erroLogin.textContent = '';
     btnEntrar.disabled = true;
     try {
-      const resp = await fetch('/api/debug?tipo=ponto-login', {
+      const resp = await fetch('/api/debug?tipo=ponto-login&secret=' + encodeURIComponent(PONTO_PUBLIC_SECRET), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nome: document.getElementById('inNome').value.trim(), pin: document.getElementById('inPin').value }),
