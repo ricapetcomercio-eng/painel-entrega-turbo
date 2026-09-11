@@ -312,6 +312,64 @@ async function debugEstoqueSaldo(req, res) {
   });
 }
 
+// Proxy pro JSONBin (contagem física) e Google Sheets (log de contagem),
+// chamados por public/estoque.html e estoque-atualizar.html. Vivem aqui (em
+// vez de um api/estoque.js próprio) só pra não estourar o limite de 12
+// serverless functions do plano Hobby — mesmo motivo de todo o resto deste
+// arquivo. Cada rota exige sessão de admin (obterAdminSessao), igual ao
+// resto do painel.
+async function debugEstoqueContagemGet(req, res) {
+  const resultado = await obterAdminSessao((req.body && req.body.sessao) || req.query.sessao, getDb());
+  if (resultado.erro) { res.status(resultado.status).json({ ok: false, error: resultado.erro }); return; }
+  const apiKey = process.env.JSONBIN_CONTAGEM_API_KEY;
+  const binId = process.env.JSONBIN_CONTAGEM_BIN_ID;
+  if (!apiKey || !binId) { res.status(200).json({ ok: true, record: null }); return; }
+  try {
+    const resp = await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`, { headers: { 'X-Master-Key': apiKey } });
+    if (!resp.ok) { res.status(200).json({ ok: true, record: null }); return; }
+    const json = await resp.json();
+    res.status(200).json({ ok: true, record: json.record || null });
+  } catch (err) {
+    res.status(200).json({ ok: true, record: null });
+  }
+}
+
+async function debugEstoqueContagemSet(req, res) {
+  const resultado = await obterAdminSessao((req.body && req.body.sessao) || req.query.sessao, getDb());
+  if (resultado.erro) { res.status(resultado.status).json({ ok: false, error: resultado.erro }); return; }
+  const apiKey = process.env.JSONBIN_CONTAGEM_API_KEY;
+  const binId = process.env.JSONBIN_CONTAGEM_BIN_ID;
+  if (!apiKey || !binId) { res.status(200).json({ ok: false, error: 'JSONBin não configurado no servidor.' }); return; }
+  try {
+    const resp = await fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-Master-Key': apiKey },
+      body: JSON.stringify((req.body && req.body.record) || {}),
+    });
+    res.status(200).json({ ok: resp.ok });
+  } catch (err) {
+    res.status(200).json({ ok: false, error: err.message });
+  }
+}
+
+async function debugEstoqueSheetsLog(req, res) {
+  const resultado = await obterAdminSessao((req.body && req.body.sessao) || req.query.sessao, getDb());
+  if (resultado.erro) { res.status(resultado.status).json({ ok: false, error: resultado.erro }); return; }
+  const url = process.env.GOOGLE_SHEETS_CONTAGEM_WEBAPP_URL;
+  if (!url) { res.status(200).json({ ok: false, error: 'Google Sheets não configurado no servidor.' }); return; }
+  try {
+    const resp = await fetch(url, {
+      method: 'POST',
+      body: JSON.stringify({ rows: (req.body && req.body.rows) || [], data: new Date().toISOString() }),
+    });
+    let json = {};
+    try { json = await resp.json(); } catch (e) { /* corpo vazio/inesperado */ }
+    res.status(200).json({ ok: !!(resp.ok && json.ok) });
+  } catch (err) {
+    res.status(200).json({ ok: false, error: err.message });
+  }
+}
+
 async function debugBalancoMensal(req, res) {
   const resultado = await enviarBalancoAgora();
   res.status(200).json({ ok: true, tipo: 'balanco-mensal', resultado });
@@ -1661,7 +1719,7 @@ const TIPOS_PUBLICOS_PONTO = new Set([
 // outro projeto) — usam o ESTOQUE_PUBLIC_SECRET, mais fraco, em vez do
 // CRON_SECRET (que também protege rotas sensíveis como troca de token
 // OAuth), pra não expor esse último num arquivo client-side.
-const TIPOS_PUBLICOS_ESTOQUE = new Set(['importar-contagem-fisica', 'importar-saldo-da-planilha', 'estoque-saldo', 'completar-catalogo-faltante', 'corrigir-cor-arranhador-adesivo-bege']);
+const TIPOS_PUBLICOS_ESTOQUE = new Set(['importar-contagem-fisica', 'importar-saldo-da-planilha', 'estoque-saldo', 'completar-catalogo-faltante', 'corrigir-cor-arranhador-adesivo-bege', 'estoque-contagem-get', 'estoque-contagem-set', 'estoque-sheets-log']);
 
 module.exports = async (req, res) => {
   const cronSecret = process.env.CRON_SECRET;
@@ -1803,6 +1861,9 @@ module.exports = async (req, res) => {
     if (req.query.tipo === 'importar-contagem-fisica') return await debugImportarContagemFisica(req, res);
     if (req.query.tipo === 'importar-saldo-da-planilha') return await debugImportarSaldoDaPlanilha(req, res);
     if (req.query.tipo === 'estoque-saldo') return await debugEstoqueSaldo(req, res);
+    if (req.query.tipo === 'estoque-contagem-get') return await debugEstoqueContagemGet(req, res);
+    if (req.query.tipo === 'estoque-contagem-set') return await debugEstoqueContagemSet(req, res);
+    if (req.query.tipo === 'estoque-sheets-log') return await debugEstoqueSheetsLog(req, res);
     if (req.query.tipo === 'completar-catalogo-faltante') return await debugCompletarCatalogoFaltante(req, res);
     if (req.query.tipo === 'corrigir-cor-arranhador-adesivo-bege') return await debugCorrigirCorArranhadorAdesivoBege(req, res);
     if (req.query.tipo === 'balanco-mensal') return await debugBalancoMensal(req, res);
