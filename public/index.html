@@ -56,7 +56,6 @@
     color: var(--text);
     padding: 24px;
   }
-  h1 { font-size: 21px; margin: 0 0 4px; }
   h2 { font-size: 13px; margin: 0; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
 
   .aba-btn {
@@ -91,13 +90,9 @@
     display: flex; flex-direction: column;
     padding: 16px 28px 20px; margin: -24px -28px 18px; background: var(--sidebar-bg);
   }
-  .topbar-brand { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
-  .topbar-left { font-size: 12px; font-weight: 700; color: rgba(255,255,255,0.75); text-transform: uppercase; letter-spacing: 0.05em; }
+  .topbar-brand { display: flex; align-items: center; justify-content: flex-end; margin-bottom: 14px; }
   .icon-btn { background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.3); border-radius: 999px; padding: 6px 14px; font-size: 12px; font-weight: 600; color: #fff; cursor: pointer; font-family: inherit; }
   .icon-btn:hover { background: rgba(255,255,255,0.22); }
-  .page-eyebrow { text-transform: uppercase; letter-spacing: 0.06em; font-size: 11px; font-weight: 800; color: var(--text); opacity: 0.5; margin-bottom: 4px; }
-  .topbar .page-eyebrow { color: rgba(255,255,255,0.85); opacity: 1; }
-  .topbar h1 { color: #fff; }
 
   /* Filtro de período dentro da área escura vira pill transparente, mesmo
      tamanho e estilo do header do painel de Ponto (altura 32px, fundo
@@ -416,12 +411,8 @@
   <div id="painelNativoWrap">
   <header class="topbar">
     <div class="topbar-brand">
-      <div class="topbar-left">Ricapet &amp; Thapets</div>
       <button class="icon-btn" id="btnAlternarTema" onclick="alternarTema()">🌙 Modo escuro</button>
     </div>
-
-    <div class="page-eyebrow">Logística</div>
-    <h1>Painel de Logística — Flex / Turbo</h1>
 
     <div class="periodo-controle">
       <button class="periodo-btn" id="btnUltimas24h" onclick="definirUltimas24h(event)">🕐 Últimas 24 horas</button>
