@@ -343,30 +343,10 @@
       Estoque Adesivo
     </a>
 
-    <a class="sidebar-link" href="#" id="linkPonto" data-menu-key="ponto" onclick="abrirPainelExterno('https://ricapet-ponto-admin.vercel.app', this); toggleGrupoPonto(); return false;">
+    <a class="sidebar-link" href="/ponto.html" id="linkPonto" data-menu-key="ponto">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
       Ponto
-      <svg id="chevronPonto" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:auto; transition: transform 0.15s;"><path d="M9 18l6-6-6-6"/></svg>
     </a>
-
-    <div id="grupoPonto" class="sidebar-submenu oculto">
-      <button class="aba-btn ativa" id="abaBtnPontoSolicitacoes" onclick="mudarAbaPonto('solicitacoes')">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h6"/></svg>
-        Solicitações
-      </button>
-      <button class="aba-btn" id="abaBtnPontoFuncionario" onclick="mudarAbaPonto('funcionario')">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a8 8 0 0 1 16 0v1"/></svg>
-        Por funcionário
-      </button>
-      <button class="aba-btn" id="abaBtnPontoGeral" onclick="mudarAbaPonto('geral')">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
-        Visão geral
-      </button>
-      <button class="aba-btn" id="abaBtnPontoJornadas" onclick="mudarAbaPonto('jornadas')">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-        Jornadas
-      </button>
-    </div>
 
     <a class="sidebar-link" href="/tv.html" id="linkPainelTV" data-menu-key="tv" target="_blank" rel="noopener">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
@@ -887,20 +867,11 @@
   </div><!-- fecha .conteudo-principal -->
 
 <script>
-  const PONTO_URL = 'https://ricapet-ponto-admin.vercel.app';
   const CONCORRENCIA_URL = 'https://ricapet-concorrencia.vercel.app';
 
   function toggleVisoes(forcar) {
     const grupo = document.getElementById('grupoVisoes');
     const chevron = document.getElementById('chevronDashboard');
-    const expandir = typeof forcar === 'boolean' ? forcar : grupo.classList.contains('oculto');
-    grupo.classList.toggle('oculto', !expandir);
-    if (chevron) chevron.style.transform = expandir ? 'rotate(90deg)' : 'rotate(0deg)';
-  }
-
-  function toggleGrupoPonto(forcar) {
-    const grupo = document.getElementById('grupoPonto');
-    const chevron = document.getElementById('chevronPonto');
     const expandir = typeof forcar === 'boolean' ? forcar : grupo.classList.contains('oculto');
     grupo.classList.toggle('oculto', !expandir);
     if (chevron) chevron.style.transform = expandir ? 'rotate(90deg)' : 'rotate(0deg)';
@@ -924,7 +895,6 @@
     document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('ativo'));
     elLink.classList.add('ativo');
     toggleVisoes(false);
-    if (url !== PONTO_URL) toggleGrupoPonto(false);
     if (url !== CONCORRENCIA_URL) toggleGrupoConcorrencia(false);
   }
 
@@ -935,7 +905,6 @@
 
     document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('ativo'));
     document.getElementById('linkPainelNativo').classList.add('ativo');
-    toggleGrupoPonto(false);
     toggleGrupoConcorrencia(false);
   }
 
@@ -1090,24 +1059,6 @@
     coletarUnidades().forEach(configurarArrasto);
   })();
 
-  function mudarAbaPonto(aba) {
-    const idsPorAba = { solicitacoes: 'abaBtnPontoSolicitacoes', funcionario: 'abaBtnPontoFuncionario', geral: 'abaBtnPontoGeral', jornadas: 'abaBtnPontoJornadas' };
-    document.querySelectorAll('#grupoPonto .aba-btn').forEach(b => b.classList.remove('ativa'));
-    const btn = document.getElementById(idsPorAba[aba]);
-    if (btn) btn.classList.add('ativa');
-
-    const frame = document.getElementById('painelExternoFrame');
-    const enviar = () => frame.contentWindow.postMessage({ tipo: 'ricapet-ponto-ir-para', aba }, PONTO_URL);
-
-    const jaAberto = frame.src.replace(/\/$/, '') === PONTO_URL && !frame.classList.contains('oculto');
-    if (jaAberto) {
-      enviar();
-    } else {
-      abrirPainelExterno(PONTO_URL, document.getElementById('linkPonto'));
-      frame.addEventListener('load', enviar, { once: true });
-    }
-    toggleGrupoPonto(true);
-  }
   const CORES = {
     teal: '#17a389', yellow: '#f2c94c', gray: '#bdc3c7', blue: '#1d4ed8', red: '#eb5757',
     ml: '#f2b90c', shopee: '#ee4d2d',
@@ -2463,7 +2414,7 @@
     const chave = primeiro ? primeiro.dataset.menuKey : 'dashboard';
     if (chave === 'concorrencia') abrirPainelExterno(CONCORRENCIA_URL, document.getElementById('linkConcorrencia'));
     else if (chave === 'estoque') abrirPainelExterno('https://painel-estoque-adesivo-three.vercel.app/', document.getElementById('linkEstoque'));
-    else if (chave === 'ponto') abrirPainelExterno(PONTO_URL, document.getElementById('linkPonto'));
+    else if (chave === 'ponto') location.href = '/ponto.html';
     else mostrarPainelNativo();
   }
   ativarPainelPadrao();

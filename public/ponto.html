@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Ponto · Administração</title>
+<meta name="description" content="Painel de administração do ponto — Ricapet/Thapets.">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#272456">
+<script src="assets/auth.js"></script>
+<style>
+  :root {
+    --bg: #F4F6FB; --surface: #FFFFFF; --surface-2: #EEF2F9;
+    --ink: #1B2A4A; --ink-soft: #566484; --ink-muted: #93A0BC;
+    --border: #E2E8F3; --shadow: rgba(27,42,74,0.10);
+    --brand: #f5a623; --accent: #f5a623; --accent-bg: #fdecc8; --accent-ink: #272456;
+    --ink-on-accent: #241f4d;
+    --warn: #C77A08; --warn-bg: #FDF1E0;
+    --ok: #1E7A48; --ok-bg: #E4F6EC; --bad: #C23B3B; --bad-bg: #FCE9E9;
+    --info-bg: #E7F0FF; --info-tx: #2657C4;
+    --font-display: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-mono: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --radius: 16px; --radius-sm: 10px;
+    --page-bg: #e7e9f7;
+    --sidebar-bg: #272456;
+    --sidebar-text: #eef2ff;
+    --sidebar-muted: #9db0dd;
+    --sidebar-hover: rgba(255,255,255,0.08);
+    --sidebar-border: rgba(255,255,255,0.14);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page-bg); color: var(--ink); font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
+
+  /* ---- Sidebar (mesmo padrão dos outros painéis Ricapet) ---- */
+  .sidebar {
+    width: 240px; height: 100vh; position: fixed; top: 0; left: 0; z-index: 1000;
+    background: var(--sidebar-bg); border-right: 1px solid var(--sidebar-border);
+    padding: 20px 14px; box-sizing: border-box; overflow-y: auto;
+    display: flex; flex-direction: column;
+  }
+  .sidebar-brand { display: flex; align-items: center; gap: 10px; padding: 2px 10px 16px; margin-bottom: 12px; border-bottom: 1px solid var(--sidebar-border); }
+  .sidebar-brand-icon { width: 40px; height: 40px; object-fit: contain; flex-shrink: 0; }
+  .sidebar-brand-name { font-size: 14px; font-weight: 800; color: var(--sidebar-text); line-height: 1.2; }
+  .sidebar-brand-sub { font-size: 11px; color: var(--sidebar-muted); }
+  .sidebar-titulo { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sidebar-muted); padding: 0 10px; margin-bottom: 10px; }
+  .sidebar-link {
+    display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px;
+    color: var(--sidebar-text); text-decoration: none; font-size: 13px; font-weight: 600; margin-bottom: 4px;
+    white-space: nowrap;
+  }
+  .sidebar-link:hover { background: var(--sidebar-hover); }
+  .sidebar-link.ativo { background: var(--accent); color: var(--ink-on-accent); }
+  .sidebar-link.ativo svg { stroke: var(--ink-on-accent); }
+  .sidebar-link svg { flex-shrink: 0; }
+  .sidebar-separador { border: none; border-top: 1px solid var(--sidebar-border); margin: 14px 0; }
+  .sidebar-footer { display: flex; align-items: center; gap: 10px; padding: 10px; margin-top: auto; border-top: 1px solid var(--sidebar-border); }
+  .sidebar-avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--accent); color: var(--ink-on-accent); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; flex-shrink: 0; }
+  .sidebar-footer-name { font-size: 12px; font-weight: 700; color: var(--sidebar-text); }
+  .sidebar-footer-sub { font-size: 11px; color: var(--sidebar-muted); }
+  .conteudo-principal { margin-left: 240px; }
+  @media (max-width: 900px) {
+    .sidebar { position: static; width: 100%; height: auto; flex-direction: row; flex-wrap: wrap; border-right: none; border-bottom: 1px solid var(--sidebar-border); }
+    .sidebar-brand, .sidebar-footer, .sidebar-separador { display: none; }
+    .conteudo-principal { margin-left: 0; }
+  }
+  button, input, select, textarea { font: inherit; }
+  [hidden] { display: none !important; }
+  a { color: var(--accent); }
+
+  .shell { max-width: 1000px; margin: 0 auto; padding: 0 16px 60px; }
+
+  .erro { color: var(--bad); font-size: 0.82rem; min-height: 1.1em; margin: 4px 0 0; }
+
+  /* header — barra azul estilo Oitchau */
+  header { position: sticky; top: 0; z-index: 5; background: var(--accent-ink); }
+  .hrow { max-width: 1000px; margin: 0 auto; padding: 0 16px; min-height: 64px; box-sizing: border-box; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .hrow h1 { font-family: var(--font-display); font-size: 1.05rem; margin: 0; margin-right: auto; color: #fff; }
+  .periodo { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: rgba(255,255,255,0.85); }
+  .periodo input { height: 32px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.35); background: rgba(255,255,255,0.14); color: #fff; padding: 0 8px; font-size: 0.8rem; }
+  .periodo input::-webkit-calendar-picker-indicator { filter: invert(1); }
+  .periodo button, .chip-sair { height: 32px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.35); background: rgba(255,255,255,0.14); color: #fff; padding: 0 12px; font-size: 0.8rem; font-weight: 600; cursor: pointer; }
+  .periodo button:hover, .chip-sair:hover { background: rgba(255,255,255,0.24); }
+  #admin-nome { color: #fff !important; }
+  .periodo button:hover, .chip-sair:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* tabs */
+  .tabs { display: flex; flex-direction: column; gap: 2px; }
+  .tabs button {
+    display: flex; align-items: center; width: 100%; text-align: left;
+    background: none; border: none; border-left: 3px solid transparent; border-radius: 8px;
+    color: var(--sidebar-text); font-weight: 600; font-size: 13px; padding: 9px 10px; cursor: pointer; font-family: inherit;
+  }
+  .tabs button:hover { background: var(--sidebar-hover); }
+  .tabs button.ativo { background: var(--accent); color: var(--ink-on-accent); font-weight: 700; }
+  .tabs .badge { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; margin-left: 8px; border-radius: 999px; background: var(--bad); color: #fff; font-size: 0.7rem; font-weight: 700; }
+
+  /* solicitações */
+  .sol-card { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--warn); border-radius: var(--radius-sm); padding: 14px 16px; margin-bottom: 10px; }
+  .sol-card.resolvida { border-left-color: var(--border); opacity: 0.72; }
+  .sol-top { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
+  .sol-top b { font-family: var(--font-display); }
+  .sol-top .quando { color: var(--ink-muted); font-size: 0.78rem; }
+  .sol-motivo { font-size: 0.9rem; color: var(--ink-soft); margin: 4px 0 12px; white-space: pre-wrap; }
+  .sol-acoes { display: flex; gap: 8px; flex-wrap: wrap; }
+  .sol-acoes button { height: 34px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2); color: var(--ink-soft); padding: 0 14px; font-weight: 600; font-size: 0.82rem; cursor: pointer; }
+  .sol-acoes .b-abrir:hover { border-color: var(--accent); color: var(--accent); }
+  .sol-acoes .b-aprovar:hover { border-color: var(--ok); color: var(--ok); }
+  .sol-acoes .b-recusar:hover { border-color: var(--bad); color: var(--bad); }
+  .sol-status { font-size: 0.78rem; color: var(--ink-muted); }
+
+  /* folha */
+  .folha-topo { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+  .folha-topo select { height: 38px; border-radius: 9px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); padding: 0 12px; font-size: 0.9rem; }
+  .folha-topo .espaco { margin-left: auto; }
+  .folha-topo button { height: 36px; border-radius: 9px; border: 1px solid var(--border); background: var(--surface-2); color: var(--ink-soft); padding: 0 13px; font-weight: 600; font-size: 0.82rem; cursor: pointer; }
+  .folha-topo button:hover { border-color: var(--accent); color: var(--accent); }
+
+  .resumo { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+  .resumo .box { flex: 1; min-width: 120px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; }
+  .resumo .box span { display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--ink-muted); }
+  .resumo .box b { font-family: var(--font-mono); font-size: 1.15rem; }
+
+  .quadro { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; min-width: 560px; }
+  th { text-align: center; font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.02em; color: var(--ink-muted); padding: 9px 8px; background: var(--surface-2); border-bottom: 1px solid var(--border); white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; padding-left: 14px; }
+  td { padding: 9px 8px; border-bottom: 1px solid var(--border); text-align: center; font-family: var(--font-mono); font-size: 0.8rem; white-space: nowrap; }
+  tbody tr:last-child td { border-bottom: none; }
+  tr.hoje td:first-child { box-shadow: inset 3px 0 0 var(--brand); }
+  tr.hoje td.c-dia { color: var(--accent-ink); font-weight: 700; }
+  .c-dia { font-family: var(--font-body) !important; font-weight: 600; color: var(--ink-soft); text-transform: capitalize; }
+  .c-nenhum { color: var(--ink-muted); font-family: var(--font-body) !important; text-align: left !important; }
+  .extra { color: var(--ok); } .falta { color: var(--bad); } .zero { color: var(--ink-muted); }
+  .saldo.pos { color: var(--ok); font-weight: 600; } .saldo.neg { color: var(--bad); font-weight: 600; }
+  td.st-ok     { background: var(--ok-bg);   color: var(--ok); }
+  td.st-atraso { background: var(--warn-bg); color: var(--warn); }
+  td.st-falta  { background: var(--bad-bg);  color: var(--bad); }
+  td.st-abono  { background: var(--info-bg); color: var(--info-tx); font-family: var(--font-body) !important; font-weight: 600; text-align: left !important; }
+  .c-jornada { font-family: var(--font-body) !important; font-size: 0.72rem; color: var(--ink-muted); }
+  .c-metodo { font-family: var(--font-body) !important; font-size: 0.72rem; color: var(--ink-muted); }
+  .c-edit { font-family: var(--font-body) !important; font-size: 0.72rem; color: var(--accent); }
+  .c-abono { font-family: var(--font-body) !important; font-size: 0.68rem; font-weight: 700; padding: 2px 7px; border-radius: 999px; background: var(--info-bg); color: var(--info-tx); }
+  .c-aberto { font-family: var(--font-body) !important; font-size: 0.72rem; color: var(--ok); font-weight: 600; }
+  tfoot td { border-top: 2px solid var(--border); font-family: var(--font-body); font-weight: 700; font-size: 0.75rem; padding: 11px 8px; }
+  tfoot td.extra, tfoot td.falta, tfoot td.saldo { font-family: var(--font-mono); }
+  .b-linha { font-family: var(--font-body) !important; }
+  .b-linha button { border: 1px solid var(--border); background: var(--surface-2); color: var(--ink-muted); border-radius: 7px; width: 26px; height: 24px; cursor: pointer; }
+  .b-linha button:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* visão geral */
+  .vg-linha { cursor: pointer; }
+  .vg-linha:hover td { background: var(--surface-2); }
+
+  /* modal */
+  .modal { position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; padding: 16px; }
+  .modal-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); width: 100%; max-width: 420px; padding: 20px; box-shadow: 0 20px 60px var(--shadow); max-height: 88vh; overflow-y: auto; }
+  .modal-card h3 { font-family: var(--font-display); font-size: 1.1rem; margin: 0 0 14px; }
+  .m-linha { display: flex; gap: 8px; margin-bottom: 10px; }
+  .m-linha select, .m-linha input { height: 40px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface-2); color: var(--ink); padding: 0 10px; font-size: 0.9rem; }
+  .m-linha select { flex: 1; }
+  .m-linha input[type="time"] { width: 110px; }
+  .m-linha input[type="date"] { flex: 1; }
+  .m-label { display: block; font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; color: var(--ink-muted); margin: 8px 0 6px; }
+  .modal-card textarea { width: 100%; border: 1px solid var(--border); border-radius: 9px; background: var(--surface-2); color: var(--ink); padding: 10px; font-size: 0.9rem; font-family: var(--font-body); resize: vertical; }
+  .modal-acoes { display: flex; gap: 10px; margin-top: 16px; }
+  .modal-acoes button { flex: 1; height: 42px; border-radius: 999px; font-weight: 700; font-size: 0.9rem; cursor: pointer; }
+  .modal-acoes .cancelar { border: 1px solid var(--border); background: none; color: var(--ink-soft); }
+  .modal-acoes .ok { border: none; background: var(--brand); color: var(--ink-on-accent); }
+  .modal-acoes .ok:disabled { opacity: 0.5; }
+
+  .vazio { color: var(--ink-muted); font-size: 0.9rem; text-align: center; padding: 30px 10px; }
+  .rodape-nota { color: var(--ink-muted); font-size: 0.78rem; line-height: 1.5; margin: 12px 2px 0; max-width: 640px; }
+  .jorn-row input[type="time"], .jorn-row input[type="number"] {
+    height: 30px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface-2);
+    color: var(--ink); padding: 0 6px; font-size: 0.8rem; font-family: var(--font-mono); width: 84px;
+  }
+  .jorn-row input[type="number"] { width: 56px; }
+  .jorn-row.folga input { opacity: 0.3; pointer-events: none; }
+  .jorn-row td { text-align: center; }
+  .jorn-folga { display: inline-flex; align-items: center; gap: 5px; font-family: var(--font-body); font-size: 0.78rem; color: var(--ink-muted); }
+
+  /* impressão */
+  #area-impressao { display: none; }
+  @media print {
+    body * { visibility: hidden; }
+    #area-impressao, #area-impressao * { visibility: visible; }
+    #area-impressao { display: block; position: absolute; left: 0; top: 0; width: 100%; padding: 20px; color: #000; background: #fff; }
+    #area-impressao table { min-width: 0; }
+    #area-impressao th { background: #eee; color: #000; }
+    #area-impressao td, #area-impressao th { border: 1px solid #999; }
+  }
+</style>
+</head>
+<body>
+
+<!-- PAINEL (o login em si é a tela compartilhada /login.html — assets/auth.js
+     já garantiu, antes desta página carregar, que existe uma sessão válida) -->
+<div id="tela-painel">
+  <nav class="sidebar">
+    <div class="sidebar-brand">
+      <img class="sidebar-brand-icon" src="logo-ricapet.png" alt="Ricapet">
+      <div>
+        <div class="sidebar-brand-name">Ricapet</div>
+        <div class="sidebar-brand-sub">Ponto</div>
+      </div>
+    </div>
+
+    <div class="sidebar-titulo" id="tituloPaineis">Painéis Ricapet</div>
+
+    <a class="sidebar-link" href="/" data-menu-key="dashboard">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+      Dashboard
+    </a>
+    <a class="sidebar-link" href="https://ricapet-concorrencia.vercel.app" data-menu-key="concorrencia">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 15l4-6 3 3 5-7"/></svg>
+      Análise de Concorrência
+    </a>
+    <a class="sidebar-link" href="https://painel-estoque-adesivo-three.vercel.app/" data-menu-key="estoque">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8L12 3 3 8l9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>
+      Estoque Adesivo
+    </a>
+    <a class="sidebar-link ativo" href="#" data-menu-key="ponto">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+      Ponto
+    </a>
+    <a class="sidebar-link" href="/tv.html" target="_blank" rel="noopener" data-menu-key="tv">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+      Painel TV
+    </a>
+
+    <hr class="sidebar-separador">
+
+    <div class="sidebar-titulo">Visões</div>
+    <div class="tabs">
+      <button data-tab="solicitacoes" class="ativo">Solicitações <span class="badge" id="badge-pend" hidden>0</span></button>
+      <button data-tab="funcionario">Por funcionário</button>
+      <button data-tab="geral">Visão geral</button>
+      <button data-tab="jornadas">Jornadas</button>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="sidebar-avatar">R</div>
+      <div>
+        <div class="sidebar-footer-name">Ricapet</div>
+        <div class="sidebar-footer-sub">Minha conta</div>
+      </div>
+    </div>
+  </nav>
+
+  <div class="conteudo-principal">
+  <header>
+    <div class="hrow">
+      <h1>Ponto · Administração</h1>
+      <div class="periodo">
+        <input type="date" id="p-de"> <span>até</span> <input type="date" id="p-ate">
+        <button id="p-aplicar">Aplicar</button>
+      </div>
+      <span id="admin-nome" style="font-size:.85rem;color:var(--ink-soft);font-weight:600"></span>
+      <button class="chip-sair" id="btn-empresa">Empresa</button>
+      <button class="chip-sair" id="btn-sair">Sair</button>
+    </div>
+  </header>
+
+  <div class="shell">
+    <section id="tab-solicitacoes"></section>
+
+    <section id="tab-funcionario" hidden>
+      <div class="folha-topo">
+        <select id="sel-func"></select>
+        <div class="espaco"></div>
+        <button id="b-add">+ batida</button>
+        <button id="b-imprimir">Imprimir</button>
+        <button id="b-csv">CSV</button>
+        <button id="b-afd">AFD do período</button>
+        <button id="b-integridade">Integridade</button>
+      </div>
+      <div class="resumo" id="func-resumo"></div>
+      <div class="quadro" id="func-quadro"></div>
+      <p class="rodape-nota">O saldo é do <b>banco de horas</b> (trabalhado − jornada do dia). Faltas de dia inteiro
+        (atestado, férias, folga não prevista) não entram aqui — trate com o DP.
+        Cada batida tem número sequencial (NSR); correções não apagam a original, entram como novo registro (✎).</p>
+    </section>
+
+    <section id="tab-geral" hidden>
+      <div class="quadro" id="geral-quadro"></div>
+    </section>
+
+    <section id="tab-jornadas" hidden>
+      <div class="folha-topo">
+        <select id="sel-jorn"></select>
+        <label style="font-size:.82rem;color:var(--ink-soft);display:flex;align-items:center;gap:6px">
+          CPF <input type="text" id="jorn-cpf" inputmode="numeric" maxlength="14" placeholder="só números"
+            style="height:32px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--ink);padding:0 8px;font-family:var(--font-mono);width:130px">
+        </label>
+      </div>
+      <div class="quadro" id="jorn-quadro"></div>
+      <div class="modal-acoes" style="max-width:340px;margin-top:14px">
+        <button class="ok" id="jorn-salvar">Salvar jornada</button>
+      </div>
+      <p class="rodape-nota" id="jorn-msg"></p>
+    </section>
+  </div>
+  </div>
+</div>
+
+<div id="area-impressao"></div>
+
+<div class="modal" id="modal" hidden>
+  <div class="modal-card">
+    <h3 id="modal-titulo">Editar batida</h3>
+    <div id="modal-corpo"></div>
+    <p class="erro" id="modal-erro"></p>
+    <div class="modal-acoes">
+      <button class="cancelar" id="modal-cancelar">Cancelar</button>
+      <button class="ok" id="modal-ok">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const API = 'https://painel-entrega-turbo.vercel.app/api/debug';
+  const SECRET = 'f3BqH1JDY6dWb-n4aEhSVcZJrSPvU0Rf'; // PONTO_PUBLIC_SECRET (só abre login/bater/historico + admin com token de admin)
+  const JORNADA = 8 * 60;
+
+  async function api(tipo, corpo) {
+    const resp = await fetch(`${API}?tipo=${tipo}&secret=${SECRET}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo || {}),
+    });
+    const dados = await resp.json().catch(() => ({}));
+    if (!resp.ok || dados.ok === false) throw new Error(dados.error || 'Falha ao falar com o servidor.');
+    return dados;
+  }
+
+  const $ = (id) => document.getElementById(id);
+  const pad = (n) => String(n).padStart(2, '0');
+  const hhmm = (d) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const chaveDia = (d) => d.toLocaleDateString('sv-SE');
+  const fmtDur = (min, sinal) => {
+    const neg = min < 0, a = Math.abs(Math.round(min));
+    const t = `${pad(Math.floor(a / 60))}:${pad(a % 60)}`;
+    return sinal ? (neg ? '−' : a === 0 ? '' : '+') + t : t;
+  };
+  const rotuloCurto = (d) => d.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' }).replace('.', '');
+  const rotuloLongo = (d) => d.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
+  const desde = (iso) => {
+    const min = Math.round((Date.now() - new Date(iso)) / 60000);
+    if (min < 60) return `há ${min} min`;
+    if (min < 1440) return `há ${Math.round(min / 60)} h`;
+    return `há ${Math.round(min / 1440)} d`;
+  };
+
+  // ---------- sessão ----------
+  // assets/auth.js já garantiu, antes desta página carregar, que existe uma
+  // sessão válida (senão já teria redirecionado pra /login.html).
+  const sessao = window.RicapetAuth.sessao;
+
+  $('btn-sair').addEventListener('click', () => window.RicapetAuth.sair());
+
+  $('btn-empresa').addEventListener('click', async () => {
+    const c = (estado && estado.empresa) || {};
+    const empresa = prompt('Razão social da empresa:', c.empresa || '');
+    if (empresa == null) return;
+    const cnpj = prompt('CNPJ (só números):', c.cnpj || '');
+    if (cnpj == null) return;
+    const endereco = prompt('Endereço (opcional):', c.endereco || '');
+    if (endereco == null) return;
+    const limite = prompt('Máx. de batidas por dia (bate-ponto):', c.limite_batidas_dia || 8);
+    if (limite == null) return;
+    const tol = prompt('Tolerância em minutos (não conta atraso/extra dentro dela):', c.tolerancia_min != null ? c.tolerancia_min : 10);
+    if (tol == null) return;
+    try {
+      await api('ponto-admin-empresa', {
+        token: sessao.token, empresa, cnpj: (cnpj || '').replace(/\D/g, ''), endereco: endereco || '',
+        limite_batidas_dia: parseInt(limite, 10) || 8, tolerancia_min: parseInt(tol, 10) || 0,
+      });
+      await carregar();
+      alert('Ajustes salvos.');
+    } catch (err) { alert(err.message); }
+  });
+
+  // ---------- painel ----------
+  let estado = null; // resposta de ponto-admin-visao
+
+  function abrirPainel() {
+    $('admin-nome').textContent = sessao.nome;
+    const hoje = new Date();
+    const trinta = new Date(hoje); trinta.setDate(hoje.getDate() - 29);
+    $('p-de').value = chaveDia(trinta);
+    $('p-ate').value = chaveDia(hoje);
+    carregar();
+  }
+
+  $('p-aplicar').addEventListener('click', carregar);
+
+  async function carregar() {
+    try {
+      estado = await api('ponto-admin-visao', { token: sessao.token, de: $('p-de').value, ate: $('p-ate').value });
+    } catch (err) {
+      if (/sess|acesso|login/i.test(err.message)) { $('btn-sair').click(); }
+      alert(err.message);
+      return;
+    }
+    const pend = estado.pendentes || 0;
+    const badge = $('badge-pend');
+    badge.hidden = pend === 0; badge.textContent = pend;
+    renderSolicitacoes();
+    preencherSelectFunc();
+    renderFuncionario();
+    renderGeral();
+    preencherSelectJorn();
+    renderJornadas();
+  }
+
+  // abas
+  document.querySelectorAll('.tabs button').forEach((b) => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('.tabs button').forEach((x) => x.classList.toggle('ativo', x === b));
+      ['solicitacoes', 'funcionario', 'geral', 'jornadas'].forEach((t) => { $('tab-' + t).hidden = t !== b.dataset.tab; });
+    });
+  });
+
+  const ABONO_LABEL = { atestado: 'Atestado', ferias: 'Férias', folga: 'Folga', falta_abonada: 'Falta abonada', feriado: 'Feriado', licenca: 'Licença', outro: 'Abono' };
+
+  const tolMin = () => (estado && estado.empresa && estado.empresa.tolerancia_min) || 0;
+
+  // "07:00–12:00 · 13:00–17:00" (usado na impressão/CSV)
+  function paresDoDia(d) {
+    if (!d.eventos.length) return '—';
+    const segs = [];
+    let ab = null;
+    d.eventos.forEach((e) => {
+      if (e.tipo === 'entrada') { if (ab) segs.push([ab, null]); ab = e.quando; }
+      else { if (ab) { segs.push([ab, e.quando]); ab = null; } else segs.push([null, e.quando]); }
+    });
+    if (ab) segs.push([ab, null]);
+    return segs.map(([e, s]) => `${e ? hhmm(e) : '—'}–${s ? hhmm(s) : (d.emAberto ? 'em aberto' : '—')}`).join(' · ');
+  }
+
+  function slotsDoDia(d) {
+    const segs = [];
+    let ab = null;
+    d.eventos.forEach((e) => {
+      if (e.tipo === 'entrada') { if (ab) segs.push([ab, null]); ab = e.quando; }
+      else { if (ab) { segs.push([ab, e.quando]); ab = null; } else segs.push([null, e.quando]); }
+    });
+    if (ab) segs.push([ab, null]);
+
+    if (segs.length <= 1) {
+      // só um par fechado (ou nenhum): se o dia ainda está em andamento
+      // (hoje, faltam batidas pro dia fechar), esse par é entrada+intervalo
+      // — a pessoa foi almoçar, não é a saída final do dia.
+      const seg = segs[0] || [null, null];
+      if (d.emAberto) return { entrada: seg[0], intervalo: seg[1], volta: null, saida: null, multiplos: false };
+      return { entrada: seg[0], intervalo: null, volta: null, saida: seg[1], multiplos: false };
+    }
+    return {
+      entrada: segs[0][0],
+      intervalo: segs[0][1],
+      volta: segs[1][0],
+      saida: d.emAberto ? null : segs[segs.length - 1][1],
+      multiplos: segs.length > 2,
+    };
+  }
+
+  function statusBatida(quando, esperado, tipo) {
+    if (!quando) return '';
+    if (!esperado) return 'st-ok';
+    const [h, m] = String(esperado).split(':').map(Number);
+    const diff = (quando.getHours() * 60 + quando.getMinutes()) - (h * 60 + m);
+    const ruim = tipo === 'entrada' ? diff > tolMin() : diff < -tolMin();
+    return ruim ? 'st-atraso' : 'st-ok';
+  }
+
+  // ---------- folha (agrupa as marcações vigentes de um funcionário por dia) ----------
+  function montarFolha(func) {
+    const porChave = new Map();
+    (func.marcacoes || []).forEach((r) => {
+      const quando = new Date(r.registrado_em);
+      if (isNaN(quando)) return;
+      const k = chaveDia(quando);
+      if (!porChave.has(k)) porChave.set(k, []);
+      porChave.get(k).push({ nsr: r.nsr, tipo: r.tipo === 'entrada' ? 'entrada' : 'saida', quando, metodo: r.metodo_validacao, origem: r.origem, editado: !!r.editado });
+    });
+    const abonoPorDia = new Map();
+    (func.abonos || []).forEach((a) => abonoPorDia.set(a.data, a));
+    const de = new Date($('p-de').value + 'T12:00:00');
+    const ate = new Date($('p-ate').value + 'T12:00:00');
+    const dias = [];
+    for (let d = new Date(ate); d >= de; d.setDate(d.getDate() - 1)) {
+      const dd = new Date(d);
+      const k = chaveDia(dd);
+      const eventos = (porChave.get(k) || []).sort((a, b) => a.quando - b.quando);
+      let ms = 0, ab = null;
+      eventos.forEach((e) => { if (e.tipo === 'entrada') ab = e.quando; else if (ab) { ms += e.quando - ab; ab = null; } });
+      const jdia = func.jornada && func.jornada[dd.getDay()] ? func.jornada[dd.getDay()] : null;
+      const ehHoje = k === estado.hoje;
+      const esperaIntervalo = !!(jdia && jdia.intervalo > 0);
+      const totalEsperado = esperaIntervalo ? 4 : 2;
+      const ultimoTipo = eventos.length ? eventos[eventos.length - 1].tipo : null;
+      // "aberto" = dia ainda em andamento: terminou com uma entrada sem
+      // saída correspondente, OU é hoje e ainda faltam batidas pra fechar
+      // o dia (ex.: só bateu entrada + saída pro almoço).
+      const emAberto = eventos.length > 0 && (ultimoTipo === 'entrada' || (ehHoje && eventos.length < totalEsperado));
+      const trabalhado = Math.round(ms / 60000);
+      const fechado = eventos.length > 0 && !emAberto;
+      const previsto = func.jornada ? (jdia ? (jdia.minutos || 0) : 0) : null;
+      const abono = abonoPorDia.get(k) || null;
+      let saldo = (fechado && previsto != null) ? trabalhado - previsto : 0;
+      if (Math.abs(saldo) <= tolMin()) saldo = 0;
+      if (abono && saldo < 0) saldo = 0;
+      dias.push({
+        data: dd, chave: k, ehHoje, eventos, emAberto, fechado, abono, jdia,
+        entrada: eventos.find((e) => e.tipo === 'entrada')?.quando || null,
+        saida: [...eventos].reverse().find((e) => e.tipo === 'saida')?.quando || null,
+        trabalhado, previsto,
+        editado: eventos.some((e) => e.editado),
+        temCalc: fechado && previsto != null,
+        saldo,
+      });
+    }
+    return dias;
+  }
+
+  function totais(dias) {
+    let ex = 0, fa = 0, diasComPonto = 0;
+    dias.forEach((d) => {
+      if (d.temCalc) { ex += Math.max(d.saldo, 0); fa += d.abono ? 0 : Math.max(-d.saldo, 0); }
+      if (d.eventos.length) diasComPonto++;
+    });
+    return { ex, fa, saldo: ex - fa, diasComPonto };
+  }
+
+  // ---------- solicitações ----------
+  function renderSolicitacoes() {
+    const todas = [];
+    estado.funcionarios.forEach((f) => (f.solicitacoes || []).forEach((s) => todas.push({ ...s, nome: f.nome, funcionario_id: f.id })));
+    todas.sort((a, b) => (a.status === 'pendente' ? -1 : 1) - (b.status === 'pendente' ? -1 : 1) || new Date(b.criada_em) - new Date(a.criada_em));
+    const pend = todas.filter((s) => s.status === 'pendente');
+    const resolv = todas.filter((s) => s.status !== 'pendente').slice(0, 30);
+
+    if (!todas.length) { $('tab-solicitacoes').innerHTML = '<p class="vazio">Nenhuma solicitação de correção.</p>'; return; }
+
+    const card = (s) => {
+      const dia = new Date(s.data_referente + 'T12:00:00');
+      if (s.status === 'pendente') {
+        return `<div class="sol-card">
+          <div class="sol-top"><b>${s.nome}</b> — ${rotuloLongo(dia)} <span class="quando">pediu ${desde(s.criada_em)}</span></div>
+          <div class="sol-motivo">${escHtml(s.motivo)}</div>
+          <div class="sol-acoes">
+            <button class="b-abrir" data-func="${s.funcionario_id}" data-dia="${s.data_referente}">Abrir o dia</button>
+            <button class="b-aprovar" data-id="${s.id}" data-func="${s.funcionario_id}" data-dia="${s.data_referente}" data-motivo="${escHtml(s.motivo)}">Marcar aprovada</button>
+            <button class="b-recusar" data-id="${s.id}">Recusar</button>
+          </div>
+        </div>`;
+      }
+      return `<div class="sol-card resolvida">
+        <div class="sol-top"><b>${s.nome}</b> — ${rotuloLongo(dia)}</div>
+        <div class="sol-motivo">${escHtml(s.motivo)}</div>
+        <p class="sol-status">${s.status === 'aprovada' ? '✓ Aprovada' : '✕ Recusada'} ${s.resolvida_em ? '· ' + desde(s.resolvida_em) : ''}${s.resposta_admin ? ' · "' + escHtml(s.resposta_admin) + '"' : ''}</p>
+      </div>`;
+    };
+
+    $('tab-solicitacoes').innerHTML =
+      (pend.length ? pend.map(card).join('') : '<p class="vazio">Nenhum pedido pendente. 👍</p>')
+      + (resolv.length ? `<h3 style="font-family:var(--font-display);font-size:.9rem;color:var(--ink-muted);margin:22px 0 10px">Resolvidas</h3>` + resolv.map(card).join('') : '');
+  }
+
+  $('tab-solicitacoes').addEventListener('click', async (ev) => {
+    const b = ev.target.closest('button');
+    if (!b) return;
+    if (b.classList.contains('b-abrir')) {
+      $('sel-func').value = b.dataset.func;
+      document.querySelector('.tabs button[data-tab="funcionario"]').click();
+      renderFuncionario();
+      return;
+    }
+    if (b.classList.contains('b-aprovar') || b.classList.contains('b-recusar')) {
+      const decisao = b.classList.contains('b-aprovar') ? 'aprovar' : 'recusar';
+      const funcId = b.dataset.func;
+      const diaChave = b.dataset.dia;
+      const motivo = b.dataset.motivo;
+      const resposta = prompt(decisao === 'aprovar' ? 'Observação (opcional):' : 'Motivo da recusa (opcional):') ?? '';
+      b.disabled = true;
+      try {
+        await api('ponto-admin-resolver', { token: sessao.token, solicitacao_id: b.dataset.id, decisao, resposta });
+        // Aprovar só marca o pedido como resolvido — não mexe nas batidas
+        // sozinho (o motivo é texto livre, não dá pra confiar numa leitura
+        // automática pra gravar horário oficial). Por isso, ao aprovar,
+        // já leva o admin direto pro dia certo com o editor aberto, pra não
+        // ficar só na aprovação sem o ajuste real acontecer.
+        if (diaChave && diaChave < $('p-de').value) $('p-de').value = diaChave;
+        await carregar();
+        if (decisao === 'aprovar' && funcId && diaChave) {
+          $('sel-func').value = funcId;
+          document.querySelector('.tabs button[data-tab="funcionario"]').click();
+          renderFuncionario();
+          const func = estado.funcionarios.find((f) => f.id === funcId);
+          const dia = func && montarFolha(func).find((d) => d.chave === diaChave);
+          if (func && dia) abrirEditorDia(func, dia, false, motivo);
+        }
+      } catch (err) { alert(err.message); b.disabled = false; }
+    }
+  });
+
+  // ---------- por funcionário ----------
+  function preencherSelectFunc() {
+    const atual = $('sel-func').value;
+    $('sel-func').innerHTML = estado.funcionarios.map((f) => `<option value="${f.id}">${f.nome}${f.admin ? ' ·' : ''}</option>`).join('');
+    if (atual && estado.funcionarios.some((f) => f.id === atual)) $('sel-func').value = atual;
+  }
+  $('sel-func').addEventListener('change', renderFuncionario);
+
+  function funcAtual() { return estado.funcionarios.find((f) => f.id === $('sel-func').value) || estado.funcionarios[0]; }
+
+  function renderFuncionario() {
+    const func = funcAtual();
+    if (!func) return;
+    const dias = montarFolha(func);
+    const t = totais(dias);
+
+    $('func-resumo').innerHTML = `
+      <div class="box"><span>Dias com ponto</span><b>${t.diasComPonto}</b></div>
+      <div class="box"><span>Horas extras</span><b class="extra">${fmtDur(t.ex)}</b></div>
+      <div class="box"><span>Horas faltantes</span><b class="falta">${fmtDur(t.fa)}</b></div>
+      <div class="box"><span>Saldo do período</span><b class="${t.saldo > 0 ? 'saldo pos' : t.saldo < 0 ? 'saldo neg' : 'zero'}">${fmtDur(t.saldo, true)}</b></div>`;
+
+    const linha = (d) => {
+      const rot = rotuloCurto(d.data)
+        + (d.editado ? ' <span class="c-edit" title="Editado">✎</span>' : '')
+        + (d.abono ? ` <span class="c-abono" title="${(d.abono.observacao || '').replace(/"/g, '')}">${ABONO_LABEL[d.abono.tipo] || 'Abono'}</span>` : '');
+      const jornadaTxt = d.jdia ? `${d.jdia.entrada}–${d.jdia.saida}` : (d.previsto === 0 ? 'folga' : '—');
+      const btn = `<td class="b-linha"><button data-edit="${d.chave}" title="Editar dia">✎</button></td>`;
+
+      if (!d.eventos.length) {
+        return `<tr class="${d.ehHoje ? 'hoje' : ''}"><td class="c-dia">${rot}</td>
+          <td class="c-jornada">${jornadaTxt}</td>
+          <td class="${d.abono ? 'st-abono' : 'c-nenhum'}" colspan="6">${d.abono ? (ABONO_LABEL[d.abono.tipo] || 'Abono') : (d.previsto ? 'Falta' : 'Nenhum ponto')}</td>
+          ${btn}</tr>`;
+      }
+      const s = slotsDoDia(d);
+      const cel = (valor, esperado, tipo, ehSaidaFinal) => {
+        if (valor) return `<td class="${statusBatida(valor, esperado, tipo)}">${hhmm(valor)}${tipo === 'entrada' && ehSaidaFinal === false && s.multiplos ? ' •' : ''}</td>`;
+        if (ehSaidaFinal && d.emAberto) return d.ehHoje ? '<td class="c-aberto">…</td>' : '<td class="st-falta">falta</td>';
+        return '<td class="zero">—</td>';
+      };
+      const ex = d.temCalc ? Math.max(d.saldo, 0) : 0;
+      const fa = (d.temCalc && !d.abono) ? Math.max(-d.saldo, 0) : 0;
+      return `<tr class="${d.ehHoje ? 'hoje' : ''}">
+        <td class="c-dia">${rot}</td>
+        <td class="c-jornada">${jornadaTxt}</td>
+        ${cel(s.entrada, d.jdia && d.jdia.entrada, 'entrada', false)}
+        ${cel(s.intervalo, null, 'saida', false)}
+        ${cel(s.volta, null, 'entrada', false)}
+        ${cel(s.saida, d.jdia && d.jdia.saida, 'saida', true)}
+        <td>${fmtDur(d.trabalhado)}</td>
+        <td class="saldo ${d.saldo > 0 ? 'pos' : d.saldo < 0 ? 'neg' : 'zero'}">${d.temCalc ? fmtDur(d.saldo, true) : '—'}</td>
+        ${btn}
+      </tr>`;
+    };
+
+    $('func-quadro').innerHTML = `<table>
+      <thead><tr><th>Dia</th><th>Jornada</th><th>Entrada</th><th>Interv.</th><th>Volta</th><th>Saída</th><th>Trab.</th><th>Saldo</th><th></th></tr></thead>
+      <tbody>${dias.map(linha).join('')}</tbody>
+      <tfoot><tr><td>Total</td><td colspan="5"></td>
+        <td>${fmtDur(dias.reduce((a, d) => a + (d.eventos.length ? d.trabalhado : 0), 0))}</td>
+        <td class="saldo ${t.saldo > 0 ? 'pos' : t.saldo < 0 ? 'neg' : 'zero'}">${fmtDur(t.saldo, true)}</td><td></td></tr></tfoot>
+    </table>`;
+  }
+
+  $('func-quadro').addEventListener('click', (ev) => {
+    const b = ev.target.closest('button');
+    if (!b) return;
+    const func = funcAtual();
+    const dias = montarFolha(func);
+    if (b.dataset.edit) abrirEditorDia(func, dias.find((d) => d.chave === b.dataset.edit));
+    else if (b.dataset.add) abrirEditorDia(func, dias.find((d) => d.chave === b.dataset.add), true);
+  });
+
+  $('b-add').addEventListener('click', () => {
+    const func = funcAtual();
+    const dias = montarFolha(func);
+    abrirEditorDia(func, dias[0], true);
+  });
+
+  // ---------- visão geral ----------
+  function renderGeral() {
+    const linhas = estado.funcionarios.map((f) => {
+      const t = totais(montarFolha(f));
+      return `<tr class="vg-linha" data-func="${f.id}">
+        <td class="c-dia">${f.nome}</td>
+        <td>${t.diasComPonto}</td>
+        <td class="${t.ex ? 'extra' : 'zero'}">${fmtDur(t.ex)}</td>
+        <td class="${t.fa ? 'falta' : 'zero'}">${fmtDur(t.fa)}</td>
+        <td class="saldo ${t.saldo > 0 ? 'pos' : t.saldo < 0 ? 'neg' : 'zero'}">${fmtDur(t.saldo, true)}</td>
+      </tr>`;
+    }).join('');
+    $('geral-quadro').innerHTML = `<table>
+      <thead><tr><th>Funcionário</th><th>Dias c/ ponto</th><th>Extras</th><th>Faltas</th><th>Saldo</th></tr></thead>
+      <tbody>${linhas}</tbody>
+    </table>`;
+  }
+  $('geral-quadro').addEventListener('click', (ev) => {
+    const tr = ev.target.closest('.vg-linha');
+    if (!tr) return;
+    $('sel-func').value = tr.dataset.func;
+    document.querySelector('.tabs button[data-tab="funcionario"]').click();
+    renderFuncionario();
+  });
+
+  // ---------- jornadas ----------
+  const DIAS_SEMANA = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+
+  function preencherSelectJorn() {
+    const atual = $('sel-jorn').value;
+    $('sel-jorn').innerHTML = estado.funcionarios.map((f) => `<option value="${f.id}">${f.nome}${f.jornada ? '' : ' — sem jornada'}</option>`).join('');
+    if (atual && estado.funcionarios.some((f) => f.id === atual)) $('sel-jorn').value = atual;
+  }
+  $('sel-jorn').addEventListener('change', renderJornadas);
+
+  function renderJornadas() {
+    const func = estado.funcionarios.find((f) => f.id === $('sel-jorn').value) || estado.funcionarios[0];
+    if (!func) return;
+    $('jorn-msg').textContent = '';
+    $('jorn-cpf').value = func.cpf || '';
+    const j = func.jornada; // array [dom..sab] de {minutos, entrada, saida, intervalo} ou null
+    const linhas = DIAS_SEMANA.map((nome, dow) => {
+      const d = j && j[dow] ? j[dow] : { minutos: 0, entrada: '', saida: '', intervalo: 60 };
+      const folga = !(d.minutos > 0) && !(d.entrada && d.saida);
+      return `<tr class="jorn-row ${folga ? 'folga' : ''}" data-dow="${dow}">
+        <td class="c-dia">${nome}</td>
+        <td><label class="jorn-folga"><input type="checkbox" class="j-folga" ${folga ? 'checked' : ''}> folga</label></td>
+        <td><input type="time" class="j-ent" value="${d.entrada || '08:00'}"></td>
+        <td><input type="time" class="j-sai" value="${d.saida || '17:00'}"></td>
+        <td><input type="number" class="j-int" min="0" max="240" step="5" value="${d.intervalo ?? 60}"> min</td>
+      </tr>`;
+    }).join('');
+    $('jorn-quadro').innerHTML = `<table>
+      <thead><tr><th>Dia</th><th></th><th>Entrada</th><th>Saída</th><th>Intervalo</th></tr></thead>
+      <tbody>${linhas}</tbody>
+    </table>`;
+    $('jorn-quadro').querySelectorAll('.j-folga').forEach((cb) => {
+      cb.addEventListener('change', () => cb.closest('.jorn-row').classList.toggle('folga', cb.checked));
+    });
+  }
+
+  $('jorn-salvar').addEventListener('click', async () => {
+    const fid = $('sel-jorn').value;
+    const btn = $('jorn-salvar');
+    const dias = [];
+    $('jorn-quadro').querySelectorAll('.jorn-row').forEach((tr) => {
+      if (tr.querySelector('.j-folga').checked) return;
+      dias.push({
+        dia_semana: Number(tr.dataset.dow),
+        entrada: tr.querySelector('.j-ent').value,
+        saida: tr.querySelector('.j-sai').value,
+        intervalo_min: Number(tr.querySelector('.j-int').value) || 0,
+      });
+    });
+    btn.disabled = true;
+    $('jorn-msg').textContent = 'Salvando…';
+    try {
+      await api('ponto-admin-jornada', { token: sessao.token, funcionario_id: fid, dias });
+      await api('ponto-admin-cpf', { token: sessao.token, funcionario_id: fid, cpf: $('jorn-cpf').value });
+      await carregar();
+      document.querySelector('.tabs button[data-tab="jornadas"]').click();
+      $('sel-jorn').value = fid;
+      renderJornadas();
+      $('jorn-msg').textContent = 'Jornada salva. O saldo já recalcula com os novos valores.';
+    } catch (err) {
+      $('jorn-msg').textContent = err.message || 'Não deu pra salvar.';
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  // ---------- editor de dia (modal) ----------
+  const modal = $('modal'), modalCorpo = $('modal-corpo'), modalErro = $('modal-erro'), modalOk = $('modal-ok');
+  let modalCtx = null;
+
+  $('modal-cancelar').addEventListener('click', () => { modal.hidden = true; modalCtx = null; });
+  modal.addEventListener('click', (e) => { if (e.target === modal) { modal.hidden = true; modalCtx = null; } });
+  modalCorpo.addEventListener('click', (e) => { const rm = e.target.closest('.m-rm'); if (rm) rm.closest('.m-linha').remove(); });
+
+  function linhaBatida(ev) {
+    return `<div class="m-linha" data-nsr="${ev ? ev.nsr : ''}">
+      <select class="m-tipo"><option value="entrada"${ev && ev.tipo === 'entrada' ? ' selected' : ''}>Entrada</option><option value="saida"${ev && ev.tipo === 'saida' ? ' selected' : ''}>Saída</option></select>
+      <input class="m-hora" type="time" value="${ev ? hhmm(ev.quando) : ''}">
+      <button type="button" class="m-rm" title="Remover">✕</button>
+    </div>`;
+  }
+
+  function abrirEditorDia(func, dia, focoAdd, motivoSugerido) {
+    modalCtx = { func, chave: dia.chave, originais: dia.eventos.map((e) => ({ nsr: String(e.nsr), tipo: e.tipo, hora: hhmm(e.quando) })) };
+    $('modal-titulo').textContent = `${func.nome} — ${rotuloLongo(dia.data)}`;
+    modalErro.textContent = '';
+    modalOk.textContent = 'Salvar';
+    const ab = dia.abono;
+    const opts = Object.entries(ABONO_LABEL).map(([v, l]) => `<option value="${v}"${ab && ab.tipo === v ? ' selected' : ''}>${l}</option>`).join('');
+    modalCorpo.innerHTML = `
+      <div id="m-batidas">${dia.eventos.map(linhaBatida).join('') || '<p style="color:var(--ink-muted);font-size:.86rem;margin:0 0 8px">Nenhuma batida nesse dia.</p>'}</div>
+      <button type="button" class="ok" style="background:none;border:1px solid var(--border);color:var(--accent);height:34px;border-radius:8px;padding:0 12px;font-weight:600;font-size:.82rem;cursor:pointer" id="m-add">+ adicionar batida</button>
+      <label class="m-label">Motivo da alteração (obrigatório p/ mexer nas batidas)</label>
+      <textarea id="m-motivo" rows="2" placeholder="Ex.: ajuste conforme pedido — esqueceu de bater a saída"></textarea>
+
+      <div style="border-top:1px solid var(--border);margin-top:16px;padding-top:14px">
+        <label class="m-label">Abono / atestado do dia ${ab ? '<span style="color:var(--ok)">— já abonado</span>' : ''}</label>
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <select id="ab-tipo" style="flex:1;height:38px;border:1px solid var(--border);border-radius:9px;background:var(--surface-2);color:var(--ink);padding:0 10px">${opts}</select>
+        </div>
+        <textarea id="ab-obs" rows="2" placeholder="Observação (ex.: atestado 1 dia, Dr. Fulano / CID)">${ab ? escHtml(ab.observacao || '') : ''}</textarea>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button type="button" id="ab-salvar" style="flex:1;height:36px;border-radius:8px;border:1px solid var(--ok);background:none;color:var(--ok);font-weight:600;cursor:pointer">${ab ? 'Atualizar abono' : 'Abonar dia'}</button>
+          ${ab ? '<button type="button" id="ab-remover" style="height:36px;border-radius:8px;border:1px solid var(--bad);background:none;color:var(--bad);font-weight:600;padding:0 12px;cursor:pointer">Remover</button>' : ''}
+        </div>
+      </div>`;
+    if (motivoSugerido) $('m-motivo').value = motivoSugerido;
+    $('m-add').addEventListener('click', () => {
+      const box = $('m-batidas');
+      const p = box.querySelector('p'); if (p) p.remove();
+      box.insertAdjacentHTML('beforeend', linhaBatida(null));
+    });
+    $('ab-salvar').addEventListener('click', async () => {
+      modalErro.textContent = '';
+      try {
+        await api('ponto-admin-abono', {
+          token: sessao.token, funcionario_id: func.id, data: dia.chave,
+          tipo: $('ab-tipo').value, observacao: $('ab-obs').value,
+        });
+        modal.hidden = true; modalCtx = null;
+        await carregar();
+      } catch (err) { modalErro.textContent = err.message; }
+    });
+    if ($('ab-remover')) $('ab-remover').addEventListener('click', async () => {
+      try {
+        await api('ponto-admin-abono', { token: sessao.token, funcionario_id: func.id, data: dia.chave, remover: true });
+        modal.hidden = true; modalCtx = null;
+        await carregar();
+      } catch (err) { modalErro.textContent = err.message; }
+    });
+    modal.hidden = false;
+    if (focoAdd) $('m-add').click();
+  }
+
+  modalOk.addEventListener('click', async () => {
+    if (!modalCtx) return;
+    const motivo = $('m-motivo').value.trim();
+    if (!motivo) { modalErro.textContent = 'Escreva o motivo.'; return; }
+    modalErro.textContent = ''; modalOk.disabled = true;
+    const { func, chave, originais } = modalCtx;
+    const linhas = [...document.querySelectorAll('#m-batidas .m-linha')];
+    try {
+      const vistos = new Set();
+      for (const el of linhas) {
+        const nsr = el.dataset.nsr;
+        const tipo = el.querySelector('.m-tipo').value;
+        const hora = el.querySelector('.m-hora').value;
+        if (!hora) throw new Error('Preencha o horário de todas as batidas.');
+        if (!nsr) {
+          await api('ponto-admin-editar', { token: sessao.token, funcionario_id: func.id, acao: 'adicionar', tipo, dia: chave, hora, motivo });
+        } else {
+          vistos.add(nsr);
+          const o = originais.find((x) => x.nsr === nsr);
+          if (o && (o.tipo !== tipo || o.hora !== hora)) {
+            await api('ponto-admin-editar', { token: sessao.token, funcionario_id: func.id, acao: 'editar', ref_nsr: Number(nsr), tipo, dia: chave, hora, motivo });
+          }
+        }
+      }
+      for (const o of originais) {
+        if (!vistos.has(o.nsr)) {
+          await api('ponto-admin-editar', { token: sessao.token, funcionario_id: func.id, acao: 'remover', ref_nsr: Number(o.nsr), motivo });
+        }
+      }
+      modal.hidden = true; modalCtx = null;
+      await carregar();
+    } catch (err) {
+      modalErro.textContent = err.message || 'Não deu pra salvar.';
+    } finally {
+      modalOk.disabled = false;
+    }
+  });
+
+  // ---------- imprimir / CSV ----------
+  function escHtml(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+  $('b-imprimir').addEventListener('click', () => {
+    const func = funcAtual();
+    const dias = montarFolha(func);
+    const t = totais(dias);
+    const linhas = dias.map((d) => {
+      const abn = d.abono ? ` (${ABONO_LABEL[d.abono.tipo] || 'abono'})` : '';
+      if (!d.eventos.length) return `<tr><td>${rotuloCurto(d.data)}</td><td colspan="4">${d.abono ? ABONO_LABEL[d.abono.tipo] || 'Abono' : 'Nenhum ponto'}</td></tr>`;
+      const par = paresDoDia(d) + abn;
+      const ex = d.temCalc ? Math.max(d.saldo, 0) : 0, fa = (d.temCalc && !d.abono) ? Math.max(-d.saldo, 0) : 0;
+      return `<tr><td>${rotuloCurto(d.data)}</td><td>${par}</td><td>${d.temCalc ? fmtDur(ex) : '—'}</td><td>${d.temCalc ? fmtDur(fa) : '—'}</td><td>${d.temCalc ? fmtDur(d.saldo, true) : '—'}</td></tr>`;
+    }).join('');
+    $('area-impressao').innerHTML = `
+      <h2 style="font-family:var(--font-display)">Folha de ponto — ${escHtml(func.nome)}</h2>
+      <p>Período: ${estado.periodo.de} a ${estado.periodo.ate} · Gerado em ${new Date().toLocaleString('pt-BR')}</p>
+      <table><thead><tr><th>Dia</th><th>Entrada / Saída</th><th>Extras</th><th>Faltas</th><th>Saldo</th></tr></thead>
+      <tbody>${linhas}</tbody>
+      <tfoot><tr><td colspan="2"><b>Total</b></td><td>${fmtDur(t.ex)}</td><td>${fmtDur(t.fa)}</td><td>${fmtDur(t.saldo, true)}</td></tr></tfoot></table>`;
+    window.print();
+  });
+
+  $('b-csv').addEventListener('click', () => {
+    const func = funcAtual();
+    const dias = montarFolha(func);
+    const linhas = [['Dia', 'Data', 'Marcacoes', 'Trabalhado', 'Extras', 'Faltas', 'Saldo', 'Abono', 'Editado']];
+    dias.slice().reverse().forEach((d) => {
+      const ex = d.temCalc ? Math.max(d.saldo, 0) : 0, fa = (d.temCalc && !d.abono) ? Math.max(-d.saldo, 0) : 0;
+      linhas.push([
+        d.data.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', ''),
+        d.chave,
+        d.eventos.map((e) => hhmm(e.quando)).join(' '),
+        d.eventos.length ? fmtDur(d.trabalhado) : '',
+        d.temCalc ? fmtDur(ex) : '',
+        d.temCalc ? fmtDur(fa) : '',
+        d.temCalc ? fmtDur(d.saldo, true) : '',
+        d.abono ? (ABONO_LABEL[d.abono.tipo] || 'abono') + (d.abono.observacao ? ' - ' + d.abono.observacao : '') : '',
+        d.editado ? 'sim' : '',
+      ]);
+    });
+    const csv = linhas.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\r\n');
+    baixar(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }),
+      `ponto_${func.nome.replace(/\s+/g, '_')}_${estado.periodo.de}_a_${estado.periodo.ate}.csv`);
+  });
+
+  function baixar(blob, nome) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = nome;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  }
+
+  $('b-afd').addEventListener('click', async () => {
+    try {
+      const d = await api('ponto-admin-afd', { token: sessao.token, de: $('p-de').value, ate: $('p-ate').value });
+      baixar(new Blob([d.afd], { type: 'text/plain;charset=utf-8' }), d.nome_arquivo);
+      alert(`AFD gerado (${d.registros} marcações).\n\n${d.aviso}`);
+    } catch (err) { alert(err.message); }
+  });
+
+  $('b-integridade').addEventListener('click', async () => {
+    try {
+      const d = await api('ponto-admin-integridade', { token: sessao.token });
+      if (d.integro) alert(`✓ Cadeia íntegra.\n${d.total} registros, último NSR ${d.ultimo_nsr}.\nNenhuma marcação foi alterada por fora do sistema.`);
+      else alert(`⚠️ ATENÇÃO: ${d.quebras.length} registro(s) com hash inconsistente (NSR ${d.quebras.map((q) => q.nsr).join(', ')}).\nAlguém pode ter mexido direto no banco.`);
+    } catch (err) { alert(err.message); }
+  });
+
+  // ---------- entrada ----------
+  if (sessao) abrirPainel();
+</script>
+</body>
+</html>
