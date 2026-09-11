@@ -801,10 +801,7 @@ async function debugShopeeReturns(req, res) {
 // controle interno de presença, não o ponto oficial da folha.
 
 const crypto = require('crypto');
-
-function hashPin(pin) {
-  return crypto.createHash('sha256').update(`${pin}:${process.env.PONTO_PIN_SALT || ''}`).digest('hex');
-}
+const { hashPin, gerarTokenPonto, verificarTokenPonto, funcionarioEhAdmin, obterAdminSessao } = require('../lib/pontoAuth');
 
 // O servidor roda em UTC; a loja opera no fuso de São Paulo (UTC-3 fixo desde
 // o fim do horário de verão em 2019). Estas duas funções convertem entre um
@@ -821,11 +818,6 @@ function isoDeDiaHoraLoja(diaAAAAMMDD, horaHHMM) {
   const d = new Date(`${diaAAAAMMDD}T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00-03:00`);
   if (isNaN(d)) throw new Error('Data/hora inválida.');
   return d.toISOString();
-}
-
-async function funcionarioEhAdmin(db, funcionarioId) {
-  const rs = await db.execute({ sql: 'SELECT admin FROM funcionarios WHERE id = ? AND ativo = 1', args: [funcionarioId] });
-  return !!(rs.rows[0] && rs.rows[0].admin === 1);
 }
 
 // Auto-migração das tabelas de ponto -- roda na primeira chamada que precisar
@@ -961,26 +953,6 @@ async function jornadaSemana(db, funcionarioId) {
     };
   });
   return semana;
-}
-
-function gerarTokenPonto(funcionario) {
-  const payload = Buffer.from(JSON.stringify({ id: funcionario.id, nome: funcionario.nome })).toString('base64url');
-  const assinatura = crypto.createHmac('sha256', process.env.PONTO_TOKEN_SECRET || '').update(payload).digest('hex');
-  return `${payload}.${assinatura}`;
-}
-
-function verificarTokenPonto(token) {
-  const [payload, assinatura] = String(token || '').split('.');
-  if (!payload || !assinatura) return null;
-  const esperado = crypto.createHmac('sha256', process.env.PONTO_TOKEN_SECRET || '').update(payload).digest('hex');
-  const bufAssinatura = Buffer.from(assinatura);
-  const bufEsperado = Buffer.from(esperado);
-  if (bufAssinatura.length !== bufEsperado.length || !crypto.timingSafeEqual(bufAssinatura, bufEsperado)) return null;
-  try {
-    return JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
-  } catch {
-    return null;
-  }
 }
 
 async function debugPontoFuncionarios(req, res) {
@@ -1228,14 +1200,10 @@ async function debugPontoDefinirAdmins(req, res) {
 // Chamado pelo site do admin (outro domínio) com o PONTO_PUBLIC_SECRET na porta
 // + um token de login (ponto-login) de alguém com admin = 1, que é o gate real.
 async function exigirAdmin(req, res, db) {
-  const funcionario = verificarTokenPonto((req.body && req.body.token) || req.query.token);
-  if (!funcionario) { res.status(401).json({ ok: false, error: 'Sessão expirada, faça login de novo.' }); return null; }
-  if (!(await funcionarioEhAdmin(db, funcionario.id))) {
-    res.status(403).json({ ok: false, error: 'Seu usuário não tem acesso ao painel de ponto.' });
-    return null;
-  }
+  const resultado = await obterAdminSessao((req.body && req.body.token) || req.query.token, db);
+  if (resultado.erro) { res.status(resultado.status).json({ ok: false, error: resultado.erro }); return null; }
   await garantirEsquemaPonto(db);
-  return funcionario;
+  return resultado.funcionario;
 }
 
 // Admin: define razão social / CNPJ / endereço + ajustes (limite de batidas

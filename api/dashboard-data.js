@@ -3,16 +3,29 @@
 // chama ML/Shopee, não processa nada pesado. CPU quase zero por chamada.
 
 const { kvGet } = require('../lib/kv');
+const { getDb } = require('../lib/db');
+const { obterAdminSessao } = require('../lib/pontoAuth');
 
-// Sem isso, qualquer pessoa com a URL via pedidos reais (valores, SKUs, IDs)
-// sem precisar de login — a TV/painel viviam publicamente abertos. Segue o
-// mesmo esquema do CRON_SECRET em collect.js: se DASHBOARD_TOKEN não estiver
-// configurada, não bloqueia nada (não quebra quem ainda não configurou).
+// Duas formas de acesso, sem conflito entre elas:
+// - `?sessao=...`: sessão de login do painel (mesma usada no Ponto) — exige
+//   admin de verdade, validado no banco a cada chamada.
+// - sem `sessao` (rota usada pela TV, que não loga): segue o esquema antigo
+//   do `DASHBOARD_TOKEN` — se a env var não estiver configurada, não
+//   bloqueia nada, exatamente como sempre foi.
 module.exports = async (req, res) => {
-  const token = process.env.DASHBOARD_TOKEN;
-  if (token && req.query.token !== token) {
-    res.status(401).json({ error: 'Não autorizado' });
-    return;
+  const sessao = req.query.sessao || (req.body && req.body.sessao);
+  if (sessao) {
+    const resultado = await obterAdminSessao(sessao, getDb());
+    if (resultado.erro) {
+      res.status(resultado.status).json({ error: resultado.erro });
+      return;
+    }
+  } else {
+    const token = process.env.DASHBOARD_TOKEN;
+    if (token && req.query.token !== token) {
+      res.status(401).json({ error: 'Não autorizado' });
+      return;
+    }
   }
 
   const dados = await kvGet('entrega_turbo:ultima_coleta');
