@@ -31,23 +31,6 @@
     --sidebar-border: rgba(255,255,255,0.14);
     --ink-on-accent: #241f4d;
   }
-  body.tema-escuro {
-    --bg: #12151c;
-    --card: #1b1f29;
-    --border: #2a2f3b;
-    --text: #e6e8ec;
-    --muted: #9099ab;
-    --teal-light: #123a30;
-    --blue: #f9bb50;
-    --blue-light: #4a3a17;
-    --brand: #22c55e;
-    --brand-light: #123a24;
-    --page-bg: #0f0d24;
-  }
-  body.tema-escuro .periodo-controle select, body.tema-escuro .periodo-controle input[type="date"], body.tema-escuro .periodo-btn:not(.periodo-ativo):not(.periodo-aplicar) { background: var(--card); color: var(--text); }
-  body.tema-escuro .comparativo-linha { border-bottom-color: var(--border); }
-  body.tema-escuro .tabela-abc tbody tr:hover { background: #232837; }
-  body.tema-escuro .mov-lista li { border-bottom-color: var(--border); }
   * { box-sizing: border-box; }
   body {
     margin: 0;
@@ -87,12 +70,9 @@
   .periodo-label { color: var(--muted); margin-left: auto; }
 
   .topbar {
-    display: flex; flex-direction: column;
-    padding: 16px 28px 20px; margin: -24px -28px 18px; background: var(--sidebar-bg);
+    display: flex; align-items: center; box-sizing: border-box; min-height: 64px;
+    padding: 0 28px; margin: -24px -28px 18px; background: var(--sidebar-bg);
   }
-  .topbar-brand { display: flex; align-items: center; justify-content: flex-end; margin-bottom: 14px; }
-  .icon-btn { background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.3); border-radius: 999px; padding: 6px 14px; font-size: 12px; font-weight: 600; color: #fff; cursor: pointer; font-family: inherit; }
-  .icon-btn:hover { background: rgba(255,255,255,0.22); }
 
   /* Filtro de período dentro da área escura vira pill transparente, mesmo
      tamanho e estilo do header do painel de Ponto (altura 32px, fundo
@@ -230,13 +210,10 @@
   }
   #tabelaDesempenhoMatriz thead th { position: sticky; top: 0; z-index: 2; background: #fafbfc; }
   #tabelaDesempenhoMatriz thead th:first-child { z-index: 3; }
-  body.tema-escuro #tabelaDesempenhoMatriz thead th { background: #20242e; }
 
   .alerta-card { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border-radius: 10px; margin-bottom: 8px; font-size: 13px; border-left: 4px solid; }
   .alerta-card.vermelho { background: #fdeaea; border-left-color: var(--red); color: #7a1f1f; }
   .alerta-card.amarelo { background: #fff8e6; border-left-color: var(--yellow); color: #7a5c00; }
-  body.tema-escuro .alerta-card.vermelho { background: #3a1f1f; color: #ff9d9d; }
-  body.tema-escuro .alerta-card.amarelo { background: #3a3319; color: #ffd97a; }
   .alerta-icone { font-size: 16px; line-height: 1; }
   .alerta-vazio { color: var(--muted); font-size: 13px; padding: 8px 0; }
 
@@ -410,10 +387,6 @@
 
   <div id="painelNativoWrap">
   <header class="topbar">
-    <div class="topbar-brand">
-      <button class="icon-btn" id="btnAlternarTema" onclick="alternarTema()">🌙 Modo escuro</button>
-    </div>
-
     <div class="periodo-controle">
       <button class="periodo-btn" id="btnUltimas24h" onclick="definirUltimas24h(event)">🕐 Últimas 24 horas</button>
       <button class="periodo-btn" id="btnEsteMes" onclick="definirPeriodo('mes', event)">📅 Este mês</button>
@@ -1133,41 +1106,16 @@
     }
     toggleGrupoPonto(true);
   }
-  function corMuted() { return document.body.classList.contains('tema-escuro') ? '#a8b0bd' : '#7f8c96'; }
-  function corGrid() { return document.body.classList.contains('tema-escuro') ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'; }
-
-  function alternarTema() {
-    const escuro = document.body.classList.toggle('tema-escuro');
-    localStorage.setItem('painel_entrega_turbo_tema', escuro ? 'escuro' : 'claro');
-    document.getElementById('btnAlternarTema').textContent = escuro ? '☀️ Modo claro' : '🌙 Modo escuro';
-    if (typeof Chart !== 'undefined') Chart.defaults.color = corMuted();
-    // Redesenha os gráficos já criados para pegarem as cores do novo tema —
-    // os grids/eixos usam CORES.muted/CORES.grid, que já são "getters"
-    // dinâmicos, mas o Chart.js só recalcula ao reconstruir as options.
-    carregarExecutivo();
-    carregarProdutos();
-    carregarTodos();
-    carregarAnalytics();
-    if (dadosDesempenho) { renderizarDesempenhoEvolucao(); renderizarDesempenhoTop15(); renderizarDesempenhoVariacoes(); }
-  }
-
-  function inicializarTema() {
-    if (localStorage.getItem('painel_entrega_turbo_tema') === 'escuro') {
-      document.body.classList.add('tema-escuro');
-      document.getElementById('btnAlternarTema').textContent = '☀️ Modo claro';
-    }
-  }
-
   const CORES = {
     teal: '#17a389', yellow: '#f2c94c', gray: '#bdc3c7', blue: '#1d4ed8', red: '#eb5757',
     ml: '#f2b90c', shopee: '#ee4d2d',
-    get muted() { return corMuted(); },
-    get grid() { return corGrid(); },
+    muted: '#7f8c96',
+    grid: 'rgba(0,0,0,0.06)',
   };
   const PALETA_MULTI = [CORES.teal, CORES.blue, CORES.yellow, CORES.gray, CORES.red, '#9b59b6', '#2ecc71'];
 
   if (typeof Chart !== 'undefined') {
-    Chart.defaults.color = corMuted();
+    Chart.defaults.color = CORES.muted;
     Chart.defaults.font.size = 11;
     if (typeof ChartDataLabels !== 'undefined') Chart.register(ChartDataLabels);
   }
@@ -1373,7 +1321,7 @@
   }
 
   function corHeatmap(valor, max) {
-    if (!max || valor === 0) return document.body.classList.contains('tema-escuro') ? '#232837' : '#f2f4f6';
+    if (!max || valor === 0) return '#f2f4f6';
     const intensidade = Math.min(1, valor / max);
     // Interpola entre o teal claro e o teal forte, conforme a intensidade
     const r1 = 215, g1 = 240, b1 = 236; // teal-light aproximado
@@ -2482,7 +2430,6 @@
     }
   }
 
-  inicializarTema();
   inicializarPeriodoPadrao();
   carregar();
   carregarAnalytics();
