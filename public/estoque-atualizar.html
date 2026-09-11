@@ -177,9 +177,11 @@
 
 (function(){
   // ===================================================================
-  // Armazenamento compartilhado (contagem física) — proxy pro JSONBin,
-  // mesmo endpoint usado por estoque.html (a chave fica só no servidor).
+  // Armazenamento compartilhado (contagem física) — proxy pro JSONBin via
+  // /api/debug (mesma rota usada por estoque.html; sem api/estoque.js
+  // próprio pra não estourar o limite de 12 functions do plano Hobby).
   // ===================================================================
+  const ESTOQUE_PUBLIC_SECRET = '631ac83f9b7c5ae518c3dfe378b09ba64cd96aaba9c87f5f';
   function jsonbinConfigured(){
     return true;
   }
@@ -192,7 +194,7 @@
       // decidir o que "absorver" de volta pro estado local (absorverStockRemoto),
       // uma leitura velha fazia um campo recem-salvo aparentar ter "voltado" pro
       // valor de antes assim que qualquer outro campo era salvo em seguida.
-      const resp = await fetch('/api/estoque?tipo=contagem-get&sessao=' + encodeURIComponent(sessao.token) + '&_=' + Date.now(), {
+      const resp = await fetch('/api/debug?tipo=estoque-contagem-get&secret=' + ESTOQUE_PUBLIC_SECRET + '&sessao=' + encodeURIComponent(sessao.token) + '&_=' + Date.now(), {
         cache: 'no-store',
         headers: { 'Cache-Control': 'no-cache' }
       });
@@ -204,7 +206,7 @@
   async function jsonbinPut(record){
     try {
       const sessao = window.RicapetAuth.sessao;
-      const resp = await fetch('/api/estoque?tipo=contagem-set&sessao=' + encodeURIComponent(sessao.token), {
+      const resp = await fetch('/api/debug?tipo=estoque-contagem-set&secret=' + ESTOQUE_PUBLIC_SECRET + '&sessao=' + encodeURIComponent(sessao.token), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ record })
@@ -631,8 +633,8 @@
   }
 
   // ===================================================================
-  // Gravação no Google Sheets — via /api/estoque?tipo=sheets-log (proxy;
-  // a URL do Apps Script agora fica só no servidor, GOOGLE_SHEETS_CONTAGEM_WEBAPP_URL).
+  // Gravação no Google Sheets — via /api/debug?tipo=estoque-sheets-log
+  // (proxy; a URL do Apps Script fica só no servidor, GOOGLE_SHEETS_CONTAGEM_WEBAPP_URL).
   // ===================================================================
   function sheetsConfigured(){
     return true;
@@ -693,7 +695,7 @@
     try {
       const rows = buildRowsForSheet();
       const sessao = window.RicapetAuth.sessao;
-      const resp = await fetch('/api/estoque?tipo=sheets-log&sessao=' + encodeURIComponent(sessao.token), {
+      const resp = await fetch('/api/debug?tipo=estoque-sheets-log&secret=' + ESTOQUE_PUBLIC_SECRET + '&sessao=' + encodeURIComponent(sessao.token), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rows, data: new Date().toISOString() })
