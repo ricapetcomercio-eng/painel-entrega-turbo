@@ -58,7 +58,6 @@
   }
   h1 { font-size: 21px; margin: 0 0 4px; }
   h2 { font-size: 13px; margin: 0; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
-  .subtitle { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
 
   .aba-btn {
     display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
@@ -99,7 +98,6 @@
   .page-eyebrow { text-transform: uppercase; letter-spacing: 0.06em; font-size: 11px; font-weight: 800; color: var(--text); opacity: 0.5; margin-bottom: 4px; }
   .topbar .page-eyebrow { color: rgba(255,255,255,0.85); opacity: 1; }
   .topbar h1 { color: #fff; }
-  .topbar .subtitle { color: rgba(255,255,255,0.7); }
 
   /* Filtro de período dentro da área escura vira pill transparente, mesmo
      tamanho e estilo do header do painel de Ponto (altura 32px, fundo
@@ -424,7 +422,6 @@
 
     <div class="page-eyebrow">Logística</div>
     <h1>Painel de Logística — Flex / Turbo</h1>
-    <div class="subtitle" id="atualizado-em">Carregando...</div>
 
     <div class="periodo-controle">
       <button class="periodo-btn" id="btnUltimas24h" onclick="definirUltimas24h(event)">🕐 Últimas 24 horas</button>
@@ -2474,8 +2471,6 @@
     try {
       const resp = await fetch('/api/dashboard-data' + (TOKEN ? '?token=' + encodeURIComponent(TOKEN) : ''));
       const dados = await resp.json();
-      const atualizadoEm = document.getElementById('atualizado-em');
-      atualizadoEm.textContent = dados.atualizado_em ? 'Última atualização: ' + new Date(dados.atualizado_em).toLocaleString('pt-BR') : (dados.aviso || 'Sem dados ainda.');
 
       const pedidos = dados.pedidos || [];
       document.getElementById('total-pedidos').textContent = pedidos.length;
@@ -2492,7 +2487,7 @@
         ? '<tr><td colspan="6" class="empty">Nenhum pedido Flex no momento.</td></tr>'
         : pedidosFlex.map(p => `<tr><td>${p.conta || '-'}</td><td>${p.order_id}</td><td>${new Date(p.date_created).toLocaleString('pt-BR')}</td><td>${p.total_amount ? 'R$ ' + Number(p.total_amount).toFixed(2) : '-'}</td><td>${(p.itens || []).map(i => `${i.quantidade}x ${i.titulo}`).join('<br>')}</td><td>${p.coletado ? '<span class="status-coletado">Coletado</span>' : '<span class="status-aguardando">Aguardando coleta</span>'}</td></tr>`).join('');
     } catch (e) {
-      document.getElementById('atualizado-em').textContent = 'Erro ao carregar dados: ' + e.message;
+      console.error('Erro ao carregar dados do dashboard:', e);
     }
   }
 
