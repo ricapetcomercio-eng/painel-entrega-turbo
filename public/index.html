@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Painel Entrega Flex/Turbo — Ricapet & Thapets</title>
+<script src="assets/auth.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
 <script src="https://cdn.jsdelivr.net/npm/d3@7.8.5/dist/d3.min.js"></script>
@@ -375,10 +376,10 @@
     <hr class="sidebar-separador">
 
     <div class="sidebar-footer">
-      <div class="sidebar-avatar">R</div>
+      <div class="sidebar-avatar" id="sidebarAvatarInicial">R</div>
       <div>
-        <div class="sidebar-footer-name">Ricapet</div>
-        <div class="sidebar-footer-sub">Minha conta</div>
+        <div class="sidebar-footer-name" id="sidebarNomeUsuario">Ricapet</div>
+        <div class="sidebar-footer-sub"><a href="#" id="linkSair" style="color:inherit">Sair</a></div>
       </div>
     </div>
   </nav>
@@ -1125,6 +1126,17 @@
   // Repassa o ?token= da própria URL pro /api/dashboard-data — é o que
   // permite proteger a API com DASHBOARD_TOKEN sem exigir login na tela.
   const TOKEN = new URLSearchParams(location.search).get('token') || '';
+  // Sessão do login único (RicapetAuth.sessao vem de assets/auth.js, que já
+  // redirecionou pra /login.html se não houver sessão válida).
+  const SESSAO = (window.RicapetAuth && window.RicapetAuth.sessao) || null;
+  if (SESSAO) {
+    document.getElementById('sidebarNomeUsuario').textContent = SESSAO.nome;
+    document.getElementById('sidebarAvatarInicial').textContent = SESSAO.nome.charAt(0).toUpperCase();
+  }
+  document.getElementById('linkSair').addEventListener('click', (ev) => {
+    ev.preventDefault();
+    window.RicapetAuth.sair();
+  });
   // Repassa o mesmo token pro link "Painel TV" da barra lateral — sem
   // isso, o link fixo (sem token) leva pra uma tela vazia (401) desde que
   // DASHBOARD_TOKEN passou a proteger a API.
@@ -2409,7 +2421,10 @@
 
   async function carregar() {
     try {
-      const resp = await fetch('/api/dashboard-data' + (TOKEN ? '?token=' + encodeURIComponent(TOKEN) : ''));
+      const paramsDashboard = new URLSearchParams();
+      if (TOKEN) paramsDashboard.set('token', TOKEN);
+      if (SESSAO) paramsDashboard.set('sessao', SESSAO.token);
+      const resp = await fetch('/api/dashboard-data' + (paramsDashboard.toString() ? '?' + paramsDashboard.toString() : ''));
       const dados = await resp.json();
 
       const pedidos = dados.pedidos || [];

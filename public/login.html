@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login — Ricapet</title>
+<style>
+  :root {
+    --page-bg: #e7e9f7;
+    --sidebar-bg: #272456;
+    --card: #ffffff;
+    --border: #e6e9ed;
+    --text: #2d3436;
+    --muted: #7f8c96;
+    --blue: #f5a623;
+    --red: #eb5757;
+    --ink-on-accent: #241f4d;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    padding: 24px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--page-bg); color: var(--text);
+  }
+  .card {
+    width: 100%; max-width: 340px; background: var(--card); border: 1px solid var(--border);
+    border-radius: 16px; padding: 28px 24px; box-shadow: 0 16px 44px rgba(39,36,86,0.16);
+  }
+  .marca { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; }
+  .marca img { width: 40px; height: 40px; object-fit: contain; }
+  .marca-nome { font-size: 15px; font-weight: 800; }
+  .marca-sub { font-size: 11px; color: var(--muted); }
+  .campo { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+  .campo label { font-size: 11px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--muted); }
+  .campo input {
+    height: 44px; border-radius: 10px; border: 1px solid var(--border); background: #fbfbfe;
+    color: var(--text); padding: 0 13px; font-size: 15px; font-family: inherit;
+  }
+  .campo input:focus { outline: none; border-color: var(--blue); }
+  input[type="password"] { letter-spacing: 8px; text-align: center; font-size: 18px; }
+  .btn-entrar {
+    width: 100%; height: 44px; border: none; border-radius: 10px; background: var(--blue);
+    color: var(--ink-on-accent); font-weight: 700; font-size: 15px; cursor: pointer; margin-top: 4px;
+  }
+  .btn-entrar:disabled { opacity: 0.5; cursor: default; }
+  .erro { color: var(--red); font-size: 13px; min-height: 1.2em; margin: 10px 0 0; }
+</style>
+</head>
+<body>
+<form class="card" id="formLogin" autocomplete="off">
+  <div class="marca">
+    <img src="logo-ricapet.png" alt="Ricapet">
+    <div>
+      <div class="marca-nome">Ricapet</div>
+      <div class="marca-sub">Painel Administrativo</div>
+    </div>
+  </div>
+  <div class="campo">
+    <label for="inNome">Nome</label>
+    <input type="text" id="inNome" name="nome" required autocomplete="username">
+  </div>
+  <div class="campo">
+    <label for="inPin">PIN</label>
+    <input type="password" id="inPin" name="pin" inputmode="numeric" maxlength="8" required autocomplete="current-password">
+  </div>
+  <button type="submit" class="btn-entrar" id="btnEntrar">Entrar</button>
+  <p class="erro" id="erroLogin"></p>
+</form>
+<script>
+  const CHAVE_SESSAO = 'ricapet_sessao';
+
+  // Se já tem sessão válida, não mostra a tela de login de novo.
+  (function () {
+    try {
+      const sessao = JSON.parse(localStorage.getItem(CHAVE_SESSAO) || 'null');
+      if (sessao && sessao.token) irParaDestino();
+    } catch (e) { /* ignora sessão corrompida */ }
+  })();
+
+  function irParaDestino() {
+    const redirect = new URLSearchParams(location.search).get('redirect');
+    location.href = redirect ? decodeURIComponent(redirect) : '/';
+  }
+
+  const form = document.getElementById('formLogin');
+  const btnEntrar = document.getElementById('btnEntrar');
+  const erroLogin = document.getElementById('erroLogin');
+
+  form.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    erroLogin.textContent = '';
+    btnEntrar.disabled = true;
+    try {
+      const resp = await fetch('/api/debug?tipo=ponto-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nome: document.getElementById('inNome').value.trim(), pin: document.getElementById('inPin').value }),
+      });
+      const dados = await resp.json().catch(() => ({}));
+      if (!resp.ok || dados.ok === false) throw new Error(dados.error || 'Falha ao entrar.');
+      if (!dados.admin) throw new Error('Seu usuário não tem acesso a este painel.');
+      localStorage.setItem(CHAVE_SESSAO, JSON.stringify({ token: dados.token, nome: dados.nome }));
+      irParaDestino();
+    } catch (err) {
+      erroLogin.textContent = err.message;
+      btnEntrar.disabled = false;
+    }
+  });
+</script>
+</body>
+</html>
