@@ -39,6 +39,14 @@
   .sidebar-brand-name { font-size: 14px; font-weight: 800; color: var(--sidebar-text); line-height: 1.2; }
   .sidebar-brand-sub { font-size: 11px; color: var(--sidebar-muted); }
   .sidebar-titulo { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sidebar-muted); padding: 0 10px; margin-bottom: 10px; }
+  .sidebar-titulo-com-editar { display: flex; align-items: center; justify-content: space-between; }
+  .sidebar-editar-btn {
+    background: none; border: none; color: var(--sidebar-muted); cursor: pointer;
+    font-size: 12px; opacity: 0.35; padding: 2px 5px; border-radius: 4px; line-height: 1;
+    transition: opacity 0.15s, background 0.15s;
+  }
+  .sidebar-editar-btn:hover { opacity: 1; background: var(--sidebar-hover); }
+  .sidebar-editar-btn.ativo { opacity: 1; color: var(--accent); }
   .sidebar-link {
     display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px;
     color: var(--sidebar-text); text-decoration: none; font-size: 13px; font-weight: 600; margin-bottom: 4px;
@@ -48,6 +56,13 @@
   .sidebar-link.ativo { background: var(--accent); color: var(--ink-on-accent); }
   .sidebar-link.ativo svg { stroke: var(--ink-on-accent); }
   .sidebar-link svg { flex-shrink: 0; }
+  .sidebar.modo-edicao .sidebar-link[data-menu-key] { cursor: grab; }
+  .sidebar.modo-edicao .sidebar-link[data-menu-key]::before { content: '⠿'; opacity: 0.55; }
+  .sidebar-link[data-menu-key].arrastando { opacity: 0.35; }
+  .sidebar-link[data-menu-key].alvo-antes { box-shadow: inset 0 2px 0 var(--accent); }
+  .sidebar-link[data-menu-key].alvo-depois { box-shadow: inset 0 -2px 0 var(--accent); }
+  .sidebar-submenu { margin: 2px 0 8px 14px; padding-left: 10px; border-left: 2px solid var(--sidebar-border); }
+  .sidebar-submenu.oculto { display: none; }
   .sidebar-separador { border: none; border-top: 1px solid var(--sidebar-border); margin: 14px 0; }
   .sidebar-footer { display: flex; align-items: center; gap: 10px; padding: 10px; margin-top: auto; border-top: 1px solid var(--sidebar-border); }
   .sidebar-avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--accent); color: var(--ink-on-accent); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; flex-shrink: 0; }
@@ -111,7 +126,10 @@
     </div>
   </div>
 
-  <div class="sidebar-titulo" id="tituloPaineis">Painéis Ricapet</div>
+  <div class="sidebar-titulo sidebar-titulo-com-editar" id="tituloPaineis">
+    Painéis Ricapet
+    <button type="button" class="sidebar-editar-btn" id="btnEditarMenu" onclick="alternarEdicaoMenu()" title="Reordenar menu">✎</button>
+  </div>
 
   <a class="sidebar-link" href="/" data-menu-key="dashboard">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
@@ -123,10 +141,25 @@
     Análise de Concorrência
   </a>
 
-  <a class="sidebar-link ativo" href="#" data-menu-key="estoque">
+  <a class="sidebar-link ativo" href="#" data-menu-key="estoque" onclick="toggleGrupoEstoqueVisoes(); return false;">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8L12 3 3 8l9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>
     Estoque Adesivo
+    <svg id="chevronEstoque" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:auto; transition: transform 0.15s;"><path d="M9 18l6-6-6-6"/></svg>
   </a>
+  <div id="grupoEstoqueVisoes" class="sidebar-submenu">
+    <a class="sidebar-link" href="estoque.html" data-menu-key="reposicao">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-4"/></svg>
+      Painel de Reposição
+    </a>
+    <a class="sidebar-link ativo" href="estoque-saldo.html" data-menu-key="saldo">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+      Saldo de Estoque
+    </a>
+    <a class="sidebar-link" href="estoque-atualizar.html" data-menu-key="atualizar">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 18h6"/></svg>
+      Atualizar Estoque
+    </a>
+  </div>
 
   <a class="sidebar-link" href="/ponto.html" data-menu-key="ponto">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
@@ -139,21 +172,6 @@
   </a>
 
   <hr class="sidebar-separador">
-
-  <div class="sidebar-titulo" id="tituloVisoes">Visões</div>
-
-  <a class="sidebar-link" href="estoque.html" data-menu-key="reposicao">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-4"/></svg>
-    Painel de Reposição
-  </a>
-  <a class="sidebar-link ativo" href="estoque-saldo.html" data-menu-key="saldo">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
-    Saldo de Estoque
-  </a>
-  <a class="sidebar-link" href="estoque-atualizar.html" data-menu-key="atualizar">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 18h6"/></svg>
-    Atualizar Estoque
-  </a>
 
   <div class="sidebar-footer">
     <div class="sidebar-avatar" id="sidebarAvatarInicial">R</div>
@@ -201,6 +219,18 @@
   }
   const elLinkSair = document.getElementById('linkSair');
   if (elLinkSair) elLinkSair.addEventListener('click', (ev) => { ev.preventDefault(); window.RicapetAuth.sair(); });
+
+  // Visões aninhadas embaixo do link "Estoque Adesivo", mesmo padrão do
+  // Dashboard e do Ponto — expandido por padrão aqui porque "Estoque
+  // Adesivo" é a seção atual nesta página.
+  window.toggleGrupoEstoqueVisoes = function (forcar) {
+    const grupo = document.getElementById('grupoEstoqueVisoes');
+    const chevron = document.getElementById('chevronEstoque');
+    const expandir = typeof forcar === 'boolean' ? forcar : grupo.classList.contains('oculto');
+    grupo.classList.toggle('oculto', !expandir);
+    if (chevron) chevron.style.transform = expandir ? 'rotate(90deg)' : 'rotate(0deg)';
+  };
+  toggleGrupoEstoqueVisoes(true);
 
   let ultimoDado = null;
 
@@ -296,6 +326,113 @@
   carregar();
 })();
 
+// Reordenar o menu da sidebar (lápis ao lado de "Painéis Ricapet"): cada
+// item com data-menu-key, mais o submenu que vier logo em seguida (se
+// houver), forma uma "unidade" arrastável. Mesma chave de localStorage
+// usada no Dashboard e no Ponto (ricapet_ordem_menu_sidebar) — reordenar
+// em qualquer uma dessas páginas vale pras outras, já que é a mesma origem.
+(function () {
+  const CHAVE_ORDEM = 'ricapet_ordem_menu_sidebar';
+  const nav = document.querySelector('.sidebar');
+  const titulo = document.getElementById('tituloPaineis');
+  if (!nav || !titulo) return;
+
+  function coletarUnidades() {
+    const unidades = [];
+    let el = titulo.nextElementSibling;
+    while (el && !el.classList.contains('sidebar-separador') && !el.classList.contains('sidebar-footer')) {
+      if (el.dataset && el.dataset.menuKey) {
+        const unidade = [el];
+        if (el.nextElementSibling && el.nextElementSibling.classList.contains('sidebar-submenu')) {
+          unidade.push(el.nextElementSibling);
+        }
+        unidades.push(unidade);
+        el = unidade[unidade.length - 1].nextElementSibling;
+      } else {
+        el = el.nextElementSibling;
+      }
+    }
+    return unidades;
+  }
+
+  function salvarOrdemAtual() {
+    const chaves = coletarUnidades().map((u) => u[0].dataset.menuKey);
+    localStorage.setItem(CHAVE_ORDEM, JSON.stringify(chaves));
+  }
+
+  function aplicarOrdemSalva() {
+    let ordem;
+    try { ordem = JSON.parse(localStorage.getItem(CHAVE_ORDEM) || '[]'); } catch (e) { ordem = []; }
+    if (!ordem.length) return;
+    const unidades = coletarUnidades();
+    const mapa = new Map(unidades.map((u) => [u[0].dataset.menuKey, u]));
+    const usadas = new Set();
+    let ancora = titulo;
+    ordem.forEach((chave) => {
+      const u = mapa.get(chave);
+      if (!u) return;
+      usadas.add(chave);
+      u.forEach((elemento) => { ancora.after(elemento); ancora = elemento; });
+    });
+    unidades.forEach((u) => {
+      if (usadas.has(u[0].dataset.menuKey)) return;
+      u.forEach((elemento) => { ancora.after(elemento); ancora = elemento; });
+    });
+  }
+
+  let arrastando = null;
+
+  function configurarArrasto(u) {
+    const link = u[0];
+    link.addEventListener('dragstart', (e) => {
+      arrastando = u;
+      link.classList.add('arrastando');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    link.addEventListener('dragend', () => {
+      link.classList.remove('arrastando');
+      document.querySelectorAll('.alvo-antes, .alvo-depois').forEach((el) => el.classList.remove('alvo-antes', 'alvo-depois'));
+      arrastando = null;
+    });
+    link.addEventListener('dragover', (e) => {
+      if (!arrastando || arrastando[0] === link) return;
+      e.preventDefault();
+      const rect = link.getBoundingClientRect();
+      const depois = (e.clientY - rect.top) > rect.height / 2;
+      link.classList.toggle('alvo-antes', !depois);
+      link.classList.toggle('alvo-depois', depois);
+    });
+    link.addEventListener('dragleave', () => link.classList.remove('alvo-antes', 'alvo-depois'));
+    link.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const eraDepois = link.classList.contains('alvo-depois');
+      link.classList.remove('alvo-antes', 'alvo-depois');
+      if (!arrastando || arrastando[0] === link) return;
+      const ref = eraDepois ? u[u.length - 1].nextElementSibling : link;
+      arrastando.forEach((elemento) => link.parentNode.insertBefore(elemento, ref));
+      salvarOrdemAtual();
+    });
+  }
+
+  // Enquanto editando, clicar num item do menu só deveria servir pra
+  // arrastar — evita navegar sem querer no meio da reordenação.
+  nav.addEventListener('click', (e) => {
+    if (!nav.classList.contains('modo-edicao')) return;
+    if (e.target.closest('.sidebar-link[data-menu-key]')) { e.preventDefault(); e.stopImmediatePropagation(); }
+  }, true);
+
+  window.alternarEdicaoMenu = function () {
+    const btn = document.getElementById('btnEditarMenu');
+    const emEdicao = nav.classList.toggle('modo-edicao');
+    btn.textContent = emEdicao ? '✓' : '✎';
+    btn.classList.toggle('ativo', emEdicao);
+    btn.title = emEdicao ? 'Concluir edição do menu' : 'Reordenar menu';
+    coletarUnidades().forEach((u) => { u[0].draggable = emEdicao; });
+  };
+
+  aplicarOrdemSalva();
+  coletarUnidades().forEach(configurarArrasto);
+})();
 </script>
 </body>
 </html>
