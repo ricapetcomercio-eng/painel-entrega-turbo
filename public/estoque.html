@@ -430,7 +430,8 @@
   // puro aqui embaixo. Agora passa por /api/debug (mesma origem — reaproveita
   // a rota já existente em vez de um api/estoque.js próprio, pra não estourar
   // o limite de 12 serverless functions do plano Hobby), que guarda a chave
-  // só no servidor (env vars JSONBIN_CONTAGEM_*) e exige a sessão de login.
+  // só no servidor (env vars JSONBIN_ESTOQUE_API_KEY/BIN_ID, já usadas por
+  // lib/estoqueSaldo.js) e exige a sessão de login.
   const ESTOQUE_PUBLIC_SECRET = '631ac83f9b7c5ae518c3dfe378b09ba64cd96aaba9c87f5f';
   function jsonbinConfigured(){
     return true;
@@ -716,7 +717,7 @@
 
       setStatus(
         `Concluído! Mercado Livre: ${mlKept} linhas válidas · Shopee: ${shKept} linhas válidas · Período: ${monthLabels[0]} a ${monthLabels[monthLabels.length-1]}` +
-        (storageOk ? '' : '\nAviso: não foi possível salvar de forma compartilhada (confira as variáveis JSONBIN_CONTAGEM_API_KEY e JSONBIN_CONTAGEM_BIN_ID no servidor) — os dados valem só para esta sessão.'),
+        (storageOk ? '' : '\nAviso: não foi possível salvar de forma compartilhada (confira as variáveis JSONBIN_ESTOQUE_API_KEY e JSONBIN_ESTOQUE_BIN_ID no servidor) — os dados valem só para esta sessão.'),
         storageOk ? 'ok' : 'err'
       );
       renderLastUpdated();
@@ -759,7 +760,7 @@
     if(state === 'saving'){ el.textContent = 'Salvando…'; el.style.color = 'var(--accent-dark)'; }
     else if(state === 'saved'){ el.textContent = '✓ Salvo'; el.style.color = 'var(--success-solid)'; setTimeout(() => { if(el.textContent === '✓ Salvo') el.textContent = ''; }, 2500); }
     else if(state === 'error'){ el.textContent = '⚠ Erro ao salvar — tente de novo'; el.style.color = 'var(--danger-solid)'; }
-    else if(state === 'unavailable'){ el.textContent = '⚠ Configure JSONBIN_CONTAGEM_API_KEY e JSONBIN_CONTAGEM_BIN_ID no servidor para salvar'; el.style.color = 'var(--warning-solid)'; }
+    else if(state === 'unavailable'){ el.textContent = '⚠ Configure JSONBIN_ESTOQUE_API_KEY e JSONBIN_ESTOQUE_BIN_ID no servidor para salvar'; el.style.color = 'var(--warning-solid)'; }
   }
 
   function renderLastUpdated(){
@@ -1521,7 +1522,7 @@
       sharedNoteEl.style.display = 'block';
       sharedNoteEl.style.background = 'var(--warning-bg)';
       sharedNoteEl.style.color = 'var(--warning-text)';
-      sharedNoteEl.innerHTML = '⚠ Este painel ainda não está configurado para compartilhar dados. Configure JSONBIN_CONTAGEM_API_KEY e JSONBIN_CONTAGEM_BIN_ID nas variáveis de ambiente do servidor. Até lá, os dados só valem para esta sessão.';
+      sharedNoteEl.innerHTML = '⚠ Este painel ainda não está configurado para compartilhar dados. Configure JSONBIN_ESTOQUE_API_KEY e JSONBIN_ESTOQUE_BIN_ID nas variáveis de ambiente do servidor. Até lá, os dados só valem para esta sessão.';
     }
 
     const record = await jsonbinGet();

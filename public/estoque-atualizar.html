@@ -566,7 +566,7 @@
 
   async function init(){
     if(!jsonbinConfigured()){
-      showBanner('⚠ Este app ainda não está configurado. Configure JSONBIN_CONTAGEM_API_KEY e JSONBIN_CONTAGEM_BIN_ID nas variáveis de ambiente do servidor.', 'err');
+      showBanner('⚠ Este app ainda não está configurado. Configure JSONBIN_ESTOQUE_API_KEY e JSONBIN_ESTOQUE_BIN_ID nas variáveis de ambiente do servidor.', 'err');
       setSavePill('unavailable');
     }
 
@@ -634,7 +634,7 @@
 
   // ===================================================================
   // Gravação no Google Sheets — via /api/debug?tipo=estoque-sheets-log
-  // (proxy; a URL do Apps Script fica só no servidor, GOOGLE_SHEETS_CONTAGEM_WEBAPP_URL).
+  // (proxy; a URL do Apps Script fica só no servidor, GOOGLE_SHEETS_WEBAPP_URL).
   // ===================================================================
   function sheetsConfigured(){
     return true;
