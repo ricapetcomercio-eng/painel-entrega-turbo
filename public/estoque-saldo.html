@@ -28,19 +28,12 @@
     --sidebar-border: rgba(255,255,255,0.14);
   }
   * { box-sizing: border-box; }
-  body { margin: 0; padding: 20px 16px; background: var(--page-bg); color: var(--ink); font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
+  body { margin: 0; padding: 0; background: var(--page-bg); color: var(--ink); font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
   h1, h2, h3 { font-family: var(--font-display); }
 
-  /* ---- Moldura flutuante (ver nota igual em ponto.html) ---- */
-  #tela-painel {
-    display: flex; flex-direction: row; align-items: flex-start; min-height: calc(100vh - 40px);
-    border-radius: 20px; border: 1px solid var(--border); box-shadow: 0 30px 70px rgba(27,20,64,0.16);
-    background: linear-gradient(to right, var(--sidebar-bg) 0, var(--sidebar-bg) 240px, var(--surface) 240px, var(--surface) 100%);
-  }
-
   .sidebar {
-    width: 240px; flex-shrink: 0; position: sticky; top: 20px; z-index: 2;
-    max-height: calc(100vh - 40px);
+    width: 240px; height: 100vh; position: fixed; top: 0; left: 0; z-index: 1000;
+    background: var(--sidebar-bg); border-right: 1px solid var(--sidebar-border);
     padding: 20px 14px; box-sizing: border-box; overflow-y: auto;
     display: flex; flex-direction: column;
   }
@@ -78,12 +71,11 @@
   .sidebar-avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--accent); color: var(--ink-on-accent); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; flex-shrink: 0; }
   .sidebar-footer-name { font-size: 12px; font-weight: 700; color: var(--sidebar-text); }
   .sidebar-footer-sub { font-size: 11px; color: var(--sidebar-muted); }
-  .conteudo-principal { flex: 1; min-width: 0; }
+  .conteudo-principal { margin-left: 240px; }
   @media (max-width: 900px) {
-    body { padding: 0; }
-    #tela-painel { flex-direction: column; border-radius: 0; border: none; box-shadow: none; min-height: 100vh; background: none; }
-    .sidebar { position: static; width: 100%; max-height: none; flex-direction: row; flex-wrap: wrap; background: var(--sidebar-bg); border-right: none; border-bottom: 1px solid var(--border); }
+    .sidebar { position: static; width: 100%; height: auto; flex-direction: row; flex-wrap: wrap; border-right: none; border-bottom: 1px solid var(--border); }
     .sidebar-brand, .sidebar-footer, .sidebar-separador { display: none; }
+    .conteudo-principal { margin-left: 0; }
   }
 
   .shell { max-width: 900px; margin: 0 auto; padding: 28px 20px 60px; }
