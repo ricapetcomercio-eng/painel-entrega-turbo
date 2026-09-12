@@ -6,31 +6,33 @@
 <title>Ponto · Administração</title>
 <meta name="description" content="Painel de administração do ponto — Ricapet/Thapets.">
 <meta name="robots" content="noindex">
-<meta name="theme-color" content="#403A82">
+<meta name="theme-color" content="#372F72">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Manrope:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
 <script src="assets/auth.js"></script>
 <style>
   :root {
-    --bg: #F4F6FB; --surface: #FFFFFF; --surface-2: #EEF2F9;
+    --bg: #F6F4FB; --surface: #FFFFFF; --surface-2: #EEF2F9;
     --ink: #1B2A4A; --ink-soft: #566484; --ink-muted: #93A0BC;
-    --border: #E2E8F3; --shadow: rgba(27,42,74,0.10);
+    --border: #E5E1F0; --shadow: rgba(27,42,74,0.10);
     --brand: #f5a623; --accent: #f5a623; --accent-bg: #fdecc8; --accent-ink: #272456;
     --ink-on-accent: #241f4d;
-    --warn: #C77A08; --warn-bg: #FDF1E0;
-    --ok: #1E7A48; --ok-bg: #E4F6EC; --bad: #C23B3B; --bad-bg: #FCE9E9;
+    --warn: #B8860B; --warn-bg: #FBF1D9;
+    --ok: #2F8F5B; --ok-bg: #E4F3EA; --bad: #C1443D; --bad-bg: #FBE7E5;
     --info-bg: #E7F0FF; --info-tx: #2657C4;
-    --font-display: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    --font-mono: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-display: 'Sora', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-body: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
     --radius: 16px; --radius-sm: 10px;
-    --page-bg: #e7e9f7;
-    --sidebar-bg: #403A82;
+    --page-bg: #F6F4FB;
+    --sidebar-bg: #372F72;
     --sidebar-text: #eef2ff;
     --sidebar-muted: #9db0dd;
     --sidebar-hover: rgba(255,255,255,0.08);
     --sidebar-border: rgba(255,255,255,0.14);
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: linear-gradient(180deg, #eef0fb 0%, #e4e7f6 100%); color: var(--ink); font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
+  body { margin: 0; background: linear-gradient(180deg, #F8F7FC 0%, #F1EEFA 100%); color: var(--ink); font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
 
   /* ---- Sidebar (mesmo padrão dos outros painéis Ricapet) ---- */
   .sidebar {
@@ -38,7 +40,7 @@
     background: var(--sidebar-bg); border-right: 1px solid var(--sidebar-border);
     padding: 20px 14px; box-sizing: border-box; overflow-y: auto;
     display: flex; flex-direction: column;
-    box-shadow: 2px 0 16px rgba(64,58,130,0.12);
+    box-shadow: 2px 0 16px rgba(55,47,114,0.12);
   }
   .sidebar-brand { display: flex; align-items: center; gap: 10px; padding: 2px 10px 16px; margin-bottom: 12px; border-bottom: 1px solid var(--sidebar-border); }
   .sidebar-brand-icon { width: 40px; height: 40px; object-fit: contain; flex-shrink: 0; }
@@ -89,10 +91,18 @@
   .erro { color: var(--bad); font-size: 0.82rem; min-height: 1.1em; margin: 4px 0 0; }
 
   /* header — barra azul estilo Oitchau */
-  header { position: sticky; top: 0; z-index: 5; background: linear-gradient(135deg, var(--sidebar-bg) 0%, #4C4696 100%); box-shadow: 0 2px 14px rgba(64,58,130,0.14); }
+  header { position: sticky; top: 0; z-index: 5; background: linear-gradient(135deg, var(--sidebar-bg) 0%, #443A8C 100%); box-shadow: 0 2px 14px rgba(55,47,114,0.14); }
   .hrow { max-width: 1000px; margin: 0 auto; padding: 0 16px; min-height: 64px; box-sizing: border-box; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
   .hrow h1 { font-family: var(--font-display); font-size: 1.05rem; margin: 0; margin-right: auto; color: #fff; display: flex; flex-direction: column; gap: 2px; line-height: 1.25; }
+  .h-title-row { display: flex; align-items: center; gap: 9px; }
   .h-sub { font-size: 0.72rem; font-weight: 500; color: rgba(255,255,255,0.55); letter-spacing: 0.01em; }
+  .live-badge {
+    display: inline-flex; align-items: center; gap: 5px; font-family: var(--font-body); font-size: 0.68rem;
+    font-weight: 600; color: rgba(255,255,255,0.75); text-transform: none;
+  }
+  .live-dot { width: 6px; height: 6px; border-radius: 50%; background: #4ADE80; }
+  @media (prefers-reduced-motion: no-preference) { .live-dot { animation: pontoLivePulse 2.2s ease-in-out infinite; } }
+  @keyframes pontoLivePulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(74,222,128,0.5); } 50% { box-shadow: 0 0 0 5px rgba(74,222,128,0); } }
   .periodo { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: rgba(255,255,255,0.85); }
   .periodo input { height: 32px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.35); background: rgba(255,255,255,0.14); color: #fff; padding: 0 8px; font-size: 0.8rem; transition: background .15s ease, border-color .15s ease; }
   .periodo input::-webkit-calendar-picker-indicator { filter: invert(1); }
@@ -141,20 +151,28 @@
   .folha-topo button { height: 36px; border-radius: 9px; border: 1px solid var(--border); background: var(--surface-2); color: var(--ink-soft); padding: 0 13px; font-weight: 600; font-size: 0.82rem; cursor: pointer; transition: all .15s ease; }
   .folha-topo button:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-1px); box-shadow: 0 4px 10px rgba(245,166,35,0.18); }
 
-  .resumo { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
-  .resumo .box {
-    flex: 1; min-width: 150px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
-    padding: 12px 16px; display: flex; align-items: center; gap: 12px;
-    box-shadow: 0 2px 10px rgba(27,42,74,0.06); transition: transform .15s ease, box-shadow .15s ease;
+  .resumo {
+    display: grid; grid-template-columns: repeat(4, 1fr); margin-bottom: 18px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    box-shadow: 0 2px 10px rgba(27,42,74,0.06); overflow: hidden;
   }
-  .resumo .box:hover { transform: translateY(-2px); box-shadow: 0 10px 22px rgba(27,42,74,0.12); }
-  .resumo .box .box-ic { width: 38px; height: 38px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .resumo .box {
+    padding: 14px 18px; display: flex; align-items: center; gap: 12px;
+    border-right: 1px solid var(--border);
+  }
+  .resumo .box:last-child { border-right: none; }
+  .resumo .box .box-ic { width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
   .resumo .box.b-dias .box-ic { background: var(--surface-2); color: var(--ink-soft); }
   .resumo .box.b-extra .box-ic { background: var(--ok-bg); color: var(--ok); }
   .resumo .box.b-falta .box-ic { background: var(--bad-bg); color: var(--bad); }
   .resumo .box.b-saldo .box-ic { background: var(--accent-bg); color: var(--accent-ink); }
-  .resumo .box span { display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--ink-muted); }
-  .resumo .box b { font-family: var(--font-mono); font-size: 1.15rem; }
+  .resumo .box span { display: block; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-muted); }
+  .resumo .box b { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 1.15rem; }
+  @media (max-width: 640px) {
+    .resumo { grid-template-columns: repeat(2, 1fr); }
+    .resumo .box:nth-child(2) { border-right: none; }
+    .resumo .box:nth-child(3), .resumo .box:nth-child(4) { border-top: 1px solid var(--border); }
+  }
 
   .quadro { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow-x: auto; box-shadow: 0 2px 10px rgba(27,42,74,0.06); }
   .quadro::-webkit-scrollbar { height: 8px; }
@@ -171,6 +189,7 @@
   tr.hoje td.c-dia { color: var(--accent-ink); font-weight: 700; }
   .chip-hoje { display: inline-block; background: var(--brand); color: var(--ink-on-accent); font-size: 0.6rem; font-weight: 800; padding: 1px 7px; border-radius: 999px; margin-left: 6px; text-transform: uppercase; letter-spacing: 0.04em; vertical-align: 1px; }
   .c-dia { font-family: var(--font-body) !important; font-weight: 600; color: var(--ink-soft); text-transform: capitalize; }
+  .c-sub { display: block; font-family: var(--font-body); font-weight: 500; font-size: 0.68rem; color: var(--ink-muted); text-transform: none; margin-top: 1px; }
   .c-nenhum { color: var(--ink-muted); font-family: var(--font-body) !important; text-align: left !important; }
   .extra { color: var(--ok); } .falta { color: var(--bad); } .zero { color: var(--ink-muted); }
   .saldo.pos { color: var(--ok); font-weight: 600; } .saldo.neg { color: var(--bad); font-weight: 600; }
@@ -301,7 +320,7 @@
   <div class="conteudo-principal">
   <header>
     <div class="hrow">
-      <h1>Ponto · Administração<span class="h-sub">Jornadas, solicitações e horas da equipe</span></h1>
+      <h1><span class="h-title-row">Ponto · Administração <span class="live-badge"><span class="live-dot"></span>ao vivo</span></span><span class="h-sub">Jornadas, solicitações e horas da equipe</span></h1>
       <div class="periodo">
         <input type="date" id="p-de"> <span>até</span> <input type="date" id="p-ate">
         <button id="p-aplicar">Aplicar</button>
@@ -393,6 +412,7 @@
   };
   const rotuloCurto = (d) => d.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' }).replace('.', '');
   const rotuloLongo = (d) => d.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
+  const nomeDiaSemana = (d) => d.toLocaleDateString('pt-BR', { weekday: 'long' });
   const desde = (iso) => {
     const min = Math.round((Date.now() - new Date(iso)) / 60000);
     if (min < 60) return `há ${min} min`;
@@ -685,7 +705,8 @@
       const rot = rotuloCurto(d.data)
         + (d.ehHoje ? ' <span class="chip-hoje">Hoje</span>' : '')
         + (d.editado ? ' <span class="c-edit" title="Editado">✎</span>' : '')
-        + (d.abono ? ` <span class="c-abono" title="${(d.abono.observacao || '').replace(/"/g, '')}">${ABONO_LABEL[d.abono.tipo] || 'Abono'}</span>` : '');
+        + (d.abono ? ` <span class="c-abono" title="${(d.abono.observacao || '').replace(/"/g, '')}">${ABONO_LABEL[d.abono.tipo] || 'Abono'}</span>` : '')
+        + `<span class="c-sub">${nomeDiaSemana(d.data)}</span>`;
       const jornadaTxt = d.jdia ? `${d.jdia.entrada}–${d.jdia.saida}` : (d.previsto === 0 ? 'folga' : '—');
       const btn = `<td class="b-linha"><button data-edit="${d.chave}" title="Editar dia">✎</button></td>`;
 
