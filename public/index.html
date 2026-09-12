@@ -52,7 +52,7 @@
      position:sticky não funciona em item de flex com align-items:stretch. ---- */
   #tela-painel {
     display: flex; flex-direction: row; align-items: flex-start; min-height: calc(100vh - 40px);
-    border-radius: 20px; box-shadow: 0 30px 70px rgba(27,20,64,0.16);
+    border-radius: 20px; border: 1px solid var(--border); box-shadow: 0 30px 70px rgba(27,20,64,0.16);
     background: linear-gradient(to right, var(--sidebar-bg) 0, var(--sidebar-bg) 240px, var(--card) 240px, var(--card) 100%);
   }
   .stat-card .value { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
@@ -293,7 +293,7 @@
   .conteudo-principal { padding: 24px 28px; flex: 1; min-width: 0; }
   @media (max-width: 900px) {
     body { padding: 0; }
-    #tela-painel { flex-direction: column; border-radius: 0; box-shadow: none; min-height: 100vh; background: none; }
+    #tela-painel { flex-direction: column; border-radius: 0; border: none; box-shadow: none; min-height: 100vh; background: none; }
     .sidebar { position: static; width: 100%; max-height: none; flex-direction: row; flex-wrap: wrap; background: var(--sidebar-bg); border-right: none; border-bottom: 1px solid var(--sidebar-border); }
     .sidebar-brand, .sidebar-footer, .sidebar-separador { display: none; }
     .topbar { top: 0; border-top-right-radius: 0; }
