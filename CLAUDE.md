@@ -138,6 +138,34 @@ restrição. `vercel.json` fica vazio de propósito. Alternativa considerada e
 descartada por ora: upgrade para Vercel Pro ($20/mês), que libera cron nativo
 por minuto.
 
+## ⚠️ Risco conhecido: deploy manual via Vercel CLI pode divergir do Git
+
+O domínio de produção é `ricapetadministrativo.vercel.app` (migrado de
+`painel-entrega-turbo.vercel.app`, que passou a redirecionar e quebrava
+`fetch()` no Safari/iOS ao bater ponto). Essa migração foi feita rodando
+`vercel` CLI direto (device-code login) a partir de uma pasta local do
+projeto — **não** via push no GitHub.
+
+Isso expõe um risco real, já registrado no próprio aviso da Vercel CLI:
+*"Deploy sem `.vercel/project.json` linkado cria um projeto novo
+silenciosamente em vez de dar erro"*. Na prática, qualquer `vercel deploy`
+rodado a partir de um checkout local **desatualizado** (ex.: um clone
+antigo, numa branch parada há dias) publica o código antigo daquele
+checkout e pode acabar associado ao domínio de produção — sem que o
+GitHub `main` mude uma linha. Isso já aconteceu: o domínio chegou a
+servir uma versão de `index.html` anterior ao redesign "Console Ricapet"
+(pré-#36), enquanto o `main` já estava várias PRs à frente.
+
+**Regra**: não rodar `vercel deploy`/`vercel --prod` manualmente a partir
+de um checkout local para mudanças de rotina — deixar o deploy automático
+via GitHub (push/merge em `main`) ser a única fonte de verdade. Se um
+deploy manual for mesmo necessário (ex. troca de domínio, que não dá pra
+fazer só com push), rodar a partir de um clone **recém-sincronizado com
+`origin/main`** e, depois, conferir no dashboard da Vercel (Deployments)
+se o deployment de produção aponta pro commit correto do `main` — não
+assumir que "deploy tocado com sucesso" pela CLI significa que o domínio
+está servindo o código mais recente do Git.
+
 ## Variáveis de ambiente (Vercel → Project Settings → Environment Variables)
 
 ```
