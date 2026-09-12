@@ -52,14 +52,14 @@
 
   .aba-btn {
     display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
-    background: none; border: none; border-left: 2px solid transparent; color: var(--sidebar-text);
+    background: none; border: none; border-left: 1px solid transparent; color: var(--sidebar-text);
     font-size: 13px; font-weight: 600; padding: 9px 10px; border-radius: 8px;
     margin-bottom: 4px; cursor: pointer; white-space: nowrap; font-family: inherit;
   }
   .aba-btn svg { flex-shrink: 0; }
   .aba-btn:hover { background: var(--sidebar-hover); }
-  .aba-btn.ativa { background: rgba(245,166,35,0.13); color: #fff; border-left-color: var(--blue); font-weight: 700; }
-  .aba-btn.ativa svg { stroke: var(--blue); }
+  .aba-btn.ativa { background: rgba(139,124,246,0.16); color: #fff; border-left-color: #8B7CF6; font-weight: 700; }
+  .aba-btn.ativa svg { stroke: #8B7CF6; }
   .oculto { display: none; }
 
   .periodo-controle {
@@ -260,12 +260,12 @@
   .sidebar-editar-btn.ativo { opacity: 1; color: var(--blue); }
   .sidebar-link {
     display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px;
-    border-left: 2px solid transparent; color: var(--sidebar-text); text-decoration: none; font-size: 13px;
+    border-left: 1px solid transparent; color: var(--sidebar-text); text-decoration: none; font-size: 13px;
     font-weight: 600; margin-bottom: 4px; transition: background 0.15s, border-color 0.15s; white-space: nowrap;
   }
   .sidebar-link:hover { background: var(--sidebar-hover); }
-  .sidebar-link.ativo { background: rgba(245,166,35,0.13); color: #fff; border-left-color: var(--blue); }
-  .sidebar-link.ativo svg { stroke: var(--blue); }
+  .sidebar-link.ativo { background: rgba(139,124,246,0.16); color: #fff; border-left-color: #8B7CF6; }
+  .sidebar-link.ativo svg { stroke: #8B7CF6; }
   .sidebar-link svg { flex-shrink: 0; }
   .sidebar.modo-edicao .sidebar-link[data-menu-key] { cursor: grab; }
   .sidebar.modo-edicao .sidebar-link[data-menu-key]::before { content: '⠿'; opacity: 0.55; }
