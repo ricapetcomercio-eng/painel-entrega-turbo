@@ -318,11 +318,16 @@ async function debugEstoqueSaldo(req, res) {
 // serverless functions do plano Hobby — mesmo motivo de todo o resto deste
 // arquivo. Cada rota exige sessão de admin (obterAdminSessao), igual ao
 // resto do painel.
+//
+// Reaproveita JSONBIN_ESTOQUE_API_KEY/BIN_ID e GOOGLE_SHEETS_WEBAPP_URL —
+// já configuradas na Vercel pra lib/estoqueSaldo.js, que documenta serem as
+// MESMAS credenciais que estoque.html usava hardcoded (mesmo bin/planilha).
+// Não são variáveis novas a criar.
 async function debugEstoqueContagemGet(req, res) {
   const resultado = await obterAdminSessao((req.body && req.body.sessao) || req.query.sessao, getDb());
   if (resultado.erro) { res.status(resultado.status).json({ ok: false, error: resultado.erro }); return; }
-  const apiKey = process.env.JSONBIN_CONTAGEM_API_KEY;
-  const binId = process.env.JSONBIN_CONTAGEM_BIN_ID;
+  const apiKey = process.env.JSONBIN_ESTOQUE_API_KEY;
+  const binId = process.env.JSONBIN_ESTOQUE_BIN_ID;
   if (!apiKey || !binId) { res.status(200).json({ ok: true, record: null }); return; }
   try {
     const resp = await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`, { headers: { 'X-Master-Key': apiKey } });
@@ -337,8 +342,8 @@ async function debugEstoqueContagemGet(req, res) {
 async function debugEstoqueContagemSet(req, res) {
   const resultado = await obterAdminSessao((req.body && req.body.sessao) || req.query.sessao, getDb());
   if (resultado.erro) { res.status(resultado.status).json({ ok: false, error: resultado.erro }); return; }
-  const apiKey = process.env.JSONBIN_CONTAGEM_API_KEY;
-  const binId = process.env.JSONBIN_CONTAGEM_BIN_ID;
+  const apiKey = process.env.JSONBIN_ESTOQUE_API_KEY;
+  const binId = process.env.JSONBIN_ESTOQUE_BIN_ID;
   if (!apiKey || !binId) { res.status(200).json({ ok: false, error: 'JSONBin não configurado no servidor.' }); return; }
   try {
     const resp = await fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
@@ -355,7 +360,7 @@ async function debugEstoqueContagemSet(req, res) {
 async function debugEstoqueSheetsLog(req, res) {
   const resultado = await obterAdminSessao((req.body && req.body.sessao) || req.query.sessao, getDb());
   if (resultado.erro) { res.status(resultado.status).json({ ok: false, error: resultado.erro }); return; }
-  const url = process.env.GOOGLE_SHEETS_CONTAGEM_WEBAPP_URL;
+  const url = process.env.GOOGLE_SHEETS_WEBAPP_URL;
   if (!url) { res.status(200).json({ ok: false, error: 'Google Sheets não configurado no servidor.' }); return; }
   try {
     const resp = await fetch(url, {
