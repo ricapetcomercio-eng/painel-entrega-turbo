@@ -34,14 +34,6 @@
   * { box-sizing: border-box; }
   body { margin: 0; background: linear-gradient(180deg, #F8F7FC 0%, #F1EEFA 100%); color: var(--ink); font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
 
-  /* ---- Barra superior discreta: em vez de uma moldura flutuante ao redor
-     de tudo, só um traço fino colorido no topo da própria janela (acima até
-     da sidebar) — sinaliza a identidade sem pesar visualmente. ---- */
-  #tela-painel::before {
-    content: ''; position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 1001;
-    background: linear-gradient(90deg, var(--accent) 0%, #ffd27a 100%);
-  }
-
   /* ---- Sidebar (mesmo padrão dos outros painéis Ricapet) ---- */
   .sidebar {
     width: 240px; height: 100vh; position: fixed; top: 0; left: 0; z-index: 1000;
