@@ -2410,15 +2410,18 @@
   // (ver aplicarOrdemSalva(), já rodou antes daqui). Ou seja: se a pessoa
   // arrastou "Ponto" pro topo do menu, é o Ponto que abre por padrão.
   function ativarPainelPadrao() {
-    // Link "Análise de Concorrência" clicado a partir de outra página
-    // (Ponto/Estoque, que não têm iframe próprio) — cai aqui via
-    // /?painel=concorrencia pra abrir embutido, em vez de navegar pro
-    // domínio externo cru.
-    if (new URLSearchParams(location.search).get('painel') === 'concorrencia') {
+    // Link clicado explicitamente a partir de outra página (Ponto/Estoque)
+    // — pede um painel específico via /?painel=..., o que sempre vence a
+    // escolha automática do 1º item do menu reordenado logo abaixo. Sem
+    // isso, clicar em "Dashboard" com "Ponto" em 1º no menu reordenado só
+    // devolvia pro Ponto de novo.
+    const painelPedido = new URLSearchParams(location.search).get('painel');
+    if (painelPedido === 'concorrencia') {
       abrirPainelExterno(CONCORRENCIA_URL, document.getElementById('linkConcorrencia'));
       toggleGrupoConcorrencia(true);
       return;
     }
+    if (painelPedido === 'dashboard') { mostrarPainelNativo(); return; }
     const primeiro = document.querySelector('.sidebar-link[data-menu-key]');
     const chave = primeiro ? primeiro.dataset.menuKey : 'dashboard';
     if (chave === 'concorrencia') abrirPainelExterno(CONCORRENCIA_URL, document.getElementById('linkConcorrencia'));
