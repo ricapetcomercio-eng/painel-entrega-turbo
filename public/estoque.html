@@ -71,12 +71,12 @@
   .sidebar-editar-btn.ativo { opacity: 1; color: var(--accent); }
   .sidebar-link {
     display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px;
-    color: var(--sidebar-text); text-decoration: none; font-size: 13px; font-weight: 600; margin-bottom: 4px;
-    white-space: nowrap;
+    border-left: 3px solid transparent; color: var(--sidebar-text); text-decoration: none; font-size: 13px;
+    font-weight: 600; margin-bottom: 4px; white-space: nowrap; transition: background .15s ease, border-color .15s ease;
   }
   .sidebar-link:hover { background: var(--sidebar-hover); }
-  .sidebar-link.ativo { background: var(--accent); color: var(--ink-on-accent); }
-  .sidebar-link.ativo svg { stroke: var(--ink-on-accent); }
+  .sidebar-link.ativo { background: rgba(255,255,255,0.12); color: #fff; border-left-color: var(--accent); }
+  .sidebar-link.ativo svg { stroke: var(--accent); }
   .sidebar-link svg { flex-shrink: 0; }
   .sidebar.modo-edicao .sidebar-link[data-menu-key] { cursor: grab; }
   .sidebar.modo-edicao .sidebar-link[data-menu-key]::before { content: '⠿'; opacity: 0.55; }
