@@ -7,13 +7,13 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Estoque Ricapet">
-<meta name="theme-color" content="#272456">
+<meta name="theme-color" content="#403A82">
 <script src="assets/auth.js"></script>
 <style>
   :root {
     --bg: #F4F6FB; --surface: #FFFFFF; --surface-2: #EEF2F9;
     --ink: #1B2A4A; --ink-soft: #566484; --ink-muted: #93A0BC; --border: #E2E8F3;
-    --accent: #f5a623; --accent-dark: #272456; --accent-light: #fdecc8;
+    --accent: #f5a623; --accent-dark: #403A82; --accent-light: #fdecc8;
     --ink-on-accent: #241f4d;
     --success-bg: #E4F6EC; --success-text: #1E7A48; --success-solid: #1E7A48;
     --warning-bg: #FDF1E0; --warning-text: #6B4308; --warning-solid: #C77A08;
@@ -45,7 +45,7 @@
   .gravar-status.ok { color: var(--success-solid); font-weight: 600; }
   .gravar-status.err { color: var(--danger-solid); font-weight: 600; }
 
-  header.topbar { position: sticky; top: 0; z-index: 10; background: var(--accent-dark); color: #fff; padding: 16px 18px 14px; }
+  header.topbar { position: sticky; top: 0; z-index: 10; background: linear-gradient(135deg, var(--accent-dark) 0%, #4C4696 100%); box-shadow: 0 2px 14px rgba(64,58,130,0.14); color: #fff; padding: 16px 18px 14px; }
   header.topbar h1 { font-family: var(--font-display); font-size: 18px; font-weight: 700; margin: 0 0 2px; }
   header.topbar p { font-size: 12px; margin: 0; opacity: .85; }
   header.topbar .save-pill { display: inline-block; margin-top: 8px; font-size: 11.5px; font-weight: 600; padding: 4px 10px; border-radius: 999px; background: rgba(255,255,255,.15); }
