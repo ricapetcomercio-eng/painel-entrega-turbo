@@ -30,7 +30,7 @@
     --sidebar-border: rgba(255,255,255,0.14);
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--page-bg); color: var(--ink); font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
+  body { margin: 0; background: linear-gradient(180deg, #eef0fb 0%, #e4e7f6 100%); color: var(--ink); font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
 
   /* ---- Sidebar (mesmo padrão dos outros painéis Ricapet) ---- */
   .sidebar {
@@ -38,6 +38,7 @@
     background: var(--sidebar-bg); border-right: 1px solid var(--sidebar-border);
     padding: 20px 14px; box-sizing: border-box; overflow-y: auto;
     display: flex; flex-direction: column;
+    box-shadow: 4px 0 24px rgba(20,18,50,0.18);
   }
   .sidebar-brand { display: flex; align-items: center; gap: 10px; padding: 2px 10px 16px; margin-bottom: 12px; border-bottom: 1px solid var(--sidebar-border); }
   .sidebar-brand-icon { width: 40px; height: 40px; object-fit: contain; flex-shrink: 0; }
@@ -55,7 +56,7 @@
   .sidebar-link {
     display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px;
     color: var(--sidebar-text); text-decoration: none; font-size: 13px; font-weight: 600; margin-bottom: 4px;
-    white-space: nowrap;
+    white-space: nowrap; transition: background .15s ease, color .15s ease;
   }
   .sidebar-link:hover { background: var(--sidebar-hover); }
   .sidebar-link.ativo { background: var(--accent); color: var(--ink-on-accent); }
@@ -88,16 +89,17 @@
   .erro { color: var(--bad); font-size: 0.82rem; min-height: 1.1em; margin: 4px 0 0; }
 
   /* header — barra azul estilo Oitchau */
-  header { position: sticky; top: 0; z-index: 5; background: var(--accent-ink); }
+  header { position: sticky; top: 0; z-index: 5; background: linear-gradient(135deg, var(--accent-ink) 0%, #34306e 100%); box-shadow: 0 4px 20px rgba(15,13,40,0.18); }
   .hrow { max-width: 1000px; margin: 0 auto; padding: 0 16px; min-height: 64px; box-sizing: border-box; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-  .hrow h1 { font-family: var(--font-display); font-size: 1.05rem; margin: 0; margin-right: auto; color: #fff; }
+  .hrow h1 { font-family: var(--font-display); font-size: 1.05rem; margin: 0; margin-right: auto; color: #fff; display: flex; flex-direction: column; gap: 2px; line-height: 1.25; }
+  .h-sub { font-size: 0.72rem; font-weight: 500; color: rgba(255,255,255,0.55); letter-spacing: 0.01em; }
   .periodo { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: rgba(255,255,255,0.85); }
-  .periodo input { height: 32px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.35); background: rgba(255,255,255,0.14); color: #fff; padding: 0 8px; font-size: 0.8rem; }
+  .periodo input { height: 32px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.35); background: rgba(255,255,255,0.14); color: #fff; padding: 0 8px; font-size: 0.8rem; transition: background .15s ease, border-color .15s ease; }
   .periodo input::-webkit-calendar-picker-indicator { filter: invert(1); }
-  .periodo button, .chip-sair { height: 32px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.35); background: rgba(255,255,255,0.14); color: #fff; padding: 0 12px; font-size: 0.8rem; font-weight: 600; cursor: pointer; }
+  .periodo button, .chip-sair { height: 32px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.35); background: rgba(255,255,255,0.14); color: #fff; padding: 0 12px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: background .15s ease, border-color .15s ease, color .15s ease, transform .1s ease; }
   .periodo button:hover, .chip-sair:hover { background: rgba(255,255,255,0.24); }
   #admin-nome { color: #fff !important; }
-  .periodo button:hover, .chip-sair:hover { border-color: var(--accent); color: var(--accent); }
+  .periodo button:hover, .chip-sair:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-1px); }
 
   /* tabs */
   .tabs { display: flex; flex-direction: column; gap: 2px; }
@@ -105,20 +107,28 @@
     display: flex; align-items: center; width: 100%; text-align: left;
     background: none; border: none; border-left: 3px solid transparent; border-radius: 8px;
     color: var(--sidebar-text); font-weight: 600; font-size: 13px; padding: 9px 10px; cursor: pointer; font-family: inherit;
+    transition: background .15s ease, color .15s ease;
   }
   .tabs button:hover { background: var(--sidebar-hover); }
   .tabs button.ativo { background: var(--accent); color: var(--ink-on-accent); font-weight: 700; }
   .tabs .badge { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; margin-left: 8px; border-radius: 999px; background: var(--bad); color: #fff; font-size: 0.7rem; font-weight: 700; }
 
   /* solicitações */
-  .sol-card { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--warn); border-radius: var(--radius-sm); padding: 14px 16px; margin-bottom: 10px; }
+  .sol-card {
+    background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--warn);
+    border-radius: var(--radius); padding: 14px 16px; margin-bottom: 10px;
+    box-shadow: 0 2px 10px rgba(27,42,74,0.07); transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .sol-card:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(27,42,74,0.14); }
   .sol-card.resolvida { border-left-color: var(--border); opacity: 0.72; }
+  .sol-card.resolvida:hover { transform: none; box-shadow: 0 2px 10px rgba(27,42,74,0.07); }
   .sol-top { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
   .sol-top b { font-family: var(--font-display); }
   .sol-top .quando { color: var(--ink-muted); font-size: 0.78rem; }
   .sol-motivo { font-size: 0.9rem; color: var(--ink-soft); margin: 4px 0 12px; white-space: pre-wrap; }
   .sol-acoes { display: flex; gap: 8px; flex-wrap: wrap; }
-  .sol-acoes button { height: 34px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2); color: var(--ink-soft); padding: 0 14px; font-weight: 600; font-size: 0.82rem; cursor: pointer; }
+  .sol-acoes button { height: 34px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2); color: var(--ink-soft); padding: 0 14px; font-weight: 600; font-size: 0.82rem; cursor: pointer; transition: all .15s ease; }
+  .sol-acoes button:hover { transform: translateY(-1px); }
   .sol-acoes .b-abrir:hover { border-color: var(--accent); color: var(--accent); }
   .sol-acoes .b-aprovar:hover { border-color: var(--ok); color: var(--ok); }
   .sol-acoes .b-recusar:hover { border-color: var(--bad); color: var(--bad); }
@@ -126,24 +136,40 @@
 
   /* folha */
   .folha-topo { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
-  .folha-topo select { height: 38px; border-radius: 9px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); padding: 0 12px; font-size: 0.9rem; }
+  .folha-topo select { height: 38px; border-radius: 9px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); padding: 0 12px; font-size: 0.9rem; transition: border-color .15s ease; }
   .folha-topo .espaco { margin-left: auto; }
-  .folha-topo button { height: 36px; border-radius: 9px; border: 1px solid var(--border); background: var(--surface-2); color: var(--ink-soft); padding: 0 13px; font-weight: 600; font-size: 0.82rem; cursor: pointer; }
-  .folha-topo button:hover { border-color: var(--accent); color: var(--accent); }
+  .folha-topo button { height: 36px; border-radius: 9px; border: 1px solid var(--border); background: var(--surface-2); color: var(--ink-soft); padding: 0 13px; font-weight: 600; font-size: 0.82rem; cursor: pointer; transition: all .15s ease; }
+  .folha-topo button:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-1px); box-shadow: 0 4px 10px rgba(245,166,35,0.18); }
 
-  .resumo { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
-  .resumo .box { flex: 1; min-width: 120px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; }
+  .resumo { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+  .resumo .box {
+    flex: 1; min-width: 150px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 12px 16px; display: flex; align-items: center; gap: 12px;
+    box-shadow: 0 2px 10px rgba(27,42,74,0.06); transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .resumo .box:hover { transform: translateY(-2px); box-shadow: 0 10px 22px rgba(27,42,74,0.12); }
+  .resumo .box .box-ic { width: 38px; height: 38px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .resumo .box.b-dias .box-ic { background: var(--surface-2); color: var(--ink-soft); }
+  .resumo .box.b-extra .box-ic { background: var(--ok-bg); color: var(--ok); }
+  .resumo .box.b-falta .box-ic { background: var(--bad-bg); color: var(--bad); }
+  .resumo .box.b-saldo .box-ic { background: var(--accent-bg); color: var(--accent-ink); }
   .resumo .box span { display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--ink-muted); }
   .resumo .box b { font-family: var(--font-mono); font-size: 1.15rem; }
 
-  .quadro { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow-x: auto; }
+  .quadro { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow-x: auto; box-shadow: 0 2px 10px rgba(27,42,74,0.06); }
+  .quadro::-webkit-scrollbar { height: 8px; }
+  .quadro::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; }
+  .quadro::-webkit-scrollbar-thumb:hover { background: var(--ink-muted); }
   table { width: 100%; border-collapse: collapse; min-width: 560px; }
   th { text-align: center; font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.02em; color: var(--ink-muted); padding: 9px 8px; background: var(--surface-2); border-bottom: 1px solid var(--border); white-space: nowrap; }
   th:first-child, td:first-child { text-align: left; padding-left: 14px; }
   td { padding: 9px 8px; border-bottom: 1px solid var(--border); text-align: center; font-family: var(--font-mono); font-size: 0.8rem; white-space: nowrap; }
+  tbody tr { transition: background-color .12s ease; }
+  tbody tr:hover td:not(.st-ok):not(.st-atraso):not(.st-falta):not(.st-abono) { background: var(--surface-2); }
   tbody tr:last-child td { border-bottom: none; }
   tr.hoje td:first-child { box-shadow: inset 3px 0 0 var(--brand); }
   tr.hoje td.c-dia { color: var(--accent-ink); font-weight: 700; }
+  .chip-hoje { display: inline-block; background: var(--brand); color: var(--ink-on-accent); font-size: 0.6rem; font-weight: 800; padding: 1px 7px; border-radius: 999px; margin-left: 6px; text-transform: uppercase; letter-spacing: 0.04em; vertical-align: 1px; }
   .c-dia { font-family: var(--font-body) !important; font-weight: 600; color: var(--ink-soft); text-transform: capitalize; }
   .c-nenhum { color: var(--ink-muted); font-family: var(--font-body) !important; text-align: left !important; }
   .extra { color: var(--ok); } .falta { color: var(--bad); } .zero { color: var(--ink-muted); }
@@ -160,8 +186,8 @@
   tfoot td { border-top: 2px solid var(--border); font-family: var(--font-body); font-weight: 700; font-size: 0.75rem; padding: 11px 8px; }
   tfoot td.extra, tfoot td.falta, tfoot td.saldo { font-family: var(--font-mono); }
   .b-linha { font-family: var(--font-body) !important; }
-  .b-linha button { border: 1px solid var(--border); background: var(--surface-2); color: var(--ink-muted); border-radius: 7px; width: 26px; height: 24px; cursor: pointer; }
-  .b-linha button:hover { border-color: var(--accent); color: var(--accent); }
+  .b-linha button { border: 1px solid var(--border); background: var(--surface-2); color: var(--ink-muted); border-radius: 7px; width: 26px; height: 24px; cursor: pointer; transition: all .15s ease; }
+  .b-linha button:hover { border-color: var(--accent); color: var(--accent); transform: scale(1.08); }
 
   /* visão geral */
   .vg-linha { cursor: pointer; }
@@ -179,12 +205,17 @@
   .m-label { display: block; font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; color: var(--ink-muted); margin: 8px 0 6px; }
   .modal-card textarea { width: 100%; border: 1px solid var(--border); border-radius: 9px; background: var(--surface-2); color: var(--ink); padding: 10px; font-size: 0.9rem; font-family: var(--font-body); resize: vertical; }
   .modal-acoes { display: flex; gap: 10px; margin-top: 16px; }
-  .modal-acoes button { flex: 1; height: 42px; border-radius: 999px; font-weight: 700; font-size: 0.9rem; cursor: pointer; }
+  .modal-acoes button { flex: 1; height: 42px; border-radius: 999px; font-weight: 700; font-size: 0.9rem; cursor: pointer; transition: all .15s ease; }
   .modal-acoes .cancelar { border: 1px solid var(--border); background: none; color: var(--ink-soft); }
+  .modal-acoes .cancelar:hover { background: var(--surface-2); }
   .modal-acoes .ok { border: none; background: var(--brand); color: var(--ink-on-accent); }
+  .modal-acoes .ok:hover:not(:disabled) { filter: brightness(1.06); transform: translateY(-1px); box-shadow: 0 8px 18px rgba(245,166,35,0.35); }
   .modal-acoes .ok:disabled { opacity: 0.5; }
 
-  .vazio { color: var(--ink-muted); font-size: 0.9rem; text-align: center; padding: 30px 10px; }
+  .vazio { color: var(--ink-muted); font-size: 0.95rem; text-align: center; padding: 48px 16px; line-height: 1.6; }
+
+  @keyframes fadeInUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .shell { animation: fadeInUp .35s ease; }
   .rodape-nota { color: var(--ink-muted); font-size: 0.78rem; line-height: 1.5; margin: 12px 2px 0; max-width: 640px; }
   .jorn-row input[type="time"], .jorn-row input[type="number"] {
     height: 30px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface-2);
@@ -270,7 +301,7 @@
   <div class="conteudo-principal">
   <header>
     <div class="hrow">
-      <h1>Ponto · Administração</h1>
+      <h1>Ponto · Administração<span class="h-sub">Jornadas, solicitações e horas da equipe</span></h1>
       <div class="periodo">
         <input type="date" id="p-de"> <span>até</span> <input type="date" id="p-ate">
         <button id="p-aplicar">Aplicar</button>
@@ -368,6 +399,12 @@
     if (min < 1440) return `há ${Math.round(min / 60)} h`;
     return `há ${Math.round(min / 1440)} d`;
   };
+
+  // ícones dos cards de resumo (por funcionário)
+  const ICONE_RELOGIO = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
+  const ICONE_SUBIU = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></svg>';
+  const ICONE_DESCEU = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14"/><path d="M19 12l-7 7-7-7"/></svg>';
+  const ICONE_SALDO = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18"/><path d="M5 7h14"/><path d="M5 7l-2.5 5.2a3 3 0 0 0 5.6 0L5 7z"/><path d="M19 7l-2.5 5.2a3 3 0 0 0 5.6 0L19 7z"/></svg>';
 
   // ---------- sessão ----------
   // assets/auth.js já garantiu, antes desta página carregar, que existe uma
@@ -639,13 +676,14 @@
     const t = totais(dias);
 
     $('func-resumo').innerHTML = `
-      <div class="box"><span>Dias com ponto</span><b>${t.diasComPonto}</b></div>
-      <div class="box"><span>Horas extras</span><b class="extra">${fmtDur(t.ex)}</b></div>
-      <div class="box"><span>Horas faltantes</span><b class="falta">${fmtDur(t.fa)}</b></div>
-      <div class="box"><span>Saldo do período</span><b class="${t.saldo > 0 ? 'saldo pos' : t.saldo < 0 ? 'saldo neg' : 'zero'}">${fmtDur(t.saldo, true)}</b></div>`;
+      <div class="box b-dias"><div class="box-ic">${ICONE_RELOGIO}</div><div><span>Dias com ponto</span><b>${t.diasComPonto}</b></div></div>
+      <div class="box b-extra"><div class="box-ic">${ICONE_SUBIU}</div><div><span>Horas extras</span><b class="extra">${fmtDur(t.ex)}</b></div></div>
+      <div class="box b-falta"><div class="box-ic">${ICONE_DESCEU}</div><div><span>Horas faltantes</span><b class="falta">${fmtDur(t.fa)}</b></div></div>
+      <div class="box b-saldo"><div class="box-ic">${ICONE_SALDO}</div><div><span>Saldo do período</span><b class="${t.saldo > 0 ? 'saldo pos' : t.saldo < 0 ? 'saldo neg' : 'zero'}">${fmtDur(t.saldo, true)}</b></div></div>`;
 
     const linha = (d) => {
       const rot = rotuloCurto(d.data)
+        + (d.ehHoje ? ' <span class="chip-hoje">Hoje</span>' : '')
         + (d.editado ? ' <span class="c-edit" title="Editado">✎</span>' : '')
         + (d.abono ? ` <span class="c-abono" title="${(d.abono.observacao || '').replace(/"/g, '')}">${ABONO_LABEL[d.abono.tipo] || 'Abono'}</span>` : '');
       const jornadaTxt = d.jdia ? `${d.jdia.entrada}–${d.jdia.saida}` : (d.previsto === 0 ? 'folga' : '—');
