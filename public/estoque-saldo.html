@@ -5,21 +5,23 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Saldo de Estoque — Ricapet · Thapets</title>
 <script src="assets/auth.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Manrope:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
 <style>
   :root {
-    --bg: #F4F6FB; --surface: #FFFFFF; --surface-2: #EEF2F9;
-    --ink: #1B2A4A; --ink-soft: #566484; --ink-muted: #93A0BC; --border: #E2E8F3;
+    --bg: #F6F4FB; --surface: #FFFFFF; --surface-2: #EEF2F9;
+    --ink: #1B2A4A; --ink-soft: #566484; --ink-muted: #93A0BC; --border: #E5E1F0;
     --accent: #f5a623; --accent-dark: #272456; --accent-light: #fdecc8;
     --ink-on-accent: #241f4d;
-    --danger-bg: #FCE9E9; --danger-text: #8A2A24; --danger-solid: #C23B3B;
-    --warning-bg: #FDF1E0; --warning-text: #6B4308;
-    --font-display: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    --font-mono: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    --brand: #1E7A48;
-    --brand-light: #E4F6EC;
-    --page-bg: #e7e9f7;
-    --sidebar-bg: #403A82;
+    --danger-bg: #FBE7E5; --danger-text: #8A2A24; --danger-solid: #C1443D;
+    --warning-bg: #FBF1D9; --warning-text: #6B4308;
+    --font-display: 'Sora', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-body: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
+    --brand: #2F8F5B;
+    --brand-light: #E4F3EA;
+    --page-bg: #F6F4FB;
+    --sidebar-bg: #372F72;
     --sidebar-text: #eef2ff;
     --sidebar-muted: #9db0dd;
     --sidebar-hover: rgba(255,255,255,0.08);
@@ -27,13 +29,14 @@
   }
   * { box-sizing: border-box; }
   body { margin: 0; padding: 0; background: var(--page-bg); color: var(--ink); font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
+  h1, h2, h3 { font-family: var(--font-display); }
 
   .sidebar {
     width: 240px; height: 100vh; position: fixed; top: 0; left: 0; z-index: 1000;
     background: var(--sidebar-bg); border-right: 1px solid var(--sidebar-border);
     padding: 20px 14px; box-sizing: border-box; overflow-y: auto;
     display: flex; flex-direction: column;
-    box-shadow: 2px 0 16px rgba(64,58,130,0.12);
+    box-shadow: 2px 0 16px rgba(55,47,114,0.12);
   }
   .sidebar-brand { display: flex; align-items: center; gap: 10px; padding: 2px 10px 16px; margin-bottom: 12px; border-bottom: 1px solid var(--sidebar-border); }
   .sidebar-brand-icon { width: 40px; height: 40px; object-fit: contain; flex-shrink: 0; }
@@ -80,12 +83,22 @@
   h1 { font-family: var(--font-display); font-size: 22px; font-weight: 700; margin: 0 0 4px; }
   .sub { font-size: 13.5px; color: var(--ink-soft); margin: 0 0 20px; max-width: 60ch; }
 
-  .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 18px; }
-  .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
-  .kpi .k-label { font-size: 11px; color: var(--ink-muted); margin-bottom: 4px; }
-  .kpi .k-value { font-family: var(--font-mono); font-size: 18px; font-weight: 600; }
+  .kpi-row {
+    display: grid; grid-template-columns: repeat(3, 1fr); margin-bottom: 18px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius, 14px);
+    box-shadow: 0 2px 10px rgba(27,42,74,0.06); overflow: hidden;
+  }
+  .kpi { padding: 14px 16px; border-right: 1px solid var(--border); }
+  .kpi:last-child { border-right: none; }
+  .kpi .k-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: var(--ink-muted); margin-bottom: 4px; }
+  .kpi .k-value { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 18px; font-weight: 600; }
   .kpi.warn .k-value { color: var(--warning-text); }
   .kpi.danger .k-value { color: var(--danger-text); }
+  @media (max-width: 560px) {
+    .kpi-row { grid-template-columns: 1fr; }
+    .kpi { border-right: none; }
+    .kpi:not(:first-child) { border-top: 1px solid var(--border); }
+  }
 
   .toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
   .toolbar input[type="text"] {

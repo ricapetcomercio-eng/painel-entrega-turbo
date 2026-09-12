@@ -5,33 +5,35 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Painel de Reposição — Ricapet · Thapets</title>
 <script src="assets/auth.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Manrope:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
 <style>
   :root {
-    --bg: #F4F6FB;
+    --bg: #F6F4FB;
     --surface: #FFFFFF;
     --surface-2: #EEF2F9;
-    --surface-3: #E2E8F3;
+    --surface-3: #E5E1F0;
     --ink: #1B2A4A;
     --ink-soft: #566484;
     --ink-muted: #93A0BC;
-    --border: #E2E8F3;
+    --border: #E5E1F0;
     --accent: #f5a623;
     --accent-dark: #272456;
     --accent-light: #fdecc8;
     --ink-on-accent: #241f4d;
-    --danger-bg: #FCE9E9; --danger-text: #8A2A24; --danger-solid: #C23B3B;
-    --warning-bg: #FDF1E0; --warning-text: #6B4308; --warning-solid: #C77A08;
-    --success-bg: #E4F6EC; --success-text: #1E7A48; --success-solid: #1E7A48;
+    --danger-bg: #FBE7E5; --danger-text: #8A2A24; --danger-solid: #C1443D;
+    --warning-bg: #FBF1D9; --warning-text: #6B4308; --warning-solid: #B8860B;
+    --success-bg: #E4F3EA; --success-text: #2F8F5B; --success-solid: #2F8F5B;
     --neutral-bg: #EEF2F9; --neutral-text: #566484;
     --radius: 14px;
     --radius-sm: 9px;
-    --font-display: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    --font-mono: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    --brand: #1E7A48;
-    --brand-light: #E4F6EC;
-    --page-bg: #e7e9f7;
-    --sidebar-bg: #403A82;
+    --font-display: 'Sora', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-body: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
+    --brand: #2F8F5B;
+    --brand-light: #E4F3EA;
+    --page-bg: #F6F4FB;
+    --sidebar-bg: #372F72;
     --sidebar-text: #eef2ff;
     --sidebar-muted: #9db0dd;
     --sidebar-hover: rgba(255,255,255,0.08);
@@ -44,6 +46,7 @@
     -webkit-font-smoothing: antialiased;
   }
   ::selection { background: var(--accent-light); color: var(--accent-dark); }
+  h1, h2, h3, .roll-stock-title { font-family: var(--font-display); }
 
   /* ---------- sidebar (mesmo padrão dos outros painéis Ricapet) ---------- */
   .sidebar {
@@ -51,7 +54,7 @@
     background: var(--sidebar-bg); border-right: 1px solid var(--sidebar-border);
     padding: 20px 14px; box-sizing: border-box; overflow-y: auto;
     display: flex; flex-direction: column; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    box-shadow: 2px 0 16px rgba(64,58,130,0.12);
+    box-shadow: 2px 0 16px rgba(55,47,114,0.12);
   }
   .sidebar-brand { display: flex; align-items: center; gap: 10px; padding: 2px 10px 16px; margin-bottom: 12px; border-bottom: 1px solid var(--sidebar-border); }
   .sidebar-brand-icon { width: 40px; height: 40px; object-fit: contain; flex-shrink: 0; }
@@ -99,12 +102,22 @@
 
   /* Barra cheia no topo do conteúdo, mesmo azul-marinho da sidebar e do
      header do painel de Ponto — igual ao topbar do painel-entrega-turbo. */
-  .topbar-full { background: linear-gradient(135deg, var(--sidebar-bg) 0%, #4C4696 100%); box-shadow: 0 2px 14px rgba(64,58,130,0.14); margin-bottom: 20px; min-height: 64px; box-sizing: border-box; position: sticky; top: 0; z-index: 5; }
+  .topbar-full { background: linear-gradient(135deg, var(--sidebar-bg) 0%, #443A8C 100%); box-shadow: 0 2px 14px rgba(55,47,114,0.14); margin-bottom: 20px; min-height: 64px; box-sizing: border-box; position: sticky; top: 0; z-index: 5; }
 
-  .kpi-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 28px; }
-  .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 13px 16px; }
-  .kpi .k-label { font-size: 11.5px; color: var(--ink-muted); margin-bottom: 5px; }
-  .kpi .k-value { font-family: var(--font-mono); font-size: 19px; font-weight: 600; color: var(--ink); }
+  .kpi-strip {
+    display: grid; grid-template-columns: repeat(4, 1fr); margin-bottom: 28px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    box-shadow: 0 2px 10px rgba(27,42,74,0.06); overflow: hidden;
+  }
+  .kpi { padding: 14px 18px; border-right: 1px solid var(--border); }
+  .kpi:last-child { border-right: none; }
+  .kpi .k-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: var(--ink-muted); margin-bottom: 5px; }
+  .kpi .k-value { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 19px; font-weight: 600; color: var(--ink); }
+  @media (max-width: 640px) {
+    .kpi-strip { grid-template-columns: repeat(2, 1fr); }
+    .kpi:nth-child(2) { border-right: none; }
+    .kpi:nth-child(3), .kpi:nth-child(4) { border-top: 1px solid var(--border); }
+  }
 
   /* ---------- layout: stepper rail + content ---------- */
   .layout { display: grid; grid-template-columns: 56px 1fr; gap: 24px; align-items: start; }
@@ -195,10 +208,10 @@
   @media (max-width: 560px) { .medida-row { grid-template-columns: 1fr; gap: 6px; } }
 
   /* ---------- step 4: resultado ---------- */
-  .hero-total { background: linear-gradient(135deg, var(--accent-dark), var(--accent)); border-radius: var(--radius); padding: 22px 26px; margin-bottom: 16px; color: #fff; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-  .hero-total .h-label { font-size: 13px; opacity: .85; margin-bottom: 4px; }
+  .hero-total { background: linear-gradient(135deg, var(--sidebar-bg), var(--accent)); border-radius: var(--radius); padding: 22px 26px; margin-bottom: 16px; color: #fff; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .hero-total .h-label { font-family: var(--font-display); font-size: 13px; opacity: .85; margin-bottom: 4px; }
   .hero-total .h-label strong { opacity: 1; }
-  .hero-total .h-value { font-family: var(--font-mono); font-size: 34px; font-weight: 600; }
+  .hero-total .h-value { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 34px; font-weight: 600; }
   .hero-total .h-sub { font-size: 11.5px; opacity: .75; margin-top: 4px; }
 
   .cor-result-card { border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 10px; overflow: hidden; }

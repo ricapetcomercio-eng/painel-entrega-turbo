@@ -8,11 +8,13 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
 <script src="https://cdn.jsdelivr.net/npm/d3@7.8.5/dist/d3.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Manrope:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
 <style>
   :root {
-    --bg: #F4F6FB;
+    --bg: #F6F4FB;
     --card: #ffffff;
-    --border: #E2E8F3;
+    --border: #E5E1F0;
     --text: #1B2A4A;
     --muted: #566484;
     --teal: #1E9E86;
@@ -21,25 +23,31 @@
     --gray: #C3CBE0;
     --blue: #f5a623;
     --blue-light: #fdecc8;
-    --red: #D65B5B;
-    --brand: #1E7A48;
-    --brand-light: #E4F6EC;
-    --page-bg: #e7e9f7;
-    --sidebar-bg: #403A82;
+    --red: #C1443D;
+    --brand: #2F8F5B;
+    --brand-light: #E4F3EA;
+    --page-bg: #F6F4FB;
+    --sidebar-bg: #372F72;
     --sidebar-text: #f3f2fb;
     --sidebar-muted: #9b97c9;
     --sidebar-hover: rgba(255,255,255,0.08);
     --sidebar-border: rgba(255,255,255,0.14);
     --ink-on-accent: #241f4d;
+    --font-display: 'Sora', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-body: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
   }
   * { box-sizing: border-box; }
   body {
     margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: var(--font-body);
     background: var(--page-bg);
     color: var(--text);
     padding: 24px;
   }
+  .secao-titulo, .comparativo-titulo, .card-head, .card-header, h2 { font-family: var(--font-display); }
+  .stat-card .value { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  .icon-stat .valor { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
   h2 { font-size: 13px; margin: 0; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
 
   .aba-btn {
@@ -72,8 +80,8 @@
 
   .topbar {
     display: flex; align-items: center; box-sizing: border-box; min-height: 64px;
-    padding: 0 28px; margin: -24px -28px 18px; background: linear-gradient(135deg, var(--sidebar-bg) 0%, #4C4696 100%);
-    box-shadow: 0 2px 14px rgba(64,58,130,0.14);
+    padding: 0 28px; margin: -24px -28px 18px; background: linear-gradient(135deg, var(--sidebar-bg) 0%, #443A8C 100%);
+    box-shadow: 0 2px 14px rgba(55,47,114,0.14);
     position: sticky; top: 0; z-index: 5;
   }
 
@@ -149,7 +157,7 @@
   .empty { text-align: center; padding: 40px; color: var(--muted); }
   .secao-titulo { font-size: 15px; font-weight: 700; margin: 28px 0 12px; color: var(--text); }
 
-  .stat-card { position: relative; background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); display: flex; flex-direction: column; }
+  .stat-card { position: relative; background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; box-shadow: 0 2px 8px rgba(27,42,74,0.05); display: flex; flex-direction: column; }
   .stat-icon-wrap { position: absolute; top: 14px; right: 14px; width: 30px; height: 30px; border-radius: 9px; display: flex; align-items: center; justify-content: center; }
   .stat-icon-wrap svg { width: 16px; height: 16px; }
   .tone-green { background: var(--brand-light); color: var(--brand); }
@@ -234,7 +242,7 @@
     background: var(--sidebar-bg); border-right: 1px solid var(--sidebar-border);
     padding: 20px 14px; box-sizing: border-box; overflow-y: auto;
     display: flex; flex-direction: column;
-    box-shadow: 2px 0 16px rgba(64,58,130,0.12);
+    box-shadow: 2px 0 16px rgba(55,47,114,0.12);
   }
   .sidebar-brand { display: flex; align-items: center; gap: 10px; padding: 2px 10px 16px; margin-bottom: 12px; border-bottom: 1px solid var(--sidebar-border); }
   .sidebar-brand-icon { width: 40px; height: 40px; object-fit: contain; flex-shrink: 0; }

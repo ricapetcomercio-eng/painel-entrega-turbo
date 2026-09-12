@@ -7,25 +7,28 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Estoque Ricapet">
-<meta name="theme-color" content="#403A82">
+<meta name="theme-color" content="#372F72">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Manrope:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
 <script src="assets/auth.js"></script>
 <style>
   :root {
-    --bg: #F4F6FB; --surface: #FFFFFF; --surface-2: #EEF2F9;
-    --ink: #1B2A4A; --ink-soft: #566484; --ink-muted: #93A0BC; --border: #E2E8F3;
-    --accent: #f5a623; --accent-dark: #403A82; --accent-light: #fdecc8;
+    --bg: #F6F4FB; --surface: #FFFFFF; --surface-2: #EEF2F9;
+    --ink: #1B2A4A; --ink-soft: #566484; --ink-muted: #93A0BC; --border: #E5E1F0;
+    --accent: #f5a623; --accent-dark: #372F72; --accent-light: #fdecc8;
     --ink-on-accent: #241f4d;
-    --success-bg: #E4F6EC; --success-text: #1E7A48; --success-solid: #1E7A48;
-    --warning-bg: #FDF1E0; --warning-text: #6B4308; --warning-solid: #C77A08;
-    --danger-bg: #FCE9E9; --danger-text: #8A2A24; --danger-solid: #C23B3B;
-    --font-display: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    --font-mono: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    --brand: #1E7A48;
-    --page-bg: #e7e9f7;
+    --success-bg: #E4F3EA; --success-text: #2F8F5B; --success-solid: #2F8F5B;
+    --warning-bg: #FBF1D9; --warning-text: #6B4308; --warning-solid: #B8860B;
+    --danger-bg: #FBE7E5; --danger-text: #8A2A24; --danger-solid: #C1443D;
+    --font-display: 'Sora', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-body: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
+    --brand: #2F8F5B;
+    --page-bg: #F6F4FB;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { margin: 0; padding: 0; background: var(--page-bg); color: var(--ink); font-family: var(--font-body); }
+  h1, h2, h3 { font-family: var(--font-display); }
   body { padding-bottom: 96px; }
   .gravar-bar {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
@@ -45,7 +48,7 @@
   .gravar-status.ok { color: var(--success-solid); font-weight: 600; }
   .gravar-status.err { color: var(--danger-solid); font-weight: 600; }
 
-  header.topbar { position: sticky; top: 0; z-index: 10; background: linear-gradient(135deg, var(--accent-dark) 0%, #4C4696 100%); box-shadow: 0 2px 14px rgba(64,58,130,0.14); color: #fff; padding: 16px 18px 14px; }
+  header.topbar { position: sticky; top: 0; z-index: 10; background: linear-gradient(135deg, var(--accent-dark) 0%, #443A8C 100%); box-shadow: 0 2px 14px rgba(55,47,114,0.14); color: #fff; padding: 16px 18px 14px; }
   header.topbar h1 { font-family: var(--font-display); font-size: 18px; font-weight: 700; margin: 0 0 2px; }
   header.topbar p { font-size: 12px; margin: 0; opacity: .85; }
   header.topbar .save-pill { display: inline-block; margin-top: 8px; font-size: 11.5px; font-weight: 600; padding: 4px 10px; border-radius: 999px; background: rgba(255,255,255,.15); }
