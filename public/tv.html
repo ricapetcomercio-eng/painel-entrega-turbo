@@ -178,6 +178,12 @@
 
   .empty { text-align: center; padding: 60px; color: var(--muted); font-size: 15px; grid-column: 1 / -1; }
 
+  /* Chave manual pra mostrar/ocultar a seção "Shopee geral" (como era antes
+     de existir esse painel, sem ela) — display:none no lugar do atributo
+     [hidden] porque .area-cards já define display:grid com a mesma
+     especificidade, e author sempre vence UA stylesheet num empate. */
+  .oculto-manual { display: none !important; }
+
   /* ---- secao coletados hoje ---- */
   .secao-titulo { padding: 14px 24px 4px; font-size: 14px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
 </style>
@@ -225,6 +231,7 @@
       <input id="buscaInput" placeholder="Buscar por pedido, SKU ou item..." oninput="renderizarCards()">
       <button class="btn-icone ativo" id="btnSom" onclick="alternarSom()">🔔 Som: ligado</button>
       <button class="btn-icone ativo" id="btnVoz" onclick="alternarVoz()">🗣 Voz: ligada</button>
+      <button class="btn-icone ativo" id="btnShopeeTodos" onclick="alternarShopeeTodos()">🛍️ Shopee geral: exibindo</button>
     </div>
   </div>
 
@@ -234,7 +241,7 @@
   <div class="secao-titulo">Coletados hoje</div>
   <div class="area-cards" id="areaColetadosHoje"></div>
 
-  <div class="secao-titulo">Shopee — outros pedidos aguardando (sem prazo expresso) <span id="tituloShopeeTodosTotal"></span></div>
+  <div class="secao-titulo" id="tituloShopeeTodos">Shopee — outros pedidos aguardando (sem prazo expresso) <span id="tituloShopeeTodosTotal"></span></div>
   <div class="area-cards" id="areaShopeeTodos"></div>
 
 <script>
@@ -318,6 +325,31 @@
     const btn = document.getElementById('btnVoz');
     btn.textContent = vozLigada ? '🗣 Voz: ligada' : '🗣 Voz: desligada';
     btn.className = 'btn-icone' + (vozLigada ? ' ativo' : '');
+  }
+
+  // Chave manual pra mostrar/ocultar a seção "Shopee geral" (pedidos
+  // Shopee de qualquer tipo, não só Entrega Turbo) — volta a tela pro
+  // jeito de antes dela existir, sem precisar mexer em código. Guarda a
+  // escolha no localStorage (por tela/navegador) pra sobreviver ao reload
+  // periódico do vigia da TV (vigiar_painel_tv.bat).
+  let mostrarShopeeTodos = true;
+  try {
+    const salvo = localStorage.getItem('tv_mostrar_shopee_todos');
+    if (salvo !== null) mostrarShopeeTodos = salvo === '1';
+  } catch (e) { /* localStorage indisponível — mantém o padrão (exibindo) */ }
+
+  function aplicarVisibilidadeShopeeTodos() {
+    document.getElementById('tituloShopeeTodos').classList.toggle('oculto-manual', !mostrarShopeeTodos);
+    document.getElementById('areaShopeeTodos').classList.toggle('oculto-manual', !mostrarShopeeTodos);
+    const btn = document.getElementById('btnShopeeTodos');
+    btn.textContent = mostrarShopeeTodos ? '🛍️ Shopee geral: exibindo' : '🛍️ Shopee geral: oculto';
+    btn.className = 'btn-icone' + (mostrarShopeeTodos ? ' ativo' : '');
+  }
+
+  function alternarShopeeTodos() {
+    mostrarShopeeTodos = !mostrarShopeeTodos;
+    try { localStorage.setItem('tv_mostrar_shopee_todos', mostrarShopeeTodos ? '1' : '0'); } catch (e) {}
+    aplicarVisibilidadeShopeeTodos();
   }
 
   // ================= FORMATAÇÃO =================
@@ -664,6 +696,7 @@
   setInterval(atualizarContadoresAoVivo, 1000);
   setInterval(buscarDados, INTERVALO_BUSCA_MS);
   atualizarRelogio();
+  aplicarVisibilidadeShopeeTodos();
 
   // Sem overlay de "toque pra ativar" — carrega os dados direto. O
   // AudioContext pode nascer suspenso por política de autoplay (sem
