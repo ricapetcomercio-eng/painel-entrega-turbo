@@ -27,11 +27,11 @@
     --brand: #2F8F5B;
     --brand-light: #E4F3EA;
     --page-bg: #F6F4FB;
-    --sidebar-bg: #372F72;
-    --sidebar-text: #f3f2fb;
-    --sidebar-muted: #9b97c9;
-    --sidebar-hover: rgba(255,255,255,0.08);
-    --sidebar-border: rgba(255,255,255,0.14);
+    --sidebar-bg: #5D4FA8;
+    --sidebar-text: #F3F1FB;
+    --sidebar-muted: #C9C0EF;
+    --sidebar-hover: rgba(255,255,255,0.10);
+    --sidebar-border: rgba(255,255,255,0.16);
     --ink-on-accent: #241f4d;
     --font-display: 'Sora', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     --font-body: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -58,8 +58,8 @@
   }
   .aba-btn svg { flex-shrink: 0; }
   .aba-btn:hover { background: var(--sidebar-hover); }
-  .aba-btn.ativa { background: rgba(139,124,246,0.16); color: #fff; border-left-color: #8B7CF6; font-weight: 700; }
-  .aba-btn.ativa svg { stroke: #8B7CF6; }
+  .aba-btn.ativa { background: #372F72; color: #F3F1FB; border-left-color: #8B7CF6; font-weight: 700; }
+  .aba-btn.ativa svg { stroke: #B9AEFA; }
   .oculto { display: none; }
 
   .periodo-controle {
@@ -80,7 +80,7 @@
 
   .topbar {
     display: flex; align-items: center; box-sizing: border-box; min-height: 64px;
-    padding: 0 28px; margin: -24px -28px 18px; background: linear-gradient(135deg, var(--sidebar-bg) 0%, #443A8C 100%);
+    padding: 0 28px; margin: -24px -28px 18px; background: linear-gradient(135deg, #372F72 0%, #443A8C 100%);
     box-shadow: 0 2px 14px rgba(55,47,114,0.14);
     position: sticky; top: 0; z-index: 5;
   }
@@ -264,8 +264,8 @@
     font-weight: 600; margin-bottom: 4px; transition: background 0.15s, border-color 0.15s; white-space: nowrap;
   }
   .sidebar-link:hover { background: var(--sidebar-hover); }
-  .sidebar-link.ativo { background: rgba(139,124,246,0.16); color: #fff; border-left-color: #8B7CF6; }
-  .sidebar-link.ativo svg { stroke: #8B7CF6; }
+  .sidebar-link.ativo { background: #372F72; color: #F3F1FB; border-left-color: #8B7CF6; }
+  .sidebar-link.ativo svg { stroke: #B9AEFA; }
   .sidebar-link svg { flex-shrink: 0; }
   .sidebar.modo-edicao .sidebar-link[data-menu-key] { cursor: grab; }
   .sidebar.modo-edicao .sidebar-link[data-menu-key]::before { content: '⠿'; opacity: 0.55; }
