@@ -80,31 +80,30 @@
 
   .topbar {
     display: flex; align-items: center; box-sizing: border-box; min-height: 64px;
-    padding: 0 28px; margin: -24px -28px 18px; background: linear-gradient(135deg, #372F72 0%, #443A8C 100%);
-    box-shadow: 0 2px 14px rgba(55,47,114,0.14);
+    padding: 0 28px; margin: -24px -28px 18px; background: var(--page-bg);
+    border-bottom: 1px solid var(--border);
     position: sticky; top: 0; z-index: 5;
   }
 
-  /* Filtro de período dentro da área escura vira pill transparente, mesmo
-     tamanho e estilo do header do painel de Ponto (altura 32px, fundo
-     branco semitransparente, borda sutil) — só o "ativo"/"Aplicar" mantém
-     a cor de destaque do painel pra indicar o período selecionado. */
+  /* Filtro de período no header, agora integrado ao fundo da página (sem
+     faixa escura própria) — mesmo estilo claro dos cards do conteúdo; só
+     o "ativo"/"Aplicar" mantém a cor de destaque do painel pra indicar o
+     período selecionado. */
   .topbar .periodo-controle { background: transparent; border: none; box-shadow: none; padding: 0; margin-bottom: 0; }
-  .topbar .periodo-controle label { color: rgba(255,255,255,0.85); }
+  .topbar .periodo-controle label { color: var(--ink-soft); }
   .topbar .periodo-controle select,
   .topbar .periodo-controle input[type="date"] {
-    height: 32px; background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.35);
-    color: #fff; border-radius: 8px;
+    height: 32px; background: var(--surface); border: 1px solid var(--border);
+    color: var(--ink); border-radius: 8px;
   }
-  .topbar .periodo-controle input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); }
   .topbar .periodo-btn {
-    height: 32px; background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.35);
-    color: #fff; border-radius: 8px; display: inline-flex; align-items: center;
+    height: 32px; background: var(--surface); border: 1px solid var(--border);
+    color: var(--ink); border-radius: 8px; display: inline-flex; align-items: center;
   }
-  .topbar .periodo-btn:hover { background: rgba(255,255,255,0.24); }
+  .topbar .periodo-btn:hover { background: var(--surface-2); }
   .topbar .periodo-btn.periodo-ativo { background: var(--blue); border-color: var(--blue); color: var(--ink-on-accent); }
   .topbar .periodo-aplicar { background: var(--blue); border-color: var(--blue); color: var(--ink-on-accent); }
-  .topbar .periodo-label { color: rgba(255,255,255,0.6); }
+  .topbar .periodo-label { color: var(--ink-muted); }
 
   .card {
     background: var(--card); border: 1px solid var(--border); border-radius: 16px;
