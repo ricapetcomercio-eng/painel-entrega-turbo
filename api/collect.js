@@ -37,7 +37,7 @@ const { registrarHistoricoTurboLive, listarRecentesTurbo } = require('../lib/his
 const { buscarDetalhesShipment, montarPedidoGenerico } = require('../lib/mlAllOrders');
 const { buscarDevolucoesPeriodo } = require('../lib/mlClaims');
 const { buscarDevolucoesPorPedido: buscarDevolucoesShopeePorPedido } = require('../lib/shopeeReturns');
-const { registrarHistoricoTodos, marcarDevolucao } = require('../lib/historicoTodos');
+const { registrarHistoricoTodos, marcarDevolucao, listarShopeeAguardando } = require('../lib/historicoTodos');
 const { enviarBalancoMensalSeNecessario } = require('../lib/estoqueSaldo');
 
 // Janela de DESCOBERTA de pedidos Turbo novos (não confundir com a
@@ -501,6 +501,23 @@ module.exports = async (req, res) => {
 
     for (const loja of LOJAS_SHOPEE) {
       await coletarNovosParaHistoricoTodosShopee(loja, erros);
+    }
+
+    // Snapshot de TODOS os pedidos Shopee ainda aguardando (qualquer forma
+    // de entrega, não só Entrega Turbo) — pedido do painel de expedição pra
+    // dar visibilidade de volume além do que já tem promessa expressa.
+    // Reaproveita o histórico geral que a coleta acima acabou de atualizar,
+    // sem nenhuma chamada de API nova (mesmo orçamento de CPU de
+    // dashboard-data.js, só leitura do Turso).
+    try {
+      const pedidosShopeeAguardando = await listarShopeeAguardando(HORAS_JANELA_SHOPEE_TODOS);
+      await kvSet('entrega_turbo:ultima_coleta_shopee_todos', {
+        atualizado_em: new Date().toISOString(),
+        pedidos: pedidosShopeeAguardando,
+        total: pedidosShopeeAguardando.length,
+      });
+    } catch (err) {
+      erros.push({ fonte: 'shopee_todos_snapshot', mensagem: err.message });
     }
 
     // Só grava depois de TUDO rodar (Turbo, histórico Turbo E histórico

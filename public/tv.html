@@ -19,6 +19,7 @@
     --flex: #4d9bff;
     --turbo: #b968f2;
     --agora: #ff4d4f;
+    --shopee: #ee4d2d;
   }
   * { box-sizing: border-box; }
   html, body {
@@ -112,6 +113,12 @@
   }
   .card-pedido.concluido { opacity: 0.55; border-style: dashed; }
 
+  /* Shopee genérico (sem promessa expressa, sem deadline real) — visual
+     calmo de propósito, sem pulso/animação de urgência, pra não competir
+     por atenção com o que realmente tem prazo apertado (Flex/Turbo). */
+  .card-pedido.card-neutro { border-color: var(--border); }
+  .card-pedido.card-neutro .card-status { color: var(--shopee); }
+
   /* Pedido cujo prazo vence só amanhã (não hoje) — não precisa competir
      visualmente com o que é urgente agora; some a cor/pulso de urgência,
      mesmo que a fração do prazo já esteja alta (janela naturalmente longa). */
@@ -124,6 +131,7 @@
   .selo-flex { background: rgba(77,155,255,0.18); color: var(--flex); }
   .selo-turbo { background: rgba(185,104,242,0.18); color: var(--turbo); }
   .selo-agora { background: rgba(255,77,79,0.18); color: var(--agora); }
+  .selo-shopee { background: rgba(238,77,45,0.18); color: var(--shopee); }
   .status-nao-entregue-txt { color: var(--vermelho); }
   .selo-coleta {
     display: block; margin-top: 6px; font-size: 13px; font-weight: 800;
@@ -225,6 +233,9 @@
 
   <div class="secao-titulo">Coletados hoje</div>
   <div class="area-cards" id="areaColetadosHoje"></div>
+
+  <div class="secao-titulo">Shopee — outros pedidos aguardando (sem prazo expresso) <span id="tituloShopeeTodosTotal"></span></div>
+  <div class="area-cards" id="areaShopeeTodos"></div>
 
 <script>
   // ================= CONFIG =================
@@ -511,6 +522,42 @@
       </div>`;
   }
 
+  // Shopee "genérico" (qualquer forma de entrega, não só Entrega Turbo) —
+  // não tem promessa expressa nem deadline real, então não entra no
+  // countdown/zona/som de urgência dos outros cards, só mostra há quanto
+  // tempo o pedido está parado.
+  function tempoDecorridoTxt(createdMs) {
+    const totalMin = Math.max(0, Math.floor((Date.now() - createdMs) / 60000));
+    const h = Math.floor(totalMin / 60);
+    const m = totalMin % 60;
+    return h > 0 ? `há ${h}h${String(m).padStart(2, '0')}` : `há ${m}min`;
+  }
+
+  function cardHtmlShopeeGenerico(p) {
+    const createdMs = new Date(p.date_created).getTime();
+    const itensSkuTxt = (p.itens || []).map((i) => `${i.quantidade}x ${i.sku || i.titulo}`).join(', ');
+    const itensTxt = (p.itens || []).map((i) => `${i.quantidade}x ${i.titulo}`).join(', ');
+    return `
+      <div class="card-pedido card-neutro" data-id="shopee-todos:${p.order_id}">
+        <div class="card-topo">
+          <span class="selo-tipo selo-shopee">SHOPEE</span>
+          <span class="card-conta">${p.conta || ''}</span>
+        </div>
+        <div class="card-pedido-id">#${p.order_id}</div>
+        <div class="card-sku" title="${itensSkuTxt}">${itensSkuTxt}</div>
+        <div class="card-itens" title="${itensTxt}">${itensTxt}</div>
+        <div class="card-status">⏳ ${tempoDecorridoTxt(createdMs)} · ${p.forma_entrega || 'envio Shopee'}</div>
+      </div>`;
+  }
+
+  function renderizarShopeeTodos(pedidos) {
+    const area = document.getElementById('areaShopeeTodos');
+    document.getElementById('tituloShopeeTodosTotal').textContent = pedidos.length ? `(${pedidos.length})` : '';
+    area.innerHTML = pedidos.length
+      ? pedidos.map(cardHtmlShopeeGenerico).join('')
+      : '<div class="empty">Nenhum pedido Shopee fora da Entrega Turbo aguardando no momento</div>';
+  }
+
   function renderizarCards() {
     const pendentes = cardsAtuais.filter((c) => c.status !== 'coletado' && c.status !== 'entregue' && c.status !== 'nao_entregue' && c.status !== 'cancelado' && passaNoFiltro(c));
     pendentes.sort((a, b) => a.msRestante - b.msRestante);
@@ -599,6 +646,7 @@
       detectarEventosSonoros(novosCards);
       cardsAtuais = novosCards;
       renderizarCards();
+      renderizarShopeeTodos(dados.pedidosShopeeTodos || []);
 
       document.getElementById('pontoConexao').style.background = 'var(--verde)';
       document.getElementById('ultimaAtualizacao').textContent = 'atualizado ' + new Date().toLocaleTimeString('pt-BR');
