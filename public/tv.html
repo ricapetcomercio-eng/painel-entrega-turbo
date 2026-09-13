@@ -53,7 +53,7 @@
   .heatmap-60 { background: var(--amarelo); color: #2a2200; }
 
   /* ---- KPI strip ---- */
-  .kpis { display: grid; grid-template-columns: repeat(8, 1fr); gap: 1px; background: var(--border); }
+  .kpis { display: grid; grid-template-columns: repeat(9, 1fr); gap: 1px; background: var(--border); }
   .kpi { background: var(--card); padding: 10px 8px; text-align: center; }
   .kpi .v { font-size: 24px; font-weight: 800; }
   .kpi .l { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
@@ -112,12 +112,6 @@
     100% { background: transparent; }
   }
   .card-pedido.concluido { opacity: 0.55; border-style: dashed; }
-
-  /* Shopee genérico (sem promessa expressa, sem deadline real) — visual
-     calmo de propósito, sem pulso/animação de urgência, pra não competir
-     por atenção com o que realmente tem prazo apertado (Flex/Turbo). */
-  .card-pedido.card-neutro { border-color: var(--border); }
-  .card-pedido.card-neutro .card-status { color: var(--shopee); }
 
   /* Pedido cujo prazo vence só amanhã (não hoje) — não precisa competir
      visualmente com o que é urgente agora; some a cor/pulso de urgência,
@@ -178,12 +172,6 @@
 
   .empty { text-align: center; padding: 60px; color: var(--muted); font-size: 15px; grid-column: 1 / -1; }
 
-  /* Chave manual pra mostrar/ocultar a seção "Shopee geral" (como era antes
-     de existir esse painel, sem ela) — display:none no lugar do atributo
-     [hidden] porque .area-cards já define display:grid com a mesma
-     especificidade, e author sempre vence UA stylesheet num empate. */
-  .oculto-manual { display: none !important; }
-
   /* ---- secao coletados hoje ---- */
   .secao-titulo { padding: 14px 24px 4px; font-size: 14px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
 </style>
@@ -214,6 +202,7 @@
       <div class="kpi"><div class="v" id="kpiAguardando">-</div><div class="l">Aguardando</div></div>
       <div class="kpi"><div class="v" style="color:var(--flex);" id="kpiFlex">-</div><div class="l">Flex</div></div>
       <div class="kpi"><div class="v" style="color:var(--turbo);" id="kpiTurbo">-</div><div class="l">Turbo</div></div>
+      <div class="kpi"><div class="v" style="color:var(--shopee);" id="kpiShopeeGeral">-</div><div class="l">Shopee (geral)</div></div>
       <div class="kpi"><div class="v" style="color:var(--vermelho);" id="kpiCriticos">-</div><div class="l">Críticos</div></div>
       <div class="kpi"><div class="v" style="color:#ff8080;" id="kpiAtrasados">-</div><div class="l">Atrasados</div></div>
       <div class="kpi"><div class="v" style="color:var(--verde);" id="kpiColetadosHoje">-</div><div class="l">Coletados hoje</div></div>
@@ -240,9 +229,6 @@
 
   <div class="secao-titulo">Coletados hoje</div>
   <div class="area-cards" id="areaColetadosHoje"></div>
-
-  <div class="secao-titulo" id="tituloShopeeTodos">Shopee — outros pedidos aguardando (sem prazo expresso) <span id="tituloShopeeTodosTotal"></span></div>
-  <div class="area-cards" id="areaShopeeTodos"></div>
 
 <script>
   // ================= CONFIG =================
@@ -338,12 +324,15 @@
     if (salvo !== null) mostrarShopeeTodos = salvo === '1';
   } catch (e) { /* localStorage indisponível — mantém o padrão (exibindo) */ }
 
+  // Os cards Shopee (geral) ficam misturados no mesmo grid de Flex/Turbo
+  // (sempre no fim, por causa do prazo largo de 30 dias — ver montarCards),
+  // então "ocultar" aqui é só um filtro a mais em passaNoFiltro, igual
+  // filtroAtivo — não precisa de uma área/seção própria pra esconder.
   function aplicarVisibilidadeShopeeTodos() {
-    document.getElementById('tituloShopeeTodos').classList.toggle('oculto-manual', !mostrarShopeeTodos);
-    document.getElementById('areaShopeeTodos').classList.toggle('oculto-manual', !mostrarShopeeTodos);
     const btn = document.getElementById('btnShopeeTodos');
     btn.textContent = mostrarShopeeTodos ? '🛍️ Shopee geral: exibindo' : '🛍️ Shopee geral: oculto';
     btn.className = 'btn-icone' + (mostrarShopeeTodos ? ' ativo' : '');
+    renderizarCards();
   }
 
   function alternarShopeeTodos() {
@@ -450,13 +439,39 @@
       });
     });
 
+    // SHOPEE (geral) — qualquer forma de entrega, não só Entrega Turbo. Sem
+    // promessa expressa = sem deadline real, então usa um prazo bem largo
+    // (30 dias) só pra participar da mesma ordenação por urgência — na
+    // prática nunca fica realmente "urgente" e sempre acaba atrás de quem
+    // tem prazo de verdade, sem precisar de uma seção/ordenação separada.
+    (dados.pedidosShopeeTodos || []).forEach((p) => {
+      const createdMs = new Date(p.date_created).getTime();
+      const deadlineMs = createdMs + 30 * 24 * 60 * 60 * 1000;
+      cards.push({
+        id: 'shopee-geral:' + p.order_id,
+        tipo: 'SHOPEE',
+        conta: p.conta,
+        order_id: p.order_id,
+        itens: p.itens || [],
+        createdMs,
+        resolvidoMs: createdMs,
+        deadlineMs,
+        status: 'aguardando',
+        semPrazo: true,
+      });
+    });
+
     cards.forEach((c) => {
       const total = c.deadlineMs - c.createdMs;
       const restante = c.deadlineMs - agora;
       c.fracao = total > 0 ? Math.max(0, 1 - restante / total) : 1;
       c.zona = (c.status === 'coletado' || c.status === 'entregue' || c.status === 'nao_entregue' || c.status === 'cancelado') ? 'concluido' : zonaPorFracao(c.fracao);
       c.msRestante = restante;
-      c.diaSeguinte = c.zona !== 'concluido' && !ehHojeBrasil(c.deadlineMs);
+      // O "dia seguinte" apaga visualmente quem tem prazo real só amanhã —
+      // não se aplica ao Shopee geral, que não tem prazo real nenhum (o
+      // deadline de 30 dias é só um truque de ordenação, não uma data que
+      // baixa importância "por enquanto").
+      c.diaSeguinte = !c.semPrazo && c.zona !== 'concluido' && !ehHojeBrasil(c.deadlineMs);
     });
 
     return cards;
@@ -472,7 +487,7 @@
         // pedido novo (não existia na leitura anterior)
         if (Object.keys(estadoAnterior).length > 0) { // evita disparar tudo no primeiro load
           somNovoPedido();
-          falar(`Novo pedido ${c.tipo === 'FLEX' ? 'Flex' : 'Turbo'}.`);
+          falar(`Novo pedido ${c.tipo === 'FLEX' ? 'Flex' : c.tipo === 'SHOPEE' ? 'Shopee' : 'Turbo'}.`);
           c._flashNovo = true;
         }
         return;
@@ -492,6 +507,7 @@
 
   // ================= RENDERIZAÇÃO =================
   function passaNoFiltro(c) {
+    if (c.tipo === 'SHOPEE' && !mostrarShopeeTodos) return false;
     const busca = document.getElementById('buscaInput').value.trim().toLowerCase();
     if (busca) {
       const alvo = [
@@ -532,9 +548,11 @@
 
     const contadorHtml = concluido
       ? `<div class="card-contador" style="color:${(naoEntregue || cancelado) ? 'var(--vermelho)' : 'var(--verde)'};">${cancelado ? '🚫' : naoEntregue ? '!' : '✓'}</div>`
+      : c.semPrazo
+      ? `<div class="card-contador" style="font-size:20px;color:var(--muted);">${tempoDecorridoTxt(c.createdMs)}</div>`
       : `<div class="card-contador" data-deadline="${c.deadlineMs}">${formatarContador(c.msRestante)}</div>`;
 
-    const seloClasse = c.tipo === 'AGORA' ? 'selo-agora' : c.tipo === 'TURBO' ? 'selo-turbo' : 'selo-flex';
+    const seloClasse = c.tipo === 'AGORA' ? 'selo-agora' : c.tipo === 'TURBO' ? 'selo-turbo' : c.tipo === 'SHOPEE' ? 'selo-shopee' : 'selo-flex';
     const prontoParaColeta = !concluido && c.horaColetaMs && Date.now() >= c.horaColetaMs;
     const seloColetaHtml = prontoParaColeta ? '<span class="selo-coleta">🚚 Hora de coletar</span>' : '';
 
@@ -550,44 +568,18 @@
         ${contadorHtml}
         <div class="card-status">${statusHtml}</div>
         ${seloColetaHtml}
-        ${concluido ? '' : `<div class="barra-prazo"><div class="barra-prazo-fill" style="width:${pctBarra}%;"></div></div>`}
+        ${concluido || c.semPrazo ? '' : `<div class="barra-prazo"><div class="barra-prazo-fill" style="width:${pctBarra}%;"></div></div>`}
       </div>`;
   }
 
-  // Shopee "genérico" (qualquer forma de entrega, não só Entrega Turbo) —
-  // não tem promessa expressa nem deadline real, então não entra no
-  // countdown/zona/som de urgência dos outros cards, só mostra há quanto
-  // tempo o pedido está parado.
+  // Shopee "geral" (qualquer forma de entrega, não só Entrega Turbo) não
+  // tem promessa expressa nem deadline real — em vez do countdown normal,
+  // mostra só há quanto tempo o pedido está parado.
   function tempoDecorridoTxt(createdMs) {
     const totalMin = Math.max(0, Math.floor((Date.now() - createdMs) / 60000));
     const h = Math.floor(totalMin / 60);
     const m = totalMin % 60;
     return h > 0 ? `há ${h}h${String(m).padStart(2, '0')}` : `há ${m}min`;
-  }
-
-  function cardHtmlShopeeGenerico(p) {
-    const createdMs = new Date(p.date_created).getTime();
-    const itensSkuTxt = (p.itens || []).map((i) => `${i.quantidade}x ${i.sku || i.titulo}`).join(', ');
-    const itensTxt = (p.itens || []).map((i) => `${i.quantidade}x ${i.titulo}`).join(', ');
-    return `
-      <div class="card-pedido card-neutro" data-id="shopee-todos:${p.order_id}">
-        <div class="card-topo">
-          <span class="selo-tipo selo-shopee">SHOPEE</span>
-          <span class="card-conta">${p.conta || ''}</span>
-        </div>
-        <div class="card-pedido-id">#${p.order_id}</div>
-        <div class="card-sku" title="${itensSkuTxt}">${itensSkuTxt}</div>
-        <div class="card-itens" title="${itensTxt}">${itensTxt}</div>
-        <div class="card-status">⏳ ${tempoDecorridoTxt(createdMs)} · ${p.forma_entrega || 'envio Shopee'}</div>
-      </div>`;
-  }
-
-  function renderizarShopeeTodos(pedidos) {
-    const area = document.getElementById('areaShopeeTodos');
-    document.getElementById('tituloShopeeTodosTotal').textContent = pedidos.length ? `(${pedidos.length})` : '';
-    area.innerHTML = pedidos.length
-      ? pedidos.map(cardHtmlShopeeGenerico).join('')
-      : '<div class="empty">Nenhum pedido Shopee fora da Entrega Turbo aguardando no momento</div>';
   }
 
   function renderizarCards() {
@@ -619,10 +611,12 @@
     const naoConcluido = (c) => c.status !== 'coletado' && c.status !== 'entregue' && c.status !== 'nao_entregue' && c.status !== 'cancelado';
     const flexCount = cardsAtuais.filter((c) => c.tipo === 'FLEX' && naoConcluido(c)).length;
     const turboCount = cardsAtuais.filter((c) => (c.tipo === 'TURBO' || c.tipo === 'AGORA') && naoConcluido(c)).length;
+    const shopeeGeralCount = cardsAtuais.filter((c) => c.tipo === 'SHOPEE' && naoConcluido(c)).length;
 
     document.getElementById('kpiAguardando').textContent = pendentes.length;
     document.getElementById('kpiFlex').textContent = flexCount;
     document.getElementById('kpiTurbo').textContent = turboCount;
+    document.getElementById('kpiShopeeGeral').textContent = shopeeGeralCount;
     document.getElementById('kpiCriticos').textContent = criticos;
     document.getElementById('kpiAtrasados').textContent = atrasados;
     document.getElementById('kpiColetadosHoje').textContent = coletadosHoje.length;
@@ -678,7 +672,6 @@
       detectarEventosSonoros(novosCards);
       cardsAtuais = novosCards;
       renderizarCards();
-      renderizarShopeeTodos(dados.pedidosShopeeTodos || []);
 
       document.getElementById('pontoConexao').style.background = 'var(--verde)';
       document.getElementById('ultimaAtualizacao').textContent = 'atualizado ' + new Date().toLocaleTimeString('pt-BR');
