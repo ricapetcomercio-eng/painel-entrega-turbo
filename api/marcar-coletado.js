@@ -48,11 +48,25 @@ module.exports = async (req, res) => {
         args: [agora, identificador],
       });
     } else {
-      rs = await db.execute({
+      const rsTurbo = await db.execute({
         sql: `UPDATE historico_turbo_live SET categoria = 'coletado', resolvido_em = ?
               WHERE order_id = ? AND categoria = 'aguardando'`,
         args: [agora, identificador],
       });
+      // Também marca no histórico geral (historico_todos) — pedido Shopee
+      // de QUALQUER forma de entrega, não só Entrega Turbo (ver
+      // lib/historicoTodos.js: listarShopeeAguardando, usado pela seção
+      // "Shopee geral" do painel). Sem isso a bipagem no galpão nunca
+      // refletia lá, só quando a Shopee confirmava a coleta do lado dela
+      // (pode demorar horas) — caso real: pedido 260911Q9AKWTGT, bipado
+      // no galpão mas seguia aparecendo como pendente no painel.
+      const rsTodos = await db.execute({
+        sql: `UPDATE historico_todos SET categoria = 'coletado', coletado = 1, coletado_em = ?
+              WHERE marketplace = 'shopee' AND order_id = ?
+                AND (categoria IS NULL OR categoria = 'aguardando')`,
+        args: [agora, identificador],
+      });
+      rs = { rowsAffected: (rsTurbo.rowsAffected || 0) + (rsTodos.rowsAffected || 0) };
     }
 
     const atualizou = (rs.rowsAffected || 0) > 0;
