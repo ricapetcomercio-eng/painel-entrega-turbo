@@ -749,6 +749,33 @@ async function debugFlexStatus(req, res) {
   res.status(200).json({ ok: true, tipo: 'flex-status', total: resultado.length, registros: resultado });
 }
 
+// Lê a linha CRUA de historico_todos por order_id (qualquer marketplace) —
+// pra depurar de verdade o que está gravado (categoria/coletado/
+// coletado_em), sem passar pelo filtro de listarShopeeAguardando que só
+// mostra quem ainda está "pendente" (não ajuda a ver o que JÁ foi corrigido
+// nem a diferenciar "nunca chegou a existir" de "existe mas com categoria
+// nula"). Aceita lista separada por vírgula.
+async function debugHistoricoTodosRow(req, res) {
+  const db = getDb();
+  const idsBrutos = (req.query.order_ids || req.query.order_id || '').split(',').map((s) => s.trim()).filter(Boolean);
+  if (idsBrutos.length === 0) {
+    res.status(400).json({ error: 'Use ?order_ids=id1,id2,... (ou ?order_id=id)' });
+    return;
+  }
+  const placeholders = idsBrutos.map(() => '?').join(',');
+  const rs = await db.execute({
+    sql: `SELECT id_unico, marketplace, order_id, date_created, status_pedido, cancelado, categoria, coletado, coletado_em
+          FROM historico_todos WHERE order_id IN (${placeholders})`,
+    args: idsBrutos,
+  });
+  const porOrderId = {};
+  for (const row of rs.rows) {
+    (porOrderId[row.order_id] = porOrderId[row.order_id] || []).push(row);
+  }
+  const resultado = idsBrutos.map((id) => porOrderId[id] || [{ order_id: id, encontrado: false }]);
+  res.status(200).json({ ok: true, tipo: 'historico-todos-row', total: resultado.length, registros: resultado });
+}
+
 async function debugShopeeTodosStatus(req, res) {
   const loja = (req.query.loja || '').toLowerCase();
   if (!['ricapet', 'thapets'].includes(loja)) { res.status(400).json({ error: 'Use ?loja=ricapet ou ?loja=thapets' }); return; }
@@ -1878,6 +1905,7 @@ module.exports = async (req, res) => {
     if (req.query.tipo === 'ml-claims') return await debugMlClaims(req, res);
     if (req.query.tipo === 'ml-shipment') return await debugMlShipment(req, res);
     if (req.query.tipo === 'flex-status') return await debugFlexStatus(req, res);
+    if (req.query.tipo === 'historico-todos-row') return await debugHistoricoTodosRow(req, res);
     if (req.query.tipo === 'ml-sla') return await debugMlSla(req, res);
     if (req.query.tipo === 'shopee-returns') return await debugShopeeReturns(req, res);
     if (req.query.tipo === 'shopee-channels') return await debugShopeeChannels(req, res);
