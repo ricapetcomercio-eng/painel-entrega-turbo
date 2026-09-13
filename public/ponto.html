@@ -89,25 +89,24 @@
 
   .erro { color: var(--bad); font-size: 0.82rem; min-height: 1.1em; margin: 4px 0 0; }
 
-  /* header — barra azul estilo Oitchau */
-  header { position: sticky; top: 0; z-index: 5; background: linear-gradient(135deg, #372F72 0%, #443A8C 100%); box-shadow: 0 2px 14px rgba(55,47,114,0.14); }
+  /* header — junto com a página, sem faixa escura própria */
+  header { position: sticky; top: 0; z-index: 5; background: var(--page-bg); border-bottom: 1px solid var(--border); }
   .hrow { max-width: 1000px; margin: 0 auto; padding: 0 16px; min-height: 64px; box-sizing: border-box; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-  .hrow h1 { font-family: var(--font-display); font-size: 1.05rem; margin: 0; margin-right: auto; color: #fff; display: flex; flex-direction: column; gap: 2px; line-height: 1.25; }
+  .hrow h1 { font-family: var(--font-display); font-size: 1.05rem; margin: 0; margin-right: auto; color: var(--ink); display: flex; flex-direction: column; gap: 2px; line-height: 1.25; }
   .h-title-row { display: flex; align-items: center; gap: 9px; }
-  .h-sub { font-size: 0.72rem; font-weight: 500; color: rgba(255,255,255,0.55); letter-spacing: 0.01em; }
+  .h-sub { font-size: 0.72rem; font-weight: 500; color: var(--ink-muted); letter-spacing: 0.01em; }
   .live-badge {
     display: inline-flex; align-items: center; gap: 5px; font-family: var(--font-body); font-size: 0.68rem;
-    font-weight: 600; color: rgba(255,255,255,0.75); text-transform: none;
+    font-weight: 600; color: var(--ink-soft); text-transform: none;
   }
   .live-dot { width: 6px; height: 6px; border-radius: 50%; background: #4ADE80; }
   @media (prefers-reduced-motion: no-preference) { .live-dot { animation: pontoLivePulse 2.2s ease-in-out infinite; } }
   @keyframes pontoLivePulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(74,222,128,0.5); } 50% { box-shadow: 0 0 0 5px rgba(74,222,128,0); } }
-  .periodo { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: rgba(255,255,255,0.85); }
-  .periodo input { height: 32px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.35); background: rgba(255,255,255,0.14); color: #fff; padding: 0 8px; font-size: 0.8rem; transition: background .15s ease, border-color .15s ease; }
-  .periodo input::-webkit-calendar-picker-indicator { filter: invert(1); }
-  .periodo button, .chip-sair { height: 32px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.35); background: rgba(255,255,255,0.14); color: #fff; padding: 0 12px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: background .15s ease, border-color .15s ease, color .15s ease, transform .1s ease; }
-  .periodo button:hover, .chip-sair:hover { background: rgba(255,255,255,0.24); }
-  #admin-nome { color: #fff !important; }
+  .periodo { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--ink-soft); }
+  .periodo input { height: 32px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); padding: 0 8px; font-size: 0.8rem; transition: background .15s ease, border-color .15s ease; }
+  .periodo button, .chip-sair { height: 32px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); padding: 0 12px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: background .15s ease, border-color .15s ease, color .15s ease, transform .1s ease; }
+  .periodo button:hover, .chip-sair:hover { background: var(--surface-2); }
+  #admin-nome { color: var(--ink) !important; }
   .periodo button:hover, .chip-sair:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-1px); }
 
   /* tabs */
