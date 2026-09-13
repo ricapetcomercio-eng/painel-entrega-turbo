@@ -439,14 +439,18 @@
       });
     });
 
-    // SHOPEE (geral) — qualquer forma de entrega, não só Entrega Turbo. Sem
-    // promessa expressa = sem deadline real, então usa um prazo bem largo
-    // (30 dias) só pra participar da mesma ordenação por urgência — na
-    // prática nunca fica realmente "urgente" e sempre acaba atrás de quem
-    // tem prazo de verdade, sem precisar de uma seção/ordenação separada.
+    // SHOPEE (geral) — qualquer forma de entrega, não só Entrega Turbo.
+    // p.prazo_entrega é o "ship by date" de verdade (prazo real do
+    // vendedor pra despachar, direto da Shopee) — dá um cronômetro
+    // regressivo real, igual o Flex. Só cai no modo "sem prazo" (sem
+    // countdown, prazo bem largo só pra ordenar por último) pra pedidos
+    // antigos que ainda não tiveram esse campo coletado.
     (dados.pedidosShopeeTodos || []).forEach((p) => {
       const createdMs = new Date(p.date_created).getTime();
-      const deadlineMs = createdMs + 30 * 24 * 60 * 60 * 1000;
+      const temPrazoReal = !!p.prazo_entrega;
+      const deadlineMs = temPrazoReal
+        ? new Date(p.prazo_entrega).getTime()
+        : createdMs + 30 * 24 * 60 * 60 * 1000;
       cards.push({
         id: 'shopee-geral:' + p.order_id,
         tipo: 'SHOPEE',
@@ -457,7 +461,7 @@
         resolvidoMs: createdMs,
         deadlineMs,
         status: 'aguardando',
-        semPrazo: true,
+        semPrazo: !temPrazoReal,
       });
     });
 

@@ -776,6 +776,42 @@ async function debugHistoricoTodosRow(req, res) {
   res.status(200).json({ ok: true, tipo: 'historico-todos-row', total: resultado.length, registros: resultado });
 }
 
+// Backfill pontual: pedidos Shopee "geral" já gravados como aguardando
+// (ver lib/historicoTodos.js: listarShopeeAguardando) nunca tiveram
+// prazo_entrega (ship_by_date) coletado, porque esse campo só passou a ser
+// lido em montarPedidoGenericoShopee depois que eles já tinham sido
+// descobertos — e a coleta incremental de "Todos os pedidos" não revisita
+// janelas de tempo já fechadas, então esses pedidos específicos nunca mais
+// seriam re-buscados sozinhos. Roda 1x pra dar o cronômetro de verdade
+// (igual o Flex) pra quem já está pendente, sem precisar resetar a janela
+// inteira (custaria muito mais chamada de API/CPU à toa).
+async function debugBackfillPrazoShopeeTodos(req, res) {
+  const { listarShopeeAguardando, registrarHistoricoTodos } = require('../lib/historicoTodos');
+  const { buscarDetalhesCompletos, montarPedidoGenericoShopee } = require('../lib/shopeeOrders');
+
+  const pendentes = await listarShopeeAguardando(48);
+  const porLoja = {};
+  for (const p of pendentes) {
+    if (!p.conta) continue;
+    (porLoja[p.conta] = porLoja[p.conta] || []).push(String(p.order_id));
+  }
+
+  let atualizados = 0;
+  const erros = [];
+  for (const [loja, orderSnList] of Object.entries(porLoja)) {
+    try {
+      const detalhes = await buscarDetalhesCompletos(loja, orderSnList);
+      const pedidosMontados = detalhes.map((d) => montarPedidoGenericoShopee(loja, d));
+      await registrarHistoricoTodos(pedidosMontados);
+      atualizados += pedidosMontados.length;
+    } catch (err) {
+      erros.push({ loja, mensagem: err.message });
+    }
+  }
+
+  res.status(200).json({ ok: true, tipo: 'backfill-prazo-shopee-todos', pendentes: pendentes.length, atualizados, erros });
+}
+
 async function debugShopeeTodosStatus(req, res) {
   const loja = (req.query.loja || '').toLowerCase();
   if (!['ricapet', 'thapets'].includes(loja)) { res.status(400).json({ error: 'Use ?loja=ricapet ou ?loja=thapets' }); return; }
@@ -1906,6 +1942,7 @@ module.exports = async (req, res) => {
     if (req.query.tipo === 'ml-shipment') return await debugMlShipment(req, res);
     if (req.query.tipo === 'flex-status') return await debugFlexStatus(req, res);
     if (req.query.tipo === 'historico-todos-row') return await debugHistoricoTodosRow(req, res);
+    if (req.query.tipo === 'backfill-prazo-shopee-todos') return await debugBackfillPrazoShopeeTodos(req, res);
     if (req.query.tipo === 'ml-sla') return await debugMlSla(req, res);
     if (req.query.tipo === 'shopee-returns') return await debugShopeeReturns(req, res);
     if (req.query.tipo === 'shopee-channels') return await debugShopeeChannels(req, res);
