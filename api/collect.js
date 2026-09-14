@@ -37,7 +37,7 @@ const { registrarHistoricoTurboLive, listarRecentesTurbo } = require('../lib/his
 const { buscarDetalhesShipment, montarPedidoGenerico } = require('../lib/mlAllOrders');
 const { buscarDevolucoesPeriodo } = require('../lib/mlClaims');
 const { buscarDevolucoesPorPedido: buscarDevolucoesShopeePorPedido } = require('../lib/shopeeReturns');
-const { registrarHistoricoTodos, marcarDevolucao, listarShopeeAguardando } = require('../lib/historicoTodos');
+const { registrarHistoricoTodos, marcarDevolucao, listarShopeeAguardando, listarShopeePendentesParaReverificar } = require('../lib/historicoTodos');
 const { enviarBalancoMensalSeNecessario } = require('../lib/estoqueSaldo');
 const { coletarProjecaoFinanceira } = require('../lib/mpProjecao');
 const { coletarProjecaoFinanceiraShopee } = require('../lib/shopeeProjecao');
@@ -383,7 +383,11 @@ const TAMANHO_LOTE_SHOPEE_TODOS_RECHECK = 50;
 
 async function reverificarPendentesShopeeTodos(erros) {
   try {
-    const pendentes = await listarShopeeAguardando(HORAS_JANELA_SHOPEE_TODOS);
+    // Usa a versão AMPLA (inclui UNPAID/INVOICE_PENDING) — o painel só
+    // mostra pedido pago (listarShopeeAguardando), mas alguém precisa
+    // continuar consultando os não pagos, senão eles nunca mais são
+    // revisitados e ficam invisíveis pra sempre, mesmo depois de pagos.
+    const pendentes = await listarShopeePendentesParaReverificar(HORAS_JANELA_SHOPEE_TODOS);
     const porLoja = {};
     for (const p of pendentes) {
       if (!p.conta) continue;
