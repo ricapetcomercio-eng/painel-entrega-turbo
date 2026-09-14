@@ -238,9 +238,9 @@ se o deployment de produção aponta pro commit correto do `main` — não
 assumir que "deploy tocado com sucesso" pela CLI significa que o domínio
 está servindo o código mais recente do Git.
 
-## ⚠️ Functions Storage estourado (10GB/10GB) — mesma causa do risco acima
+## ✅ Functions Storage estourado (10GB/10GB) — resolvido em 14/set/2026
 
-Diagnosticado em 14/set/2026 (Vercel → Usage → Functions Storage): o total
+Diagnosticado e corrigido em 14/set/2026 (Vercel → Usage → Functions Storage): o total
 da conta `ricapet1` bateu **10,35 GB / 10 GB** (Hobby), com quase tudo
 concentrado em dois projetos que na prática são o **mesmo repositório**
 (`painel-entrega-turbo`) deployado duas vezes:
@@ -267,21 +267,25 @@ por `vercel deploy` sem `.vercel/project.json` linkado — mesmo risco já
 descrito acima, só que já concretizado (estão vazios, mas poluem a lista
 de projetos).
 
-**Correção** (ação manual no dashboard/CLI da Vercel, feita pelo dono do
-projeto — Claude Code não tem credencial de acesso à conta Vercel):
-1. `painel-entrega-turbo`: Settings → Git → Disconnect, depois Settings →
-   Advanced → Delete Project — para os deploys duplicados de vez e libera
-   os 2,25 GB.
-2. Limpar o histórico acumulado sem apagar o que está no ar (via Vercel
-   CLI local, autenticado):
-   ```bash
-   vercel remove ricapetadministrativo --safe --yes
-   vercel remove painel-entrega-turbo --safe --yes   # antes do passo 1, se ainda existir
-   ```
-   `--safe` preserva o deployment atualmente aliasado ao domínio, só
-   apaga o histórico de previews/produções antigas.
-3. Apagar os dois projetos-fantasma vazios (`ricapet-admin-…-IH31`,
-   `painel-estoque-adesivo-…-HfSs`) por organização.
+**Correção aplicada** (dono do projeto, via Vercel CLI local — Claude Code
+não tem credencial de acesso à conta Vercel, só orientou os comandos):
+```bash
+vercel remove ricapetadministrativo --safe --yes   # limpa histórico, preserva o que está no ar
+vercel remove painel-entrega-turbo --safe --yes
+vercel project rm painel-entrega-turbo             # projeto duplicado apagado por completo
+```
+Os dois projetos-fantasma (`ricapet-admin-1789171214998-IH31`,
+`painel-estoque-adesivo-1789171304197-HfSs`) já não existiam mais na
+hora de tentar apagar — nada a fazer ali.
+
+**Note pra não repetir**: o projeto `painel-entrega-turbo` não existe
+mais na Vercel. Só `ricapetadministrativo` (produção,
+`ricapetadministrativo.vercel.app`) deploya a partir de agora — não
+esperar mais ver 2 deployments por push nem 2 comentários do
+`vercel[bot]` em PRs futuras. Se isso reaparecer, é sinal de que um novo
+projeto Vercel foi criado e linkado ao repo sem querer (ver seção
+acima sobre `vercel deploy` sem link) — vale conferir Settings → Git de
+cada projeto na conta antes de repetir a limpeza.
 
 ## Variáveis de ambiente (Vercel → Project Settings → Environment Variables)
 
