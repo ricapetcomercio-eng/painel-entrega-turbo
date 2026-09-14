@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Ponto · Administração</title>
+<link rel="icon" type="image/png" href="logo-ricapet.png">
 <meta name="description" content="Painel de administração do ponto — Ricapet/Thapets.">
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#372F72">
@@ -195,7 +196,14 @@
   td.st-atraso { background: var(--warn-bg); color: var(--warn); }
   td.st-falta  { background: var(--bad-bg);  color: var(--bad); }
   td.st-abono  { background: var(--info-bg); color: var(--info-tx); font-family: var(--font-body) !important; font-weight: 600; text-align: left !important; }
+  /* linhas de dias não trabalhados (folga fixa, abono/férias, falta) —
+     diferencia visualmente de um dia útil normal, mesmo nas colunas que
+     não têm classe de status própria (Dia, Jornada). */
+  tr.linha-folga td:not(.st-abono) { background: var(--surface-2); }
+  tr.linha-abono td:not(.st-abono) { background: var(--info-bg); }
+  tr.linha-falta td:not(.st-abono) { background: var(--bad-bg); }
   .c-jornada { font-family: var(--font-body) !important; font-size: 0.72rem; color: var(--ink-muted); }
+  .c-motivo { font-family: var(--font-body) !important; font-size: 0.72rem; color: var(--ink-soft); text-align: left !important; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .c-metodo { font-family: var(--font-body) !important; font-size: 0.72rem; color: var(--ink-muted); }
   .c-edit { font-family: var(--font-body) !important; font-size: 0.72rem; color: var(--accent); }
   .c-abono { font-family: var(--font-body) !important; font-size: 0.68rem; font-weight: 700; padding: 2px 7px; border-radius: 999px; background: var(--info-bg); color: var(--info-tx); }
@@ -558,10 +566,15 @@
       if (isNaN(quando)) return;
       const k = chaveDia(quando);
       if (!porChave.has(k)) porChave.set(k, []);
-      porChave.get(k).push({ nsr: r.nsr, tipo: r.tipo === 'entrada' ? 'entrada' : 'saida', quando, metodo: r.metodo_validacao, origem: r.origem, editado: !!r.editado });
+      porChave.get(k).push({
+        nsr: r.nsr, tipo: r.tipo === 'entrada' ? 'entrada' : 'saida', quando, metodo: r.metodo_validacao, origem: r.origem, editado: !!r.editado,
+        motivo: r.motivo || null, editorNome: r.editado_por_nome || null, editadoEm: r.editado_em || null,
+      });
     });
     const abonoPorDia = new Map();
     (func.abonos || []).forEach((a) => abonoPorDia.set(a.data, a));
+    const aprovacaoPorDia = new Map();
+    (func.solicitacoes || []).forEach((s) => { if (s.status === 'aprovada' && s.data_referente) aprovacaoPorDia.set(s.data_referente, s); });
     const de = new Date($('p-de').value + 'T12:00:00');
     const ate = new Date($('p-ate').value + 'T12:00:00');
     const dias = [];
@@ -587,12 +600,21 @@
       let saldo = (fechado && previsto != null) ? trabalhado - previsto : 0;
       if (Math.abs(saldo) <= tolMin()) saldo = 0;
       if (abono && saldo < 0) saldo = 0;
+      // audit: última edição que mexeu numa batida desse dia (motivo +
+      // quem alterou) e, separado, quem aprovou a solicitação do dia (se
+      // houver) -- aprovar não edita a batida sozinho, ver b-aprovar.
+      const edicoes = eventos.filter((e) => e.editado && e.editorNome).sort((a, b) => new Date(b.editadoEm || 0) - new Date(a.editadoEm || 0));
+      const ultimaEdicao = edicoes[0] || null;
+      const aprovacao = aprovacaoPorDia.get(k) || null;
       dias.push({
         data: dd, chave: k, ehHoje, eventos, emAberto, fechado, abono, jdia,
         entrada: eventos.find((e) => e.tipo === 'entrada')?.quando || null,
         saida: [...eventos].reverse().find((e) => e.tipo === 'saida')?.quando || null,
         trabalhado, previsto,
         editado: eventos.some((e) => e.editado),
+        motivoAlteracao: ultimaEdicao ? ultimaEdicao.motivo : null,
+        editadoPorNome: ultimaEdicao ? ultimaEdicao.editorNome : null,
+        aprovadoPorNome: aprovacao ? aprovacao.resolvida_por_nome : null,
         temCalc: fechado && previsto != null,
         saldo,
       });
@@ -635,7 +657,7 @@
       return `<div class="sol-card resolvida">
         <div class="sol-top"><b>${s.nome}</b> — ${rotuloLongo(dia)}</div>
         <div class="sol-motivo">${escHtml(s.motivo)}</div>
-        <p class="sol-status">${s.status === 'aprovada' ? '✓ Aprovada' : '✕ Recusada'} ${s.resolvida_em ? '· ' + desde(s.resolvida_em) : ''}${s.resposta_admin ? ' · "' + escHtml(s.resposta_admin) + '"' : ''}</p>
+        <p class="sol-status">${s.status === 'aprovada' ? '✓ Aprovada' : '✕ Recusada'}${s.resolvida_por_nome ? ' por ' + escHtml(s.resolvida_por_nome) : ''} ${s.resolvida_em ? '· ' + desde(s.resolvida_em) : ''}${s.resposta_admin ? ' · "' + escHtml(s.resposta_admin) + '"' : ''}</p>
       </div>`;
     };
 
@@ -709,13 +731,26 @@
         + (d.editado ? ' <span class="c-edit" title="Editado">✎</span>' : '')
         + (d.abono ? ` <span class="c-abono" title="${(d.abono.observacao || '').replace(/"/g, '')}">${ABONO_LABEL[d.abono.tipo] || 'Abono'}</span>` : '')
         + `<span class="c-sub">${nomeDiaSemana(d.data)}</span>`;
-      const jornadaTxt = d.jdia ? `${d.jdia.entrada}–${d.jdia.saida}` : (d.previsto === 0 ? 'folga' : '—');
+      // dia sem horário configurado (ex.: fim de semana de quem não
+      // trabalha) cai aqui com entrada/saida nulos — sem esse cheque
+      // virava "null–null" na coluna Jornada.
+      const temHorarioFixo = !!(d.jdia && d.jdia.entrada && d.jdia.saida);
+      const ehFolga = d.previsto === 0 && !d.abono && !d.eventos.length;
+      const ehFalta = d.previsto > 0 && !d.abono && !d.eventos.length;
+      const jornadaTxt = temHorarioFixo ? `${d.jdia.entrada}–${d.jdia.saida}` : (ehFolga ? 'Folga' : '—');
+      const classeLinha = d.abono ? 'linha-abono' : (ehFolga ? 'linha-folga' : (ehFalta ? 'linha-falta' : ''));
+      const classesTr = [d.ehHoje ? 'hoje' : '', classeLinha].filter(Boolean).join(' ');
       const btn = `<td class="b-linha"><button data-edit="${d.chave}" title="Editar dia">✎</button></td>`;
+      const auditoria = `
+        <td class="c-motivo" title="${d.motivoAlteracao ? escHtml(d.motivoAlteracao) : ''}">${d.motivoAlteracao ? escHtml(d.motivoAlteracao) : '—'}</td>
+        <td class="c-jornada">${d.editadoPorNome ? escHtml(d.editadoPorNome) : '—'}</td>
+        <td class="c-jornada">${d.aprovadoPorNome ? escHtml(d.aprovadoPorNome) : '—'}</td>`;
 
       if (!d.eventos.length) {
-        return `<tr class="${d.ehHoje ? 'hoje' : ''}"><td class="c-dia">${rot}</td>
+        return `<tr class="${classesTr}"><td class="c-dia">${rot}</td>
           <td class="c-jornada">${jornadaTxt}</td>
-          <td class="${d.abono ? 'st-abono' : 'c-nenhum'}" colspan="6">${d.abono ? (ABONO_LABEL[d.abono.tipo] || 'Abono') : (d.previsto ? 'Falta' : 'Nenhum ponto')}</td>
+          <td class="${d.abono ? 'st-abono' : 'c-nenhum'}" colspan="6">${d.abono ? (ABONO_LABEL[d.abono.tipo] || 'Abono') : (ehFalta ? 'Falta' : (ehFolga ? 'Folga' : 'Nenhum ponto'))}</td>
+          ${auditoria}
           ${btn}</tr>`;
       }
       const s = slotsDoDia(d);
@@ -726,7 +761,7 @@
       };
       const ex = d.temCalc ? Math.max(d.saldo, 0) : 0;
       const fa = (d.temCalc && !d.abono) ? Math.max(-d.saldo, 0) : 0;
-      return `<tr class="${d.ehHoje ? 'hoje' : ''}">
+      return `<tr class="${classesTr}">
         <td class="c-dia">${rot}</td>
         <td class="c-jornada">${jornadaTxt}</td>
         ${cel(s.entrada, d.jdia && d.jdia.entrada, 'entrada', false)}
@@ -735,16 +770,17 @@
         ${cel(s.saida, d.jdia && d.jdia.saida, 'saida', true)}
         <td>${fmtDur(d.trabalhado)}</td>
         <td class="saldo ${d.saldo > 0 ? 'pos' : d.saldo < 0 ? 'neg' : 'zero'}">${d.temCalc ? fmtDur(d.saldo, true) : '—'}</td>
+        ${auditoria}
         ${btn}
       </tr>`;
     };
 
     $('func-quadro').innerHTML = `<table>
-      <thead><tr><th>Dia</th><th>Jornada</th><th>Entrada</th><th>Interv.</th><th>Volta</th><th>Saída</th><th>Trab.</th><th>Saldo</th><th></th></tr></thead>
+      <thead><tr><th>Dia</th><th>Jornada</th><th>Entrada</th><th>Interv.</th><th>Volta</th><th>Saída</th><th>Trab.</th><th>Saldo</th><th>Motivo da alteração</th><th>Alterado por</th><th>Aprovado por</th><th></th></tr></thead>
       <tbody>${dias.map(linha).join('')}</tbody>
       <tfoot><tr><td>Total</td><td colspan="5"></td>
         <td>${fmtDur(dias.reduce((a, d) => a + (d.eventos.length ? d.trabalhado : 0), 0))}</td>
-        <td class="saldo ${t.saldo > 0 ? 'pos' : t.saldo < 0 ? 'neg' : 'zero'}">${fmtDur(t.saldo, true)}</td><td></td></tr></tfoot>
+        <td class="saldo ${t.saldo > 0 ? 'pos' : t.saldo < 0 ? 'neg' : 'zero'}">${fmtDur(t.saldo, true)}</td><td colspan="3"></td><td></td></tr></tfoot>
     </table>`;
   }
 

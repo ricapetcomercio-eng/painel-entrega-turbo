@@ -238,6 +238,55 @@ se o deployment de produção aponta pro commit correto do `main` — não
 assumir que "deploy tocado com sucesso" pela CLI significa que o domínio
 está servindo o código mais recente do Git.
 
+## ✅ Functions Storage estourado (10GB/10GB) — resolvido em 14/set/2026
+
+Diagnosticado e corrigido em 14/set/2026 (Vercel → Usage → Functions Storage): o total
+da conta `ricapet1` bateu **10,35 GB / 10 GB** (Hobby), com quase tudo
+concentrado em dois projetos que na prática são o **mesmo repositório**
+(`painel-entrega-turbo`) deployado duas vezes:
+
+| Projeto | Functions Storage |
+|---|---|
+| `ricapetadministrativo` (produção real) | 7,94 GB |
+| `painel-entrega-turbo` (órfão, "No Production Deployment") | 2,25 GB |
+| `analise-concorrencia` | 163,87 MB |
+| `ricapet-admin-1789171214998-IH31` | 0 B |
+| `painel-estoque-adesivo-1789171304197-HfSs` | 0 B |
+| `ricapet-portal` | 0 B |
+
+Causa: o projeto `painel-entrega-turbo` nunca foi desconectado do GitHub
+depois da migração de domínio pra `ricapetadministrativo` (ver seção
+acima) — então **todo push continua gerando deployment nos dois
+projetos ao mesmo tempo** (confirmado na lista de Deployments: cada
+commit aparece 2x, inclusive merges em `main`, que viram "Production"
+nos dois). Com o ritmo de dezenas de PRs/dia que o projeto vem tendo
+desde 10/set, o histórico de deployments nunca é limpo automaticamente
+no Hobby e foi acumulando até estourar. `ricapet-admin-…-IH31` e
+`painel-estoque-adesivo-…-HfSs` são projetos-fantasma criados sem querer
+por `vercel deploy` sem `.vercel/project.json` linkado — mesmo risco já
+descrito acima, só que já concretizado (estão vazios, mas poluem a lista
+de projetos).
+
+**Correção aplicada** (dono do projeto, via Vercel CLI local — Claude Code
+não tem credencial de acesso à conta Vercel, só orientou os comandos):
+```bash
+vercel remove ricapetadministrativo --safe --yes   # limpa histórico, preserva o que está no ar
+vercel remove painel-entrega-turbo --safe --yes
+vercel project rm painel-entrega-turbo             # projeto duplicado apagado por completo
+```
+Os dois projetos-fantasma (`ricapet-admin-1789171214998-IH31`,
+`painel-estoque-adesivo-1789171304197-HfSs`) já não existiam mais na
+hora de tentar apagar — nada a fazer ali.
+
+**Note pra não repetir**: o projeto `painel-entrega-turbo` não existe
+mais na Vercel. Só `ricapetadministrativo` (produção,
+`ricapetadministrativo.vercel.app`) deploya a partir de agora — não
+esperar mais ver 2 deployments por push nem 2 comentários do
+`vercel[bot]` em PRs futuras. Se isso reaparecer, é sinal de que um novo
+projeto Vercel foi criado e linkado ao repo sem querer (ver seção
+acima sobre `vercel deploy` sem link) — vale conferir Settings → Git de
+cada projeto na conta antes de repetir a limpeza.
+
 ## Variáveis de ambiente (Vercel → Project Settings → Environment Variables)
 
 ```

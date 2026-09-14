@@ -1204,10 +1204,16 @@ function resolverMarcacoes(rows) {
       efetivas.set(Number(r.nsr), {
         nsr: Number(r.nsr), tipo: r.tipo, registrado_em: r.registrado_em,
         metodo_validacao: r.metodo_validacao, editado: origem !== 'batida', origem,
+        motivo: origem === 'batida' ? null : (r.motivo || null),
+        editado_por: origem === 'batida' ? null : (r.editado_por || null),
+        editado_em: origem === 'batida' ? null : (r.editado_em || null),
       });
     } else if (origem === 'ajuste_alteracao') {
       const alvo = efetivas.get(Number(r.ref_nsr));
-      if (alvo) { alvo.tipo = r.tipo; alvo.registrado_em = r.registrado_em; alvo.editado = true; }
+      if (alvo) {
+        alvo.tipo = r.tipo; alvo.registrado_em = r.registrado_em; alvo.editado = true;
+        alvo.motivo = r.motivo || null; alvo.editado_por = r.editado_por || null; alvo.editado_em = r.editado_em || null;
+      }
     } else if (origem === 'ajuste_exclusao') {
       efetivas.delete(Number(r.ref_nsr));
     }
@@ -1523,7 +1529,13 @@ async function debugPontoAdminVisao(req, res) {
   // feitos fora dele que corrigem marcações de dentro.
   const janelaISO = new Date(new Date(inicioISO).getTime() - 90 * 864e5).toISOString();
 
-  const funcs = await db.execute('SELECT id, nome, admin, cpf FROM funcionarios WHERE ativo = 1 ORDER BY nome');
+  // Ricardo e Nivaldo continuam batendo ponto normalmente (debugPontoFuncionarios/
+  // debugPontoLogin não mexem nisso) — só não aparecem nas telas de visão do
+  // admin (Solicitações, Por funcionário, Visão geral, Jornadas), a pedido do dono.
+  const NOMES_OCULTOS_VISAO_ADMIN = ['ricardo', 'nivaldo'];
+  const primeiroNome = (nome) => String(nome || '').trim().split(/\s+/)[0].toLowerCase();
+  const funcsBrutos = await db.execute('SELECT id, nome, admin, cpf FROM funcionarios WHERE ativo = 1 ORDER BY nome');
+  const funcs = { rows: funcsBrutos.rows.filter((f) => !NOMES_OCULTOS_VISAO_ADMIN.includes(primeiroNome(f.nome))) };
   const regs = await db.execute({
     sql: `SELECT id, funcionario_id, tipo, registrado_em, metodo_validacao, latitude, longitude,
                  distancia_metros, origem, motivo, editado_por, editado_em, nsr, hash, ref_nsr
@@ -1540,6 +1552,12 @@ async function debugPontoAdminVisao(req, res) {
   );
   const abon = await db.execute('SELECT funcionario_id, data, tipo, observacao FROM abonos_ponto');
 
+  // nomes resolvidos a partir de TODOS os funcionários (Ricardo/Nivaldo
+  // incluídos) -- quem editou uma batida ou aprovou uma solicitação
+  // continua identificado pelo nome mesmo que a pessoa em si esteja
+  // oculta da visão do admin (ver NOMES_OCULTOS_VISAO_ADMIN acima).
+  const nomePorId = new Map(funcsBrutos.rows.map((f) => [f.id, f.nome]));
+
   const porFunc = new Map(funcs.rows.map((f) => [f.id, {
     id: f.id, nome: f.nome, admin: f.admin === 1, cpf: f.cpf || null,
     registros: [], marcacoes: [], solicitacoes: [], jornada: null, abonos: [],
@@ -1553,9 +1571,16 @@ async function debugPontoAdminVisao(req, res) {
   });
   for (const [fid, linhas] of rawPorFunc) {
     const f = porFunc.get(fid);
-    if (f) f.marcacoes = resolverMarcacoes(linhas).filter((m) => m.registrado_em >= inicioISO && m.registrado_em <= fimISO);
+    if (f) {
+      f.marcacoes = resolverMarcacoes(linhas).filter((m) => m.registrado_em >= inicioISO && m.registrado_em <= fimISO);
+      f.marcacoes.forEach((m) => { m.editado_por_nome = m.editado_por ? (nomePorId.get(m.editado_por) || null) : null; });
+    }
   }
-  sols.rows.forEach((s) => { const f = porFunc.get(s.funcionario_id); if (f) f.solicitacoes.push(s); });
+  sols.rows.forEach((s) => {
+    s.resolvida_por_nome = s.resolvida_por ? (nomePorId.get(s.resolvida_por) || null) : null;
+    const f = porFunc.get(s.funcionario_id);
+    if (f) f.solicitacoes.push(s);
+  });
   abon.rows.forEach((a) => { const f = porFunc.get(a.funcionario_id); if (f) f.abonos.push({ data: a.data, tipo: a.tipo, observacao: a.observacao }); });
   jorn.rows.forEach((j) => {
     const f = porFunc.get(j.funcionario_id);
@@ -1573,7 +1598,7 @@ async function debugPontoAdminVisao(req, res) {
     hoje: dataFusoLoja(new Date()),
     periodo: { de: validaDia(de) ? de : dataFusoLoja(inicioISO), ate: validaDia(ate) ? ate : dataFusoLoja(fimISO) },
     funcionarios: [...porFunc.values()],
-    pendentes: sols.rows.filter((s) => s.status === 'pendente').length,
+    pendentes: sols.rows.filter((s) => s.status === 'pendente' && porFunc.has(s.funcionario_id)).length,
     empresa: await configPonto(db),
   });
 }
