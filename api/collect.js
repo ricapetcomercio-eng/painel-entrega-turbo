@@ -368,6 +368,45 @@ async function reverificarPendentesTurbo(erros) {
   }
 }
 
+// Mesmo espírito do reverificarPendentesFlex/Turbo, pro Shopee "geral" —
+// sem isso, um pedido só era buscado UMA VEZ (quando a coleta incremental
+// de "Todos os pedidos" passava por ele) e nunca mais revisitado, porque
+// essa coleta só anda pra frente no tempo. Na prática isso deixava
+// pedidos cancelados DEPOIS de descobertos (ex: UNPAID que a Shopee
+// cancela sozinha por falta de pagamento — caso real: 260913UU6E4QD1)
+// presos como "aguardando" pra sempre, e pedidos sem ship_by_date ainda
+// (só existe depois que o pagamento é confirmado) nunca ganhavam o
+// cronômetro. Busca em lote (até 50 por chamada, limite da API da
+// Shopee) em vez de um pedido por vez — bem mais barato que o
+// reverificarPendentesFlex/Turbo de cima.
+const TAMANHO_LOTE_SHOPEE_TODOS_RECHECK = 50;
+
+async function reverificarPendentesShopeeTodos(erros) {
+  try {
+    const pendentes = await listarShopeeAguardando(HORAS_JANELA_SHOPEE_TODOS);
+    const porLoja = {};
+    for (const p of pendentes) {
+      if (!p.conta) continue;
+      (porLoja[p.conta] = porLoja[p.conta] || []).push(String(p.order_id));
+    }
+
+    for (const [loja, orderSnList] of Object.entries(porLoja)) {
+      for (let i = 0; i < orderSnList.length; i += TAMANHO_LOTE_SHOPEE_TODOS_RECHECK) {
+        const lote = orderSnList.slice(i, i + TAMANHO_LOTE_SHOPEE_TODOS_RECHECK);
+        try {
+          const detalhes = await buscarDetalhesCompletosShopee(loja, lote);
+          const pedidosMontados = detalhes.map((d) => montarPedidoGenericoShopee(loja, d));
+          await registrarHistoricoTodos(pedidosMontados);
+        } catch (err) {
+          erros.push({ fonte: `shopee_todos_recheck:${loja}`, mensagem: err.message });
+        }
+      }
+    }
+  } catch (err) {
+    erros.push({ fonte: 'shopee_todos_recheck_geral', mensagem: err.message });
+  }
+}
+
 async function enriquecerDevolucoes(conta, erros) {
   try {
     const desde = new Date(Date.now() - DIAS_JANELA_DEVOLUCOES * 24 * 60 * 60 * 1000).toISOString();
@@ -549,6 +588,8 @@ module.exports = async (req, res) => {
     for (const loja of LOJAS_SHOPEE) {
       await coletarNovosParaHistoricoTodosShopee(loja, erros);
     }
+
+    await reverificarPendentesShopeeTodos(erros);
 
     // Snapshot de TODOS os pedidos Shopee ainda aguardando (qualquer forma
     // de entrega, não só Entrega Turbo) — pedido do painel de expedição pra
