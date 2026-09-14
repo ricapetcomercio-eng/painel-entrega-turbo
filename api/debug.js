@@ -965,6 +965,55 @@ async function debugShopeeEscrowTest(req, res) {
   });
 }
 
+// Investigação adicional (Projeção Financeira): get_escrow_list só mostra
+// repasses JÁ liberados no passado (confirmado pelo teste anterior, ver
+// debugShopeeEscrowTest). Aqui testamos get_escrow_detail num pedido AINDA
+// NÃO completo (enviado, aguardando confirmação do comprador), pra ver se
+// esse endpoint expõe alguma previsão de data de liberação antes do
+// repasse acontecer de fato. Remover depois que a decisão for tomada.
+async function debugShopeeEscrowDetailTest(req, res) {
+  const loja = (req.query.loja || '').toLowerCase();
+  if (!['ricapet', 'thapets'].includes(loja)) { res.status(400).json({ error: 'Use ?loja=ricapet ou ?loja=thapets' }); return; }
+
+  let orderSn = req.query.order_sn;
+  let origemOrderSn = 'informado na query (?order_sn=...)';
+
+  if (!orderSn) {
+    const timeTo = Math.floor(Date.now() / 1000);
+    const timeFrom = timeTo - 30 * 24 * 60 * 60;
+    const data = await shopeeGet(loja, '/api/v2/order/get_order_list', {
+      time_range_field: 'create_time',
+      time_from: timeFrom,
+      time_to: timeTo,
+      page_size: 50,
+      order_status: 'TO_CONFIRM_RECEIVE',
+    });
+    const lista = (data.response && data.response.order_list) || [];
+    if (!lista.length) {
+      res.status(200).json({
+        ok: true,
+        tipo: 'shopee-escrow-detail-test',
+        loja,
+        aviso: 'Nenhum pedido em TO_CONFIRM_RECEIVE (enviado, aguardando confirmação) nos últimos 30 dias — passe ?order_sn=... manualmente para testar um pedido específico.',
+      });
+      return;
+    }
+    orderSn = lista[0].order_sn;
+    origemOrderSn = 'auto (primeiro pedido encontrado em TO_CONFIRM_RECEIVE)';
+  }
+
+  const detalhe = await shopeeGet(loja, '/api/v2/payment/get_escrow_detail', { order_sn: orderSn });
+
+  res.status(200).json({
+    ok: true,
+    tipo: 'shopee-escrow-detail-test',
+    loja,
+    order_sn: orderSn,
+    origem_order_sn: origemOrderSn,
+    resposta_bruta: detalhe,
+  });
+}
+
 async function debugShopeeReturns(req, res) {
   const loja = (req.query.loja || '').toLowerCase();
   if (!['ricapet', 'thapets'].includes(loja)) { res.status(400).json({ error: 'Use ?loja=ricapet ou ?loja=thapets' }); return; }
@@ -2074,6 +2123,7 @@ module.exports = async (req, res) => {
     if (req.query.tipo === 'shopee-channels') return await debugShopeeChannels(req, res);
     if (req.query.tipo === 'shopee-orders-recentes') return await debugShopeeOrdersRecentes(req, res);
     if (req.query.tipo === 'shopee-escrow-test') return await debugShopeeEscrowTest(req, res);
+    if (req.query.tipo === 'shopee-escrow-detail-test') return await debugShopeeEscrowDetailTest(req, res);
     if (req.query.tipo === 'shopee-todos-status') return await debugShopeeTodosStatus(req, res);
     if (req.query.tipo === 'turbo-live-status') return await debugTurboLiveStatus(req, res);
     if (req.query.tipo === 'shopee-order-detail') return await debugShopeeOrderDetail(req, res);
