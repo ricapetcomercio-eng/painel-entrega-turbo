@@ -10,8 +10,12 @@
 (function () {
   const CHAVE_SESSAO = 'ricapet_sessao';
 
+  // sessionStorage (não localStorage) de propósito: a sessão dura só
+  // enquanto a aba/janela do navegador estiver aberta -- fechou, precisa
+  // logar de novo. Evita ficar logado indefinidamente num computador
+  // compartilhado (ex.: o link fixo na barra de tarefas do galpão).
   function lerSessao() {
-    try { return JSON.parse(localStorage.getItem(CHAVE_SESSAO) || 'null'); } catch { return null; }
+    try { return JSON.parse(sessionStorage.getItem(CHAVE_SESSAO) || 'null'); } catch { return null; }
   }
 
   const sessao = lerSessao();
@@ -21,7 +25,7 @@
   }
 
   function sair() {
-    localStorage.removeItem(CHAVE_SESSAO);
+    sessionStorage.removeItem(CHAVE_SESSAO);
     location.href = '/login.html';
   }
 

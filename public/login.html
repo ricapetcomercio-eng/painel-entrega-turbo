@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Login — Ricapet</title>
+<link rel="icon" type="image/png" href="logo-ricapet.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap">
 <style>
@@ -61,11 +62,11 @@
   </div>
   <div class="campo">
     <label for="inNome">Nome</label>
-    <input type="text" id="inNome" name="nome" required autocomplete="username">
+    <input type="text" id="inNome" name="nome" required autocomplete="off">
   </div>
   <div class="campo">
     <label for="inPin">PIN</label>
-    <input type="password" id="inPin" name="pin" inputmode="numeric" maxlength="8" required autocomplete="current-password">
+    <input type="password" id="inPin" name="pin" inputmode="numeric" maxlength="8" required autocomplete="off">
   </div>
   <button type="submit" class="btn-entrar" id="btnEntrar">Entrar</button>
   <p class="erro" id="erroLogin"></p>
@@ -73,10 +74,13 @@
 <script>
   const CHAVE_SESSAO = 'ricapet_sessao';
 
-  // Se já tem sessão válida, não mostra a tela de login de novo.
+  // sessionStorage (não localStorage): a sessão só vale enquanto a aba
+  // ficar aberta. Fechou o navegador/aba, a próxima visita ao link cai
+  // aqui de novo, com o formulário em branco (nome e PIN sempre pedidos
+  // de novo, sem mostrar quem logou da última vez).
   (function () {
     try {
-      const sessao = JSON.parse(localStorage.getItem(CHAVE_SESSAO) || 'null');
+      const sessao = JSON.parse(sessionStorage.getItem(CHAVE_SESSAO) || 'null');
       if (sessao && sessao.token) irParaDestino();
     } catch (e) { /* ignora sessão corrompida */ }
   })();
@@ -109,7 +113,7 @@
       const dados = await resp.json().catch(() => ({}));
       if (!resp.ok || dados.ok === false) throw new Error(dados.error || 'Falha ao entrar.');
       if (!dados.admin) throw new Error('Seu usuário não tem acesso a este painel.');
-      localStorage.setItem(CHAVE_SESSAO, JSON.stringify({ token: dados.token, nome: dados.nome }));
+      sessionStorage.setItem(CHAVE_SESSAO, JSON.stringify({ token: dados.token, nome: dados.nome }));
       irParaDestino();
     } catch (err) {
       erroLogin.textContent = err.message;
