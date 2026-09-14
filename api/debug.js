@@ -979,11 +979,11 @@ async function debugShopeeEscrowDetailTest(req, res) {
   let origemOrderSn = 'informado na query (?order_sn=...)';
 
   if (!orderSn) {
-    // get_order_list (diferente de get_escrow_list) exige no máximo 15 dias
-    // entre create_time_from e create_time_to — mesmo limite já confirmado
-    // em debugShopeeReturns.
+    // get_order_list (diferente de get_escrow_list) exige diff MENOR que 15
+    // dias entre create_time_from e create_time_to (15 dias exatos já deu
+    // order_list_invalid_time na prática) — usa 14 pra sobrar margem.
     const timeTo = Math.floor(Date.now() / 1000);
-    const timeFrom = timeTo - 15 * 24 * 60 * 60;
+    const timeFrom = timeTo - 14 * 24 * 60 * 60;
     const data = await shopeeGet(loja, '/api/v2/order/get_order_list', {
       time_range_field: 'create_time',
       time_from: timeFrom,
