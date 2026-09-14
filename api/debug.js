@@ -1026,12 +1026,23 @@ async function debugShopeeEscrowDetailTest(req, res) {
 
   const detalhe = await shopeeGet(loja, '/api/v2/payment/get_escrow_detail', { order_sn: orderSn });
 
+  // get_escrow_detail não tem nenhum campo de data (só valores). Busca
+  // também get_order_detail com campos de tempo/logística (edt = estimated
+  // delivery time, pickup_done_time, pay_time) pra ver se dá pra estimar a
+  // data de liberação a partir da entrega, já que a Shopee não informa a
+  // data de repasse diretamente em nenhum pedido ainda em aberto.
+  const pedidoComTempos = await shopeeGet(loja, '/api/v2/order/get_order_detail', {
+    order_sn_list: orderSn,
+    response_optional_fields: 'create_time,pay_time,ship_by_date,pickup_done_time,edt,order_status',
+  });
+
   res.status(200).json({
     ok: true,
     tipo: 'shopee-escrow-detail-test',
     loja,
     order_sn: orderSn,
     origem_order_sn: origemOrderSn,
+    pedido_campos_tempo: (pedidoComTempos.response && pedidoComTempos.response.order_list && pedidoComTempos.response.order_list[0]) || pedidoComTempos,
     resposta_bruta: detalhe,
   });
 }
