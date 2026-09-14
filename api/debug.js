@@ -1830,6 +1830,35 @@ async function debugPontoAdminAbono(req, res) {
   res.status(200).json({ ok: true, tipo: 'ponto-admin-abono', acao: 'salvar' });
 }
 
+// Feriado da empresa: abona o dia inteiro (tipo 'feriado') pra TODOS os
+// funcionários ativos de uma vez, em vez do admin abrir um por um. Não
+// sobrescreve um abono que a pessoa já tenha nesse dia (ex.: férias) --
+// só preenche quem ainda estava sem nada, senão viraria "falta" à toa.
+async function debugPontoAdminFeriado(req, res) {
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { token, data, observacao }' }); return; }
+  const db = getDb();
+  const admin = await exigirAdmin(req, res, db);
+  if (!admin) return;
+
+  const { data, observacao } = req.body || {};
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(data || ''))) {
+    res.status(400).json({ error: 'Informe data (AAAA-MM-DD).' }); return;
+  }
+  const funcs = await db.execute('SELECT id FROM funcionarios WHERE ativo = 1');
+  const agora = new Date().toISOString();
+  let aplicados = 0;
+  for (const f of funcs.rows) {
+    const r = await db.execute({
+      sql: `INSERT INTO abonos_ponto (funcionario_id, data, tipo, observacao, criado_por, criado_em)
+            VALUES (?, ?, 'feriado', ?, ?, ?)
+            ON CONFLICT(funcionario_id, data) DO NOTHING`,
+      args: [f.id, data, String(observacao || '').slice(0, 500), admin.id, agora],
+    });
+    if (r.rowsAffected) aplicados++;
+  }
+  res.status(200).json({ ok: true, tipo: 'ponto-admin-feriado', acao: 'salvar', total: funcs.rows.length, aplicados });
+}
+
 async function debugPontoAdminResolver(req, res) {
   if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { token, solicitacao_id, decisao }' }); return; }
   const db = getDb();
@@ -2001,7 +2030,7 @@ const TIPOS_PUBLICOS_PONTO = new Set([
   'ponto-editar-proprio', 'ponto-solicitar-correcao', 'ponto-validar-token',
   'ponto-admin-visao', 'ponto-admin-editar', 'ponto-admin-resolver', 'ponto-admin-jornada',
   'ponto-admin-integridade', 'ponto-admin-cpf', 'ponto-admin-afd', 'ponto-admin-abono',
-  'ponto-admin-empresa',
+  'ponto-admin-feriado', 'ponto-admin-empresa',
 ]);
 
 // Rotas chamadas direto do navegador (botão/tela em painel-estoque-adesivo,
@@ -2268,6 +2297,7 @@ module.exports = async (req, res) => {
     if (req.query.tipo === 'ponto-admin-editar') return await debugPontoAdminEditar(req, res);
     if (req.query.tipo === 'ponto-admin-resolver') return await debugPontoAdminResolver(req, res);
     if (req.query.tipo === 'ponto-admin-abono') return await debugPontoAdminAbono(req, res);
+    if (req.query.tipo === 'ponto-admin-feriado') return await debugPontoAdminFeriado(req, res);
     if (req.query.tipo === 'ponto-admin-empresa') return await debugPontoAdminEmpresa(req, res);
     if (req.query.tipo === 'ponto-admin-jornada') return await debugPontoAdminJornada(req, res);
     if (req.query.tipo === 'ponto-admin-integridade') return await debugPontoAdminIntegridade(req, res);

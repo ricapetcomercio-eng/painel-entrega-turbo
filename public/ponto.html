@@ -234,6 +234,7 @@
   .m-linha input[type="date"] { flex: 1; }
   .m-label { display: block; font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; color: var(--ink-muted); margin: 8px 0 6px; }
   .modal-card textarea { width: 100%; border: 1px solid var(--border); border-radius: 9px; background: var(--surface-2); color: var(--ink); padding: 10px; font-size: 0.9rem; font-family: var(--font-body); resize: vertical; }
+  .campo-empresa { width: 100%; height: 38px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface-2); color: var(--ink); padding: 0 10px; font-size: 0.88rem; box-sizing: border-box; margin-bottom: 10px; font-family: inherit; }
   .modal-acoes { display: flex; gap: 10px; margin-top: 16px; }
   .modal-acoes button { flex: 1; height: 42px; border-radius: 999px; font-weight: 700; font-size: 0.9rem; cursor: pointer; transition: all .15s ease; }
   .modal-acoes .cancelar { border: 1px solid var(--border); background: none; color: var(--ink-soft); }
@@ -402,6 +403,43 @@
   </div>
 </div>
 
+<div class="modal" id="modal-empresa" hidden>
+  <div class="modal-card">
+    <h3>Configurações da empresa</h3>
+    <label class="m-label">Razão social</label>
+    <input type="text" id="emp-nome" class="campo-empresa">
+    <label class="m-label">CNPJ (só números)</label>
+    <input type="text" id="emp-cnpj" class="campo-empresa">
+    <label class="m-label">Endereço</label>
+    <input type="text" id="emp-endereco" class="campo-empresa">
+    <div style="display:flex;gap:10px">
+      <div style="flex:1">
+        <label class="m-label">Máx. batidas/dia</label>
+        <input type="number" id="emp-limite" class="campo-empresa" min="2" step="1">
+      </div>
+      <div style="flex:1">
+        <label class="m-label">Tolerância (min)</label>
+        <input type="number" id="emp-tolerancia" class="campo-empresa" min="0" step="1">
+      </div>
+    </div>
+    <p style="font-size:.72rem;color:var(--ink-muted);margin:-4px 0 0">Diferença de entrada/saída dentro desse tempo não conta como atraso nem extra.</p>
+    <p class="erro" id="emp-erro"></p>
+    <div class="modal-acoes">
+      <button class="cancelar" id="emp-cancelar">Cancelar</button>
+      <button class="ok" id="emp-salvar">Salvar</button>
+    </div>
+
+    <div style="border-top:1px solid var(--border);margin-top:16px;padding-top:14px">
+      <label class="m-label">Feriado (abona o dia pra todos os funcionários de uma vez)</label>
+      <input type="date" id="fer-data" class="campo-empresa" style="margin-bottom:8px">
+      <input type="text" id="fer-obs" class="campo-empresa" placeholder="Observação (ex.: Independência do Brasil)">
+      <button type="button" id="fer-registrar" style="width:100%;height:36px;border-radius:8px;border:1px solid var(--ok);background:none;color:var(--ok);font-weight:600;cursor:pointer;margin-top:4px">Registrar feriado pra todos</button>
+      <p style="font-size:.72rem;color:var(--ink-muted);margin:8px 0 0">Não sobrescreve quem já tem abono nesse dia (ex.: já estava de férias/atestado).</p>
+      <p class="erro" id="fer-msg"></p>
+    </div>
+  </div>
+</div>
+
 <script>
   const API = '/api/debug';
   const SECRET = 'f3BqH1JDY6dWb-n4aEhSVcZJrSPvU0Rf'; // PONTO_PUBLIC_SECRET (só abre login/bater/historico + admin com token de admin)
@@ -448,26 +486,49 @@
 
   $('btn-sair').addEventListener('click', () => window.RicapetAuth.sair());
 
-  $('btn-empresa').addEventListener('click', async () => {
+  const modalEmpresa = $('modal-empresa');
+  $('btn-empresa').addEventListener('click', () => {
     const c = (estado && estado.empresa) || {};
-    const empresa = prompt('Razão social da empresa:', c.empresa || '');
-    if (empresa == null) return;
-    const cnpj = prompt('CNPJ (só números):', c.cnpj || '');
-    if (cnpj == null) return;
-    const endereco = prompt('Endereço (opcional):', c.endereco || '');
-    if (endereco == null) return;
-    const limite = prompt('Máx. de batidas por dia (bate-ponto):', c.limite_batidas_dia || 8);
-    if (limite == null) return;
-    const tol = prompt('Tolerância em minutos (não conta atraso/extra dentro dela):', c.tolerancia_min != null ? c.tolerancia_min : 10);
-    if (tol == null) return;
+    $('emp-nome').value = c.empresa || '';
+    $('emp-cnpj').value = c.cnpj || '';
+    $('emp-endereco').value = c.endereco || '';
+    $('emp-limite').value = c.limite_batidas_dia || 8;
+    $('emp-tolerancia').value = c.tolerancia_min != null ? c.tolerancia_min : 10;
+    $('emp-erro').textContent = '';
+    $('fer-data').value = (estado && estado.hoje) || '';
+    $('fer-obs').value = '';
+    $('fer-msg').textContent = ''; $('fer-msg').style.color = '';
+    modalEmpresa.hidden = false;
+  });
+  $('emp-cancelar').addEventListener('click', () => { modalEmpresa.hidden = true; });
+  modalEmpresa.addEventListener('click', (e) => { if (e.target === modalEmpresa) modalEmpresa.hidden = true; });
+
+  $('emp-salvar').addEventListener('click', async () => {
+    $('emp-erro').textContent = '';
     try {
       await api('ponto-admin-empresa', {
-        token: sessao.token, empresa, cnpj: (cnpj || '').replace(/\D/g, ''), endereco: endereco || '',
-        limite_batidas_dia: parseInt(limite, 10) || 8, tolerancia_min: parseInt(tol, 10) || 0,
+        token: sessao.token,
+        empresa: $('emp-nome').value.trim(),
+        cnpj: $('emp-cnpj').value.replace(/\D/g, ''),
+        endereco: $('emp-endereco').value.trim(),
+        limite_batidas_dia: parseInt($('emp-limite').value, 10) || 8,
+        tolerancia_min: parseInt($('emp-tolerancia').value, 10) || 0,
       });
       await carregar();
-      alert('Ajustes salvos.');
-    } catch (err) { alert(err.message); }
+      modalEmpresa.hidden = true;
+    } catch (err) { $('emp-erro').textContent = err.message; }
+  });
+
+  $('fer-registrar').addEventListener('click', async () => {
+    $('fer-msg').style.color = ''; $('fer-msg').textContent = '';
+    const data = $('fer-data').value;
+    if (!data) { $('fer-msg').textContent = 'Escolha a data do feriado.'; return; }
+    try {
+      const resp = await api('ponto-admin-feriado', { token: sessao.token, data, observacao: $('fer-obs').value.trim() });
+      $('fer-msg').style.color = 'var(--ok)';
+      $('fer-msg').textContent = `Feriado registrado para ${resp.aplicados} de ${resp.total} funcionário(s) (quem já tinha abono nesse dia não foi mexido).`;
+      await carregar();
+    } catch (err) { $('fer-msg').textContent = err.message; }
   });
 
   // ---------- painel ----------
