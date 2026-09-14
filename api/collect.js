@@ -40,6 +40,7 @@ const { buscarDevolucoesPorPedido: buscarDevolucoesShopeePorPedido } = require('
 const { registrarHistoricoTodos, marcarDevolucao, listarShopeeAguardando } = require('../lib/historicoTodos');
 const { enviarBalancoMensalSeNecessario } = require('../lib/estoqueSaldo');
 const { coletarProjecaoFinanceira } = require('../lib/mpProjecao');
+const { coletarProjecaoFinanceiraShopee } = require('../lib/shopeeProjecao');
 
 // Janela de DESCOBERTA de pedidos Turbo novos (não confundir com a
 // reverificação, que cobre qualquer "aguardando" sem limite de idade).
@@ -590,23 +591,34 @@ module.exports = async (req, res) => {
     });
   }
 
-  // -------- Projeção Financeira (Mercado Pago): throttle próprio, 1x/dia --------
+  // -------- Projeção Financeira (Mercado Pago + Shopee): throttle próprio, 1x/dia --------
   const ultimaExecucaoProjecao = await kvGet('entrega_turbo:ultima_execucao_projecao_financeira_ts');
   const deveRodarProjecao = !ultimaExecucaoProjecao || (agora - ultimaExecucaoProjecao >= INTERVALO_MINIMO_PROJECAO_FINANCEIRA_MS);
   if (deveRodarProjecao) {
     await medirTempo('projecao_financeira', async () => {
       await kvSet('entrega_turbo:ultima_execucao_projecao_financeira_ts', agora);
-      const contas = {};
+      const contas = { ricapet: {}, thapets: {} };
+
       try {
-        contas.ricapet = await coletarProjecaoFinanceira('ricapet');
+        contas.ricapet.mercadoPago = await coletarProjecaoFinanceira('ricapet');
       } catch (err) {
-        contas.ricapet = { erro: err.message };
-        erros.push({ fonte: 'projecao_financeira_ricapet', mensagem: err.message });
+        contas.ricapet.mercadoPago = { erro: err.message };
+        erros.push({ fonte: 'projecao_financeira_mp_ricapet', mensagem: err.message });
       }
-      // Thapets: app OAuth criado, mas a conta não recebe o escopo
-      // "payments" do Mercado Livre (investigado, sem causa conhecida
-      // ainda) — placeholder até resolver com o suporte.
-      contas.thapets = { erro: 'Conta Thapets ainda não autorizada para Mercado Pago (escopo payments pendente).' };
+      // Thapets/Mercado Pago: app OAuth criado, mas a conta não recebe o
+      // escopo "payments" do Mercado Livre (investigado, sem causa
+      // conhecida ainda) — placeholder até resolver com o suporte.
+      contas.thapets.mercadoPago = { erro: 'Conta Thapets ainda não autorizada para Mercado Pago (escopo payments pendente).' };
+
+      for (const loja of LOJAS_SHOPEE) {
+        try {
+          contas[loja].shopee = await coletarProjecaoFinanceiraShopee(loja);
+        } catch (err) {
+          contas[loja].shopee = { erro: err.message };
+          erros.push({ fonte: `projecao_financeira_shopee_${loja}`, mensagem: err.message });
+        }
+      }
+
       await kvSet('entrega_turbo:ultima_coleta_projecao_financeira', {
         atualizado_em: new Date(agora).toISOString(),
         contas,

@@ -88,6 +88,20 @@
     font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
     padding: 2px 8px; border-radius: 20px; background: var(--brand-light); color: var(--brand);
   }
+  .plataforma-bloco { margin-bottom: 18px; }
+  .plataforma-bloco:last-child { margin-bottom: 0; }
+  .plataforma-titulo {
+    display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700;
+    color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.03em; margin: 0 0 8px;
+  }
+  .plataforma-titulo .selo-estimativa {
+    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;
+    padding: 2px 7px; border-radius: 20px; background: var(--warning-bg); color: var(--warning-text);
+  }
+  .aviso-estimativa {
+    font-size: 12.5px; color: var(--warning-text); background: var(--warning-bg);
+    padding: 8px 12px; border-radius: 8px; margin: 0 0 10px;
+  }
 
   .kpi-row {
     display: grid; grid-template-columns: repeat(3, 1fr); margin-bottom: 16px;
@@ -178,7 +192,7 @@
 <div class="conteudo-principal">
 <div class="shell">
   <h1>Projeção Financeira</h1>
-  <p class="sub">Recebimentos futuros previstos pelo Mercado Pago (parcelas de vendas do Mercado Livre ainda em liberação, campo <code>money_release_date</code>), somados por dia dos próximos 45 dias.</p>
+  <p class="sub">Recebimentos futuros previstos pelo Mercado Pago (parcelas de vendas do Mercado Livre ainda em liberação, campo <code>money_release_date</code>) e pela Shopee (estimativa — a Shopee não informa data oficial de repasse, ver aviso abaixo), somados por dia dos próximos 45 dias.</p>
 
   <div id="conteudo"><div class="loading-note">Carregando…</div></div>
 
@@ -216,21 +230,12 @@
     try { return new Date(iso).toLocaleString('pt-BR'); } catch(e){ return iso; }
   }
 
-  function renderConta(chaveConta, dado){
-    const nome = NOMES_CONTA[chaveConta] || chaveConta;
+  function renderPlataforma(dado){
     if (!dado) {
-      return `
-        <div class="conta-secao">
-          <h2 class="conta-titulo">${nome}</h2>
-          <div class="pendente-note">Ainda não há dados coletados para esta conta.</div>
-        </div>`;
+      return '<div class="pendente-note">Ainda não há dados coletados.</div>';
     }
     if (dado.erro) {
-      return `
-        <div class="conta-secao">
-          <h2 class="conta-titulo">${nome}</h2>
-          <div class="pendente-note">${dado.erro}</div>
-        </div>`;
+      return `<div class="pendente-note">${dado.erro}</div>`;
     }
     const porDia = dado.por_dia || [];
     const linhasHtml = porDia.length
@@ -238,19 +243,44 @@
       : '';
     const tabela = porDia.length
       ? `<table>
-          <thead><tr><th>Data de liberação</th><th>Valor previsto</th><th>Pagamentos</th></tr></thead>
+          <thead><tr><th>Data ${dado.estimativa ? 'estimada' : ''} de liberação</th><th>Valor previsto</th><th>Pagamentos</th></tr></thead>
           <tbody>${linhasHtml}</tbody>
         </table>`
       : '<div class="empty-note">Nenhum recebimento futuro encontrado no horizonte de ' + (dado.horizonte_dias || 45) + ' dias.</div>';
+    const avisoEstimativa = dado.estimativa
+      ? `<p class="aviso-estimativa">⚠ Estimativa: a Shopee não informa a data oficial de repasse para pedidos ainda em aberto. Data calculada a partir da previsão de entrega mais ${dado.dias_confirmacao_assumido || 7} dias (prazo assumido para o comprador confirmar o recebimento) — pode não bater exatamente com a data real.</p>`
+      : '';
+    return `
+      <div class="kpi-row">
+        <div class="kpi"><div class="k-label">A receber (${dado.horizonte_dias || 45} dias)</div><div class="k-value">${fmtMoeda(dado.total_a_receber)}</div></div>
+        <div class="kpi"><div class="k-label">Pagamentos</div><div class="k-value">${dado.total_pagamentos || 0}</div></div>
+        <div class="kpi"><div class="k-label">Atualizado em</div><div class="k-value" style="font-size:13px">${fmtDataHora(dado.atualizado_em)}</div></div>
+      </div>
+      ${avisoEstimativa}
+      ${tabela}
+    `;
+  }
+
+  function renderConta(chaveConta, dadoConta){
+    const nome = NOMES_CONTA[chaveConta] || chaveConta;
+    if (!dadoConta) {
+      return `
+        <div class="conta-secao">
+          <h2 class="conta-titulo">${nome}</h2>
+          <div class="pendente-note">Ainda não há dados coletados para esta conta.</div>
+        </div>`;
+    }
     return `
       <div class="conta-secao">
-        <h2 class="conta-titulo">${nome} <span class="selo">Mercado Pago</span></h2>
-        <div class="kpi-row">
-          <div class="kpi"><div class="k-label">A receber (${dado.horizonte_dias || 45} dias)</div><div class="k-value">${fmtMoeda(dado.total_a_receber)}</div></div>
-          <div class="kpi"><div class="k-label">Pagamentos</div><div class="k-value">${dado.total_pagamentos || 0}</div></div>
-          <div class="kpi"><div class="k-label">Atualizado em</div><div class="k-value" style="font-size:13px">${fmtDataHora(dado.atualizado_em)}</div></div>
+        <h2 class="conta-titulo">${nome}</h2>
+        <div class="plataforma-bloco">
+          <h3 class="plataforma-titulo">Mercado Pago</h3>
+          ${renderPlataforma(dadoConta.mercadoPago)}
         </div>
-        ${tabela}
+        <div class="plataforma-bloco">
+          <h3 class="plataforma-titulo">Shopee <span class="selo selo-estimativa">estimativa</span></h3>
+          ${renderPlataforma(dadoConta.shopee)}
+        </div>
       </div>`;
   }
 
