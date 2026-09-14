@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Ponto · Administração</title>
-<link rel="icon" type="image/png" href="logo-ricapet.png">
+<link rel="icon" type="image/png" href="favicon-ricapet.png">
 <meta name="description" content="Painel de administração do ponto — Ricapet/Thapets.">
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#372F72">
@@ -108,6 +108,11 @@
   .periodo button, .chip-sair { height: 32px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); padding: 0 12px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: background .15s ease, border-color .15s ease, color .15s ease, transform .1s ease; }
   .periodo button:hover, .chip-sair:hover { background: var(--surface-2); }
   #admin-nome { color: var(--ink) !important; }
+  .chip-usuario {
+    display: inline-flex; align-items: center; gap: 5px; font-size: 0.78rem; color: var(--ink-soft);
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 6px 13px;
+  }
+  .chip-usuario-rotulo { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--ink-muted); font-weight: 700; }
   .periodo button:hover, .chip-sair:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-1px); }
 
   /* tabs */
@@ -335,7 +340,7 @@
         <input type="date" id="p-de"> <span>até</span> <input type="date" id="p-ate">
         <button id="p-aplicar">Aplicar</button>
       </div>
-      <span id="admin-nome" style="font-size:.85rem;color:var(--ink-soft);font-weight:600"></span>
+      <span class="chip-usuario" title="Usuário logado"><span class="chip-usuario-rotulo">Logado como</span> <b id="admin-nome"></b></span>
       <button class="chip-sair" id="btn-empresa">Empresa</button>
       <button class="chip-sair" id="btn-sair">Sair</button>
     </div>
@@ -907,7 +912,7 @@
   }
 
   function abrirEditorDia(func, dia, focoAdd, motivoSugerido) {
-    modalCtx = { func, chave: dia.chave, originais: dia.eventos.map((e) => ({ nsr: String(e.nsr), tipo: e.tipo, hora: hhmm(e.quando) })) };
+    modalCtx = { func, chave: dia.chave, originais: dia.eventos.map((e) => ({ nsr: String(e.nsr), tipo: e.tipo, hora: hhmm(e.quando) })), abonoAlterado: false };
     $('modal-titulo').textContent = `${func.nome} — ${rotuloLongo(dia.data)}`;
     modalErro.textContent = '';
     modalOk.textContent = 'Salvar';
@@ -936,6 +941,12 @@
       const p = box.querySelector('p'); if (p) p.remove();
       box.insertAdjacentHTML('beforeend', linhaBatida(null));
     });
+    // marca que o dropdown/observação de abono foi mexido nessa sessão do
+    // modal -- o botão "Salvar" principal usa isso pra saber se também
+    // precisa persistir o abono (ver modalOk abaixo).
+    const marcarAbonoAlterado = () => { if (modalCtx) modalCtx.abonoAlterado = true; };
+    $('ab-tipo').addEventListener('change', marcarAbonoAlterado);
+    $('ab-obs').addEventListener('input', marcarAbonoAlterado);
     $('ab-salvar').addEventListener('click', async () => {
       modalErro.textContent = '';
       try {
@@ -961,31 +972,51 @@
   modalOk.addEventListener('click', async () => {
     if (!modalCtx) return;
     const motivo = $('m-motivo').value.trim();
-    if (!motivo) { modalErro.textContent = 'Escreva o motivo.'; return; }
-    modalErro.textContent = ''; modalOk.disabled = true;
     const { func, chave, originais } = modalCtx;
     const linhas = [...document.querySelectorAll('#m-batidas .m-linha')];
-    try {
-      const vistos = new Set();
-      for (const el of linhas) {
-        const nsr = el.dataset.nsr;
-        const tipo = el.querySelector('.m-tipo').value;
-        const hora = el.querySelector('.m-hora').value;
-        if (!hora) throw new Error('Preencha o horário de todas as batidas.');
-        if (!nsr) {
-          await api('ponto-admin-editar', { token: sessao.token, funcionario_id: func.id, acao: 'adicionar', tipo, dia: chave, hora, motivo });
-        } else {
-          vistos.add(nsr);
-          const o = originais.find((x) => x.nsr === nsr);
-          if (o && (o.tipo !== tipo || o.hora !== hora)) {
-            await api('ponto-admin-editar', { token: sessao.token, funcionario_id: func.id, acao: 'editar', ref_nsr: Number(nsr), tipo, dia: chave, hora, motivo });
-          }
+
+    // monta a lista de ações nas batidas sem executar ainda, pra só então
+    // decidir se motivo é obrigatório (só é, quando alguma batida muda de
+    // verdade -- é o que o rótulo do campo já diz).
+    const acoes = [];
+    const vistos = new Set();
+    for (const el of linhas) {
+      const nsr = el.dataset.nsr;
+      const tipo = el.querySelector('.m-tipo').value;
+      const hora = el.querySelector('.m-hora').value;
+      if (!hora) { modalErro.textContent = 'Preencha o horário de todas as batidas.'; return; }
+      if (!nsr) {
+        acoes.push({ acao: 'adicionar', tipo, dia: chave, hora, motivo });
+      } else {
+        vistos.add(nsr);
+        const o = originais.find((x) => x.nsr === nsr);
+        if (o && (o.tipo !== tipo || o.hora !== hora)) {
+          acoes.push({ acao: 'editar', ref_nsr: Number(nsr), tipo, dia: chave, hora, motivo });
         }
       }
-      for (const o of originais) {
-        if (!vistos.has(o.nsr)) {
-          await api('ponto-admin-editar', { token: sessao.token, funcionario_id: func.id, acao: 'remover', ref_nsr: Number(o.nsr), motivo });
-        }
+    }
+    for (const o of originais) {
+      if (!vistos.has(o.nsr)) acoes.push({ acao: 'remover', ref_nsr: Number(o.nsr), motivo });
+    }
+
+    if (acoes.length && !motivo) { modalErro.textContent = 'Escreva o motivo.'; return; }
+    if (!acoes.length && !modalCtx.abonoAlterado) { modal.hidden = true; modalCtx = null; return; }
+
+    modalErro.textContent = ''; modalOk.disabled = true;
+    try {
+      for (const dados of acoes) {
+        await api('ponto-admin-editar', { token: sessao.token, funcionario_id: func.id, ...dados });
+      }
+      // dropdown/observação de abono foi mexido nessa sessão do modal? salva
+      // junto -- antes o "Salvar" principal ignorava essa seleção em
+      // silêncio, só persistia clicando em "Abonar dia" à parte (bug
+      // relatado: selecionava "Feriado" e clicava em Salvar sem efeito,
+      // porque esse botão só tratava as batidas).
+      if (modalCtx.abonoAlterado) {
+        await api('ponto-admin-abono', {
+          token: sessao.token, funcionario_id: func.id, data: chave,
+          tipo: $('ab-tipo').value, observacao: $('ab-obs').value,
+        });
       }
       modal.hidden = true; modalCtx = null;
       await carregar();
