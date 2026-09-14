@@ -979,8 +979,11 @@ async function debugShopeeEscrowDetailTest(req, res) {
   let origemOrderSn = 'informado na query (?order_sn=...)';
 
   if (!orderSn) {
+    // get_order_list (diferente de get_escrow_list) exige no máximo 15 dias
+    // entre create_time_from e create_time_to — mesmo limite já confirmado
+    // em debugShopeeReturns.
     const timeTo = Math.floor(Date.now() / 1000);
-    const timeFrom = timeTo - 30 * 24 * 60 * 60;
+    const timeFrom = timeTo - 15 * 24 * 60 * 60;
     const data = await shopeeGet(loja, '/api/v2/order/get_order_list', {
       time_range_field: 'create_time',
       time_from: timeFrom,
@@ -994,7 +997,7 @@ async function debugShopeeEscrowDetailTest(req, res) {
         ok: true,
         tipo: 'shopee-escrow-detail-test',
         loja,
-        aviso: 'Nenhum pedido em TO_CONFIRM_RECEIVE (enviado, aguardando confirmação) nos últimos 30 dias — passe ?order_sn=... manualmente para testar um pedido específico.',
+        aviso: 'Nenhum pedido em TO_CONFIRM_RECEIVE (enviado, aguardando confirmação) nos últimos 15 dias — passe ?order_sn=... manualmente para testar um pedido específico.',
       });
       return;
     }
