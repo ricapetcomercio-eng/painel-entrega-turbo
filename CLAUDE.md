@@ -238,6 +238,51 @@ se o deployment de produção aponta pro commit correto do `main` — não
 assumir que "deploy tocado com sucesso" pela CLI significa que o domínio
 está servindo o código mais recente do Git.
 
+## ⚠️ Functions Storage estourado (10GB/10GB) — mesma causa do risco acima
+
+Diagnosticado em 14/set/2026 (Vercel → Usage → Functions Storage): o total
+da conta `ricapet1` bateu **10,35 GB / 10 GB** (Hobby), com quase tudo
+concentrado em dois projetos que na prática são o **mesmo repositório**
+(`painel-entrega-turbo`) deployado duas vezes:
+
+| Projeto | Functions Storage |
+|---|---|
+| `ricapetadministrativo` (produção real) | 7,94 GB |
+| `painel-entrega-turbo` (órfão, "No Production Deployment") | 2,25 GB |
+| `analise-concorrencia` | 163,87 MB |
+| `ricapet-admin-1789171214998-IH31` | 0 B |
+| `painel-estoque-adesivo-1789171304197-HfSs` | 0 B |
+| `ricapet-portal` | 0 B |
+
+Causa: o projeto `painel-entrega-turbo` nunca foi desconectado do GitHub
+depois da migração de domínio pra `ricapetadministrativo` (ver seção
+acima) — então **todo push continua gerando deployment nos dois
+projetos ao mesmo tempo** (confirmado na lista de Deployments: cada
+commit aparece 2x, inclusive merges em `main`, que viram "Production"
+nos dois). Com o ritmo de dezenas de PRs/dia que o projeto vem tendo
+desde 10/set, o histórico de deployments nunca é limpo automaticamente
+no Hobby e foi acumulando até estourar. `ricapet-admin-…-IH31` e
+`painel-estoque-adesivo-…-HfSs` são projetos-fantasma criados sem querer
+por `vercel deploy` sem `.vercel/project.json` linkado — mesmo risco já
+descrito acima, só que já concretizado (estão vazios, mas poluem a lista
+de projetos).
+
+**Correção** (ação manual no dashboard/CLI da Vercel, feita pelo dono do
+projeto — Claude Code não tem credencial de acesso à conta Vercel):
+1. `painel-entrega-turbo`: Settings → Git → Disconnect, depois Settings →
+   Advanced → Delete Project — para os deploys duplicados de vez e libera
+   os 2,25 GB.
+2. Limpar o histórico acumulado sem apagar o que está no ar (via Vercel
+   CLI local, autenticado):
+   ```bash
+   vercel remove ricapetadministrativo --safe --yes
+   vercel remove painel-entrega-turbo --safe --yes   # antes do passo 1, se ainda existir
+   ```
+   `--safe` preserva o deployment atualmente aliasado ao domínio, só
+   apaga o histórico de previews/produções antigas.
+3. Apagar os dois projetos-fantasma vazios (`ricapet-admin-…-IH31`,
+   `painel-estoque-adesivo-…-HfSs`) por organização.
+
 ## Variáveis de ambiente (Vercel → Project Settings → Environment Variables)
 
 ```
