@@ -1969,8 +1969,9 @@ module.exports = async (req, res) => {
         begin_date: fmt(passado),
         end_date: fmt(futuro),
         sort: 'money_release_date',
-        criteria: 'asc',
+        criteria: req.query.criteria === 'desc' ? 'desc' : 'asc',
         limit: '50',
+        offset: req.query.offset || '0',
       });
       const resp = await fetch(`https://api.mercadopago.com/v1/payments/search?${params.toString()}`, {
         headers: { Authorization: `Bearer ${accessToken}` },
