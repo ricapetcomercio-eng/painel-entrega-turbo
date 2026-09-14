@@ -88,6 +88,20 @@
     font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
     padding: 2px 8px; border-radius: 20px; background: var(--brand-light); color: var(--brand);
   }
+  .plataforma-bloco { margin-bottom: 18px; }
+  .plataforma-bloco:last-child { margin-bottom: 0; }
+  .plataforma-titulo {
+    display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700;
+    color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.03em; margin: 0 0 8px;
+  }
+  .plataforma-titulo .selo-estimativa {
+    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;
+    padding: 2px 7px; border-radius: 20px; background: var(--warning-bg); color: var(--warning-text);
+  }
+  .aviso-estimativa {
+    font-size: 12.5px; color: var(--warning-text); background: var(--warning-bg);
+    padding: 8px 12px; border-radius: 8px; margin: 0 0 10px;
+  }
 
   .kpi-row {
     display: grid; grid-template-columns: repeat(3, 1fr); margin-bottom: 16px;
@@ -113,6 +127,15 @@
   .empty-note, .error-note, .loading-note, .pendente-note { text-align: center; padding: 24px; color: var(--ink-muted); font-size: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
   .error-note { color: var(--danger-text); background: var(--danger-bg); border-color: transparent; }
   .pendente-note { color: var(--warning-text); background: var(--warning-bg); border-color: transparent; text-align: left; }
+
+  .toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; }
+  .refresh-btn {
+    font-size: 13px; padding: 9px 14px; border-radius: 8px; border: 1.5px solid var(--border);
+    background: var(--surface); cursor: pointer; color: var(--ink-soft); font-weight: 600;
+    display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  }
+  .refresh-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent-dark); }
+  .refresh-btn:disabled { opacity: 0.6; cursor: default; }
 
   .updated-note { font-size: 12px; color: var(--ink-muted); margin: 8px 0 0; }
   footer.foot { text-align: center; font-size: 12px; color: var(--ink-muted); margin-top: 24px; }
@@ -178,7 +201,11 @@
 <div class="conteudo-principal">
 <div class="shell">
   <h1>Projeção Financeira</h1>
-  <p class="sub">Recebimentos futuros previstos pelo Mercado Pago (parcelas de vendas do Mercado Livre ainda em liberação, campo <code>money_release_date</code>), somados por dia dos próximos 45 dias.</p>
+  <p class="sub">Recebimentos futuros previstos pelo Mercado Pago (parcelas de vendas do Mercado Livre ainda em liberação, campo <code>money_release_date</code>) e pela Shopee (estimativa — a Shopee não informa data oficial de repasse, ver aviso abaixo), somados por dia dos próximos 45 dias. Não atualiza sozinho — clique em "Atualizar agora" quando quiser o dado mais recente.</p>
+
+  <div class="toolbar">
+    <button class="refresh-btn" id="btn-atualizar">↻ Atualizar agora</button>
+  </div>
 
   <div id="conteudo"><div class="loading-note">Carregando…</div></div>
 
@@ -216,21 +243,12 @@
     try { return new Date(iso).toLocaleString('pt-BR'); } catch(e){ return iso; }
   }
 
-  function renderConta(chaveConta, dado){
-    const nome = NOMES_CONTA[chaveConta] || chaveConta;
+  function renderPlataforma(dado){
     if (!dado) {
-      return `
-        <div class="conta-secao">
-          <h2 class="conta-titulo">${nome}</h2>
-          <div class="pendente-note">Ainda não há dados coletados para esta conta.</div>
-        </div>`;
+      return '<div class="pendente-note">Ainda não há dados coletados.</div>';
     }
     if (dado.erro) {
-      return `
-        <div class="conta-secao">
-          <h2 class="conta-titulo">${nome}</h2>
-          <div class="pendente-note">${dado.erro}</div>
-        </div>`;
+      return `<div class="pendente-note">${dado.erro}</div>`;
     }
     const porDia = dado.por_dia || [];
     const linhasHtml = porDia.length
@@ -238,19 +256,44 @@
       : '';
     const tabela = porDia.length
       ? `<table>
-          <thead><tr><th>Data de liberação</th><th>Valor previsto</th><th>Pagamentos</th></tr></thead>
+          <thead><tr><th>Data ${dado.estimativa ? 'estimada' : ''} de liberação</th><th>Valor previsto</th><th>Pagamentos</th></tr></thead>
           <tbody>${linhasHtml}</tbody>
         </table>`
       : '<div class="empty-note">Nenhum recebimento futuro encontrado no horizonte de ' + (dado.horizonte_dias || 45) + ' dias.</div>';
+    const avisoEstimativa = dado.estimativa
+      ? `<p class="aviso-estimativa">⚠ Estimativa: a Shopee não informa a data oficial de repasse para pedidos ainda em aberto. Data calculada a partir da previsão de entrega mais ${dado.dias_confirmacao_assumido || 7} dias (prazo assumido para o comprador confirmar o recebimento) — pode não bater exatamente com a data real.</p>`
+      : '';
+    return `
+      <div class="kpi-row">
+        <div class="kpi"><div class="k-label">A receber (${dado.horizonte_dias || 45} dias)</div><div class="k-value">${fmtMoeda(dado.total_a_receber)}</div></div>
+        <div class="kpi"><div class="k-label">Pagamentos</div><div class="k-value">${dado.total_pagamentos || 0}</div></div>
+        <div class="kpi"><div class="k-label">Atualizado em</div><div class="k-value" style="font-size:13px">${fmtDataHora(dado.atualizado_em)}</div></div>
+      </div>
+      ${avisoEstimativa}
+      ${tabela}
+    `;
+  }
+
+  function renderConta(chaveConta, dadoConta){
+    const nome = NOMES_CONTA[chaveConta] || chaveConta;
+    if (!dadoConta) {
+      return `
+        <div class="conta-secao">
+          <h2 class="conta-titulo">${nome}</h2>
+          <div class="pendente-note">Ainda não há dados coletados para esta conta.</div>
+        </div>`;
+    }
     return `
       <div class="conta-secao">
-        <h2 class="conta-titulo">${nome} <span class="selo">Mercado Pago</span></h2>
-        <div class="kpi-row">
-          <div class="kpi"><div class="k-label">A receber (${dado.horizonte_dias || 45} dias)</div><div class="k-value">${fmtMoeda(dado.total_a_receber)}</div></div>
-          <div class="kpi"><div class="k-label">Pagamentos</div><div class="k-value">${dado.total_pagamentos || 0}</div></div>
-          <div class="kpi"><div class="k-label">Atualizado em</div><div class="k-value" style="font-size:13px">${fmtDataHora(dado.atualizado_em)}</div></div>
+        <h2 class="conta-titulo">${nome}</h2>
+        <div class="plataforma-bloco">
+          <h3 class="plataforma-titulo">Mercado Pago</h3>
+          ${renderPlataforma(dadoConta.mercadoPago)}
         </div>
-        ${tabela}
+        <div class="plataforma-bloco">
+          <h3 class="plataforma-titulo">Shopee <span class="selo selo-estimativa">estimativa</span></h3>
+          ${renderPlataforma(dadoConta.shopee)}
+        </div>
       </div>`;
   }
 
@@ -266,7 +309,7 @@
 
       const projecao = json.projecaoFinanceira;
       if (!projecao) {
-        wrap.innerHTML = '<div class="pendente-note">Ainda não há dados coletados. Aguarde a próxima execução do cron (roda 1x por dia).</div>';
+        wrap.innerHTML = '<div class="pendente-note">Ainda não há dados coletados. Clique em "Atualizar agora" acima.</div>';
         return;
       }
       const contas = projecao.contas || {};
@@ -277,6 +320,28 @@
       wrap.innerHTML = '<div class="error-note">⚠ Erro ao carregar a projeção: ' + (e.message || e) + '</div>';
     }
   }
+
+  async function atualizarAgora(){
+    const btn = document.getElementById('btn-atualizar');
+    const textoOriginal = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Atualizando… (pode levar alguns segundos)';
+    try {
+      const params = new URLSearchParams({ acao: 'projecao-financeira-manual' });
+      if (sessaoAtual) params.set('sessao', sessaoAtual.token);
+      const resp = await fetch('/api/collect?' + params.toString());
+      const json = await resp.json();
+      if (!resp.ok) throw new Error(json.error || ('HTTP ' + resp.status));
+      await carregar();
+    } catch(e){
+      console.error('Erro ao atualizar projeção financeira:', e);
+      alert('Erro ao atualizar: ' + (e.message || e));
+    } finally {
+      btn.disabled = false;
+      btn.textContent = textoOriginal;
+    }
+  }
+  document.getElementById('btn-atualizar').addEventListener('click', atualizarAgora);
 
   carregar();
 })();

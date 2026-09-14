@@ -63,6 +63,47 @@ Throttles internos em `api/collect.js` (constantes no topo do arquivo):
 | Shopee | 15 min | cota limitada do proxy Fixie (IP fixo) |
 | Devoluções | 30 min | mudam devagar |
 
+### Projeção Financeira: sob demanda, não automática (Mercado Pago + Shopee)
+
+`lib/mpProjecao.js` e `lib/shopeeProjecao.js` alimentam a mesma tela
+(`public/projecao-financeira.html`). Diferente de tudo mais nesta tabela,
+essa coleta **NÃO roda no cron automático** — é cara demais (Shopee faz 1
+chamada extra por pedido em aberto, ver custo abaixo) e o dado não precisa
+estar sempre fresco. Em vez de throttle por tempo, é 100% sob demanda: o
+botão "Atualizar agora" na tela chama `GET /api/collect?acao=projecao-
+financeira-manual&sessao=...`, autenticado pela sessão de admin do login
+único (não pelo `CRON_SECRET`) — ver `coletarProjecaoFinanceiraManual` no
+topo de `api/collect.js`. Decisão explícita do dono do projeto pra manter o
+custo de API o mais baixo possível.
+
+Também importante não confundir os dois ao mexer nesse código:
+
+- **Mercado Pago**: `money_release_date` é informado pela própria API
+  (`/v1/payments/search`) — data real, confirmada com dado de produção.
+- **Shopee**: a API **não** expõe nenhuma data de repasse pra pedidos ainda
+  em aberto — confirmado empiricamente (`get_escrow_list` só devolve
+  repasses já liberados; `get_escrow_detail` calcula o valor mas não tem
+  nenhum campo de data). `lib/shopeeProjecao.js` portanto **estima** a data
+  (pedidos `SHIPPED`/`TO_CONFIRM_RECEIVE`, usando o maior entre a previsão
+  de entrega da Shopee — `edt_to` — e a última atualização de status, mais
+  `DIAS_CONFIRMACAO_PADRAO` dias assumidos de prazo de confirmação do
+  comprador). Por isso o retorno vem com `estimativa: true` e a tela mostra
+  um aviso — **nunca remover esse aviso ou tratar o dado da Shopee aqui
+  como se fosse tão confiável quanto o do Mercado Pago**.
+- Custo: a estimativa da Shopee faz 1 chamada a `get_escrow_detail` por
+  pedido em aberto encontrado (trava de segurança: no máximo 300 por
+  loja/clique, `MAX_CONSULTAS_ESCROW`). Como só roda quando alguém clica no
+  botão (não fica em loop nem em cron), o impacto na cota do proxy Fixie é
+  bem menor que se fosse automático — mas se a cota apertar mesmo assim,
+  este é um
+  candidato claro pra revisar/reduzir primeiro.
+- Thapets no Mercado Pago fica como placeholder (`erro: "Conta Thapets
+  ainda não autorizada..."`) — a conta não recebe o escopo `payments` do
+  Mercado Livre apesar de duas apps OAuth criadas com config idêntica à da
+  Ricapet; investigação aponta pra restrição de conta, não de config do
+  app. Shopee funciona normalmente para as duas lojas (não depende desse
+  escopo).
+
 ## Banco de dados
 
 Turso (libSQL/SQLite cloud) é o banco principal — `lib/db.js` + `lib/kv.js`
