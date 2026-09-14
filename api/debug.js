@@ -918,6 +918,46 @@ async function debugShopeeOrdersRecentes(req, res) {
   });
 }
 
+// Investigação pontual (Projeção Financeira): descobrir se get_escrow_list
+// retorna pedidos cujo repasse AINDA NÃO foi liberado (escrow_release_time
+// no futuro), ou só um histórico do que já foi liberado. A doc pública não
+// deixa isso claro. Janela de 30 dias passados + 30 dias futuros pra pegar
+// os dois casos numa chamada só. Remover depois que a decisão for tomada.
+async function debugShopeeEscrowTest(req, res) {
+  const loja = (req.query.loja || '').toLowerCase();
+  if (!['ricapet', 'thapets'].includes(loja)) { res.status(400).json({ error: 'Use ?loja=ricapet ou ?loja=thapets' }); return; }
+
+  const agora = Math.floor(Date.now() / 1000);
+  const passado = agora - 30 * 24 * 60 * 60;
+  const futuro = agora + 30 * 24 * 60 * 60;
+
+  const data = await shopeeGet(loja, '/api/v2/payment/get_escrow_list', {
+    release_time_from: passado,
+    release_time_to: futuro,
+    page_size: 50,
+  });
+
+  const lista = (data.response && data.response.escrow_list) || [];
+  const agoraMs = Date.now();
+
+  res.status(200).json({
+    ok: true,
+    tipo: 'shopee-escrow-test',
+    loja,
+    janela: { de: new Date(passado * 1000).toISOString(), ate: new Date(futuro * 1000).toISOString() },
+    total: lista.length,
+    more: (data.response && data.response.more) || false,
+    resposta_bruta_amostra: lista.slice(0, 5),
+    resumo_datas: lista.map((e) => ({
+      order_sn: e.order_sn,
+      payout_amount: e.payout_amount,
+      escrow_release_time: e.escrow_release_time,
+      escrow_release_time_iso: e.escrow_release_time ? new Date(e.escrow_release_time * 1000).toISOString() : null,
+      no_futuro: e.escrow_release_time ? (e.escrow_release_time * 1000 > agoraMs) : null,
+    })),
+  });
+}
+
 async function debugShopeeReturns(req, res) {
   const loja = (req.query.loja || '').toLowerCase();
   if (!['ricapet', 'thapets'].includes(loja)) { res.status(400).json({ error: 'Use ?loja=ricapet ou ?loja=thapets' }); return; }
@@ -1947,6 +1987,7 @@ module.exports = async (req, res) => {
     if (req.query.tipo === 'shopee-returns') return await debugShopeeReturns(req, res);
     if (req.query.tipo === 'shopee-channels') return await debugShopeeChannels(req, res);
     if (req.query.tipo === 'shopee-orders-recentes') return await debugShopeeOrdersRecentes(req, res);
+    if (req.query.tipo === 'shopee-escrow-test') return await debugShopeeEscrowTest(req, res);
     if (req.query.tipo === 'shopee-todos-status') return await debugShopeeTodosStatus(req, res);
     if (req.query.tipo === 'turbo-live-status') return await debugTurboLiveStatus(req, res);
     if (req.query.tipo === 'shopee-order-detail') return await debugShopeeOrderDetail(req, res);
