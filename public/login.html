@@ -42,6 +42,7 @@
     color: var(--text); padding: 0 13px; font-size: 15px; font-family: inherit;
   }
   .campo input:focus { outline: none; border-color: var(--blue); }
+  #inNome { text-align: center; }
   input[type="password"] { letter-spacing: 8px; text-align: center; font-size: 18px; }
   .btn-entrar {
     width: 100%; height: 44px; border: none; border-radius: 10px; background: var(--blue);
@@ -62,11 +63,11 @@
   </div>
   <div class="campo">
     <label for="inNome">Nome</label>
-    <input type="text" id="inNome" name="nome" required autocomplete="off">
+    <input type="text" id="inNome" required autocomplete="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore data-bwignore>
   </div>
   <div class="campo">
     <label for="inPin">PIN</label>
-    <input type="password" id="inPin" name="pin" inputmode="numeric" maxlength="8" required autocomplete="off">
+    <input type="password" id="inPin" inputmode="numeric" maxlength="8" required autocomplete="new-password" data-lpignore="true" data-1p-ignore data-bwignore>
   </div>
   <button type="submit" class="btn-entrar" id="btnEntrar">Entrar</button>
   <p class="erro" id="erroLogin"></p>
