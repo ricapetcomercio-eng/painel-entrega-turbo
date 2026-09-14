@@ -982,6 +982,10 @@ async function debugShopeeEscrowDetailTest(req, res) {
     // get_order_list (diferente de get_escrow_list) exige diff MENOR que 15
     // dias entre create_time_from e create_time_to (15 dias exatos já deu
     // order_list_invalid_time na prática) — usa 14 pra sobrar margem.
+    // ⚠️ order_status como filtro de get_order_list deu "order_status is
+    // invalid" (TO_CONFIRM_RECEIVE não é um valor aceito nesse parâmetro,
+    // mesmo aparecendo como valor de retorno em get_order_detail) — busca
+    // sem filtro e filtra pelo status real depois, via get_order_detail.
     const timeTo = Math.floor(Date.now() / 1000);
     const timeFrom = timeTo - 14 * 24 * 60 * 60;
     const data = await shopeeGet(loja, '/api/v2/order/get_order_list', {
@@ -989,20 +993,35 @@ async function debugShopeeEscrowDetailTest(req, res) {
       time_from: timeFrom,
       time_to: timeTo,
       page_size: 50,
-      order_status: 'TO_CONFIRM_RECEIVE',
     });
-    const lista = (data.response && data.response.order_list) || [];
-    if (!lista.length) {
+    const listaResumo = (data.response && data.response.order_list) || [];
+    if (!listaResumo.length) {
       res.status(200).json({
         ok: true,
         tipo: 'shopee-escrow-detail-test',
         loja,
-        aviso: 'Nenhum pedido em TO_CONFIRM_RECEIVE (enviado, aguardando confirmação) nos últimos 15 dias — passe ?order_sn=... manualmente para testar um pedido específico.',
+        aviso: 'Nenhum pedido criado nos últimos 14 dias — passe ?order_sn=... manualmente para testar um pedido específico.',
       });
       return;
     }
-    orderSn = lista[0].order_sn;
-    origemOrderSn = 'auto (primeiro pedido encontrado em TO_CONFIRM_RECEIVE)';
+    const orderSnList = listaResumo.map((p) => p.order_sn);
+    const detalhes = await shopeeGet(loja, '/api/v2/order/get_order_detail', {
+      order_sn_list: orderSnList.join(','),
+    });
+    const pedidosDetalhados = (detalhes.response && detalhes.response.order_list) || [];
+    const candidato = pedidosDetalhados.find((p) => ['SHIPPED', 'TO_CONFIRM_RECEIVE'].includes(p.order_status));
+    if (!candidato) {
+      res.status(200).json({
+        ok: true,
+        tipo: 'shopee-escrow-detail-test',
+        loja,
+        aviso: 'Nenhum pedido enviado/aguardando confirmação (SHIPPED ou TO_CONFIRM_RECEIVE) entre os pedidos criados nos últimos 14 dias — passe ?order_sn=... manualmente para testar um pedido específico.',
+        status_encontrados: pedidosDetalhados.map((p) => p.order_status),
+      });
+      return;
+    }
+    orderSn = candidato.order_sn;
+    origemOrderSn = `auto (status ${candidato.order_status}, dentre pedidos criados nos últimos 14 dias)`;
   }
 
   const detalhe = await shopeeGet(loja, '/api/v2/payment/get_escrow_detail', { order_sn: orderSn });
