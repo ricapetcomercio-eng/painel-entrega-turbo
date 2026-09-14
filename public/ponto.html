@@ -195,6 +195,12 @@
   td.st-atraso { background: var(--warn-bg); color: var(--warn); }
   td.st-falta  { background: var(--bad-bg);  color: var(--bad); }
   td.st-abono  { background: var(--info-bg); color: var(--info-tx); font-family: var(--font-body) !important; font-weight: 600; text-align: left !important; }
+  /* linhas de dias não trabalhados (folga fixa, abono/férias, falta) —
+     diferencia visualmente de um dia útil normal, mesmo nas colunas que
+     não têm classe de status própria (Dia, Jornada). */
+  tr.linha-folga td:not(.st-abono) { background: var(--surface-2); }
+  tr.linha-abono td:not(.st-abono) { background: var(--info-bg); }
+  tr.linha-falta td:not(.st-abono) { background: var(--bad-bg); }
   .c-jornada { font-family: var(--font-body) !important; font-size: 0.72rem; color: var(--ink-muted); }
   .c-metodo { font-family: var(--font-body) !important; font-size: 0.72rem; color: var(--ink-muted); }
   .c-edit { font-family: var(--font-body) !important; font-size: 0.72rem; color: var(--accent); }
@@ -709,13 +715,21 @@
         + (d.editado ? ' <span class="c-edit" title="Editado">✎</span>' : '')
         + (d.abono ? ` <span class="c-abono" title="${(d.abono.observacao || '').replace(/"/g, '')}">${ABONO_LABEL[d.abono.tipo] || 'Abono'}</span>` : '')
         + `<span class="c-sub">${nomeDiaSemana(d.data)}</span>`;
-      const jornadaTxt = d.jdia ? `${d.jdia.entrada}–${d.jdia.saida}` : (d.previsto === 0 ? 'folga' : '—');
+      // dia sem horário configurado (ex.: fim de semana de quem não
+      // trabalha) cai aqui com entrada/saida nulos — sem esse cheque
+      // virava "null–null" na coluna Jornada.
+      const temHorarioFixo = !!(d.jdia && d.jdia.entrada && d.jdia.saida);
+      const ehFolga = d.previsto === 0 && !d.abono && !d.eventos.length;
+      const ehFalta = d.previsto > 0 && !d.abono && !d.eventos.length;
+      const jornadaTxt = temHorarioFixo ? `${d.jdia.entrada}–${d.jdia.saida}` : (ehFolga ? 'Folga' : '—');
+      const classeLinha = d.abono ? 'linha-abono' : (ehFolga ? 'linha-folga' : (ehFalta ? 'linha-falta' : ''));
+      const classesTr = [d.ehHoje ? 'hoje' : '', classeLinha].filter(Boolean).join(' ');
       const btn = `<td class="b-linha"><button data-edit="${d.chave}" title="Editar dia">✎</button></td>`;
 
       if (!d.eventos.length) {
-        return `<tr class="${d.ehHoje ? 'hoje' : ''}"><td class="c-dia">${rot}</td>
+        return `<tr class="${classesTr}"><td class="c-dia">${rot}</td>
           <td class="c-jornada">${jornadaTxt}</td>
-          <td class="${d.abono ? 'st-abono' : 'c-nenhum'}" colspan="6">${d.abono ? (ABONO_LABEL[d.abono.tipo] || 'Abono') : (d.previsto ? 'Falta' : 'Nenhum ponto')}</td>
+          <td class="${d.abono ? 'st-abono' : 'c-nenhum'}" colspan="6">${d.abono ? (ABONO_LABEL[d.abono.tipo] || 'Abono') : (ehFalta ? 'Falta' : (ehFolga ? 'Folga' : 'Nenhum ponto'))}</td>
           ${btn}</tr>`;
       }
       const s = slotsDoDia(d);
@@ -726,7 +740,7 @@
       };
       const ex = d.temCalc ? Math.max(d.saldo, 0) : 0;
       const fa = (d.temCalc && !d.abono) ? Math.max(-d.saldo, 0) : 0;
-      return `<tr class="${d.ehHoje ? 'hoje' : ''}">
+      return `<tr class="${classesTr}">
         <td class="c-dia">${rot}</td>
         <td class="c-jornada">${jornadaTxt}</td>
         ${cel(s.entrada, d.jdia && d.jdia.entrada, 'entrada', false)}
