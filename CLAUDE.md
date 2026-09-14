@@ -104,6 +104,37 @@ Também importante não confundir os dois ao mexer nesse código:
   app. Shopee funciona normalmente para as duas lojas (não depende desse
   escopo).
 
+### `projecao-financeira.html` é na verdade um Fluxo de Caixa (planilha)
+
+A tela evoluiu de "só entradas futuras" pra um fluxo de caixa dia a dia
+inspirado numa planilha real do dono do projeto (dias nas colunas,
+categorias nas linhas, saldo acumulado embaixo). Peças do modelo:
+
+- **Entradas**: Shopee/Mercado Pago (ver seção acima) + **Site** (manual,
+  nenhuma integração com o site próprio existe neste projeto — cada dia é
+  um campo editável direto na tela).
+- **Saldo bancário inicial**: campo manual (Ricapet + Thapets, um número
+  cada, não por dia) — ponto de partida do saldo acumulado projetado.
+  Guardado em `entrega_turbo:fluxo_caixa_saldo_manual`
+  (kv). Editado via `/api/debug?tipo=fluxo-caixa-config-set`.
+- **Saídas**: **pendente de integração com o Omie** ("contas a pagar",
+  categoria por categoria — Aluguel, Fornecedores, FGTS/INSS, etc.). Até
+  isso existir, a tela mostra uma linha zerada e um aviso. Vai precisar de
+  `lib/omieContasPagar.js` (novo) + credenciais `OMIE_RICAPET_APP_KEY`/
+  `_APP_SECRET` e `OMIE_THAPETS_APP_KEY`/`_APP_SECRET` (Omie trata as duas
+  empresas como contas separadas) — seguir o mesmo padrão empírico já usado
+  pro Mercado Pago/Shopee: endpoint de debug primeiro, confirmar o formato
+  real da resposta com dado de produção, só depois escrever o código final.
+- **Saldo acumulado**: calculado no frontend (não vem pronto do backend) —
+  `saldo do dia anterior + total de entradas do dia − total a pagar do
+  dia`, começando do saldo bancário manual somado (Ricapet + Thapets).
+- Duas novas rotas em `api/debug.js` (`fluxo-caixa-config-get`/`-set`),
+  protegidas só pela sessão de admin (`exigirAdmin`), sem nenhum secret de
+  app — mesmo padrão de "sessão pura" do `?acao=projecao-financeira-manual`
+  em `api/collect.js` (ver `TIPOS_SESSAO_ADMIN`).
+- `entrega_turbo:fluxo_caixa_site_manual` guarda o mapa `{ "AAAA-MM-DD":
+  valor }` das vendas manuais do site.
+
 ## Banco de dados
 
 Turso (libSQL/SQLite cloud) é o banco principal — `lib/db.js` + `lib/kv.js`

@@ -78,66 +78,70 @@
     .conteudo-principal { margin-left: 0; }
   }
 
-  .shell { max-width: 960px; margin: 0 auto; padding: 28px 20px 60px; }
+  .shell { max-width: 100%; margin: 0 auto; padding: 28px 24px 60px; }
   h1 { font-family: var(--font-display); font-size: 22px; font-weight: 700; margin: 0 0 4px; }
-  .sub { font-size: 13.5px; color: var(--ink-soft); margin: 0 0 20px; max-width: 70ch; }
-
-  .conta-secao { margin-bottom: 28px; }
-  .conta-titulo { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700; margin: 0 0 10px; }
-  .conta-titulo .selo {
-    font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
-    padding: 2px 8px; border-radius: 20px; background: var(--brand-light); color: var(--brand);
-  }
-  .plataforma-bloco { margin-bottom: 18px; }
-  .plataforma-bloco:last-child { margin-bottom: 0; }
-  .plataforma-titulo {
-    display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700;
-    color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.03em; margin: 0 0 8px;
-  }
-  .plataforma-titulo .selo-estimativa {
-    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;
-    padding: 2px 7px; border-radius: 20px; background: var(--warning-bg); color: var(--warning-text);
-  }
-  .aviso-estimativa {
-    font-size: 12.5px; color: var(--warning-text); background: var(--warning-bg);
-    padding: 8px 12px; border-radius: 8px; margin: 0 0 10px;
-  }
-
-  .kpi-row {
-    display: grid; grid-template-columns: repeat(3, 1fr); margin-bottom: 16px;
-    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
-    box-shadow: 0 2px 10px rgba(27,42,74,0.06); overflow: hidden;
-  }
-  .kpi { padding: 14px 16px; border-right: 1px solid var(--border); }
-  .kpi:last-child { border-right: none; }
-  .kpi .k-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: var(--ink-muted); margin-bottom: 4px; }
-  .kpi .k-value { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 18px; font-weight: 600; }
-  @media (max-width: 560px) {
-    .kpi-row { grid-template-columns: 1fr; }
-    .kpi { border-right: none; }
-    .kpi:not(:first-child) { border-top: 1px solid var(--border); }
-  }
-
-  table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
-  th, td { text-align: left; padding: 9px 12px; font-size: 13.5px; border-bottom: 1px solid var(--border); }
-  th { background: var(--surface-2); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-muted); font-weight: 600; }
-  tr:last-child td { border-bottom: none; }
-  td.num { font-family: var(--font-mono); text-align: right; font-weight: 600; }
+  .sub { font-size: 13.5px; color: var(--ink-soft); margin: 0 0 18px; max-width: 90ch; }
 
   .empty-note, .error-note, .loading-note, .pendente-note { text-align: center; padding: 24px; color: var(--ink-muted); font-size: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
   .error-note { color: var(--danger-text); background: var(--danger-bg); border-color: transparent; }
   .pendente-note { color: var(--warning-text); background: var(--warning-bg); border-color: transparent; text-align: left; }
 
-  .toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; }
-  .refresh-btn {
+  .toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+  .refresh-btn, .salvar-btn {
     font-size: 13px; padding: 9px 14px; border-radius: 8px; border: 1.5px solid var(--border);
     background: var(--surface); cursor: pointer; color: var(--ink-soft); font-weight: 600;
     display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
   }
-  .refresh-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent-dark); }
-  .refresh-btn:disabled { opacity: 0.6; cursor: default; }
+  .refresh-btn:hover:not(:disabled), .salvar-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent-dark); }
+  .refresh-btn:disabled, .salvar-btn:disabled { opacity: 0.6; cursor: default; }
 
-  .updated-note { font-size: 12px; color: var(--ink-muted); margin: 8px 0 0; }
+  .saldo-form {
+    display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 18px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px;
+  }
+  .saldo-campo { display: flex; flex-direction: column; gap: 4px; }
+  .saldo-campo label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: var(--ink-muted); }
+  .saldo-campo input {
+    font-family: var(--font-mono); font-size: 14px; padding: 7px 10px; border: 1.5px solid var(--border);
+    border-radius: 7px; width: 140px; background: var(--surface);
+  }
+  .saldo-info { font-size: 12px; color: var(--ink-muted); margin-left: auto; }
+
+  .avisos-lista { margin: 0 0 18px; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  .avisos-lista li {
+    font-size: 12.5px; color: var(--warning-text); background: var(--warning-bg);
+    padding: 8px 12px; border-radius: 8px;
+  }
+
+  .matriz-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+  table.matriz { width: max-content; min-width: 100%; border-collapse: collapse; }
+  table.matriz th, table.matriz td {
+    text-align: right; padding: 7px 10px; font-size: 12.5px; border-bottom: 1px solid var(--border);
+    font-family: var(--font-mono); white-space: nowrap;
+  }
+  table.matriz th.rotulo, table.matriz td.rotulo {
+    text-align: left; font-family: var(--font-body); position: sticky; left: 0; z-index: 2;
+    background: var(--surface); min-width: 190px; max-width: 190px; white-space: normal;
+  }
+  table.matriz thead th {
+    background: var(--surface-2); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.02em;
+    color: var(--ink-muted); font-weight: 600; position: sticky; top: 0; z-index: 1; line-height: 1.5;
+  }
+  table.matriz thead th.rotulo { z-index: 3; }
+  table.matriz td.fds, table.matriz th.fds { background: var(--surface-2); }
+  table.matriz td.rotulo.fds { background: var(--surface); }
+  tr.linha-secao td { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-soft); background: var(--surface-2); text-align: left; padding-top: 10px; padding-bottom: 4px; }
+  tr.linha-total td { font-weight: 700; background: var(--surface-2); }
+  tr.linha-saldo td { font-weight: 700; background: var(--brand-light); color: var(--brand); }
+  tr.linha-saldo td.negativo { background: var(--danger-bg); color: var(--danger-text); }
+  td.editavel { padding: 3px 6px; }
+  td.editavel input {
+    width: 72px; text-align: right; font-family: var(--font-mono); font-size: 12px;
+    padding: 4px 5px; border: 1px solid var(--border); border-radius: 5px; background: var(--surface);
+  }
+  td.editavel input:focus { border-color: var(--accent); outline: none; }
+
+  .updated-note { font-size: 12px; color: var(--ink-muted); margin: 10px 0 0; }
   footer.foot { text-align: center; font-size: 12px; color: var(--ink-muted); margin-top: 24px; }
 </style>
 </head>
@@ -201,10 +205,23 @@
 <div class="conteudo-principal">
 <div class="shell">
   <h1>Projeção Financeira</h1>
-  <p class="sub">Recebimentos futuros previstos pelo Mercado Pago (parcelas de vendas do Mercado Livre ainda em liberação, campo <code>money_release_date</code>) e pela Shopee (estimativa — a Shopee não informa data oficial de repasse, ver aviso abaixo), somados por dia dos próximos 45 dias. Não atualiza sozinho — clique em "Atualizar agora" quando quiser o dado mais recente.</p>
+  <p class="sub">Fluxo de caixa projetado dia a dia: entradas previstas (Mercado Pago, Shopee, Site) menos saídas previstas (Omie — contas a pagar), partindo do saldo bancário atual. Não atualiza sozinho — clique em "Atualizar agora" quando quiser buscar dado novo do Mercado Pago/Shopee.</p>
 
   <div class="toolbar">
     <button class="refresh-btn" id="btn-atualizar">↻ Atualizar agora</button>
+  </div>
+
+  <div class="saldo-form">
+    <div class="saldo-campo">
+      <label for="input-saldo-ricapet">Saldo bancário Ricapet</label>
+      <input type="number" step="0.01" id="input-saldo-ricapet" placeholder="0,00">
+    </div>
+    <div class="saldo-campo">
+      <label for="input-saldo-thapets">Saldo bancário Thapets</label>
+      <input type="number" step="0.01" id="input-saldo-thapets" placeholder="0,00">
+    </div>
+    <button class="salvar-btn" id="btn-salvar-saldo">Salvar saldo</button>
+    <span class="saldo-info" id="saldo-info"></span>
   </div>
 
   <div id="conteudo"><div class="loading-note">Carregando…</div></div>
@@ -226,16 +243,16 @@
   const elLinkSair = document.getElementById('linkSair');
   if (elLinkSair) elLinkSair.addEventListener('click', (ev) => { ev.preventDefault(); window.RicapetAuth.sair(); });
 
-  const NOMES_CONTA = { ricapet: 'Ricapet', thapets: 'Thapets' };
+  const HORIZONTE_DIAS_EXIBIDO = 30;
+  const DIAS_SEMANA_ABREV = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'];
 
   function fmtMoeda(v){
     return (v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   }
 
-  function fmtDataCurta(diaStr){
-    if(!diaStr) return '—';
-    const [ano, mes, dia] = diaStr.split('-');
-    return `${dia}/${mes}/${ano}`;
+  function fmtMoedaCompacta(v){
+    if (!v) return '-';
+    return (Math.round(v * 100) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
   function fmtDataHora(iso){
@@ -243,81 +260,177 @@
     try { return new Date(iso).toLocaleString('pt-BR'); } catch(e){ return iso; }
   }
 
-  function renderPlataforma(dado){
-    if (!dado) {
-      return '<div class="pendente-note">Ainda não há dados coletados.</div>';
+  function gerarDatas(qtdDias){
+    const datas = [];
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    for (let i = 0; i < qtdDias; i++) {
+      const d = new Date(hoje.getTime() + i * 86400000);
+      datas.push(d.toISOString().slice(0, 10));
     }
-    if (dado.erro) {
-      return `<div class="pendente-note">${dado.erro}</div>`;
-    }
-    const porDia = dado.por_dia || [];
-    const linhasHtml = porDia.length
-      ? porDia.map(d => `<tr><td>${fmtDataCurta(d.data)}</td><td class="num">${fmtMoeda(d.total)}</td><td class="num">${d.qtd}</td></tr>`).join('')
-      : '';
-    const tabela = porDia.length
-      ? `<table>
-          <thead><tr><th>Data ${dado.estimativa ? 'estimada' : ''} de liberação</th><th>Valor previsto</th><th>Pagamentos</th></tr></thead>
-          <tbody>${linhasHtml}</tbody>
-        </table>`
-      : '<div class="empty-note">Nenhum recebimento futuro encontrado no horizonte de ' + (dado.horizonte_dias || 45) + ' dias.</div>';
-    const avisoEstimativa = dado.estimativa
-      ? `<p class="aviso-estimativa">⚠ Estimativa: a Shopee não informa a data oficial de repasse para pedidos ainda em aberto. Data calculada a partir da previsão de entrega mais ${dado.dias_confirmacao_assumido || 7} dias (prazo assumido para o comprador confirmar o recebimento) — pode não bater exatamente com a data real.</p>`
-      : '';
-    return `
-      <div class="kpi-row">
-        <div class="kpi"><div class="k-label">A receber (${dado.horizonte_dias || 45} dias)</div><div class="k-value">${fmtMoeda(dado.total_a_receber)}</div></div>
-        <div class="kpi"><div class="k-label">Pagamentos</div><div class="k-value">${dado.total_pagamentos || 0}</div></div>
-        <div class="kpi"><div class="k-label">Atualizado em</div><div class="k-value" style="font-size:13px">${fmtDataHora(dado.atualizado_em)}</div></div>
-      </div>
-      ${avisoEstimativa}
-      ${tabela}
-    `;
+    return datas;
   }
 
-  function renderConta(chaveConta, dadoConta){
-    const nome = NOMES_CONTA[chaveConta] || chaveConta;
-    if (!dadoConta) {
-      return `
-        <div class="conta-secao">
-          <h2 class="conta-titulo">${nome}</h2>
-          <div class="pendente-note">Ainda não há dados coletados para esta conta.</div>
-        </div>`;
-    }
-    return `
-      <div class="conta-secao">
-        <h2 class="conta-titulo">${nome}</h2>
-        <div class="plataforma-bloco">
-          <h3 class="plataforma-titulo">Mercado Pago</h3>
-          ${renderPlataforma(dadoConta.mercadoPago)}
-        </div>
-        <div class="plataforma-bloco">
-          <h3 class="plataforma-titulo">Shopee <span class="selo selo-estimativa">estimativa</span></h3>
-          ${renderPlataforma(dadoConta.shopee)}
-        </div>
-      </div>`;
+  function ehFimDeSemana(dataStr){
+    const dia = new Date(dataStr + 'T12:00:00').getDay();
+    return dia === 0 || dia === 6;
+  }
+
+  function mapaPorDia(porDia){
+    const mapa = new Map();
+    (porDia || []).forEach((d) => mapa.set(d.data, d.total));
+    return mapa;
+  }
+
+  function linhaValores(mapa, datas){
+    return datas.map((d) => mapa.get(d) || 0);
+  }
+
+  function somaLinhas(linhas, datas){
+    return datas.map((_, i) => linhas.reduce((acc, linha) => acc + (linha[i] || 0), 0));
+  }
+
+  function renderLinhaCabecalho(datas){
+    const celulas = datas.map((d) => {
+      const dt = new Date(d + 'T12:00:00');
+      const [ano, mes, dia] = d.split('-');
+      const classe = ehFimDeSemana(d) ? ' class="fds"' : '';
+      return `<th${classe}>${DIAS_SEMANA_ABREV[dt.getDay()]}<br>${dia}/${mes}</th>`;
+    }).join('');
+    return `<tr><th class="rotulo">Categoria</th>${celulas}</tr>`;
+  }
+
+  function renderLinhaValores(rotulo, valores, datas, opcoes){
+    opcoes = opcoes || {};
+    const celulas = valores.map((v, i) => {
+      const classe = ehFimDeSemana(datas[i]) ? ' class="fds"' : '';
+      return `<td${classe}>${fmtMoedaCompacta(v)}</td>`;
+    }).join('');
+    return `<tr class="${opcoes.classeLinha || ''}"><td class="rotulo${ehFimDeSemana(datas[0]) ? ' fds' : ''}">${rotulo}</td>${celulas}</tr>`;
+  }
+
+  function renderLinhaSaldo(rotulo, valores, datas){
+    const celulas = valores.map((v, i) => {
+      const classes = [ehFimDeSemana(datas[i]) ? 'fds' : '', v < 0 ? 'negativo' : ''].filter(Boolean).join(' ');
+      return `<td${classes ? ' class="' + classes + '"' : ''}>${fmtMoedaCompacta(v)}</td>`;
+    }).join('');
+    return `<tr class="linha-saldo"><td class="rotulo">${rotulo}</td>${celulas}</tr>`;
+  }
+
+  function renderLinhaSite(valoresPorDia, datas){
+    const celulas = datas.map((d) => {
+      const valor = valoresPorDia[d] || '';
+      return `<td class="editavel${ehFimDeSemana(d) ? ' fds' : ''}"><input type="number" step="0.01" data-dia="${d}" class="site-input" value="${valor}"></td>`;
+    }).join('');
+    return `<tr><td class="rotulo">Site (manual)</td>${celulas}</tr>`;
+  }
+
+  function renderLinhaSecao(titulo, qtdDias){
+    return `<tr class="linha-secao"><td class="rotulo">${titulo}</td><td colspan="${qtdDias}"></td></tr>`;
   }
 
   async function carregar(){
     const wrap = document.getElementById('conteudo');
     wrap.innerHTML = '<div class="loading-note">Carregando…</div>';
     try {
-      const params = new URLSearchParams();
-      if (sessaoAtual) params.set('sessao', sessaoAtual.token);
-      const resp = await fetch('/api/dashboard-data' + (params.toString() ? '?' + params.toString() : ''));
-      const json = await resp.json();
-      if (!resp.ok) throw new Error(json.error || ('HTTP ' + resp.status));
+      const paramsDash = new URLSearchParams();
+      if (sessaoAtual) paramsDash.set('sessao', sessaoAtual.token);
+      const paramsConfig = new URLSearchParams({ tipo: 'fluxo-caixa-config-get' });
+      if (sessaoAtual) paramsConfig.set('token', sessaoAtual.token);
 
-      const projecao = json.projecaoFinanceira;
-      if (!projecao) {
-        wrap.innerHTML = '<div class="pendente-note">Ainda não há dados coletados. Clique em "Atualizar agora" acima.</div>';
-        return;
+      const [dashResp, configResp] = await Promise.all([
+        fetch('/api/dashboard-data' + (paramsDash.toString() ? '?' + paramsDash.toString() : '')),
+        fetch('/api/debug?' + paramsConfig.toString()),
+      ]);
+      const dashJson = await dashResp.json();
+      const configJson = await configResp.json();
+      if (!dashResp.ok) throw new Error(dashJson.error || ('HTTP ' + dashResp.status));
+      if (!configResp.ok) throw new Error(configJson.error || ('HTTP ' + configResp.status));
+
+      const saldoManual = configJson.saldoManual || { ricapet: 0, thapets: 0 };
+      document.getElementById('input-saldo-ricapet').value = saldoManual.ricapet || '';
+      document.getElementById('input-saldo-thapets').value = saldoManual.thapets || '';
+      document.getElementById('saldo-info').textContent = saldoManual.atualizado_em
+        ? `Atualizado em ${fmtDataHora(saldoManual.atualizado_em)} por ${saldoManual.atualizado_por || '—'}`
+        : '';
+
+      const siteManual = (configJson.siteManual && configJson.siteManual.por_dia) || {};
+      const projecao = dashJson.projecaoFinanceira;
+      const datas = gerarDatas(HORIZONTE_DIAS_EXIBIDO);
+      const avisos = [];
+
+      function linhaConta(dado, nomeAviso){
+        if (!dado) return { valores: datas.map(() => 0) };
+        if (dado.erro) {
+          avisos.push(`${nomeAviso}: ${dado.erro}`);
+          return { valores: datas.map(() => 0) };
+        }
+        if (dado.estimativa) {
+          avisos.push(`${nomeAviso}: estimativa — a Shopee não informa data oficial de repasse; calculada a partir da previsão de entrega + ${dado.dias_confirmacao_assumido || 7} dias assumidos de confirmação do comprador.`);
+        }
+        return { valores: linhaValores(mapaPorDia(dado.por_dia), datas) };
       }
-      const contas = projecao.contas || {};
-      wrap.innerHTML = renderConta('ricapet', contas.ricapet) + renderConta('thapets', contas.thapets)
-        + `<p class="updated-note">Última coleta: ${fmtDataHora(projecao.atualizado_em)}</p>`;
+
+      const contas = (projecao && projecao.contas) || {};
+      const mpRicapet = linhaConta(contas.ricapet && contas.ricapet.mercadoPago, 'Mercado Pago Ricapet');
+      const mpThapets = linhaConta(contas.thapets && contas.thapets.mercadoPago, 'Mercado Pago Thapets');
+      const shopeeRicapet = linhaConta(contas.ricapet && contas.ricapet.shopee, 'Shopee Ricapet');
+      const shopeeThapets = linhaConta(contas.thapets && contas.thapets.shopee, 'Shopee Thapets');
+      const siteValores = datas.map((d) => siteManual[d] || 0);
+
+      avisos.push('Saídas (Omie): integração ainda não configurada — total a pagar abaixo está zerado até conectarmos as contas a pagar do Omie.');
+
+      const totalEntradas = somaLinhas([mpRicapet.valores, mpThapets.valores, shopeeRicapet.valores, shopeeThapets.valores, siteValores], datas);
+      const totalAPagar = datas.map(() => 0); // Omie: pendente de integração
+
+      const saldoInicial = (Number(saldoManual.ricapet) || 0) + (Number(saldoManual.thapets) || 0);
+      const saldo = [];
+      let acumulado = saldoInicial;
+      for (let i = 0; i < datas.length; i++) {
+        acumulado += totalEntradas[i] - totalAPagar[i];
+        saldo.push(acumulado);
+      }
+
+      const linhasHtml = [
+        renderLinhaCabecalho(datas),
+        renderLinhaSecao('ENTRADAS', datas.length),
+        renderLinhaValores('Shopee Ricapet', shopeeRicapet.valores, datas),
+        renderLinhaValores('Shopee Thapets', shopeeThapets.valores, datas),
+        renderLinhaValores('Mercado Pago Ricapet', mpRicapet.valores, datas),
+        renderLinhaValores('Mercado Pago Thapets', mpThapets.valores, datas),
+        renderLinhaSite(siteManual, datas),
+        renderLinhaValores('TOTAL ENTRADAS', totalEntradas, datas, { classeLinha: 'linha-total' }),
+        renderLinhaSecao('SAÍDAS (Omie)', datas.length),
+        renderLinhaValores('Total a pagar (Omie)', totalAPagar, datas, { classeLinha: 'linha-total' }),
+        renderLinhaSaldo('SALDO', saldo, datas),
+      ].join('');
+
+      const avisosHtml = avisos.length
+        ? `<ul class="avisos-lista">${avisos.map((a) => `<li>⚠ ${a}</li>`).join('')}</ul>`
+        : '';
+
+      wrap.innerHTML = `
+        ${avisosHtml}
+        <div class="matriz-wrap">
+          <table class="matriz">
+            <thead></thead>
+            <tbody>${linhasHtml}</tbody>
+          </table>
+        </div>
+        <p class="updated-note">Última coleta Mercado Pago/Shopee: ${projecao ? fmtDataHora(projecao.atualizado_em) : 'nunca — clique em "Atualizar agora"'}. Saldo inicial usado: ${fmtMoeda(saldoInicial)}.</p>
+      `;
+
+      // separa a primeira linha (cabeçalho) pro <thead>, resto fica no <tbody>
+      const tabela = wrap.querySelector('table.matriz');
+      const primeiraLinha = tabela.querySelector('tbody tr');
+      tabela.querySelector('thead').appendChild(primeiraLinha);
+
+      document.querySelectorAll('.site-input').forEach((input) => {
+        input.addEventListener('change', () => salvarSite(input.dataset.dia, input.value));
+      });
     } catch(e){
-      console.error('Erro ao carregar projeção financeira:', e);
-      wrap.innerHTML = '<div class="error-note">⚠ Erro ao carregar a projeção: ' + (e.message || e) + '</div>';
+      console.error('Erro ao carregar fluxo de caixa:', e);
+      wrap.innerHTML = '<div class="error-note">⚠ Erro ao carregar: ' + (e.message || e) + '</div>';
     }
   }
 
@@ -342,6 +455,49 @@
     }
   }
   document.getElementById('btn-atualizar').addEventListener('click', atualizarAgora);
+
+  async function salvarSaldo(){
+    const btn = document.getElementById('btn-salvar-saldo');
+    btn.disabled = true;
+    try {
+      const ricapet = document.getElementById('input-saldo-ricapet').value;
+      const thapets = document.getElementById('input-saldo-thapets').value;
+      const params = new URLSearchParams({ tipo: 'fluxo-caixa-config-set' });
+      if (sessaoAtual) params.set('token', sessaoAtual.token);
+      const resp = await fetch('/api/debug?' + params.toString(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ saldoRicapet: ricapet, saldoThapets: thapets }),
+      });
+      const json = await resp.json();
+      if (!resp.ok) throw new Error(json.error || ('HTTP ' + resp.status));
+      await carregar();
+    } catch(e){
+      console.error('Erro ao salvar saldo:', e);
+      alert('Erro ao salvar saldo: ' + (e.message || e));
+    } finally {
+      btn.disabled = false;
+    }
+  }
+  document.getElementById('btn-salvar-saldo').addEventListener('click', salvarSaldo);
+
+  async function salvarSite(dia, valor){
+    try {
+      const params = new URLSearchParams({ tipo: 'fluxo-caixa-config-set' });
+      if (sessaoAtual) params.set('token', sessaoAtual.token);
+      const resp = await fetch('/api/debug?' + params.toString(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ siteData: dia, siteValor: valor }),
+      });
+      const json = await resp.json();
+      if (!resp.ok) throw new Error(json.error || ('HTTP ' + resp.status));
+      await carregar();
+    } catch(e){
+      console.error('Erro ao salvar site:', e);
+      alert('Erro ao salvar: ' + (e.message || e));
+    }
+  }
 
   carregar();
 })();

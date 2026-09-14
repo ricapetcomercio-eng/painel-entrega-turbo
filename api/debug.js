@@ -13,7 +13,7 @@ const { getMLAccessToken } = require('../lib/mlAuth');
 const { shopeeGet } = require('../lib/shopeeAuth');
 const { getDb } = require('../lib/db');
 const { getRedis } = require('../lib/redis');
-const { kvGet, kvDel } = require('../lib/kv');
+const { kvGet, kvSet, kvDel } = require('../lib/kv');
 const { importarContagemFisica, importarSaldoDaPlanilha, completarCatalogoFaltante, corrigirCorArranhadorAdesivoBege, enviarBalancoAgora } = require('../lib/estoqueSaldo');
 
 const TABELAS_SQL = [
@@ -1868,6 +1868,48 @@ async function debugPontoAdminCpf(req, res) {
   res.status(200).json({ ok: true, tipo: 'ponto-admin-cpf' });
 }
 
+// Fluxo de Caixa: dois pedaços de dado mantidos manualmente (não vêm de
+// nenhuma API) — o saldo bancário atual de cada empresa (ponto de partida
+// do saldo acumulado projetado) e a previsão diária de vendas do site
+// próprio (nenhuma integração com o site existe neste projeto ainda).
+async function debugFluxoCaixaConfigGet(req, res) {
+  const db = getDb();
+  const admin = await exigirAdmin(req, res, db);
+  if (!admin) return;
+  const saldoManual = (await kvGet('entrega_turbo:fluxo_caixa_saldo_manual')) || { ricapet: 0, thapets: 0, atualizado_em: null };
+  const siteManual = (await kvGet('entrega_turbo:fluxo_caixa_site_manual')) || { por_dia: {} };
+  res.status(200).json({ ok: true, tipo: 'fluxo-caixa-config', saldoManual, siteManual });
+}
+
+async function debugFluxoCaixaConfigSet(req, res) {
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { token, saldoRicapet?, saldoThapets?, siteData?, siteValor? }' }); return; }
+  const db = getDb();
+  const admin = await exigirAdmin(req, res, db);
+  if (!admin) return;
+
+  const { saldoRicapet, saldoThapets, siteData, siteValor } = req.body || {};
+
+  if (saldoRicapet !== undefined || saldoThapets !== undefined) {
+    const atual = (await kvGet('entrega_turbo:fluxo_caixa_saldo_manual')) || { ricapet: 0, thapets: 0 };
+    if (saldoRicapet !== undefined) atual.ricapet = Number(saldoRicapet) || 0;
+    if (saldoThapets !== undefined) atual.thapets = Number(saldoThapets) || 0;
+    atual.atualizado_em = new Date().toISOString();
+    atual.atualizado_por = admin.nome;
+    await kvSet('entrega_turbo:fluxo_caixa_saldo_manual', atual);
+  }
+
+  if (siteData !== undefined) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(siteData))) { res.status(400).json({ error: 'siteData precisa ser AAAA-MM-DD.' }); return; }
+    const atual = (await kvGet('entrega_turbo:fluxo_caixa_site_manual')) || { por_dia: {} };
+    const valor = Number(siteValor) || 0;
+    if (valor > 0) atual.por_dia[siteData] = valor;
+    else delete atual.por_dia[siteData];
+    await kvSet('entrega_turbo:fluxo_caixa_site_manual', atual);
+  }
+
+  res.status(200).json({ ok: true, tipo: 'fluxo-caixa-config-set' });
+}
+
 // AFD -- Arquivo Fonte de Dados (Portaria MTP 671/2021), best-effort.
 // ⚠️ O layout exato deve ser conferido com o contador / software do DP antes
 // de usar oficialmente -- este arquivo serve pra conferência e importação
@@ -1943,7 +1985,23 @@ const TIPOS_PUBLICOS_PONTO = new Set([
 // OAuth), pra não expor esse último num arquivo client-side.
 const TIPOS_PUBLICOS_ESTOQUE = new Set(['importar-contagem-fisica', 'importar-saldo-da-planilha', 'estoque-saldo', 'completar-catalogo-faltante', 'corrigir-cor-arranhador-adesivo-bege', 'estoque-contagem-get', 'estoque-contagem-set', 'estoque-sheets-log']);
 
+// Rotas protegidas só pela sessão de admin do login único (exigirAdmin),
+// sem nenhum secret de app — mesmo padrão usado em
+// api/collect.js?acao=projecao-financeira-manual. Não precisam de CORS
+// (mesma origem: só a própria tela logada chama essas rotas).
+const TIPOS_SESSAO_ADMIN = new Set(['fluxo-caixa-config-get', 'fluxo-caixa-config-set']);
+
 module.exports = async (req, res) => {
+  if (TIPOS_SESSAO_ADMIN.has(req.query.tipo)) {
+    try {
+      if (req.query.tipo === 'fluxo-caixa-config-get') return await debugFluxoCaixaConfigGet(req, res);
+      if (req.query.tipo === 'fluxo-caixa-config-set') return await debugFluxoCaixaConfigSet(req, res);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+  }
+
   const cronSecret = process.env.CRON_SECRET;
   const isRotaPublicaEstoque = TIPOS_PUBLICOS_ESTOQUE.has(req.query.tipo);
   const isRotaPublicaPonto = TIPOS_PUBLICOS_PONTO.has(req.query.tipo);
