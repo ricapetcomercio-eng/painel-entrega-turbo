@@ -36,6 +36,13 @@ const TABELAS_SQL = [
     user_id TEXT,
     expires_at INTEGER
   )`,
+  `CREATE TABLE IF NOT EXISTS mp_tokens (
+    conta TEXT PRIMARY KEY,
+    access_token TEXT,
+    refresh_token TEXT,
+    user_id TEXT,
+    expires_at INTEGER
+  )`,
   `CREATE TABLE IF NOT EXISTS historico_flex (
     id_unico TEXT PRIMARY KEY,
     marketplace TEXT,
@@ -1911,6 +1918,84 @@ module.exports = async (req, res) => {
         expires_at: Date.now() + tokenData.expires_in * 1000,
       });
       res.status(200).json({ ok: true, tipo: 'ml-oauth-exchange', conta, escopo_concedido: tokenData.scope, user_id: tokenData.user_id });
+      return;
+    }
+    if (req.query.tipo === 'mp-oauth-url') {
+      const conta = req.query.conta;
+      const redirectUri = req.query.redirect_uri;
+      if (!conta || !redirectUri) {
+        res.status(400).json({ error: 'Use ?conta=ricapet|thapets&redirect_uri=<a mesma URI cadastrada no app MP>' });
+        return;
+      }
+      const { getContaConfig } = require('../lib/mpAuth');
+      const { clientId } = getContaConfig(conta);
+      const authUrl = `https://auth.mercadolivre.com.br/authorization?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}`;
+      res.status(200).json({ ok: true, tipo: 'mp-oauth-url', conta, redirect_uri: redirectUri, url_para_abrir: authUrl });
+      return;
+    }
+    if (req.query.tipo === 'mp-oauth-exchange') {
+      const conta = req.query.conta;
+      const code = req.query.code;
+      const redirectUri = req.query.redirect_uri;
+      if (!conta || !code || !redirectUri) {
+        res.status(400).json({ error: 'Use ?conta=ricapet|thapets&code=<code recebido>&redirect_uri=<mesma URI usada no mp-oauth-url>' });
+        return;
+      }
+      const { getContaConfig, trocarCodigoPorTokens, salvarToken } = require('../lib/mpAuth');
+      const { clientId, clientSecret } = getContaConfig(conta);
+      const tokenData = await trocarCodigoPorTokens(clientId, clientSecret, code, redirectUri);
+      await salvarToken(conta, {
+        access_token: tokenData.access_token,
+        refresh_token: tokenData.refresh_token,
+        user_id: tokenData.user_id,
+        expires_at: Date.now() + tokenData.expires_in * 1000,
+      });
+      res.status(200).json({ ok: true, tipo: 'mp-oauth-exchange', conta, escopo_concedido: tokenData.scope, user_id: tokenData.user_id });
+      return;
+    }
+    if (req.query.tipo === 'mp-payments-test') {
+      const conta = req.query.conta;
+      if (!conta) { res.status(400).json({ error: 'Use ?conta=ricapet ou ?conta=thapets' }); return; }
+      const { getMPAccessToken } = require('../lib/mpAuth');
+      const accessToken = await getMPAccessToken(conta);
+
+      const agora = new Date();
+      const passado = new Date(agora.getTime() - 30 * 24 * 60 * 60 * 1000);
+      const futuro = new Date(agora.getTime() + 30 * 24 * 60 * 60 * 1000);
+      const fmt = (d) => d.toISOString().slice(0, 19) + '.000-00:00';
+
+      const params = new URLSearchParams({
+        range: 'money_release_date',
+        begin_date: fmt(passado),
+        end_date: fmt(futuro),
+        sort: 'money_release_date',
+        criteria: 'asc',
+        limit: '50',
+      });
+      const resp = await fetch(`https://api.mercadopago.com/v1/payments/search?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const data = await resp.json();
+      if (!resp.ok) {
+        res.status(resp.status).json({ ok: false, tipo: 'mp-payments-test', conta, status_mp: resp.status, resposta: data });
+        return;
+      }
+
+      const pagamentos = data.results || [];
+      const agoraMs = Date.now();
+      res.status(200).json({
+        ok: true,
+        tipo: 'mp-payments-test',
+        conta,
+        total_encontrado: data.paging ? data.paging.total : pagamentos.length,
+        amostra: pagamentos.slice(0, 15).map((p) => ({
+          id: p.id,
+          status: p.status,
+          transaction_amount: p.transaction_amount,
+          money_release_date: p.money_release_date,
+          no_futuro: p.money_release_date ? (new Date(p.money_release_date).getTime() > agoraMs) : null,
+        })),
+      });
       return;
     }
     if (req.query.tipo === 'ml-client-ids') {
