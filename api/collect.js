@@ -41,6 +41,7 @@ const { registrarHistoricoTodos, marcarDevolucao, listarShopeeAguardando } = req
 const { enviarBalancoMensalSeNecessario } = require('../lib/estoqueSaldo');
 const { coletarProjecaoFinanceira } = require('../lib/mpProjecao');
 const { coletarProjecaoFinanceiraShopee } = require('../lib/shopeeProjecao');
+const { obterAdminSessao } = require('../lib/pontoAuth');
 
 // Janela de DESCOBERTA de pedidos Turbo novos (não confundir com a
 // reverificação, que cobre qualquer "aguardando" sem limite de idade).
@@ -69,11 +70,6 @@ const INTERVALO_MINIMO_SHOPEE_MS = 15 * 60 * 1000; // 15 minutos
 // precisa rodar a cada execução — a cada 30min já é mais que suficiente
 // e economiza chamadas à API do ML.
 const INTERVALO_MINIMO_DEVOLUCOES_MS = 30 * 60 * 1000; // 30 minutos
-// Projeção Financeira (Mercado Pago): recebimentos futuros não mudam
-// rápido o bastante pra precisar de mais que 1x/dia (decisão do dono do
-// projeto) — e cada execução pagina até 1000 pagamentos por conta, então
-// rodar com mais frequência gastaria CPU à toa.
-const INTERVALO_MINIMO_PROJECAO_FINANCEIRA_MS = 24 * 60 * 60 * 1000; // 24 horas
 const DIAS_JANELA_DEVOLUCOES = 60; // cobre pedidos com prazo de reclamação em aberto
 // "Todos os pedidos" do ML é dado de BI/dashboard, não precisa do ritmo
 // rápido do Flex (que alimenta a TV da expedição em tempo real). Rodando
@@ -434,7 +430,51 @@ async function medirTempo(nome, fn) {
   }
 }
 
+// Projeção Financeira (Mercado Pago + Shopee) NÃO roda automaticamente no
+// cron — é cara demais pra rodar sem controle (Shopee faz 1 chamada extra
+// por pedido em aberto, ver lib/shopeeProjecao.js) e o dado não precisa
+// estar sempre fresco. Em vez disso, é 100% sob demanda: o botão "Atualizar
+// agora" em public/projecao-financeira.html chama esta mesma rota com
+// ?acao=projecao-financeira-manual, autenticado pela sessão de admin do
+// login único (não pelo CRON_SECRET) — decisão do dono do projeto.
+async function coletarProjecaoFinanceiraManual(req, res) {
+  const sessao = req.query.sessao || (req.body && req.body.sessao);
+  const resultado = await obterAdminSessao(sessao, getDb());
+  if (resultado.erro) {
+    res.status(resultado.status).json({ error: resultado.erro });
+    return;
+  }
+
+  const contas = { ricapet: {}, thapets: {} };
+
+  try {
+    contas.ricapet.mercadoPago = await coletarProjecaoFinanceira('ricapet');
+  } catch (err) {
+    contas.ricapet.mercadoPago = { erro: err.message };
+  }
+  // Thapets/Mercado Pago: app OAuth criado, mas a conta não recebe o
+  // escopo "payments" do Mercado Livre (investigado, sem causa conhecida
+  // ainda) — placeholder até resolver com o suporte.
+  contas.thapets.mercadoPago = { erro: 'Conta Thapets ainda não autorizada para Mercado Pago (escopo payments pendente).' };
+
+  for (const loja of LOJAS_SHOPEE) {
+    try {
+      contas[loja].shopee = await coletarProjecaoFinanceiraShopee(loja);
+    } catch (err) {
+      contas[loja].shopee = { erro: err.message };
+    }
+  }
+
+  const resultadoFinal = { atualizado_em: new Date().toISOString(), contas };
+  await kvSet('entrega_turbo:ultima_coleta_projecao_financeira', resultadoFinal);
+  res.status(200).json({ ok: true, ...resultadoFinal });
+}
+
 module.exports = async (req, res) => {
+  if (req.query.acao === 'projecao-financeira-manual') {
+    return await coletarProjecaoFinanceiraManual(req, res);
+  }
+
   const cronSecret = process.env.CRON_SECRET;
   const isVercelCron = req.headers['x-vercel-cron'] !== undefined;
   const hasValidSecret = cronSecret && req.query.secret === cronSecret;
@@ -591,40 +631,9 @@ module.exports = async (req, res) => {
     });
   }
 
-  // -------- Projeção Financeira (Mercado Pago + Shopee): throttle próprio, 1x/dia --------
-  const ultimaExecucaoProjecao = await kvGet('entrega_turbo:ultima_execucao_projecao_financeira_ts');
-  const deveRodarProjecao = !ultimaExecucaoProjecao || (agora - ultimaExecucaoProjecao >= INTERVALO_MINIMO_PROJECAO_FINANCEIRA_MS);
-  if (deveRodarProjecao) {
-    await medirTempo('projecao_financeira', async () => {
-      await kvSet('entrega_turbo:ultima_execucao_projecao_financeira_ts', agora);
-      const contas = { ricapet: {}, thapets: {} };
-
-      try {
-        contas.ricapet.mercadoPago = await coletarProjecaoFinanceira('ricapet');
-      } catch (err) {
-        contas.ricapet.mercadoPago = { erro: err.message };
-        erros.push({ fonte: 'projecao_financeira_mp_ricapet', mensagem: err.message });
-      }
-      // Thapets/Mercado Pago: app OAuth criado, mas a conta não recebe o
-      // escopo "payments" do Mercado Livre (investigado, sem causa
-      // conhecida ainda) — placeholder até resolver com o suporte.
-      contas.thapets.mercadoPago = { erro: 'Conta Thapets ainda não autorizada para Mercado Pago (escopo payments pendente).' };
-
-      for (const loja of LOJAS_SHOPEE) {
-        try {
-          contas[loja].shopee = await coletarProjecaoFinanceiraShopee(loja);
-        } catch (err) {
-          contas[loja].shopee = { erro: err.message };
-          erros.push({ fonte: `projecao_financeira_shopee_${loja}`, mensagem: err.message });
-        }
-      }
-
-      await kvSet('entrega_turbo:ultima_coleta_projecao_financeira', {
-        atualizado_em: new Date(agora).toISOString(),
-        contas,
-      });
-    });
-  }
+  // Projeção Financeira (Mercado Pago + Shopee) NÃO roda aqui — é 100% sob
+  // demanda, via ?acao=projecao-financeira-manual (ver
+  // coletarProjecaoFinanceiraManual, tratado no topo deste arquivo).
 
   // Se a Shopee não rodou nesta execução, mantém o último total conhecido
   // (lido do banco) em vez de reportar 0 — evita a falsa impressão de que

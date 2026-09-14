@@ -62,13 +62,21 @@ Throttles internos em `api/collect.js` (constantes no topo do arquivo):
 | "Todos os pedidos" ML (BI/dashboard) | 5 min | não precisa do ritmo do Flex |
 | Shopee | 15 min | cota limitada do proxy Fixie (IP fixo) |
 | Devoluções | 30 min | mudam devagar |
-| Projeção Financeira (Mercado Pago + Shopee) | 24h | dado muda devagar; Shopee faz 1 chamada extra por pedido em aberto (`get_escrow_detail`) — ver aviso abaixo sobre cota do Fixie |
 
-### Projeção Financeira: Mercado Pago vs. Shopee (datas reais vs. estimadas)
+### Projeção Financeira: sob demanda, não automática (Mercado Pago + Shopee)
 
 `lib/mpProjecao.js` e `lib/shopeeProjecao.js` alimentam a mesma tela
-(`public/projecao-financeira.html`), mas com garantias bem diferentes —
-importante não confundir os dois ao mexer nesse código:
+(`public/projecao-financeira.html`). Diferente de tudo mais nesta tabela,
+essa coleta **NÃO roda no cron automático** — é cara demais (Shopee faz 1
+chamada extra por pedido em aberto, ver custo abaixo) e o dado não precisa
+estar sempre fresco. Em vez de throttle por tempo, é 100% sob demanda: o
+botão "Atualizar agora" na tela chama `GET /api/collect?acao=projecao-
+financeira-manual&sessao=...`, autenticado pela sessão de admin do login
+único (não pelo `CRON_SECRET`) — ver `coletarProjecaoFinanceiraManual` no
+topo de `api/collect.js`. Decisão explícita do dono do projeto pra manter o
+custo de API o mais baixo possível.
+
+Também importante não confundir os dois ao mexer nesse código:
 
 - **Mercado Pago**: `money_release_date` é informado pela própria API
   (`/v1/payments/search`) — data real, confirmada com dado de produção.
@@ -84,8 +92,10 @@ importante não confundir os dois ao mexer nesse código:
   como se fosse tão confiável quanto o do Mercado Pago**.
 - Custo: a estimativa da Shopee faz 1 chamada a `get_escrow_detail` por
   pedido em aberto encontrado (trava de segurança: no máximo 300 por
-  loja/dia, `MAX_CONSULTAS_ESCROW`). Como roda só 1x/dia, o impacto na cota
-  do proxy Fixie é pontual, mas se a cota apertar no futuro, este é um
+  loja/clique, `MAX_CONSULTAS_ESCROW`). Como só roda quando alguém clica no
+  botão (não fica em loop nem em cron), o impacto na cota do proxy Fixie é
+  bem menor que se fosse automático — mas se a cota apertar mesmo assim,
+  este é um
   candidato claro pra revisar/reduzir primeiro.
 - Thapets no Mercado Pago fica como placeholder (`erro: "Conta Thapets
   ainda não autorizada..."`) — a conta não recebe o escopo `payments` do
