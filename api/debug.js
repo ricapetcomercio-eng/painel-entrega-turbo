@@ -1523,7 +1523,13 @@ async function debugPontoAdminVisao(req, res) {
   // feitos fora dele que corrigem marcações de dentro.
   const janelaISO = new Date(new Date(inicioISO).getTime() - 90 * 864e5).toISOString();
 
-  const funcs = await db.execute('SELECT id, nome, admin, cpf FROM funcionarios WHERE ativo = 1 ORDER BY nome');
+  // Ricardo e Nivaldo continuam batendo ponto normalmente (debugPontoFuncionarios/
+  // debugPontoLogin não mexem nisso) — só não aparecem nas telas de visão do
+  // admin (Solicitações, Por funcionário, Visão geral, Jornadas), a pedido do dono.
+  const NOMES_OCULTOS_VISAO_ADMIN = ['ricardo', 'nivaldo'];
+  const primeiroNome = (nome) => String(nome || '').trim().split(/\s+/)[0].toLowerCase();
+  const funcsBrutos = await db.execute('SELECT id, nome, admin, cpf FROM funcionarios WHERE ativo = 1 ORDER BY nome');
+  const funcs = { rows: funcsBrutos.rows.filter((f) => !NOMES_OCULTOS_VISAO_ADMIN.includes(primeiroNome(f.nome))) };
   const regs = await db.execute({
     sql: `SELECT id, funcionario_id, tipo, registrado_em, metodo_validacao, latitude, longitude,
                  distancia_metros, origem, motivo, editado_por, editado_em, nsr, hash, ref_nsr
@@ -1573,7 +1579,7 @@ async function debugPontoAdminVisao(req, res) {
     hoje: dataFusoLoja(new Date()),
     periodo: { de: validaDia(de) ? de : dataFusoLoja(inicioISO), ate: validaDia(ate) ? ate : dataFusoLoja(fimISO) },
     funcionarios: [...porFunc.values()],
-    pendentes: sols.rows.filter((s) => s.status === 'pendente').length,
+    pendentes: sols.rows.filter((s) => s.status === 'pendente' && porFunc.has(s.funcionario_id)).length,
     empresa: await configPonto(db),
   });
 }
