@@ -200,6 +200,25 @@ const TABELAS_SQL = [
     criado_em TEXT NOT NULL,
     PRIMARY KEY (funcionario_id, data)
   )`,
+  // Relatório de bipagem (checkout_bipagem.py, C:\RobotOmie, local) —
+  // enviado 1x por dia por enviar_relatorio_bipagem_nuvem.py, pra alimentar
+  // um dashboard futuro sem depender de login manual no sistema local.
+  `CREATE TABLE IF NOT EXISTS bipagem_diaria (
+    id_unico TEXT PRIMARY KEY,
+    empresa TEXT NOT NULL,
+    data TEXT NOT NULL,
+    hora TEXT,
+    cliente TEXT,
+    n_id_pedido TEXT,
+    n_id_nfe TEXT,
+    tipo_envio TEXT,
+    bipado_por TEXT,
+    bipado_ip TEXT,
+    marcado_manualmente INTEGER,
+    bipado_em_ts INTEGER,
+    atualizado_em TEXT
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_bipagem_diaria_data ON bipagem_diaria(data)`,
 ];
 
 // Colunas adicionadas depois que as tabelas de ponto já existiam. ALTER é
@@ -754,6 +773,63 @@ async function debugFlexStatus(req, res) {
   for (const row of rs.rows) porShipment[row.shipment_id] = row;
   const resultado = idsBrutos.map((id) => porShipment[id] || { shipment_id: id, encontrado: false });
   res.status(200).json({ ok: true, tipo: 'flex-status', total: resultado.length, registros: resultado });
+}
+
+// Recebe o relatório de bipagem diário do checkout_bipagem.py (local,
+// C:\RobotOmie\enviar_relatorio_bipagem_nuvem.py) e grava/atualiza em
+// bipagem_diaria. POST com corpo { linhas: [{ empresa, data, hora, cliente,
+// n_id_pedido, n_id_nfe, tipo_envio, bipado_por, bipado_ip,
+// marcado_manualmente, bipado_em_ts }, ...] }. id_unico = empresa:n_id_pedido
+// (upsert) — o script local reenvia os últimos dias a cada execução de
+// propósito (auto-cura se uma execução falhar no meio), então precisa ser
+// seguro rodar de novo com os mesmos dados sem duplicar linha.
+async function debugRegistrarBipagemDiaria(req, res) {
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: 'Use POST' });
+    return;
+  }
+  const linhas = (req.body && req.body.linhas) || [];
+  if (!Array.isArray(linhas) || linhas.length === 0) {
+    res.status(400).json({ error: 'Use POST com corpo {"linhas": [...]}' });
+    return;
+  }
+
+  const db = getDb();
+  const agora = new Date().toISOString();
+  let gravadas = 0;
+  for (const l of linhas) {
+    if (!l.empresa || !l.n_id_pedido) continue;
+    const idUnico = `${l.empresa}:${l.n_id_pedido}`;
+    await db.execute({
+      sql: `INSERT INTO bipagem_diaria (
+              id_unico, empresa, data, hora, cliente, n_id_pedido, n_id_nfe,
+              tipo_envio, bipado_por, bipado_ip, marcado_manualmente, bipado_em_ts, atualizado_em
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id_unico) DO UPDATE SET
+              empresa = excluded.empresa,
+              data = excluded.data,
+              hora = excluded.hora,
+              cliente = excluded.cliente,
+              n_id_pedido = excluded.n_id_pedido,
+              n_id_nfe = excluded.n_id_nfe,
+              tipo_envio = excluded.tipo_envio,
+              bipado_por = excluded.bipado_por,
+              bipado_ip = excluded.bipado_ip,
+              marcado_manualmente = excluded.marcado_manualmente,
+              bipado_em_ts = excluded.bipado_em_ts,
+              atualizado_em = excluded.atualizado_em`,
+      args: [
+        idUnico, l.empresa, l.data || null, l.hora || null, l.cliente || null,
+        String(l.n_id_pedido), l.n_id_nfe ? String(l.n_id_nfe) : null,
+        l.tipo_envio || null, l.bipado_por || null, l.bipado_ip || null,
+        l.marcado_manualmente ? 1 : 0, typeof l.bipado_em_ts === 'number' ? l.bipado_em_ts : null,
+        agora,
+      ],
+    });
+    gravadas++;
+  }
+
+  res.status(200).json({ ok: true, tipo: 'registrar-bipagem-diaria', recebidas: linhas.length, gravadas });
 }
 
 // Lê a linha CRUA de historico_todos por order_id (qualquer marketplace) —
@@ -2262,6 +2338,7 @@ module.exports = async (req, res) => {
     if (req.query.tipo === 'ml-shipment') return await debugMlShipment(req, res);
     if (req.query.tipo === 'flex-status') return await debugFlexStatus(req, res);
     if (req.query.tipo === 'historico-todos-row') return await debugHistoricoTodosRow(req, res);
+    if (req.query.tipo === 'registrar-bipagem-diaria') return await debugRegistrarBipagemDiaria(req, res);
     if (req.query.tipo === 'backfill-prazo-shopee-todos') return await debugBackfillPrazoShopeeTodos(req, res);
     if (req.query.tipo === 'ml-sla') return await debugMlSla(req, res);
     if (req.query.tipo === 'shopee-returns') return await debugShopeeReturns(req, res);
