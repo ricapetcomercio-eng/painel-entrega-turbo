@@ -212,13 +212,11 @@
     <div class="hrow">
       <h1><span class="h-title-row">Bipagem · Dashboard <span class="live-badge"><span class="live-dot"></span>1x/dia às 23:30</span></span><span class="h-sub">Volume, operadores e produtividade da expedição</span></h1>
       <div class="periodo">
-        <input type="date" id="p-dia">
-        <select id="p-dias-tendencia">
-          <option value="7">7 dias</option>
-          <option value="14" selected>14 dias</option>
-          <option value="30">30 dias</option>
-        </select>
+        <input type="date" id="p-de">
+        <span>até</span>
+        <input type="date" id="p-ate">
         <button id="p-aplicar">Aplicar</button>
+        <button id="p-historico" type="button">Ver histórico completo</button>
       </div>
       <span class="chip-usuario" title="Usuário logado"><span class="chip-usuario-rotulo">Logado como</span> <b id="admin-nome"></b></span>
       <button class="chip-sair" id="btn-sair">Sair</button>
@@ -226,13 +224,13 @@
   </header>
 
   <div class="shell">
-    <p id="aviso-vazio" class="aviso" hidden>Nenhuma bipagem registrada nesse dia ainda. A rotina local roda 1x por dia, às 23:30 — se for hoje, o dado só chega à noite.</p>
+    <p id="aviso-vazio" class="aviso" hidden>Nenhuma bipagem registrada nesse período ainda. A rotina local roda 1x por dia, às 23:30 — se for hoje, o dado só chega à noite.</p>
 
     <div class="kpis">
-      <div class="kpi-card"><div class="l">Total bipado no dia</div><div class="v" id="kpi-total">–</div></div>
+      <div class="kpi-card"><div class="l">Total bipado no período</div><div class="v" id="kpi-total">–</div></div>
       <div class="kpi-card"><div class="l">Ricapet</div><div class="v" id="kpi-ricapet">–</div></div>
       <div class="kpi-card"><div class="l">Thapets</div><div class="v" id="kpi-thapets">–</div></div>
-      <div class="kpi-card"><div class="l">Operadores no dia</div><div class="v" id="kpi-operadores">–</div></div>
+      <div class="kpi-card"><div class="l">Operadores no período</div><div class="v" id="kpi-operadores">–</div></div>
       <div class="kpi-card"><div class="l">Bipado manualmente</div><div class="v" id="kpi-manual">–</div></div>
     </div>
 
@@ -249,7 +247,7 @@
 
     <div class="grid-charts">
       <div class="card">
-        <h3>Volume por hora do dia</h3>
+        <h3>Volume por hora</h3>
         <div class="chart-wrap curta"><canvas id="chartHora"></canvas></div>
       </div>
       <div class="card">
@@ -271,7 +269,7 @@
     </div>
 
     <div class="quadro">
-      <h3 style="margin-bottom:10px">Todos os pedidos do dia</h3>
+      <h3 style="margin-bottom:10px">Todos os pedidos do período</h3>
       <div class="pedidos-scroll">
         <table>
           <thead><tr><th>Hora</th><th>Empresa</th><th>Pedido</th><th>Cliente</th><th>Tipo</th><th>Bipado por</th><th>Manual</th></tr></thead>
@@ -320,9 +318,9 @@
   }
 
   async function carregar() {
-    const dia = $('p-dia').value;
-    const dias = $('p-dias-tendencia').value;
-    const url = `/api/analytics-todos-data?visao=bipagem&sessao=${encodeURIComponent(sessao.token)}&data=${dia}&dias=${dias}`;
+    const de = $('p-de').value;
+    const ate = $('p-ate').value;
+    const url = `/api/analytics-todos-data?visao=bipagem&sessao=${encodeURIComponent(sessao.token)}&de=${de}&ate=${ate}`;
     let dados;
     try {
       const resp = await fetch(url);
@@ -429,7 +427,14 @@
   }
 
   $('p-aplicar').addEventListener('click', carregar);
-  $('p-dia').value = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
+  $('p-historico').addEventListener('click', () => {
+    $('p-de').value = '2025-01-01'; // bem antes de bipagem_diaria existir, pra trazer tudo
+    $('p-ate').value = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
+    carregar();
+  });
+  const HOJE_LOJA = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
+  $('p-de').value = HOJE_LOJA;
+  $('p-ate').value = HOJE_LOJA;
   carregar();
 
   // Reordenar o menu da sidebar (lápis ao lado de "Painéis Ricapet") --

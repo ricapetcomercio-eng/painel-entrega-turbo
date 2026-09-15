@@ -198,31 +198,33 @@ async function responderVisaoBipagem(req, res) {
   const resultadoSessao = await obterAdminSessao(req.query.sessao, db, 'bipagem');
   if (resultadoSessao.erro) { res.status(resultadoSessao.status).json({ error: resultadoSessao.erro }); return; }
 
-  const dia = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.data || '')) ? req.query.data : dataFusoLoja(new Date());
-  const diasTendencia = Math.min(parseInt(req.query.dias, 10) || 14, 60);
+  // ?data= (compat, 1 dia só) ou ?de=&ate= (período) -- "Ver histórico
+  // completo" no frontend manda de=2020-01-01, bem antes de existir
+  // qualquer registro, pra trazer tudo que já foi bipado.
+  const ehData = (v) => /^\d{4}-\d{2}-\d{2}$/.test(String(v || ''));
+  const hoje = dataFusoLoja(new Date());
+  const dataUnica = ehData(req.query.data) ? req.query.data : null;
+  const de = ehData(req.query.de) ? req.query.de : (dataUnica || hoje);
+  const ate = ehData(req.query.ate) ? req.query.ate : (dataUnica || hoje);
 
-  const inicioIso = isoDeDiaHoraLoja(dia, '00:00');
-  const fimIso = isoDeDiaHoraLoja(dia, '23:59');
+  const inicioIso = isoDeDiaHoraLoja(de, '00:00');
+  const fimIso = isoDeDiaHoraLoja(ate, '23:59');
   const inicioTs = Math.floor(new Date(inicioIso).getTime() / 1000);
   const fimTs = Math.floor(new Date(fimIso).getTime() / 1000) + 59;
-  const inicioTendenciaTs = inicioTs - (diasTendencia - 1) * 86400;
 
-  const [rsDia, rsTendencia] = await Promise.all([
-    db.execute({
-      sql: `SELECT empresa, data, hora, cliente, n_id_pedido, tipo_envio, bipado_por, marcado_manualmente, bipado_em_ts
-            FROM bipagem_diaria WHERE bipado_em_ts BETWEEN ? AND ? ORDER BY bipado_em_ts`,
-      args: [inicioTs, fimTs],
-    }),
-    db.execute({
-      sql: 'SELECT bipado_em_ts FROM bipagem_diaria WHERE bipado_em_ts BETWEEN ? AND ?',
-      args: [inicioTendenciaTs, fimTs],
-    }),
-  ]);
+  const rsPeriodo = await db.execute({
+    sql: `SELECT empresa, data, hora, cliente, n_id_pedido, tipo_envio, bipado_por, marcado_manualmente, bipado_em_ts
+          FROM bipagem_diaria WHERE bipado_em_ts BETWEEN ? AND ? ORDER BY bipado_em_ts`,
+    args: [inicioTs, fimTs],
+  });
 
-  const pedidos = rsDia.rows;
+  const pedidos = rsPeriodo.rows;
 
+  // Tendência diária vem do mesmo resultado acima (agrupado por dia), sem
+  // precisar de uma segunda consulta -- o período já é o que o usuário
+  // escolheu, não uma janela "últimos N dias" separada como antes.
   const porDia = new Map();
-  rsTendencia.rows.forEach((r) => {
+  pedidos.forEach((r) => {
     if (r.bipado_em_ts == null) return;
     const chave = dataFusoLoja(new Date(r.bipado_em_ts * 1000));
     porDia.set(chave, (porDia.get(chave) || 0) + 1);
@@ -302,7 +304,8 @@ async function responderVisaoBipagem(req, res) {
   res.status(200).json({
     ok: true,
     tipo: 'bipagem-dashboard',
-    dia,
+    de,
+    ate,
     total: pedidos.length,
     manuais,
     por_empresa: porEmpresa,
