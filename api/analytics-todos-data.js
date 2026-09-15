@@ -14,19 +14,9 @@
 // criar um endpoint novo, pra não estourar o limite de 12 Serverless
 // Functions do plano Hobby da Vercel (mesmo motivo documentado em
 // api/pendencias-ml.js).
-//
-// ?visao=bipagem devolve o dashboard de bipagem (public/bipagem.html) — lê
-// bipagem_diaria (alimentada 1x/dia pelo checkout_bipagem.py local) e cruza
-// com registros_ponto pra calcular produtividade (bipagens/hora trabalhada).
-// Diferente das outras visões deste arquivo, exige sessão de admin
-// (?sessao=...) porque expõe desempenho por funcionário — dado sensível,
-// não do mesmo jeito que volume de vendas por SKU.
 
 const { buscarPorPeriodo } = require('../lib/historicoTodos');
 const { buscarProdutoPorSku } = require('../lib/tabelaProdutos');
-const { getDb } = require('../lib/db');
-const { obterAdminSessao } = require('../lib/pontoAuth');
-const { dataFusoLoja, isoDeDiaHoraLoja, resolverMarcacoes } = require('../lib/registrosPonto');
 
 const MES_LABELS_BASE = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 
@@ -189,137 +179,8 @@ function parseIntervalo(query) {
   return { de, ate };
 }
 
-// Dashboard de bipagem (public/bipagem.html). Um SELECT por período (índice
-// em `data`... na prática filtramos por bipado_em_ts, que já vem em epoch
-// pronto pra isso, ver comentário no schema) + agregação em JS — mesmo
-// espírito "CPU quase zero" de api/dashboard-data.js, nada de loop de rede.
-async function responderVisaoBipagem(req, res) {
-  const db = getDb();
-  const resultadoSessao = await obterAdminSessao(req.query.sessao, db);
-  if (resultadoSessao.erro) { res.status(resultadoSessao.status).json({ error: resultadoSessao.erro }); return; }
-
-  const dia = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.data || '')) ? req.query.data : dataFusoLoja(new Date());
-  const diasTendencia = Math.min(parseInt(req.query.dias, 10) || 14, 60);
-
-  const inicioIso = isoDeDiaHoraLoja(dia, '00:00');
-  const fimIso = isoDeDiaHoraLoja(dia, '23:59');
-  const inicioTs = Math.floor(new Date(inicioIso).getTime() / 1000);
-  const fimTs = Math.floor(new Date(fimIso).getTime() / 1000) + 59;
-  const inicioTendenciaTs = inicioTs - (diasTendencia - 1) * 86400;
-
-  const [rsDia, rsTendencia] = await Promise.all([
-    db.execute({
-      sql: `SELECT empresa, data, hora, cliente, n_id_pedido, tipo_envio, bipado_por, marcado_manualmente, bipado_em_ts
-            FROM bipagem_diaria WHERE bipado_em_ts BETWEEN ? AND ? ORDER BY bipado_em_ts`,
-      args: [inicioTs, fimTs],
-    }),
-    db.execute({
-      sql: 'SELECT bipado_em_ts FROM bipagem_diaria WHERE bipado_em_ts BETWEEN ? AND ?',
-      args: [inicioTendenciaTs, fimTs],
-    }),
-  ]);
-
-  const pedidos = rsDia.rows;
-
-  const porDia = new Map();
-  rsTendencia.rows.forEach((r) => {
-    if (r.bipado_em_ts == null) return;
-    const chave = dataFusoLoja(new Date(r.bipado_em_ts * 1000));
-    porDia.set(chave, (porDia.get(chave) || 0) + 1);
-  });
-
-  const porOperadorMapa = new Map();
-  const porEmpresa = {};
-  const porTipo = {};
-  const porHora = Array.from({ length: 24 }, () => 0);
-  let manuais = 0;
-
-  pedidos.forEach((p) => {
-    const nome = p.bipado_por || '(não identificado)';
-    if (!porOperadorMapa.has(nome)) {
-      porOperadorMapa.set(nome, { nome, total: 0, ricapet: 0, thapets: 0, flex: 0, turbo: 0, outros: 0, manual: 0 });
-    }
-    const op = porOperadorMapa.get(nome);
-    op.total++;
-    if (p.empresa === 'Ricapet') op.ricapet++;
-    else if (p.empresa === 'Thapets') op.thapets++;
-
-    const tipo = String(p.tipo_envio || '').toLowerCase();
-    if (tipo === 'flex') op.flex++;
-    else if (tipo === 'turbo') op.turbo++;
-    else op.outros++;
-
-    if (p.marcado_manualmente) { op.manual++; manuais++; }
-
-    porEmpresa[p.empresa] = (porEmpresa[p.empresa] || 0) + 1;
-    porTipo[p.tipo_envio || 'Outros'] = (porTipo[p.tipo_envio || 'Outros'] || 0) + 1;
-    if (p.hora) {
-      const h = parseInt(String(p.hora).split(':')[0], 10);
-      if (h >= 0 && h < 24) porHora[h]++;
-    }
-  });
-
-  // Cruza com o Ponto: pra cada operador identificado (bipado_por casa com
-  // funcionarios.nome, comparação sem acento/maiúscula não é feita aqui --
-  // exige que o nome no relatório de bipagem bata com o cadastro do ponto),
-  // soma o tempo trabalhado NESSE DIA e calcula bipagens/hora trabalhada.
-  const nomesOperadores = [...porOperadorMapa.keys()].filter((n) => n !== '(não identificado)');
-  const funcionariosPorNome = new Map();
-  if (nomesOperadores.length) {
-    const rsFunc = await db.execute('SELECT id, nome FROM funcionarios WHERE ativo = 1');
-    rsFunc.rows.forEach((f) => funcionariosPorNome.set(String(f.nome).trim().toLowerCase(), f));
-  }
-
-  const operadores = [];
-  for (const op of porOperadorMapa.values()) {
-    const func = funcionariosPorNome.get(op.nome.trim().toLowerCase());
-    let minutosTrabalhados = null;
-    if (func) {
-      const rsReg = await db.execute({
-        sql: `SELECT tipo, registrado_em, origem, ref_nsr, nsr, motivo, editado_por, editado_em, metodo_validacao
-              FROM registros_ponto
-              WHERE funcionario_id = ? AND registrado_em >= ? AND registrado_em <= ?`,
-        args: [func.id, inicioIso, fimIso],
-      });
-      const marcacoes = resolverMarcacoes(rsReg.rows);
-      let ms = 0;
-      let aberto = null;
-      marcacoes.forEach((m) => {
-        if (m.tipo === 'entrada') aberto = new Date(m.registrado_em);
-        else if (aberto) { ms += new Date(m.registrado_em) - aberto; aberto = null; }
-      });
-      minutosTrabalhados = Math.round(ms / 60000);
-    }
-    operadores.push({
-      ...op,
-      funcionario_id: func ? func.id : null,
-      minutos_trabalhados: minutosTrabalhados,
-      bipagens_por_hora: minutosTrabalhados > 0 ? Number((op.total / (minutosTrabalhados / 60)).toFixed(2)) : null,
-    });
-  }
-  operadores.sort((a, b) => b.total - a.total);
-
-  res.status(200).json({
-    ok: true,
-    tipo: 'bipagem-dashboard',
-    dia,
-    total: pedidos.length,
-    manuais,
-    por_empresa: porEmpresa,
-    por_tipo: porTipo,
-    por_hora: porHora,
-    operadores,
-    pedidos,
-    tendencia: [...porDia.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([data, total]) => ({ data, total })),
-  });
-}
-
 module.exports = async (req, res) => {
   try {
-    if (req.query && req.query.visao === 'bipagem') {
-      await responderVisaoBipagem(req, res);
-      return;
-    }
     if (req.query && req.query.visao === 'produtos') {
       await responderVisaoProdutos(req, res);
       return;
