@@ -15,7 +15,11 @@ const { obterAdminSessao } = require('../lib/pontoAuth');
 module.exports = async (req, res) => {
   const sessao = req.query.sessao || (req.body && req.body.sessao);
   if (sessao) {
-    const resultado = await obterAdminSessao(sessao, getDb());
+    // projecao-financeira.html manda ?pagina=projecao-financeira porque usa
+    // esta mesma rota pra buscar o campo projecaoFinanceira do payload --
+    // resto (index.html/tv.html) usa o default 'dashboard'.
+    const pagina = req.query.pagina === 'projecao-financeira' ? 'projecao-financeira' : 'dashboard';
+    const resultado = await obterAdminSessao(sessao, getDb(), pagina);
     if (resultado.erro) {
       res.status(resultado.status).json({ error: resultado.erro });
       return;

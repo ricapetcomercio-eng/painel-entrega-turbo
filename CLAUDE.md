@@ -149,6 +149,80 @@ apenas em `api/debug.js`. Não usar para código novo.
 ⚠️ O README na raiz ainda descreve o Redis como armazenamento principal —
 está desatualizado nesse ponto; confie neste arquivo e em `lib/db.js`/`lib/kv.js`.
 
+## Controle de acesso por página (tela Acessos, só super_admin)
+
+Além da flag `admin` (que sozinha sempre controlou 100% do acesso ao login
+do painel — quem não tem `admin = 1` nem consegue entrar, só bate ponto),
+existe agora uma camada mais fina: **quais páginas** cada admin pode ver
+depois de logado.
+
+- `funcionarios.super_admin` (0/1) — nível acima do admin comum, ignora
+  todo o controle abaixo (acesso total sempre). Só o Ricardo tem essa
+  flag, por decisão do dono do projeto. Setado via
+  `POST /api/debug?tipo=ponto-definir-super-admin&secret=CRON_SECRET`
+  (`{ "nomes": ["Ricardo"] }`), mesmo padrão do `ponto-definir-admins` já
+  existente. **Nunca** é setável pela própria tela Acessos — só por esse
+  endpoint com CRON_SECRET, pra a tela que concede acesso não virar um
+  jeito de alguém se autopromover.
+- `funcionarios_paginas` (Turso, `funcionario_id + pagina`) — presença de
+  linha = acesso liberado àquela página. Sem linha nenhuma = sem acesso a
+  nada. **Default-deny de propósito**: todo admin que já existia antes
+  desta feature fica sem acesso a qualquer página até o Ricardo entrar em
+  `/acessos.html` e marcar manualmente o que cada um pode ver — decisão
+  explícita do dono do projeto, não um bug.
+- Páginas controláveis (`PAGINAS_PAINEL` em `lib/pontoAuth.js`, mesmas
+  chaves do `data-menu-key` da barra lateral): `ponto`, `dashboard`,
+  `bipagem`, `estoque`, `projecao-financeira`, `concorrencia`, `tv`.
+- `public/acessos.html`: tela nova, só super_admin, lista todo funcionário
+  ativo com a flag admin + quais páginas tem liberadas, editável por
+  linha. Backend `acessos-listar`/`acessos-definir` em `api/debug.js`
+  (`TIPOS_SESSAO_ADMIN` — sessão pura, sem CRON_SECRET, mesmo padrão do
+  `fluxo-caixa-config-get/-set`).
+- `obterAdminSessao(token, db, pagina)` (`lib/pontoAuth.js`) ganhou um 3º
+  parâmetro opcional: se informado, também confere se aquela página está
+  liberada pro funcionário (super_admin sempre passa). Call sites que já
+  existiam e não passam esse parâmetro continuam com o comportamento
+  antigo (só confere `admin`) — só quem precisava de página própria foi
+  atualizado: `api/dashboard-data.js` (`dashboard`, ou
+  `projecao-financeira` se `?pagina=projecao-financeira`),
+  `api/analytics-todos-data.js` visao=bipagem (`bipagem`),
+  `api/collect.js` projeção financeira manual (`projecao-financeira`), e
+  `exigirAdmin`/`exigirSuperAdmin` em `api/debug.js` (`ponto` por
+  default, `projecao-financeira` nos endpoints de Fluxo de Caixa).
+- **Limitação conhecida, aceita de propósito**: `concorrencia` e `tv` não
+  têm endpoint próprio pra travar de verdade — só escondem o link na
+  barra lateral (`RicapetAuth.aplicarVisibilidadeMenu()` em
+  `assets/auth.js`). "Análise de Concorrência" é um `<iframe>` pra
+  `ricapet-concorrencia.vercel.app` (projeto/repo separado, sem SSO com
+  este); "Painel TV" é kiosk sem login por design (só o `DASHBOARD_TOKEN`
+  opcional protege de verdade). `estoque-saldo.html` (balanço mensal) lê
+  via `ESTOQUE_PUBLIC_SECRET` compartilhado, não sessão por usuário —
+  também fica de fora do controle real, só o link é escondido.
+- **Auto-migração e ordem de execução importam aqui**: `super_admin` e
+  `funcionarios_paginas` entram no mesmo mecanismo de auto-migração de
+  `garantirEsquemaPonto` (roda na 1ª chamada que precisar, ver comentário
+  no topo da função em `api/debug.js`). Pra não quebrar em produção logo
+  após o deploy (1ª chamada tocando a coluna/tabela nova, antes da
+  migração rodar), `funcionarioEhSuperAdmin`/`funcionarioTemAcessoPagina`
+  (`lib/pontoAuth.js`) engolem erro de coluna/tabela ausente e devolvem
+  "sem acesso" em vez de derrubar a rota com 500 — e
+  `exigirAdmin`/`exigirSuperAdmin`/`debugPontoLogin`/
+  `debugPontoDefinirSuperAdmin` chamam `garantirEsquemaPonto` **antes** de
+  qualquer SELECT que dependa das colunas novas (não depois, como o
+  padrão antigo). Sem isso o próprio login quebraria pra todo mundo até
+  alguém disparar a migração manualmente.
+
+**Depois do deploy desta feature, rodar uma vez** (o dono do projeto, com
+o CRON_SECRET):
+```
+POST /api/debug?tipo=ponto-definir-super-admin&secret=CRON_SECRET
+{ "nomes": ["Ricardo"] }
+```
+Sem isso `/acessos.html` fica inacessível pra todo mundo (inclusive o
+Ricardo) — e, como o padrão é negar por página, todo admin que não seja
+super_admin perde acesso a todas as páginas até o Ricardo entrar em
+Acessos e liberar manualmente.
+
 ## Estrutura de arquivos
 
 ```

@@ -15,6 +15,7 @@ const { getDb } = require('../lib/db');
 const { getRedis } = require('../lib/redis');
 const { kvGet, kvSet, kvDel } = require('../lib/kv');
 const { importarContagemFisica, importarSaldoDaPlanilha, completarCatalogoFaltante, corrigirCorArranhadorAdesivoBege, enviarBalancoAgora } = require('../lib/estoqueSaldo');
+const { dataFusoLoja, isoDeDiaHoraLoja, resolverMarcacoes } = require('../lib/registrosPonto');
 
 const TABELAS_SQL = [
   `CREATE TABLE IF NOT EXISTS kv_simples (
@@ -219,6 +220,16 @@ const TABELAS_SQL = [
     atualizado_em TEXT
   )`,
   `CREATE INDEX IF NOT EXISTS idx_bipagem_diaria_data ON bipagem_diaria(data)`,
+  // Controle de acesso por página (tela Acessos, só super_admin) — presença
+  // de linha = acesso liberado. Sem linha nenhuma = sem acesso a nada (o
+  // próprio flag admin continua controlando só o login em si).
+  `CREATE TABLE IF NOT EXISTS funcionarios_paginas (
+    funcionario_id TEXT NOT NULL,
+    pagina TEXT NOT NULL,
+    concedida_em TEXT NOT NULL,
+    concedida_por TEXT,
+    PRIMARY KEY (funcionario_id, pagina)
+  )`,
 ];
 
 // Colunas adicionadas depois que as tabelas de ponto já existiam. ALTER é
@@ -227,6 +238,7 @@ const TABELAS_SQL = [
 const ALTERS_PONTO = [
   "ALTER TABLE funcionarios ADD COLUMN admin INTEGER NOT NULL DEFAULT 0",
   "ALTER TABLE funcionarios ADD COLUMN cpf TEXT",
+  "ALTER TABLE funcionarios ADD COLUMN super_admin INTEGER NOT NULL DEFAULT 0",
   "ALTER TABLE registros_ponto ADD COLUMN origem TEXT NOT NULL DEFAULT 'batida'",
   "ALTER TABLE registros_ponto ADD COLUMN motivo TEXT",
   "ALTER TABLE registros_ponto ADD COLUMN editado_por TEXT",
@@ -350,7 +362,7 @@ async function debugEstoqueSaldo(req, res) {
 // MESMAS credenciais que estoque.html usava hardcoded (mesmo bin/planilha).
 // Não são variáveis novas a criar.
 async function debugEstoqueContagemGet(req, res) {
-  const resultado = await obterAdminSessao((req.body && req.body.sessao) || req.query.sessao, getDb());
+  const resultado = await obterAdminSessao((req.body && req.body.sessao) || req.query.sessao, getDb(), 'estoque');
   if (resultado.erro) { res.status(resultado.status).json({ ok: false, error: resultado.erro }); return; }
   const apiKey = process.env.JSONBIN_ESTOQUE_API_KEY;
   const binId = process.env.JSONBIN_ESTOQUE_BIN_ID;
@@ -366,7 +378,7 @@ async function debugEstoqueContagemGet(req, res) {
 }
 
 async function debugEstoqueContagemSet(req, res) {
-  const resultado = await obterAdminSessao((req.body && req.body.sessao) || req.query.sessao, getDb());
+  const resultado = await obterAdminSessao((req.body && req.body.sessao) || req.query.sessao, getDb(), 'estoque');
   if (resultado.erro) { res.status(resultado.status).json({ ok: false, error: resultado.erro }); return; }
   const apiKey = process.env.JSONBIN_ESTOQUE_API_KEY;
   const binId = process.env.JSONBIN_ESTOQUE_BIN_ID;
@@ -384,7 +396,7 @@ async function debugEstoqueContagemSet(req, res) {
 }
 
 async function debugEstoqueSheetsLog(req, res) {
-  const resultado = await obterAdminSessao((req.body && req.body.sessao) || req.query.sessao, getDb());
+  const resultado = await obterAdminSessao((req.body && req.body.sessao) || req.query.sessao, getDb(), 'estoque');
   if (resultado.erro) { res.status(resultado.status).json({ ok: false, error: resultado.erro }); return; }
   const url = process.env.GOOGLE_SHEETS_WEBAPP_URL;
   if (!url) { res.status(200).json({ ok: false, error: 'Google Sheets não configurado no servidor.' }); return; }
@@ -1165,24 +1177,10 @@ async function debugShopeeReturns(req, res) {
 // controle interno de presença, não o ponto oficial da folha.
 
 const crypto = require('crypto');
-const { hashPin, gerarTokenPonto, verificarTokenPonto, funcionarioEhAdmin, obterAdminSessao } = require('../lib/pontoAuth');
-
-// O servidor roda em UTC; a loja opera no fuso de São Paulo (UTC-3 fixo desde
-// o fim do horário de verão em 2019). Estas duas funções convertem entre um
-// "AAAA-MM-DD / HH:MM de São Paulo" e o ISO em UTC que vai pro banco.
-function dataFusoLoja(d) {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date(d));
-}
-
-function isoDeDiaHoraLoja(diaAAAAMMDD, horaHHMM) {
-  const [h, m] = String(horaHHMM || '').split(':').map((x) => parseInt(x, 10));
-  if (!Number.isInteger(h) || !Number.isInteger(m) || h < 0 || h > 23 || m < 0 || m > 59) {
-    throw new Error('Hora inválida (use HH:MM).');
-  }
-  const d = new Date(`${diaAAAAMMDD}T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00-03:00`);
-  if (isNaN(d)) throw new Error('Data/hora inválida.');
-  return d.toISOString();
-}
+const {
+  hashPin, gerarTokenPonto, verificarTokenPonto, funcionarioEhAdmin, obterAdminSessao,
+  funcionarioEhSuperAdmin, paginasPermitidas, PAGINAS_PAINEL,
+} = require('../lib/pontoAuth');
 
 // Auto-migração das tabelas de ponto -- roda na primeira chamada que precisar
 // (dispensa o script com CRON_SECRET). Idempotente e barata depois da 1ª vez.
@@ -1193,6 +1191,8 @@ async function garantirEsquemaPonto(db) {
     await db.execute('SELECT nsr, hash, ref_nsr, cnpj FROM registros_ponto LIMIT 1');
     await db.execute('SELECT 1 FROM abonos_ponto LIMIT 1');
     await db.execute('SELECT 1 FROM config_ponto LIMIT 1');
+    await db.execute('SELECT super_admin FROM funcionarios LIMIT 1');
+    await db.execute('SELECT 1 FROM funcionarios_paginas LIMIT 1');
     _esquemaPontoOk = true;
     return;
   } catch (e) { /* falta coluna/tabela -> migra abaixo */ }
@@ -1276,35 +1276,6 @@ async function inserirRegistroPonto(db, dados) {
   return { nsr, hash, registrado_em: dados.registrado_em };
 }
 
-// Reduz as linhas cruas (batida + ajustes) às marcações vigentes.
-// Cada marcação carrega o `nsr` da linha que a originou -- é por ele que as
-// correções seguintes referenciam (ref_nsr).
-function resolverMarcacoes(rows) {
-  const ordenadas = [...rows].sort((a, b) => (Number(a.nsr) || 0) - (Number(b.nsr) || 0));
-  const efetivas = new Map();
-  for (const r of ordenadas) {
-    const origem = r.origem || 'batida';
-    if (origem === 'batida' || origem === 'ajuste_inclusao') {
-      efetivas.set(Number(r.nsr), {
-        nsr: Number(r.nsr), tipo: r.tipo, registrado_em: r.registrado_em,
-        metodo_validacao: r.metodo_validacao, editado: origem !== 'batida', origem,
-        motivo: origem === 'batida' ? null : (r.motivo || null),
-        editado_por: origem === 'batida' ? null : (r.editado_por || null),
-        editado_em: origem === 'batida' ? null : (r.editado_em || null),
-      });
-    } else if (origem === 'ajuste_alteracao') {
-      const alvo = efetivas.get(Number(r.ref_nsr));
-      if (alvo) {
-        alvo.tipo = r.tipo; alvo.registrado_em = r.registrado_em; alvo.editado = true;
-        alvo.motivo = r.motivo || null; alvo.editado_por = r.editado_por || null; alvo.editado_em = r.editado_em || null;
-      }
-    } else if (origem === 'ajuste_exclusao') {
-      efetivas.delete(Number(r.ref_nsr));
-    }
-  }
-  return [...efetivas.values()].sort((a, b) => new Date(a.registrado_em) - new Date(b.registrado_em));
-}
-
 // Jornada esperada por dia da semana (0=domingo … 6=sábado), em minutos já
 // líquidos do intervalo. Devolve null quando o funcionário não tem jornada
 // cadastrada -- nesse caso o painel não calcula extras/faltas/saldo dele.
@@ -1337,17 +1308,20 @@ async function debugPontoLogin(req, res) {
   if ((!funcionario_id && !nome) || !pin) { res.status(400).json({ error: 'Use POST { funcionario_id | nome, pin }' }); return; }
 
   const db = getDb();
+  await garantirEsquemaPonto(db); // garante a coluna super_admin/tabela funcionarios_paginas antes do SELECT abaixo
   const rs = funcionario_id
-    ? await db.execute({ sql: 'SELECT id, nome, pin_hash, admin FROM funcionarios WHERE id = ? AND ativo = 1', args: [funcionario_id] })
-    : await db.execute({ sql: 'SELECT id, nome, pin_hash, admin FROM funcionarios WHERE lower(nome) = lower(?) AND ativo = 1', args: [String(nome).trim()] });
+    ? await db.execute({ sql: 'SELECT id, nome, pin_hash, admin, super_admin FROM funcionarios WHERE id = ? AND ativo = 1', args: [funcionario_id] })
+    : await db.execute({ sql: 'SELECT id, nome, pin_hash, admin, super_admin FROM funcionarios WHERE lower(nome) = lower(?) AND ativo = 1', args: [String(nome).trim()] });
   const funcionario = rs.rows[0];
   if (!funcionario || funcionario.pin_hash !== hashPin(pin)) {
     res.status(401).json({ ok: false, error: 'Nome ou PIN incorreto, tenta de novo.' });
     return;
   }
+  const superAdmin = funcionario.super_admin === 1;
   res.status(200).json({
     ok: true, tipo: 'ponto-login',
     token: gerarTokenPonto(funcionario), nome: funcionario.nome, admin: funcionario.admin === 1,
+    super_admin: superAdmin, paginas: await paginasPermitidas(db, funcionario.id, superAdmin),
   });
 }
 
@@ -1566,14 +1540,117 @@ async function debugPontoDefinirAdmins(req, res) {
   res.status(200).json({ ok: true, tipo: 'ponto-definir-admins', admins: rs.rows.map((r) => r.nome) });
 }
 
+// Só pra gestão (CRON_SECRET) -- bootstrap do super_admin (só o Ricardo,
+// por decisão do dono do projeto). Roda 1x na mão via curl/Postman com o
+// CRON_SECRET -- de propósito NÃO existe rota nenhuma pra promover alguém
+// a super_admin a partir da própria tela de Acessos (ver comentário em
+// lib/pontoAuth.js). Reaplicar sempre substitui a lista inteira (não soma).
+async function debugPontoDefinirSuperAdmin(req, res) {
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { nomes: ["Ricardo"] }' }); return; }
+  const nomes = (req.body && req.body.nomes) || [];
+  if (!Array.isArray(nomes) || !nomes.length) { res.status(400).json({ error: 'Use POST { nomes: [...] }' }); return; }
+  const db = getDb();
+  await garantirEsquemaPonto(db); // garante a coluna super_admin antes do UPDATE abaixo
+  await db.execute('UPDATE funcionarios SET super_admin = 0');
+  for (const nome of nomes) {
+    await db.execute({ sql: 'UPDATE funcionarios SET super_admin = 1, admin = 1 WHERE lower(nome) = lower(?)', args: [String(nome).trim()] });
+  }
+  const rs = await db.execute('SELECT nome FROM funcionarios WHERE super_admin = 1 ORDER BY nome');
+  res.status(200).json({ ok: true, tipo: 'ponto-definir-super-admin', super_admins: rs.rows.map((r) => r.nome) });
+}
+
 // ===== Painel de administração do ponto =====
 // Chamado pelo site do admin (outro domínio) com o PONTO_PUBLIC_SECRET na porta
 // + um token de login (ponto-login) de alguém com admin = 1, que é o gate real.
-async function exigirAdmin(req, res, db) {
-  const resultado = await obterAdminSessao((req.body && req.body.token) || req.query.token, db);
-  if (resultado.erro) { res.status(resultado.status).json({ ok: false, error: resultado.erro }); return null; }
+// `pagina` default 'ponto' cobre quase todos os chamadores deste arquivo;
+// os poucos que não são do Ponto (Fluxo de Caixa, Estoque) passam a sua.
+async function exigirAdmin(req, res, db, pagina = 'ponto') {
+  // Roda ANTES do obterAdminSessao de propósito: a checagem de super_admin
+  // e de página (funcionarios_paginas) já consulta colunas/tabela que só
+  // existem depois desta migração -- se rodasse depois, o 1º request após
+  // um deploy que adicione uma coluna/tabela nova quebraria com 500 em vez
+  // de se auto-migrar (ver funcionarioEhSuperAdmin em lib/pontoAuth.js pro
+  // fallback seguro que cobre outras rotas, tipo dashboard-data.js, que
+  // não passam por este arquivo e por isso não chamam isto aqui).
   await garantirEsquemaPonto(db);
+  const resultado = await obterAdminSessao((req.body && req.body.token) || req.query.token, db, pagina);
+  if (resultado.erro) { res.status(resultado.status).json({ ok: false, error: resultado.erro }); return null; }
   return resultado.funcionario;
+}
+
+// Gate da tela Acessos (public/acessos.html) -- exige sessão de admin
+// válida (sessao/token de login) E a flag super_admin, sem checar nenhuma
+// página específica (quem é super_admin tem tudo liberado por definição).
+async function exigirSuperAdmin(req, res, db) {
+  await garantirEsquemaPonto(db); // ver comentário equivalente em exigirAdmin
+  const token = (req.body && req.body.sessao) || req.query.sessao;
+  const resultado = await obterAdminSessao(token, db);
+  if (resultado.erro) { res.status(resultado.status).json({ ok: false, error: resultado.erro }); return null; }
+  if (!resultado.superAdmin) {
+    res.status(403).json({ ok: false, error: 'Só o Ricardo tem acesso a esta tela.' });
+    return null;
+  }
+  return resultado.funcionario;
+}
+
+// Tela Acessos: lista todo funcionário ativo com sua flag admin/super_admin
+// e quais páginas tem liberadas -- é o "quem tem acesso a quê" que o dono
+// do projeto pediu pra poder auditar/conceder num só lugar.
+async function debugAcessosListar(req, res) {
+  const db = getDb();
+  const chamador = await exigirSuperAdmin(req, res, db);
+  if (!chamador) return;
+  const funcs = await db.execute('SELECT id, nome, admin, super_admin FROM funcionarios WHERE ativo = 1 ORDER BY nome');
+  const paginasRs = await db.execute('SELECT funcionario_id, pagina FROM funcionarios_paginas');
+  const paginasPorFuncionario = new Map();
+  paginasRs.rows.forEach((r) => {
+    if (!paginasPorFuncionario.has(r.funcionario_id)) paginasPorFuncionario.set(r.funcionario_id, []);
+    paginasPorFuncionario.get(r.funcionario_id).push(r.pagina);
+  });
+  const usuarios = funcs.rows.map((f) => ({
+    id: f.id,
+    nome: f.nome,
+    admin: f.admin === 1,
+    super_admin: f.super_admin === 1,
+    paginas: f.super_admin === 1 ? [...PAGINAS_PAINEL] : (paginasPorFuncionario.get(f.id) || []),
+  }));
+  res.status(200).json({ ok: true, tipo: 'acessos-listar', paginas_disponiveis: PAGINAS_PAINEL, usuarios });
+}
+
+// Tela Acessos: define admin (true/false) e a lista exata de páginas
+// liberadas pra um funcionário -- substitui por completo (não soma) as
+// páginas anteriores dele. Nunca mexe em super_admin (ver comentário em
+// debugPontoDefinirSuperAdmin) nem permite que o próprio super_admin tire
+// o próprio admin por engano.
+async function debugAcessosDefinir(req, res) {
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { sessao, funcionario_id, admin, paginas: [...] }' }); return; }
+  const db = getDb();
+  const chamador = await exigirSuperAdmin(req, res, db);
+  if (!chamador) return;
+
+  const { funcionario_id, admin, paginas } = req.body || {};
+  if (!funcionario_id) { res.status(400).json({ error: 'Informe funcionario_id.' }); return; }
+  const paginasValidas = (Array.isArray(paginas) ? paginas : []).filter((p) => PAGINAS_PAINEL.includes(p));
+
+  const alvo = await db.execute({ sql: 'SELECT id, super_admin FROM funcionarios WHERE id = ? AND ativo = 1', args: [funcionario_id] });
+  if (!alvo.rows[0]) { res.status(404).json({ error: 'Funcionário não encontrado.' }); return; }
+  if (alvo.rows[0].super_admin === 1 && admin === false) {
+    res.status(400).json({ error: 'Não dá pra remover o admin de um super_admin por aqui.' });
+    return;
+  }
+
+  if (admin !== undefined) {
+    await db.execute({ sql: 'UPDATE funcionarios SET admin = ? WHERE id = ?', args: [admin ? 1 : 0, funcionario_id] });
+  }
+  await db.execute({ sql: 'DELETE FROM funcionarios_paginas WHERE funcionario_id = ?', args: [funcionario_id] });
+  const agora = new Date().toISOString();
+  for (const pagina of paginasValidas) {
+    await db.execute({
+      sql: 'INSERT INTO funcionarios_paginas (funcionario_id, pagina, concedida_em, concedida_por) VALUES (?, ?, ?, ?)',
+      args: [funcionario_id, pagina, agora, chamador.nome],
+    });
+  }
+  res.status(200).json({ ok: true, tipo: 'acessos-definir', funcionario_id, paginas: paginasValidas });
 }
 
 // Admin: define razão social / CNPJ / endereço + ajustes (limite de batidas
@@ -2012,7 +2089,7 @@ async function debugPontoAdminCpf(req, res) {
 // próprio (nenhuma integração com o site existe neste projeto ainda).
 async function debugFluxoCaixaConfigGet(req, res) {
   const db = getDb();
-  const admin = await exigirAdmin(req, res, db);
+  const admin = await exigirAdmin(req, res, db, 'projecao-financeira');
   if (!admin) return;
   const saldoManual = (await kvGet('entrega_turbo:fluxo_caixa_saldo_manual')) || { ricapet: 0, thapets: 0, atualizado_em: null };
   const siteManual = (await kvGet('entrega_turbo:fluxo_caixa_site_manual')) || { por_dia: {} };
@@ -2022,7 +2099,7 @@ async function debugFluxoCaixaConfigGet(req, res) {
 async function debugFluxoCaixaConfigSet(req, res) {
   if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { token, saldoRicapet?, saldoThapets?, siteData?, siteValor? }' }); return; }
   const db = getDb();
-  const admin = await exigirAdmin(req, res, db);
+  const admin = await exigirAdmin(req, res, db, 'projecao-financeira');
   if (!admin) return;
 
   const { saldoRicapet, saldoThapets, siteData, siteValor } = req.body || {};
@@ -2127,13 +2204,17 @@ const TIPOS_PUBLICOS_ESTOQUE = new Set(['importar-contagem-fisica', 'importar-sa
 // sem nenhum secret de app — mesmo padrão usado em
 // api/collect.js?acao=projecao-financeira-manual. Não precisam de CORS
 // (mesma origem: só a própria tela logada chama essas rotas).
-const TIPOS_SESSAO_ADMIN = new Set(['fluxo-caixa-config-get', 'fluxo-caixa-config-set']);
+const TIPOS_SESSAO_ADMIN = new Set([
+  'fluxo-caixa-config-get', 'fluxo-caixa-config-set', 'acessos-listar', 'acessos-definir',
+]);
 
 module.exports = async (req, res) => {
   if (TIPOS_SESSAO_ADMIN.has(req.query.tipo)) {
     try {
       if (req.query.tipo === 'fluxo-caixa-config-get') return await debugFluxoCaixaConfigGet(req, res);
       if (req.query.tipo === 'fluxo-caixa-config-set') return await debugFluxoCaixaConfigSet(req, res);
+      if (req.query.tipo === 'acessos-listar') return await debugAcessosListar(req, res);
+      if (req.query.tipo === 'acessos-definir') return await debugAcessosDefinir(req, res);
     } catch (err) {
       res.status(500).json({ error: err.message });
       return;
@@ -2379,6 +2460,7 @@ module.exports = async (req, res) => {
     if (req.query.tipo === 'ponto-editar-proprio') return await debugPontoEditarProprio(req, res);
     if (req.query.tipo === 'ponto-solicitar-correcao') return await debugPontoSolicitarCorrecao(req, res);
     if (req.query.tipo === 'ponto-definir-admins') return await debugPontoDefinirAdmins(req, res);
+    if (req.query.tipo === 'ponto-definir-super-admin') return await debugPontoDefinirSuperAdmin(req, res);
     if (req.query.tipo === 'ponto-admin-visao') return await debugPontoAdminVisao(req, res);
     if (req.query.tipo === 'ponto-admin-editar') return await debugPontoAdminEditar(req, res);
     if (req.query.tipo === 'ponto-admin-resolver') return await debugPontoAdminResolver(req, res);
