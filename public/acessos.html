@@ -3,16 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Bipagem · Dashboard</title>
+<title>Acessos · Administração</title>
 <link rel="icon" type="image/png" href="favicon-ricapet.png">
-<meta name="description" content="Dashboard de bipagem — volume, operadores e produtividade. Ricapet/Thapets.">
+<meta name="description" content="Quem tem acesso ao painel administrativo e o que cada um pode ver. Só o Ricardo.">
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#372F72">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Manrope:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
 <script src="assets/auth.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
 <style>
   :root {
     --bg: #F6F4FB; --surface: #FFFFFF; --surface-2: #EEF2F9;
@@ -92,57 +90,38 @@
   .hrow h1 { font-family: var(--font-display); font-size: 1.05rem; margin: 0; margin-right: auto; color: var(--ink); display: flex; flex-direction: column; gap: 2px; line-height: 1.25; }
   .h-title-row { display: flex; align-items: center; gap: 9px; }
   .h-sub { font-size: 0.72rem; font-weight: 500; color: var(--ink-muted); letter-spacing: 0.01em; }
-  .live-badge { display: inline-flex; align-items: center; gap: 5px; font-family: var(--font-body); font-size: 0.68rem; font-weight: 600; color: var(--ink-soft); }
-  .live-dot { width: 6px; height: 6px; border-radius: 50%; background: #4ADE80; }
-  @media (prefers-reduced-motion: no-preference) { .live-dot { animation: bipPulse 2.2s ease-in-out infinite; } }
-  @keyframes bipPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(74,222,128,0.5); } 50% { box-shadow: 0 0 0 5px rgba(74,222,128,0); } }
-  .periodo { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--ink-soft); }
-  .periodo input, .periodo select { height: 32px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); padding: 0 8px; font-size: 0.8rem; }
-  .periodo button, .chip-sair { height: 32px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); padding: 0 12px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all .15s ease; }
-  .periodo button:hover, .chip-sair:hover { background: var(--surface-2); border-color: var(--accent); color: var(--accent); transform: translateY(-1px); }
   .chip-usuario { display: inline-flex; align-items: center; gap: 5px; font-size: 0.78rem; color: var(--ink-soft); background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 6px 13px; }
   .chip-usuario-rotulo { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--ink-muted); font-weight: 700; }
+  .chip-sair { height: 32px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); padding: 0 12px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all .15s ease; }
+  .chip-sair:hover { background: var(--surface-2); border-color: var(--accent); color: var(--accent); }
 
   .aviso { text-align: center; padding: 24px; color: var(--ink-muted); font-size: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin: 18px 0; }
-
-  /* KPIs */
-  .kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin: 18px 0; }
-  @media (max-width: 900px) { .kpis { grid-template-columns: repeat(2, 1fr); } }
-  .kpi-card {
-    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
-    padding: 14px 16px; box-shadow: 0 2px 10px var(--shadow);
+  .nota {
+    background: var(--info-bg); color: var(--info-tx); border-radius: var(--radius); padding: 12px 16px;
+    font-size: 0.82rem; line-height: 1.5; margin: 18px 0;
   }
-  .kpi-card .l { font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-muted); margin-bottom: 6px; }
-  .kpi-card .v { font-family: var(--font-mono); font-size: 1.5rem; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
-  .kpi-card .v small { font-size: 0.9rem; color: var(--ink-muted); font-weight: 500; }
 
-  /* Charts */
-  .grid-charts { display: grid; grid-template-columns: 1.3fr 1fr; gap: 14px; margin-bottom: 14px; }
-  @media (max-width: 900px) { .grid-charts { grid-template-columns: 1fr; } }
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; box-shadow: 0 2px 10px var(--shadow); }
-  .card h3 { font-family: var(--font-display); font-size: 0.92rem; margin: 0 0 12px; color: var(--ink); }
-  .card .chart-wrap { position: relative; height: 260px; }
-  .card .chart-wrap.curta { height: 180px; }
-
-  /* Tabelas */
   .quadro { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow-x: auto; box-shadow: 0 2px 10px var(--shadow); margin-bottom: 18px; }
-  .quadro h3 { font-family: var(--font-display); font-size: 0.92rem; margin: 0; padding: 14px 16px 0; }
-  table { width: 100%; border-collapse: collapse; min-width: 560px; }
+  table { width: 100%; border-collapse: collapse; min-width: 780px; }
   th { text-align: center; font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.02em; color: var(--ink-muted); padding: 9px 8px; background: var(--surface-2); border-bottom: 1px solid var(--border); white-space: nowrap; }
   th:first-child, td:first-child { text-align: left; padding-left: 14px; }
-  td { padding: 9px 8px; border-bottom: 1px solid var(--border); text-align: center; font-family: var(--font-mono); font-size: 0.8rem; white-space: nowrap; }
-  tbody tr:hover td { background: var(--surface-2); }
+  td { padding: 9px 8px; border-bottom: 1px solid var(--border); text-align: center; font-size: 0.82rem; }
   tbody tr:last-child td { border-bottom: none; }
-  .c-nome { font-family: var(--font-body) !important; font-weight: 600; color: var(--ink-soft); text-align: left !important; }
-  .c-1 { font-weight: 700; color: var(--accent-ink); background: var(--accent-bg) !important; }
-  .c-2 { font-weight: 700; }
-  .badge-medalha { display: inline-block; width: 20px; }
-  .zero { color: var(--ink-muted); }
-  .tag-manual { display: inline-block; font-size: 0.68rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
-  .tag-manual.sim { background: var(--warn-bg, #FBF1D9); color: var(--info-tx); }
-  .tag-manual.nao { color: var(--ink-muted); }
-  .pedidos-scroll { max-height: 480px; overflow-y: auto; }
-  .pedidos-scroll table thead th { position: sticky; top: 0; z-index: 2; }
+  .c-nome { font-weight: 700; color: var(--ink); text-align: left !important; }
+  .badge-super {
+    display: inline-block; font-size: 0.68rem; font-weight: 700; padding: 3px 10px; border-radius: 999px;
+    background: var(--accent-bg); color: var(--accent-ink);
+  }
+  .btn-salvar {
+    height: 30px; border-radius: 8px; border: 1px solid var(--accent); background: var(--accent); color: #241f4d;
+    padding: 0 12px; font-size: 0.78rem; font-weight: 700; cursor: pointer;
+  }
+  .btn-salvar:hover { filter: brightness(1.05); }
+  .btn-salvar:disabled { opacity: 0.5; cursor: default; }
+  .status-linha { font-size: 0.7rem; color: var(--ink-muted); display: block; margin-top: 4px; }
+  .status-linha.ok { color: var(--ok); }
+  .status-linha.erro { color: var(--bad); }
+  input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -153,7 +132,7 @@
       <img class="sidebar-brand-icon" src="logo-ricapet.png" alt="Ricapet">
       <div>
         <div class="sidebar-brand-name">Ricapet</div>
-        <div class="sidebar-brand-sub">Bipagem</div>
+        <div class="sidebar-brand-sub">Acessos</div>
       </div>
     </div>
 
@@ -178,7 +157,7 @@
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
       Ponto
     </a>
-    <a class="sidebar-link ativo" href="/bipagem.html" data-menu-key="bipagem">
+    <a class="sidebar-link" href="/bipagem.html" data-menu-key="bipagem">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/></svg>
       Bipagem
     </a>
@@ -191,7 +170,7 @@
       Painel TV
     </a>
 
-    <a class="sidebar-link" href="/acessos.html" data-menu-key="acessos" style="display:none;">
+    <a class="sidebar-link ativo" href="/acessos.html" data-menu-key="acessos" style="display:none;">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
       Acessos
     </a>
@@ -210,72 +189,40 @@
   <div class="conteudo-principal">
   <header>
     <div class="hrow">
-      <h1><span class="h-title-row">Bipagem · Dashboard <span class="live-badge"><span class="live-dot"></span>1x/dia às 23:30</span></span><span class="h-sub">Volume, operadores e produtividade da expedição</span></h1>
-      <div class="periodo">
-        <input type="date" id="p-dia">
-        <select id="p-dias-tendencia">
-          <option value="7">7 dias</option>
-          <option value="14" selected>14 dias</option>
-          <option value="30">30 dias</option>
-        </select>
-        <button id="p-aplicar">Aplicar</button>
-      </div>
+      <h1><span class="h-title-row">Acessos · Administração</span><span class="h-sub">Quem entra no painel e o que cada um pode ver</span></h1>
       <span class="chip-usuario" title="Usuário logado"><span class="chip-usuario-rotulo">Logado como</span> <b id="admin-nome"></b></span>
       <button class="chip-sair" id="btn-sair">Sair</button>
     </div>
   </header>
 
   <div class="shell">
-    <p id="aviso-vazio" class="aviso" hidden>Nenhuma bipagem registrada nesse dia ainda. A rotina local roda 1x por dia, às 23:30 — se for hoje, o dado só chega à noite.</p>
+    <p id="aviso-carregando" class="aviso">Carregando…</p>
 
-    <div class="kpis">
-      <div class="kpi-card"><div class="l">Total bipado no dia</div><div class="v" id="kpi-total">–</div></div>
-      <div class="kpi-card"><div class="l">Ricapet</div><div class="v" id="kpi-ricapet">–</div></div>
-      <div class="kpi-card"><div class="l">Thapets</div><div class="v" id="kpi-thapets">–</div></div>
-      <div class="kpi-card"><div class="l">Operadores no dia</div><div class="v" id="kpi-operadores">–</div></div>
-      <div class="kpi-card"><div class="l">Bipado manualmente</div><div class="v" id="kpi-manual">–</div></div>
-    </div>
+    <div id="conteudo" hidden>
+      <p class="nota">
+        Marque as páginas que cada pessoa pode acessar e clique em "Salvar" na linha dela.
+        Quem não tem a caixa "Admin" marcada não consegue nem fazer login no painel
+        (continua batendo ponto normalmente). Super admin (🔒) sempre tem acesso a tudo
+        e só é definido manualmente, nunca por esta tela.
+      </p>
 
-    <div class="grid-charts">
-      <div class="card">
-        <h3>Ranking por operador</h3>
-        <div class="chart-wrap"><canvas id="chartOperadores"></canvas></div>
-      </div>
-      <div class="card">
-        <h3>Split por tipo de envio</h3>
-        <div class="chart-wrap"><canvas id="chartTipo"></canvas></div>
-      </div>
-    </div>
-
-    <div class="grid-charts">
-      <div class="card">
-        <h3>Volume por hora do dia</h3>
-        <div class="chart-wrap curta"><canvas id="chartHora"></canvas></div>
-      </div>
-      <div class="card">
-        <h3>Tendência diária</h3>
-        <div class="chart-wrap curta"><canvas id="chartTendencia"></canvas></div>
-      </div>
-    </div>
-
-    <div class="quadro">
-      <h3 style="margin-bottom:10px">Performance por operador</h3>
-      <table>
-        <thead><tr>
-          <th></th><th>Operador</th><th>Total</th><th>Ricapet</th><th>Thapets</th>
-          <th>Flex</th><th>Turbo</th><th>Outros</th><th>Manual</th>
-          <th>Horas no Ponto</th><th>Bipagens/hora</th>
-        </tr></thead>
-        <tbody id="tabela-operadores"></tbody>
-      </table>
-    </div>
-
-    <div class="quadro">
-      <h3 style="margin-bottom:10px">Todos os pedidos do dia</h3>
-      <div class="pedidos-scroll">
+      <div class="quadro">
         <table>
-          <thead><tr><th>Hora</th><th>Empresa</th><th>Pedido</th><th>Cliente</th><th>Tipo</th><th>Bipado por</th><th>Manual</th></tr></thead>
-          <tbody id="tabela-pedidos"></tbody>
+          <thead>
+            <tr>
+              <th>Funcionário</th>
+              <th>Admin</th>
+              <th>Ponto</th>
+              <th>Dashboard</th>
+              <th>Bipagem</th>
+              <th>Estoque</th>
+              <th>Proj. Financeira</th>
+              <th>Concorrência</th>
+              <th>Painel TV</th>
+              <th>Ação</th>
+            </tr>
+          </thead>
+          <tbody id="tabela-acessos"></tbody>
         </table>
       </div>
     </div>
@@ -287,149 +234,94 @@
   const $ = (id) => document.getElementById(id);
   const sessao = window.RicapetAuth.sessao;
   $('admin-nome').textContent = sessao.nome;
-  window.RicapetAuth.aplicarVisibilidadeMenu();
   $('btn-sair').addEventListener('click', () => window.RicapetAuth.sair());
+  window.RicapetAuth.aplicarVisibilidadeMenu();
 
-  const CORES = { teal: '#17a389', yellow: '#f2c94c', gray: '#bdc3c7', blue: '#1d4ed8', red: '#eb5757', muted: '#93A0BC', grid: 'rgba(27,42,74,0.06)' };
-  const PALETA_OPERADORES = [CORES.teal, CORES.blue, CORES.yellow, '#9b59b6', CORES.red, '#2ecc71', CORES.gray];
+  const PAGINAS = [
+    { chave: 'ponto', rotulo: 'Ponto' },
+    { chave: 'dashboard', rotulo: 'Dashboard' },
+    { chave: 'bipagem', rotulo: 'Bipagem' },
+    { chave: 'estoque', rotulo: 'Estoque' },
+    { chave: 'projecao-financeira', rotulo: 'Proj. Financeira' },
+    { chave: 'concorrencia', rotulo: 'Concorrência' },
+    { chave: 'tv', rotulo: 'Painel TV' },
+  ];
 
-  if (typeof Chart !== 'undefined') {
-    Chart.defaults.color = CORES.muted;
-    Chart.defaults.font.size = 11;
-    if (typeof ChartDataLabels !== 'undefined') Chart.register(ChartDataLabels);
+  function linhaUsuario(u) {
+    if (u.super_admin) {
+      return `
+        <tr>
+          <td class="c-nome">${u.nome}</td>
+          <td colspan="8"><span class="badge-super">🔒 Super admin — acesso total</span></td>
+        </tr>`;
+    }
+    const checks = PAGINAS.map((p) => `
+        <td><input type="checkbox" data-pagina="${p.chave}" ${u.paginas.includes(p.chave) ? 'checked' : ''}></td>
+      `).join('');
+    return `
+      <tr data-funcionario-id="${u.id}">
+        <td class="c-nome">${u.nome}</td>
+        <td><input type="checkbox" data-admin ${u.admin ? 'checked' : ''}></td>
+        ${checks}
+        <td>
+          <button class="btn-salvar" type="button">Salvar</button>
+          <span class="status-linha"></span>
+        </td>
+      </tr>`;
   }
 
-  let charts = {};
-  function montarChart(id, config) {
-    if (typeof Chart === 'undefined') return;
-    if (charts[id]) charts[id].destroy();
-    const el = $(id);
-    if (!el) return;
-    charts[id] = new Chart(el.getContext('2d'), config);
-  }
+  async function salvarLinha(tr) {
+    const btn = tr.querySelector('.btn-salvar');
+    const status = tr.querySelector('.status-linha');
+    const funcionarioId = tr.dataset.funcionarioId;
+    const admin = tr.querySelector('[data-admin]').checked;
+    const paginas = [...tr.querySelectorAll('[data-pagina]')].filter((c) => c.checked).map((c) => c.dataset.pagina);
 
-  function fmtHoras(min) {
-    if (min == null) return '—';
-    const h = Math.floor(min / 60);
-    const m = Math.round(min % 60);
-    return `${h}h${String(m).padStart(2, '0')}`;
-  }
-
-  function medalha(pos) {
-    return pos === 0 ? '🥇' : pos === 1 ? '🥈' : pos === 2 ? '🥉' : '';
+    btn.disabled = true;
+    status.textContent = 'Salvando…';
+    status.className = 'status-linha';
+    try {
+      const resp = await fetch('/api/debug?tipo=acessos-definir', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessao: sessao.token, funcionario_id: funcionarioId, admin, paginas }),
+      });
+      const dados = await resp.json().catch(() => ({}));
+      if (resp.status === 401) { window.RicapetAuth.sair(); return; }
+      if (!resp.ok || dados.ok === false) throw new Error(dados.error || 'Falha ao salvar.');
+      status.textContent = 'Salvo ✓';
+      status.className = 'status-linha ok';
+    } catch (err) {
+      status.textContent = err.message;
+      status.className = 'status-linha erro';
+    } finally {
+      btn.disabled = false;
+    }
   }
 
   async function carregar() {
-    const dia = $('p-dia').value;
-    const dias = $('p-dias-tendencia').value;
-    const url = `/api/analytics-todos-data?visao=bipagem&sessao=${encodeURIComponent(sessao.token)}&data=${dia}&dias=${dias}`;
-    let dados;
     try {
-      const resp = await fetch(url);
-      dados = await resp.json();
-      if (!resp.ok || dados.ok === false) {
-        // 401 = sessão expirada de verdade (desloga); 403 = sessão válida
-        // mas sem acesso a esta página (overlay, não desloga).
-        if (resp.status === 401) { window.RicapetAuth.sair(); return; }
-        if (resp.status === 403) { window.RicapetAuth.mostrarAcessoNegado(dados.error); return; }
-        throw new Error(dados.error || 'Falha ao carregar.');
+      const resp = await fetch('/api/debug?tipo=acessos-listar&sessao=' + encodeURIComponent(sessao.token));
+      const dados = await resp.json().catch(() => ({}));
+      if (resp.status === 401) { window.RicapetAuth.sair(); return; }
+      if (resp.status === 403) {
+        $('aviso-carregando').textContent = dados.error || 'Só o Ricardo tem acesso a esta tela.';
+        window.RicapetAuth.mostrarAcessoNegado(dados.error);
+        return;
       }
+      if (!resp.ok || dados.ok === false) throw new Error(dados.error || 'Falha ao carregar.');
+
+      $('tabela-acessos').innerHTML = dados.usuarios.map(linhaUsuario).join('');
+      $('tabela-acessos').querySelectorAll('tr[data-funcionario-id]').forEach((tr) => {
+        tr.querySelector('.btn-salvar').addEventListener('click', () => salvarLinha(tr));
+      });
+      $('aviso-carregando').hidden = true;
+      $('conteudo').hidden = false;
     } catch (err) {
-      alert(err.message);
-      return;
+      $('aviso-carregando').textContent = err.message;
     }
-
-    $('aviso-vazio').hidden = dados.total > 0;
-
-    $('kpi-total').textContent = dados.total.toLocaleString('pt-BR');
-    $('kpi-ricapet').textContent = (dados.por_empresa.Ricapet || 0).toLocaleString('pt-BR');
-    $('kpi-thapets').textContent = (dados.por_empresa.Thapets || 0).toLocaleString('pt-BR');
-    $('kpi-operadores').textContent = dados.operadores.filter((o) => o.nome !== '(não identificado)').length;
-    $('kpi-manual').innerHTML = dados.total
-      ? `${dados.manuais} <small>(${((dados.manuais / dados.total) * 100).toFixed(0)}%)</small>`
-      : '0';
-
-    // ranking por operador (bar horizontal)
-    const opsOrdenados = [...dados.operadores];
-    montarChart('chartOperadores', {
-      type: 'bar',
-      data: {
-        labels: opsOrdenados.map((o) => o.nome),
-        datasets: [{ data: opsOrdenados.map((o) => o.total), backgroundColor: opsOrdenados.map((_, i) => PALETA_OPERADORES[i % PALETA_OPERADORES.length]), borderRadius: 4 }],
-      },
-      options: {
-        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false }, datalabels: { color: '#2d3436', font: { weight: 'bold', size: 11 }, anchor: 'end', align: 'end' } },
-        scales: { x: { grid: { color: CORES.grid }, beginAtZero: true }, y: { grid: { display: false } } },
-      },
-    });
-
-    // split por tipo de envio (doughnut)
-    const tipos = Object.entries(dados.por_tipo).sort((a, b) => b[1] - a[1]);
-    montarChart('chartTipo', {
-      type: 'doughnut',
-      data: { labels: tipos.map((t) => t[0]), datasets: [{ data: tipos.map((t) => t[1]), backgroundColor: PALETA_OPERADORES, borderWidth: 0 }] },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } }, datalabels: { color: '#fff', font: { weight: 'bold', size: 11 }, formatter: (v) => v } } },
-    });
-
-    // volume por hora
-    montarChart('chartHora', {
-      type: 'bar',
-      data: { labels: Array.from({ length: 24 }, (_, i) => i + 'h'), datasets: [{ data: dados.por_hora, backgroundColor: CORES.blue, borderRadius: 4 }] },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false }, datalabels: { display: false } },
-        scales: { x: { grid: { display: false } }, y: { grid: { color: CORES.grid }, beginAtZero: true } },
-      },
-    });
-
-    // tendência diária
-    montarChart('chartTendencia', {
-      type: 'line',
-      data: {
-        labels: dados.tendencia.map((t) => t.data.slice(8, 10) + '/' + t.data.slice(5, 7)),
-        datasets: [{ data: dados.tendencia.map((t) => t.total), borderColor: CORES.teal, backgroundColor: 'rgba(23,163,137,0.12)', fill: true, tension: 0.3, pointRadius: 2 }],
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false }, datalabels: { display: false } },
-        scales: { x: { grid: { display: false } }, y: { grid: { color: CORES.grid }, beginAtZero: true } },
-      },
-    });
-
-    // tabela de operadores
-    $('tabela-operadores').innerHTML = opsOrdenados.map((o, i) => `
-      <tr>
-        <td class="badge-medalha">${medalha(i)}</td>
-        <td class="c-nome">${o.nome}</td>
-        <td class="${i === 0 ? 'c-1' : ''}">${o.total}</td>
-        <td>${o.ricapet || '<span class="zero">—</span>'}</td>
-        <td>${o.thapets || '<span class="zero">—</span>'}</td>
-        <td>${o.flex || '<span class="zero">—</span>'}</td>
-        <td>${o.turbo || '<span class="zero">—</span>'}</td>
-        <td>${o.outros || '<span class="zero">—</span>'}</td>
-        <td>${o.manual ? `${o.manual} (${((o.manual / o.total) * 100).toFixed(0)}%)` : '<span class="zero">—</span>'}</td>
-        <td>${fmtHoras(o.minutos_trabalhados)}</td>
-        <td>${o.bipagens_por_hora != null ? o.bipagens_por_hora : '<span class="zero">—</span>'}</td>
-      </tr>
-    `).join('') || '<tr><td colspan="11" class="zero">Sem bipagens nesse dia.</td></tr>';
-
-    // tabela de pedidos
-    $('tabela-pedidos').innerHTML = dados.pedidos.map((p) => `
-      <tr>
-        <td>${p.hora || '—'}</td>
-        <td>${p.empresa}</td>
-        <td class="c-nome">${p.n_id_pedido}</td>
-        <td class="c-nome">${p.cliente || '—'}</td>
-        <td>${p.tipo_envio || '—'}</td>
-        <td class="c-nome">${p.bipado_por || '(não identificado)'}</td>
-        <td>${p.marcado_manualmente ? '<span class="tag-manual sim">Manual</span>' : '<span class="tag-manual nao">Scanner</span>'}</td>
-      </tr>
-    `).join('') || '<tr><td colspan="7" class="zero">Sem pedidos nesse dia.</td></tr>';
   }
 
-  $('p-aplicar').addEventListener('click', carregar);
-  $('p-dia').value = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
   carregar();
 
   // Reordenar o menu da sidebar (lápis ao lado de "Painéis Ricapet") --

@@ -114,7 +114,9 @@
       const dados = await resp.json().catch(() => ({}));
       if (!resp.ok || dados.ok === false) throw new Error(dados.error || 'Falha ao entrar.');
       if (!dados.admin) throw new Error('Seu usuário não tem acesso a este painel.');
-      sessionStorage.setItem(CHAVE_SESSAO, JSON.stringify({ token: dados.token, nome: dados.nome }));
+      sessionStorage.setItem(CHAVE_SESSAO, JSON.stringify({
+        token: dados.token, nome: dados.nome, super_admin: !!dados.super_admin, paginas: dados.paginas || [],
+      }));
       irParaDestino();
     } catch (err) {
       erroLogin.textContent = err.message;

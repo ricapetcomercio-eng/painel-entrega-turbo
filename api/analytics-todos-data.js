@@ -195,7 +195,7 @@ function parseIntervalo(query) {
 // espírito "CPU quase zero" de api/dashboard-data.js, nada de loop de rede.
 async function responderVisaoBipagem(req, res) {
   const db = getDb();
-  const resultadoSessao = await obterAdminSessao(req.query.sessao, db);
+  const resultadoSessao = await obterAdminSessao(req.query.sessao, db, 'bipagem');
   if (resultadoSessao.erro) { res.status(resultadoSessao.status).json({ error: resultadoSessao.erro }); return; }
 
   const dia = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.data || '')) ? req.query.data : dataFusoLoja(new Date());

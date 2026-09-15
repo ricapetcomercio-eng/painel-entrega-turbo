@@ -196,6 +196,11 @@
     Painel TV
   </a>
 
+  <a class="sidebar-link" href="/acessos.html" data-menu-key="acessos" style="display:none;">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+    Acessos
+  </a>
+
   <hr class="sidebar-separador">
 
   <div class="sidebar-footer">
@@ -245,6 +250,7 @@
   }
   const elLinkSair = document.getElementById('linkSair');
   if (elLinkSair) elLinkSair.addEventListener('click', (ev) => { ev.preventDefault(); window.RicapetAuth.sair(); });
+  window.RicapetAuth.aplicarVisibilidadeMenu();
 
   // Visões aninhadas embaixo do link "Estoque Adesivo", mesmo padrão do
   // Dashboard e do Ponto — expandido por padrão aqui porque "Estoque

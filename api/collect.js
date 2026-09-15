@@ -482,7 +482,7 @@ async function medirTempo(nome, fn) {
 // login único (não pelo CRON_SECRET) — decisão do dono do projeto.
 async function coletarProjecaoFinanceiraManual(req, res) {
   const sessao = req.query.sessao || (req.body && req.body.sessao);
-  const resultado = await obterAdminSessao(sessao, getDb());
+  const resultado = await obterAdminSessao(sessao, getDb(), 'projecao-financeira');
   if (resultado.erro) {
     res.status(resultado.status).json({ error: resultado.erro });
     return;

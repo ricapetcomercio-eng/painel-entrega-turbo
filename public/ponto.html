@@ -326,6 +326,11 @@
       Painel TV
     </a>
 
+    <a class="sidebar-link" href="/acessos.html" data-menu-key="acessos" style="display:none;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+      Acessos
+    </a>
+
     <hr class="sidebar-separador">
 
     <div class="sidebar-footer">
@@ -454,7 +459,15 @@
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo || {}),
     });
     const dados = await resp.json().catch(() => ({}));
-    if (!resp.ok || dados.ok === false) throw new Error(dados.error || 'Falha ao falar com o servidor.');
+    if (!resp.ok || dados.ok === false) {
+      const erro = new Error(dados.error || 'Falha ao falar com o servidor.');
+      // 401 = sessão expirada de verdade (desloga); 403 = sessão válida mas
+      // sem acesso a esta página específica (overlay, não desloga — a
+      // pessoa não fez nada de errado, só não tem essa página liberada).
+      if (resp.status === 401) { window.RicapetAuth.sair(); erro.handled = true; }
+      else if (resp.status === 403) { window.RicapetAuth.mostrarAcessoNegado(dados.error); erro.handled = true; }
+      throw erro;
+    }
     return dados;
   }
 
@@ -487,6 +500,7 @@
   // assets/auth.js já garantiu, antes desta página carregar, que existe uma
   // sessão válida (senão já teria redirecionado pra /login.html).
   const sessao = window.RicapetAuth.sessao;
+  window.RicapetAuth.aplicarVisibilidadeMenu();
 
   $('btn-sair').addEventListener('click', () => window.RicapetAuth.sair());
 
@@ -553,8 +567,7 @@
     try {
       estado = await api('ponto-admin-visao', { token: sessao.token, de: $('p-de').value, ate: $('p-ate').value });
     } catch (err) {
-      if (/sess|acesso|login/i.test(err.message)) { $('btn-sair').click(); }
-      alert(err.message);
+      if (!err.handled) alert(err.message);
       return;
     }
     const pend = estado.pendentes || 0;
