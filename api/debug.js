@@ -832,6 +832,14 @@ async function debugRegistrarBipagemDiaria(req, res) {
   res.status(200).json({ ok: true, tipo: 'registrar-bipagem-diaria', recebidas: linhas.length, gravadas });
 }
 
+// Só pra TESTE (CRON_SECRET) -- limpeza pontual da linha de exemplo usada
+// pra testar o endpoint acima antes do script local rodar de verdade.
+async function debugApagarBipagemDiariaTeste(req, res) {
+  const db = getDb();
+  const rs = await db.execute({ sql: 'DELETE FROM bipagem_diaria WHERE id_unico = ?', args: ['Ricapet:999999'] });
+  res.status(200).json({ ok: true, tipo: 'apagar-bipagem-diaria-teste', apagadas: rs.rowsAffected || 0 });
+}
+
 // Lê a linha CRUA de historico_todos por order_id (qualquer marketplace) —
 // pra depurar de verdade o que está gravado (categoria/coletado/
 // coletado_em), sem passar pelo filtro de listarShopeeAguardando que só
@@ -2339,6 +2347,7 @@ module.exports = async (req, res) => {
     if (req.query.tipo === 'flex-status') return await debugFlexStatus(req, res);
     if (req.query.tipo === 'historico-todos-row') return await debugHistoricoTodosRow(req, res);
     if (req.query.tipo === 'registrar-bipagem-diaria') return await debugRegistrarBipagemDiaria(req, res);
+    if (req.query.tipo === 'apagar-bipagem-diaria-teste') return await debugApagarBipagemDiariaTeste(req, res);
     if (req.query.tipo === 'backfill-prazo-shopee-todos') return await debugBackfillPrazoShopeeTodos(req, res);
     if (req.query.tipo === 'ml-sla') return await debugMlSla(req, res);
     if (req.query.tipo === 'shopee-returns') return await debugShopeeReturns(req, res);
