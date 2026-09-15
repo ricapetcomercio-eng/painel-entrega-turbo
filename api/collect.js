@@ -45,11 +45,18 @@ const { obterAdminSessao } = require('../lib/pontoAuth');
 
 // Janela de DESCOBERTA de pedidos Turbo novos (não confundir com a
 // reverificação, que cobre qualquer "aguardando" sem limite de idade).
-// 7 dias em vez de 48h — o volume de Turbo é baixo (poucas unidades por
-// semana), então não tem custo real em alargar bastante, e isso evita
-// depender de coincidência de horário entre execuções (48h já deixou
-// escapar pedidos reais por só ~2h de diferença).
-const HORAS_RETROATIVAS = 7 * 24;
+// Era 7 dias — motivo original era evitar depender de coincidência de
+// horário entre execuções (48h já tinha deixado escapar pedidos reais por
+// só ~2h de diferença), mas buscarPedidosRecentes (lib/shopeeOrders.js) só
+// pegava a 1ª página (50) de TODOS os pedidos da loja (não só Turbo, a API
+// não filtra isso no servidor) sem checar `more` — em volume alto, um
+// pedido Turbo recém-criado nunca chegava a ter os detalhes buscados,
+// então nunca era descoberto (caso real: 26091551UTERRN, só apareceu na TV
+// já atrasado). Agora pagina de verdade, então não precisa mais de 7 dias
+// pra compensar — 48h já cobre qualquer intervalo de indisponibilidade que
+// já vimos de verdade (o pior até agora foi ~10h) com folga confortável, e
+// fica bem mais barato (normalmente cabe numa página só).
+const HORAS_RETROATIVAS = 48;
 const HORAS_JANELA_FLEX = 48; // "coleta só amanhã" — precisa de folga
 const HORAS_JANELA_SHOPEE_TODOS = 48; // mesma folga usada no restante do backfill
 
