@@ -969,13 +969,15 @@ async function debugOmiePedidoTeste(req, res) {
   let origem = 'informado na query (?codigo_pedido=...)';
   if (!codigoPedido) {
     const db = getDb();
-    const rs = await db.execute({
-      sql: `SELECT n_id_pedido FROM bipagem_diaria WHERE empresa = ? AND n_id_pedido IS NOT NULL ORDER BY bipado_em_ts DESC LIMIT 1`,
-      args: [conta === 'ricapet' ? 'Ricapet' : 'Thapets'],
-    });
-    if (!rs.rows.length) { res.status(200).json({ ok: true, aviso: 'Nenhum n_id_pedido encontrado em bipagem_diaria pra essa empresa — passe ?codigo_pedido=... manualmente.' }); return; }
+    const filtroTipo = req.query.tipo_envio_contem; // ex: "Shopee" pra pegar uma bipagem Shopee em vez da mais recente qualquer
+    const sql = filtroTipo
+      ? `SELECT n_id_pedido, tipo_envio FROM bipagem_diaria WHERE empresa = ? AND n_id_pedido IS NOT NULL AND tipo_envio LIKE ? ORDER BY bipado_em_ts DESC LIMIT 1`
+      : `SELECT n_id_pedido, tipo_envio FROM bipagem_diaria WHERE empresa = ? AND n_id_pedido IS NOT NULL ORDER BY bipado_em_ts DESC LIMIT 1`;
+    const args = filtroTipo ? [conta === 'ricapet' ? 'Ricapet' : 'Thapets', `%${filtroTipo}%`] : [conta === 'ricapet' ? 'Ricapet' : 'Thapets'];
+    const rs = await db.execute({ sql, args });
+    if (!rs.rows.length) { res.status(200).json({ ok: true, aviso: `Nenhum n_id_pedido encontrado em bipagem_diaria pra essa empresa${filtroTipo ? ` com tipo_envio contendo "${filtroTipo}"` : ''} — passe ?codigo_pedido=... manualmente.` }); return; }
     codigoPedido = rs.rows[0].n_id_pedido;
-    origem = 'auto (n_id_pedido mais recente de bipagem_diaria)';
+    origem = `auto (n_id_pedido mais recente de bipagem_diaria${filtroTipo ? `, tipo_envio="${rs.rows[0].tipo_envio}"` : ''})`;
   }
 
   const { appKey, appSecret } = getOmieConfig(conta);
