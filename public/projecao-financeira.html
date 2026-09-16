@@ -113,13 +113,10 @@
 
   /* Mesmas cores da planilha de referência do dono do projeto (seção de
      ENTRADAS em azul claro, SAÍDAS em laranja claro — só a barra de
-     cabeçalho da seção, não cada linha individual). Repete o seletor com
-     .rotulo pra ganhar de table.matriz td.rotulo (mesma especificidade
-     empataria pela ordem no arquivo). */
-  tr.linha-secao.secao-entrada td,
-  tr.linha-secao.secao-entrada td.rotulo { background: #D9E9FF; color: #1B2A4A; }
-  tr.linha-secao.secao-saida td,
-  tr.linha-secao.secao-saida td.rotulo { background: #FFE4CC; color: #1B2A4A; }
+     cabeçalho da seção, não cada linha individual). Essas linhas usam uma
+     única célula com colspan (sem .rotulo), texto centralizado. */
+  tr.linha-secao.secao-entrada td { background: #D9E9FF; color: #1B2A4A; }
+  tr.linha-secao.secao-saida td { background: #FFE4CC; color: #1B2A4A; }
 
   .matriz-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
   table.matriz { width: max-content; min-width: 100%; border-collapse: collapse; }
@@ -138,10 +135,11 @@
   table.matriz thead th.rotulo { z-index: 3; }
   table.matriz td.fds, table.matriz th.fds { background: var(--surface-2); }
   table.matriz td.rotulo.fds { background: var(--surface); }
-  tr.linha-secao td { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-soft); background: var(--surface-2); text-align: left; padding-top: 20px; padding-bottom: 4px; }
+  tr.linha-secao td { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-soft); background: var(--surface-2); padding-top: 10px; padding-bottom: 10px; }
   tr.linha-total td { font-weight: 700; background: var(--surface-2); }
-  tr.linha-saldo td { font-weight: 700; background: var(--brand-light); color: var(--brand); padding-top: 14px; border-top: 2px solid var(--border); }
+  tr.linha-saldo td { font-weight: 700; background: var(--brand-light); color: var(--brand); }
   tr.linha-saldo td.negativo { background: var(--danger-bg); color: var(--danger-text); }
+  tr.linha-espaco td { border: none; background: transparent; padding: 8px 0; }
   td.editavel { padding: 3px 6px; }
   td.editavel input {
     width: 72px; text-align: right; font-family: var(--font-mono); font-size: 12px;
@@ -354,7 +352,11 @@
 
   function renderLinhaSecao(titulo, qtdDias, tipo){
     const classe = tipo ? `linha-secao secao-${tipo}` : 'linha-secao';
-    return `<tr class="${classe}"><td class="rotulo">${titulo}</td><td colspan="${qtdDias}"></td></tr>`;
+    return `<tr class="${classe}"><td colspan="${qtdDias + 1}" style="text-align:center;">${titulo}</td></tr>`;
+  }
+
+  function renderLinhaEspaco(qtdDias){
+    return `<tr class="linha-espaco"><td class="rotulo"></td><td colspan="${qtdDias}"></td></tr>`;
   }
 
   async function carregar(){
@@ -440,11 +442,13 @@
         renderLinhaValores('Mercado Pago Thapets', mpThapets.valores, datas),
         renderLinhaSite(siteManual, datas),
         renderLinhaValores('TOTAL ENTRADAS', totalEntradas, datas, { classeLinha: 'linha-total' }),
+        renderLinhaEspaco(datas.length),
         renderLinhaSecao('SAÍDAS', datas.length, 'saida'),
         renderLinhaValores('Contas a pagar Ricapet (Omie)', omieRicapet.valores, datas),
         renderLinhaValores('Contas a pagar Thapets (Omie)', omieThapets.valores, datas),
         renderLinhaAvulso(avulsoManual, datas),
         renderLinhaValores('TOTAL A PAGAR', totalAPagar, datas, { classeLinha: 'linha-total' }),
+        renderLinhaEspaco(datas.length),
         renderLinhaSaldo('SALDO', saldo, datas),
       ].join('');
 
