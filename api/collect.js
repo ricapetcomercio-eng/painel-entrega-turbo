@@ -41,6 +41,7 @@ const { registrarHistoricoTodos, marcarDevolucao, listarShopeeAguardando, listar
 const { enviarBalancoMensalSeNecessario } = require('../lib/estoqueSaldo');
 const { coletarProjecaoFinanceira } = require('../lib/mpProjecao');
 const { coletarProjecaoFinanceiraShopee } = require('../lib/shopeeProjecao');
+const { coletarContasPagar } = require('../lib/omieContasPagar');
 const { obterAdminSessao } = require('../lib/pontoAuth');
 
 // Janela de DESCOBERTA de pedidos Turbo novos (não confundir com a
@@ -512,6 +513,14 @@ async function coletarProjecaoFinanceiraManual(req, res) {
       contas[loja].shopee = await coletarProjecaoFinanceiraShopee(loja);
     } catch (err) {
       contas[loja].shopee = { erro: err.message };
+    }
+  }
+
+  for (const conta of ['ricapet', 'thapets']) {
+    try {
+      contas[conta].omie = await coletarContasPagar(conta);
+    } catch (err) {
+      contas[conta].omie = { erro: err.message };
     }
   }
 
