@@ -220,6 +220,29 @@ async function responderVisaoBipagem(req, res) {
 
   const pedidos = rsPeriodo.rows;
 
+  // Cruza com historico_todos pra saber quais desses pedidos bipados
+  // acabaram devolvidos (campo `devolvido`, atualizado por um processo
+  // separado em api/collect.js quando a devolução é detectada no ML/Shopee
+  // — pode acontecer bem depois da bipagem, por isso a busca aqui NÃO filtra
+  // por data, só pelo order_id). Junção por n_id_pedido = order_id: como o
+  // que é bipado no galpão é o próprio número do pedido impresso na
+  // etiqueta, e nunca foi confirmado 1:1 contra dado real de produção
+  // (mesma ressalva empírica de outras integrações deste projeto) —
+  // `nao_localizados` no retorno serve de sinal caso a suposição esteja
+  // errada (número alto = a junção não está batendo).
+  const idsPedidosUnicos = [...new Set(pedidos.map((p) => String(p.n_id_pedido || '').trim()).filter(Boolean))];
+  const devolucaoPorPedido = new Map();
+  const TAMANHO_LOTE = 300;
+  for (let i = 0; i < idsPedidosUnicos.length; i += TAMANHO_LOTE) {
+    const lote = idsPedidosUnicos.slice(i, i + TAMANHO_LOTE);
+    const placeholders = lote.map(() => '?').join(',');
+    const rsDevolucao = await db.execute({
+      sql: `SELECT order_id, devolvido FROM historico_todos WHERE order_id IN (${placeholders})`,
+      args: lote,
+    });
+    rsDevolucao.rows.forEach((r) => devolucaoPorPedido.set(String(r.order_id), r.devolvido === 1));
+  }
+
   // Tendência diária vem do mesmo resultado acima (agrupado por dia), sem
   // precisar de uma segunda consulta -- o período já é o que o usuário
   // escolheu, não uma janela "últimos N dias" separada como antes.
@@ -235,11 +258,13 @@ async function responderVisaoBipagem(req, res) {
   const porTipo = {};
   const porHora = Array.from({ length: 24 }, () => 0);
   let manuais = 0;
+  let localizadosTotal = 0;
+  let devolvidosTotal = 0;
 
   pedidos.forEach((p) => {
     const nome = p.bipado_por || '(não identificado)';
     if (!porOperadorMapa.has(nome)) {
-      porOperadorMapa.set(nome, { nome, total: 0, ricapet: 0, thapets: 0, flex: 0, turbo: 0, outros: 0, manual: 0 });
+      porOperadorMapa.set(nome, { nome, total: 0, ricapet: 0, thapets: 0, flex: 0, turbo: 0, outros: 0, manual: 0, localizados: 0, devolvidos: 0 });
     }
     const op = porOperadorMapa.get(nome);
     op.total++;
@@ -252,6 +277,13 @@ async function responderVisaoBipagem(req, res) {
     else op.outros++;
 
     if (p.marcado_manualmente) { op.manual++; manuais++; }
+
+    const devolvido = devolucaoPorPedido.get(String(p.n_id_pedido || '').trim());
+    if (devolvido !== undefined) {
+      op.localizados++;
+      localizadosTotal++;
+      if (devolvido) { op.devolvidos++; devolvidosTotal++; }
+    }
 
     porEmpresa[p.empresa] = (porEmpresa[p.empresa] || 0) + 1;
     porTipo[p.tipo_envio || 'Outros'] = (porTipo[p.tipo_envio || 'Outros'] || 0) + 1;
@@ -297,6 +329,7 @@ async function responderVisaoBipagem(req, res) {
       funcionario_id: func ? func.id : null,
       minutos_trabalhados: minutosTrabalhados,
       bipagens_por_hora: minutosTrabalhados > 0 ? Number((op.total / (minutosTrabalhados / 60)).toFixed(2)) : null,
+      taxa_devolucao: op.localizados > 0 ? Number(((op.devolvidos / op.localizados) * 100).toFixed(1)) : null,
     });
   }
   operadores.sort((a, b) => b.total - a.total);
@@ -308,6 +341,9 @@ async function responderVisaoBipagem(req, res) {
     ate,
     total: pedidos.length,
     manuais,
+    localizados_total: localizadosTotal,
+    devolvidos_total: devolvidosTotal,
+    nao_localizados: pedidos.length - localizadosTotal,
     por_empresa: porEmpresa,
     por_tipo: porTipo,
     por_hora: porHora,
