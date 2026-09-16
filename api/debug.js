@@ -2377,6 +2377,62 @@ module.exports = async (req, res) => {
       });
       return;
     }
+    if (req.query.tipo === 'omie-contas-pagar-test') {
+      // Primeiro teste da API de Contas a Pagar do Omie — endpoint
+      // exploratório, seguindo o mesmo padrão empírico usado pro Mercado
+      // Pago/Shopee (ver CLAUDE.md, seção "Saídas (Omie)"): confirmar o
+      // formato real da resposta com dado de produção antes de escrever
+      // lib/omieContasPagar.js definitivo. Os nomes exatos dos campos de
+      // filtro (filtrar_por_data_de/ate) são os documentados pela Omie,
+      // mas ainda não testados neste projeto.
+      const conta = req.query.conta;
+      if (!conta || !['ricapet', 'thapets'].includes(conta)) {
+        res.status(400).json({ error: 'Use ?conta=ricapet ou ?conta=thapets' });
+        return;
+      }
+      const prefix = `OMIE_${conta.toUpperCase()}`;
+      const appKey = process.env[`${prefix}_APP_KEY`];
+      const appSecret = process.env[`${prefix}_APP_SECRET`];
+      if (!appKey || !appSecret) {
+        res.status(400).json({ error: `Faltam variáveis de ambiente ${prefix}_APP_KEY / ${prefix}_APP_SECRET.` });
+        return;
+      }
+
+      const fmtDataOmie = (d) => {
+        const dd = String(d.getDate()).padStart(2, '0');
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        return `${dd}/${mm}/${d.getFullYear()}`;
+      };
+      const hoje = new Date();
+      const futuro = new Date(hoje.getTime() + 45 * 24 * 60 * 60 * 1000);
+
+      const body = {
+        call: 'ListarContasPagar',
+        app_key: appKey,
+        app_secret: appSecret,
+        param: [{
+          pagina: Number(req.query.pagina) || 1,
+          registros_por_pagina: 20,
+          apenas_importado_api: 'N',
+          filtrar_por_data_de: fmtDataOmie(hoje),
+          filtrar_por_data_ate: fmtDataOmie(futuro),
+        }],
+      };
+      const resp = await fetch('https://app.omie.com/api/v1/financas/contapagar/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await resp.json();
+      res.status(resp.status).json({
+        ok: resp.ok,
+        tipo: 'omie-contas-pagar-test',
+        conta,
+        status_http: resp.status,
+        resposta: data,
+      });
+      return;
+    }
     if (req.query.tipo === 'ml-client-ids') {
       res.status(200).json({
         ok: true, tipo: 'ml-client-ids',
