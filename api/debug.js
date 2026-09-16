@@ -2083,26 +2083,28 @@ async function debugPontoAdminCpf(req, res) {
   res.status(200).json({ ok: true, tipo: 'ponto-admin-cpf' });
 }
 
-// Fluxo de Caixa: dois pedaços de dado mantidos manualmente (não vêm de
-// nenhuma API) — o saldo bancário atual de cada empresa (ponto de partida
-// do saldo acumulado projetado) e a previsão diária de vendas do site
-// próprio (nenhuma integração com o site existe neste projeto ainda).
+// Fluxo de Caixa: pedaços de dado mantidos manualmente (não vêm de nenhuma
+// API) — o saldo bancário atual de cada empresa (ponto de partida do saldo
+// acumulado projetado), a previsão diária de vendas do site próprio
+// (nenhuma integração com o site existe neste projeto ainda) e um total
+// avulso de contas a pagar não cadastradas no Omie.
 async function debugFluxoCaixaConfigGet(req, res) {
   const db = getDb();
   const admin = await exigirAdmin(req, res, db, 'projecao-financeira');
   if (!admin) return;
   const saldoManual = (await kvGet('entrega_turbo:fluxo_caixa_saldo_manual')) || { ricapet: 0, thapets: 0, atualizado_em: null };
   const siteManual = (await kvGet('entrega_turbo:fluxo_caixa_site_manual')) || { por_dia: {} };
-  res.status(200).json({ ok: true, tipo: 'fluxo-caixa-config', saldoManual, siteManual });
+  const avulsoManual = (await kvGet('entrega_turbo:fluxo_caixa_avulso_manual')) || { por_dia: {} };
+  res.status(200).json({ ok: true, tipo: 'fluxo-caixa-config', saldoManual, siteManual, avulsoManual });
 }
 
 async function debugFluxoCaixaConfigSet(req, res) {
-  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { token, saldoRicapet?, saldoThapets?, siteData?, siteValor? }' }); return; }
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { token, saldoRicapet?, saldoThapets?, siteData?, siteValor?, avulsoData?, avulsoValor? }' }); return; }
   const db = getDb();
   const admin = await exigirAdmin(req, res, db, 'projecao-financeira');
   if (!admin) return;
 
-  const { saldoRicapet, saldoThapets, siteData, siteValor } = req.body || {};
+  const { saldoRicapet, saldoThapets, siteData, siteValor, avulsoData, avulsoValor } = req.body || {};
 
   if (saldoRicapet !== undefined || saldoThapets !== undefined) {
     const atual = (await kvGet('entrega_turbo:fluxo_caixa_saldo_manual')) || { ricapet: 0, thapets: 0 };
@@ -2120,6 +2122,15 @@ async function debugFluxoCaixaConfigSet(req, res) {
     if (valor > 0) atual.por_dia[siteData] = valor;
     else delete atual.por_dia[siteData];
     await kvSet('entrega_turbo:fluxo_caixa_site_manual', atual);
+  }
+
+  if (avulsoData !== undefined) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(avulsoData))) { res.status(400).json({ error: 'avulsoData precisa ser AAAA-MM-DD.' }); return; }
+    const atual = (await kvGet('entrega_turbo:fluxo_caixa_avulso_manual')) || { por_dia: {} };
+    const valor = Number(avulsoValor) || 0;
+    if (valor > 0) atual.por_dia[avulsoData] = valor;
+    else delete atual.por_dia[avulsoData];
+    await kvSet('entrega_turbo:fluxo_caixa_avulso_manual', atual);
   }
 
   res.status(200).json({ ok: true, tipo: 'fluxo-caixa-config-set' });
