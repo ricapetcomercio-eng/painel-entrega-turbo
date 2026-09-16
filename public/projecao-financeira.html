@@ -386,6 +386,9 @@
         if (dado.estimativa) {
           avisos.push(`${nomeAviso}: estimativa — a Shopee não informa data oficial de repasse; calculada a partir da previsão de entrega + ${dado.dias_confirmacao_assumido || 7} dias assumidos de confirmação do comprador.`);
         }
+        if (dado.truncado) {
+          avisos.push(`${nomeAviso}: aviso — volume de pagamentos muito alto, resultado pode estar incompleto (mais de 10.000 pagamentos no período).`);
+        }
         return { valores: linhaValores(mapaPorDia(dado.por_dia), datas) };
       }
 
