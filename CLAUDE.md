@@ -135,6 +135,42 @@ categorias nas linhas, saldo acumulado embaixo). Peças do modelo:
 - `entrega_turbo:fluxo_caixa_site_manual` guarda o mapa `{ "AAAA-MM-DD":
   valor }` das vendas manuais do site.
 
+## Bipagem (`public/bipagem.html`): n_id_pedido ≠ order_id, precisa resolver
+
+`bipagem_diaria.n_id_pedido` (mandado pelo `checkout_bipagem.py`/RobotOmie)
+**não é** o `order_id` nem o `shipment_id` de nenhum marketplace — é o
+`codigo_pedido` **interno da Omie** (confirmado empiricamente, com dado
+real de produção). Cruzar direto contra `historico_todos.order_id` (que é
+o que "Bipado × Devolvido por operador" e "% devolução" precisam) sempre
+dava zero batidas.
+
+Cadeia de tradução confirmada (`lib/bipagemResolver.js`):
+```
+n_id_pedido (codigo_pedido da Omie)
+  → Omie ConsultarPedido → cabecalho.origem_pedido:
+      "SHP" (Shopee)        → informacoes_adicionais.numero_pedido_cliente
+                               JÁ é o order_id — 1 chamada.
+      "MLV" (Mercado Livre) → numero_pedido_cliente é, na verdade, o
+                               shipment_id — precisa de mais 1 chamada
+                               (GET /shipments/{id} na API do ML) pra
+                               pegar o order_id de verdade — 2 chamadas.
+  → resultado vai pra bipagem_diaria.order_id_resolvido
+```
+- Sob demanda (botão "Resolver pendentes" em `bipagem.html` → `?tipo=
+  bipagem-resolver-pendentes` em `api/debug.js`, sessão pura via
+  `TIPOS_SESSAO_ADMIN`, mesmo padrão do Fluxo de Caixa) — **nunca**
+  automático: até 2 chamadas de API por linha é caro demais pra rodar em
+  loop. Trava de segurança: no máximo `LIMITE_MAXIMO_RESOLVER_BIPAGEM`
+  (50) linhas por clique.
+- `responderVisaoBipagem` (`api/analytics-todos-data.js`) cruza contra
+  `order_id_resolvido`, não mais `n_id_pedido` — pedidos ainda não
+  resolvidos ficam de fora do cruzamento (contam em `nao_resolvidos` no
+  retorno) até alguém clicar em "Resolver pendentes".
+- Colunas `order_id_resolvido`/`marketplace_resolvido`/`resolvido_em` em
+  `bipagem_diaria` — migração idempotente já embutida em
+  `?tipo=adicionar-coluna-tipo` (`api/debug.js`), não precisa de passo
+  manual separado.
+
 ## Banco de dados
 
 Turso (libSQL/SQLite cloud) é o banco principal — `lib/db.js` + `lib/kv.js`

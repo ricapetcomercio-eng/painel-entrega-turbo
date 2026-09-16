@@ -15,6 +15,7 @@ const { getDb } = require('../lib/db');
 const { getRedis } = require('../lib/redis');
 const { kvGet, kvSet, kvDel } = require('../lib/kv');
 const { getOmieConfig } = require('../lib/omieContasPagar');
+const { resolverPedidoBipagem } = require('../lib/bipagemResolver');
 const { importarContagemFisica, importarSaldoDaPlanilha, completarCatalogoFaltante, corrigirCorArranhadorAdesivoBege, enviarBalancoAgora } = require('../lib/estoqueSaldo');
 const { dataFusoLoja, isoDeDiaHoraLoja, resolverMarcacoes } = require('../lib/registrosPonto');
 
@@ -218,7 +219,10 @@ const TABELAS_SQL = [
     bipado_ip TEXT,
     marcado_manualmente INTEGER,
     bipado_em_ts INTEGER,
-    atualizado_em TEXT
+    atualizado_em TEXT,
+    order_id_resolvido TEXT,
+    marketplace_resolvido TEXT,
+    resolvido_em TEXT
   )`,
   `CREATE INDEX IF NOT EXISTS idx_bipagem_diaria_data ON bipagem_diaria(data)`,
   // Controle de acesso por página (tela Acessos, só super_admin) — presença
@@ -305,6 +309,9 @@ async function debugAdicionarColunaTipo(req, res) {
   for (const [coluna, sql] of [
     ['tipo', "ALTER TABLE historico_flex ADD COLUMN tipo TEXT DEFAULT 'flex'"],
     ['deadline', 'ALTER TABLE historico_flex ADD COLUMN deadline TEXT'],
+    ['bipagem_diaria.order_id_resolvido', 'ALTER TABLE bipagem_diaria ADD COLUMN order_id_resolvido TEXT'],
+    ['bipagem_diaria.marketplace_resolvido', 'ALTER TABLE bipagem_diaria ADD COLUMN marketplace_resolvido TEXT'],
+    ['bipagem_diaria.resolvido_em', 'ALTER TABLE bipagem_diaria ADD COLUMN resolvido_em TEXT'],
   ]) {
     try {
       await db.execute(sql);
@@ -2250,6 +2257,62 @@ async function debugFluxoCaixaConfigGet(req, res) {
   res.status(200).json({ ok: true, tipo: 'fluxo-caixa-config', saldoManual, siteManual, avulsoManual });
 }
 
+const EMPRESA_PARA_CONTA = { Ricapet: 'ricapet', Thapets: 'thapets' };
+const LIMITE_PADRAO_RESOLVER_BIPAGEM = 20;
+const LIMITE_MAXIMO_RESOLVER_BIPAGEM = 50; // cada linha custa 1-2 chamadas externas (Omie + ML) — mantém a execução curta
+
+// Traduz bipagem_diaria.n_id_pedido (código interno da Omie) pro order_id
+// real do canal de venda, pra permitir cruzar bipagem com devolução (ver
+// lib/bipagemResolver.js pra cadeia completa e CLAUDE.md pro histórico da
+// investigação). Sob demanda (botão "Resolver pendentes" em bipagem.html),
+// nunca automático — custo de API por linha é alto demais pra rodar sozinho.
+async function debugBipagemResolverPendentes(req, res) {
+  const db = getDb();
+  const admin = await exigirAdmin(req, res, db, 'bipagem');
+  if (!admin) return;
+
+  const limite = Math.min(parseInt(req.query.limite, 10) || LIMITE_PADRAO_RESOLVER_BIPAGEM, LIMITE_MAXIMO_RESOLVER_BIPAGEM);
+
+  const rsPendentes = await db.execute({
+    sql: `SELECT id_unico, empresa, n_id_pedido FROM bipagem_diaria
+          WHERE order_id_resolvido IS NULL AND n_id_pedido IS NOT NULL
+          ORDER BY bipado_em_ts DESC LIMIT ?`,
+    args: [limite],
+  });
+
+  let resolvidos = 0;
+  const erros = [];
+  for (const linha of rsPendentes.rows) {
+    const conta = EMPRESA_PARA_CONTA[linha.empresa];
+    if (!conta) { erros.push({ id_unico: linha.id_unico, erro: `Empresa desconhecida: ${linha.empresa}` }); continue; }
+
+    const resultado = await resolverPedidoBipagem(conta, linha.n_id_pedido);
+    if (resultado.erro || !resultado.orderId) {
+      erros.push({ id_unico: linha.id_unico, n_id_pedido: linha.n_id_pedido, erro: resultado.erro || 'Sem orderId.' });
+      continue;
+    }
+    await db.execute({
+      sql: `UPDATE bipagem_diaria SET order_id_resolvido = ?, marketplace_resolvido = ?, resolvido_em = ? WHERE id_unico = ?`,
+      args: [resultado.orderId, resultado.marketplace, new Date().toISOString(), linha.id_unico],
+    });
+    resolvidos++;
+  }
+
+  const rsRestantes = await db.execute(
+    `SELECT COUNT(*) AS total FROM bipagem_diaria WHERE order_id_resolvido IS NULL AND n_id_pedido IS NOT NULL`
+  );
+
+  res.status(200).json({
+    ok: true,
+    tipo: 'bipagem-resolver-pendentes',
+    processados: rsPendentes.rows.length,
+    resolvidos,
+    erros: erros.slice(0, 10),
+    total_erros: erros.length,
+    restantes: Number(rsRestantes.rows[0].total) || 0,
+  });
+}
+
 async function debugFluxoCaixaConfigSet(req, res) {
   if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { token, saldoRicapet?, saldoThapets?, siteData?, siteValor?, avulsoData?, avulsoValor? }' }); return; }
   const db = getDb();
@@ -2369,6 +2432,7 @@ const TIPOS_PUBLICOS_ESTOQUE = new Set(['importar-contagem-fisica', 'importar-sa
 // (mesma origem: só a própria tela logada chama essas rotas).
 const TIPOS_SESSAO_ADMIN = new Set([
   'fluxo-caixa-config-get', 'fluxo-caixa-config-set', 'acessos-listar', 'acessos-definir',
+  'bipagem-resolver-pendentes',
 ]);
 
 module.exports = async (req, res) => {
@@ -2378,6 +2442,7 @@ module.exports = async (req, res) => {
       if (req.query.tipo === 'fluxo-caixa-config-set') return await debugFluxoCaixaConfigSet(req, res);
       if (req.query.tipo === 'acessos-listar') return await debugAcessosListar(req, res);
       if (req.query.tipo === 'acessos-definir') return await debugAcessosDefinir(req, res);
+      if (req.query.tipo === 'bipagem-resolver-pendentes') return await debugBipagemResolverPendentes(req, res);
     } catch (err) {
       res.status(500).json({ error: err.message });
       return;

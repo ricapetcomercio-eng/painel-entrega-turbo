@@ -105,6 +105,13 @@
 
   .aviso { text-align: center; padding: 24px; color: var(--ink-muted); font-size: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin: 18px 0; }
   .aviso-mini { font-size: 11px; color: var(--ink-muted); line-height: 1.5; margin: 10px 2px 0; }
+  .aviso-mini button {
+    height: 24px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface);
+    color: var(--ink); padding: 0 10px; font-size: 0.72rem; font-weight: 700; cursor: pointer;
+    transition: all .15s ease; margin-left: 6px; vertical-align: middle;
+  }
+  .aviso-mini button:hover:not(:disabled) { background: var(--surface-2); border-color: var(--accent); color: var(--accent); }
+  .aviso-mini button:disabled { opacity: 0.6; cursor: default; }
 
   /* KPIs */
   .kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin: 18px 0; }
@@ -266,6 +273,12 @@
         nesse histórico (<span id="txt-nao-localizados">–</span> não localizados no período); "% devolução"
         na tabela abaixo é sobre os localizados, não sobre o total bipado.
       </p>
+      <p class="aviso-mini" id="bloco-resolver" hidden>
+        <span id="txt-nao-resolvidos">–</span> pedidos bipados nesse período ainda não foram traduzidos
+        pro número do canal de venda (passa pela Omie, e pelo Mercado Livre quando for o caso) — sem isso
+        eles nunca entram no cruzamento acima.
+        <button id="btn-resolver-pendentes" type="button">Resolver pendentes</button>
+      </p>
     </div>
 
     <div class="quadro">
@@ -362,6 +375,8 @@
       ? `${dados.devolvidos_total} <small>(${((dados.devolvidos_total / dados.localizados_total) * 100).toFixed(1)}%)</small>`
       : '<span class="zero">—</span>';
     $('txt-nao-localizados').textContent = (dados.nao_localizados || 0).toLocaleString('pt-BR');
+    $('txt-nao-resolvidos').textContent = (dados.nao_resolvidos || 0).toLocaleString('pt-BR');
+    $('bloco-resolver').hidden = !(dados.nao_resolvidos > 0);
 
     // ranking por operador (bar horizontal)
     const opsOrdenados = [...dados.operadores];
@@ -470,6 +485,30 @@
   }
 
   $('p-aplicar').addEventListener('click', carregar);
+
+  async function resolverPendentes() {
+    const btn = $('btn-resolver-pendentes');
+    const textoOriginal = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Resolvendo…';
+    try {
+      const url = `/api/debug?tipo=bipagem-resolver-pendentes&token=${encodeURIComponent(sessao.token)}`;
+      const resp = await fetch(url);
+      const json = await resp.json();
+      if (!resp.ok) throw new Error(json.error || `HTTP ${resp.status}`);
+      if (json.total_erros > 0) {
+        console.warn('Erros ao resolver bipagem:', json.erros);
+      }
+      alert(`Resolvidos: ${json.resolvidos} de ${json.processados}. Ainda restam ${json.restantes}.` + (json.total_erros ? ` (${json.total_erros} com erro — ver console)` : ''));
+      await carregar();
+    } catch (err) {
+      alert('Erro ao resolver pendentes: ' + err.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = textoOriginal;
+    }
+  }
+  $('btn-resolver-pendentes').addEventListener('click', resolverPendentes);
   $('p-historico').addEventListener('click', () => {
     $('p-de').value = '2025-01-01'; // bem antes de bipagem_diaria existir, pra trazer tudo
     $('p-ate').value = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
