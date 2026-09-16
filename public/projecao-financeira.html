@@ -111,8 +111,15 @@
   .avisos-lista { margin: 14px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 3px; }
   .avisos-lista li { font-size: 11px; color: var(--ink-muted); line-height: 1.5; }
 
-  tr.linha-entrada td:not(.rotulo) { color: var(--brand); }
-  tr.linha-saida td:not(.rotulo) { color: var(--danger-solid); }
+  /* Mesmas cores da planilha de referência do dono do projeto (seção de
+     ENTRADAS em azul claro, SAÍDAS em laranja claro — só a barra de
+     cabeçalho da seção, não cada linha individual). Repete o seletor com
+     .rotulo pra ganhar de table.matriz td.rotulo (mesma especificidade
+     empataria pela ordem no arquivo). */
+  tr.linha-secao.secao-entrada td,
+  tr.linha-secao.secao-entrada td.rotulo { background: #99CCFF; color: #1B2A4A; }
+  tr.linha-secao.secao-saida td,
+  tr.linha-secao.secao-saida td.rotulo { background: #FFCC99; color: #1B2A4A; }
 
   .matriz-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
   table.matriz { width: max-content; min-width: 100%; border-collapse: collapse; }
@@ -334,7 +341,7 @@
       const valor = valoresPorDia[d] || '';
       return `<td class="editavel${ehFimDeSemana(d) ? ' fds' : ''}"><input type="number" step="0.01" data-dia="${d}" class="site-input" value="${valor}"></td>`;
     }).join('');
-    return `<tr class="linha-entrada"><td class="rotulo">Site (manual)</td>${celulas}</tr>`;
+    return `<tr><td class="rotulo">Site (manual)</td>${celulas}</tr>`;
   }
 
   function renderLinhaAvulso(valoresPorDia, datas){
@@ -342,11 +349,12 @@
       const valor = valoresPorDia[d] || '';
       return `<td class="editavel${ehFimDeSemana(d) ? ' fds' : ''}"><input type="number" step="0.01" data-dia="${d}" class="avulso-input" value="${valor}"></td>`;
     }).join('');
-    return `<tr class="linha-saida"><td class="rotulo">A Pagar Avulso (Total)</td>${celulas}</tr>`;
+    return `<tr><td class="rotulo">A Pagar Avulso (Total)</td>${celulas}</tr>`;
   }
 
-  function renderLinhaSecao(titulo, qtdDias){
-    return `<tr class="linha-secao"><td class="rotulo">${titulo}</td><td colspan="${qtdDias}"></td></tr>`;
+  function renderLinhaSecao(titulo, qtdDias, tipo){
+    const classe = tipo ? `linha-secao secao-${tipo}` : 'linha-secao';
+    return `<tr class="${classe}"><td class="rotulo">${titulo}</td><td colspan="${qtdDias}"></td></tr>`;
   }
 
   async function carregar(){
@@ -425,18 +433,18 @@
 
       const linhasHtml = [
         renderLinhaCabecalho(datas),
-        renderLinhaSecao('ENTRADAS', datas.length),
-        renderLinhaValores('Shopee Ricapet', shopeeRicapet.valores, datas, { classeLinha: 'linha-entrada' }),
-        renderLinhaValores('Shopee Thapets', shopeeThapets.valores, datas, { classeLinha: 'linha-entrada' }),
-        renderLinhaValores('Mercado Pago Ricapet', mpRicapet.valores, datas, { classeLinha: 'linha-entrada' }),
-        renderLinhaValores('Mercado Pago Thapets', mpThapets.valores, datas, { classeLinha: 'linha-entrada' }),
+        renderLinhaSecao('ENTRADAS', datas.length, 'entrada'),
+        renderLinhaValores('Shopee Ricapet', shopeeRicapet.valores, datas),
+        renderLinhaValores('Shopee Thapets', shopeeThapets.valores, datas),
+        renderLinhaValores('Mercado Pago Ricapet', mpRicapet.valores, datas),
+        renderLinhaValores('Mercado Pago Thapets', mpThapets.valores, datas),
         renderLinhaSite(siteManual, datas),
-        renderLinhaValores('TOTAL ENTRADAS', totalEntradas, datas, { classeLinha: 'linha-total linha-entrada' }),
-        renderLinhaSecao('SAÍDAS', datas.length),
-        renderLinhaValores('Contas a pagar Ricapet (Omie)', omieRicapet.valores, datas, { classeLinha: 'linha-saida' }),
-        renderLinhaValores('Contas a pagar Thapets (Omie)', omieThapets.valores, datas, { classeLinha: 'linha-saida' }),
+        renderLinhaValores('TOTAL ENTRADAS', totalEntradas, datas, { classeLinha: 'linha-total' }),
+        renderLinhaSecao('SAÍDAS', datas.length, 'saida'),
+        renderLinhaValores('Contas a pagar Ricapet (Omie)', omieRicapet.valores, datas),
+        renderLinhaValores('Contas a pagar Thapets (Omie)', omieThapets.valores, datas),
         renderLinhaAvulso(avulsoManual, datas),
-        renderLinhaValores('TOTAL A PAGAR', totalAPagar, datas, { classeLinha: 'linha-total linha-saida' }),
+        renderLinhaValores('TOTAL A PAGAR', totalAPagar, datas, { classeLinha: 'linha-total' }),
         renderLinhaSaldo('SALDO', saldo, datas),
       ].join('');
 
