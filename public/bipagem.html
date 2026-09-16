@@ -302,6 +302,17 @@
         </table>
       </div>
     </div>
+
+    <div class="quadro">
+      <h3 style="margin-bottom:10px">Devoluções localizadas no período</h3>
+      <p class="aviso-mini">Pedidos bipados nesse período que o histórico geral (ML/Shopee) marca como devolvidos — só entram aqui os já traduzidos pro número do canal de venda (ver "Resolver pendentes" acima).</p>
+      <div class="pedidos-scroll">
+        <table>
+          <thead><tr><th>Data</th><th>Hora</th><th>Empresa</th><th>Pedido</th><th>Cliente</th><th>Tipo</th><th>Bipado por</th><th>Status devolução</th></tr></thead>
+          <tbody id="tabela-devolucoes"></tbody>
+        </table>
+      </div>
+    </div>
   </div>
   </div>
 </div>
@@ -482,6 +493,20 @@
         <td>${p.marcado_manualmente ? '<span class="tag-manual sim">Manual</span>' : '<span class="tag-manual nao">Scanner</span>'}</td>
       </tr>
     `).join('') || '<tr><td colspan="7" class="zero">Sem pedidos nesse dia.</td></tr>';
+
+    // tabela de devoluções localizadas
+    $('tabela-devolucoes').innerHTML = (dados.devolucoes || []).map((d) => `
+      <tr>
+        <td>${d.data || '—'}</td>
+        <td>${d.hora || '—'}</td>
+        <td>${d.empresa}</td>
+        <td class="c-nome">${d.order_id || d.n_id_pedido}</td>
+        <td class="c-nome">${d.cliente || '—'}</td>
+        <td>${d.tipo_envio || '—'}</td>
+        <td class="c-nome">${d.bipado_por}</td>
+        <td>${d.devolucao_status || '—'}</td>
+      </tr>
+    `).join('') || '<tr><td colspan="8" class="zero">Nenhuma devolução localizada nesse período.</td></tr>';
   }
 
   $('p-aplicar').addEventListener('click', carregar);
