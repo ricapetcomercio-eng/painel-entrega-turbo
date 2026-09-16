@@ -287,7 +287,9 @@
         <span id="txt-nao-resolvidos">–</span> pedidos bipados nesse período ainda não foram traduzidos
         pro número do canal de venda (passa pela Omie, e pelo Mercado Livre quando for o caso) — sem isso
         eles nunca entram no cruzamento acima.
-        <button id="btn-resolver-pendentes" type="button">Resolver pendentes</button>
+        <button id="btn-resolver-pendentes" type="button">Resolver todos os pendentes</button>
+        <button id="btn-parar-resolver" type="button" hidden>Parar</button>
+        <span id="txt-progresso-resolver"></span>
       </p>
     </div>
 
@@ -557,29 +559,50 @@
 
   $('p-aplicar').addEventListener('click', carregar);
 
-  async function resolverPendentes() {
+  // Resolve em lotes de 50 (máximo aceito pelo backend), em loop, até não
+  // sobrar mais nenhum pendente ou o usuário clicar "Parar" — evita ter que
+  // clicar dezenas de vezes manualmente pra backlogs grandes (cada bipagem
+  // custa 1-2 chamadas de API — ver lib/bipagemResolver.js/CLAUDE.md).
+  let resolverEmAndamento = false;
+
+  async function resolverUmLote() {
+    const url = `/api/debug?tipo=bipagem-resolver-pendentes&limite=50&token=${encodeURIComponent(sessao.token)}`;
+    const resp = await fetch(url);
+    const json = await resp.json();
+    if (!resp.ok) throw new Error(json.error || `HTTP ${resp.status}`);
+    return json;
+  }
+
+  async function resolverTodosPendentes() {
     const btn = $('btn-resolver-pendentes');
-    const textoOriginal = btn.textContent;
-    btn.disabled = true;
-    btn.textContent = 'Resolvendo…';
+    const btnParar = $('btn-parar-resolver');
+    const txtProgresso = $('txt-progresso-resolver');
+    resolverEmAndamento = true;
+    btn.hidden = true;
+    btnParar.hidden = false;
+    let totalResolvidos = 0;
+    let totalErros = 0;
     try {
-      const url = `/api/debug?tipo=bipagem-resolver-pendentes&token=${encodeURIComponent(sessao.token)}`;
-      const resp = await fetch(url);
-      const json = await resp.json();
-      if (!resp.ok) throw new Error(json.error || `HTTP ${resp.status}`);
-      if (json.total_erros > 0) {
-        console.warn('Erros ao resolver bipagem:', json.erros);
+      while (resolverEmAndamento) {
+        const json = await resolverUmLote();
+        totalResolvidos += json.resolvidos;
+        totalErros += json.total_erros;
+        if (json.total_erros > 0) console.warn('Erros ao resolver bipagem:', json.erros);
+        txtProgresso.textContent = ` Resolvidos até agora: ${totalResolvidos}. Restam: ${json.restantes.toLocaleString('pt-BR')}.`;
+        await carregar();
+        if (json.restantes <= 0 || json.processados === 0) break;
       }
-      alert(`Resolvidos: ${json.resolvidos} de ${json.processados}. Ainda restam ${json.restantes}.` + (json.total_erros ? ` (${json.total_erros} com erro — ver console)` : ''));
-      await carregar();
     } catch (err) {
       alert('Erro ao resolver pendentes: ' + err.message);
     } finally {
-      btn.disabled = false;
-      btn.textContent = textoOriginal;
+      resolverEmAndamento = false;
+      btn.hidden = false;
+      btnParar.hidden = true;
+      if (totalErros) txtProgresso.textContent += ` (${totalErros} com erro — ver console)`;
     }
   }
-  $('btn-resolver-pendentes').addEventListener('click', resolverPendentes);
+  $('btn-resolver-pendentes').addEventListener('click', resolverTodosPendentes);
+  $('btn-parar-resolver').addEventListener('click', () => { resolverEmAndamento = false; });
   $('p-historico').addEventListener('click', () => {
     $('p-de').value = '2025-01-01'; // bem antes de bipagem_diaria existir, pra trazer tudo
     $('p-ate').value = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
