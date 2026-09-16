@@ -105,6 +105,15 @@
 
   .aviso { text-align: center; padding: 24px; color: var(--ink-muted); font-size: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin: 18px 0; }
   .aviso-mini { font-size: 11px; color: var(--ink-muted); line-height: 1.5; margin: 10px 2px 0; }
+  .filtro-status { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 2px 0 10px; }
+  .filtro-status .rotulo { font-size: 0.72rem; font-weight: 700; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.02em; margin-right: 4px; }
+  .filtro-status label {
+    display: inline-flex; align-items: center; gap: 4px; font-size: 0.76rem; color: var(--ink);
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 3px 10px 3px 8px;
+    cursor: pointer; user-select: none;
+  }
+  .filtro-status label:has(input:checked) { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-bg); }
+  .filtro-status input { margin: 0; }
   .aviso-mini button {
     height: 24px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface);
     color: var(--ink); padding: 0 10px; font-size: 0.72rem; font-weight: 700; cursor: pointer;
@@ -265,13 +274,14 @@
     </div>
 
     <div class="card" style="margin-bottom:14px">
-      <h3>Bipado × Devolvido por operador</h3>
+      <h3>Devoluções por operador</h3>
+      <div class="filtro-status" id="filtro-status-devolucao"></div>
       <div class="chart-wrap"><canvas id="chartDevolucao"></canvas></div>
       <p class="aviso-mini">
-        Cruza o número do pedido bipado com o status de devolução do histórico geral (ML/Shopee) —
-        a devolução pode ser detectada dias depois da bipagem. Só entram na conta pedidos localizados
-        nesse histórico (<span id="txt-nao-localizados">–</span> não localizados no período); "% devolução"
-        na tabela abaixo é sobre os localizados, não sobre o total bipado.
+        Quantas devoluções (histórico geral ML/Shopee) cada operador bipou nesse período — a devolução
+        pode ser detectada dias depois da bipagem. Só entram na conta pedidos localizados nesse histórico
+        (<span id="txt-nao-localizados">–</span> não localizados no período); "% devolução" na tabela
+        abaixo é sobre os localizados, não sobre o total bipado.
       </p>
       <p class="aviso-mini" id="bloco-resolver" hidden>
         <span id="txt-nao-resolvidos">–</span> pedidos bipados nesse período ainda não foram traduzidos
@@ -353,6 +363,59 @@
     return pos === 0 ? '🥇' : pos === 1 ? '🥈' : pos === 2 ? '🥉' : '';
   }
 
+  let ultimoDadosBipagem = null;
+
+  // Filtro por status de devolução ("tipo de devolução" na prática — vem
+  // de historico_todos.devolucao_status: status do claim no ML
+  // (opened/closed/under_mediation/cancelled) ou status do retorno na
+  // Shopee (PROCESSING/JUDGING/CANCELLED, etc). Monta os checkboxes a
+  // partir do que realmente aparece no período, pra não inventar opção
+  // que não existe.
+  function montarFiltroStatusDevolucao(dados) {
+    const statusUnicos = [...new Set((dados.devolucoes || []).map((d) => d.devolucao_status || '(sem status)'))].sort();
+    const container = $('filtro-status-devolucao');
+    if (!statusUnicos.length) { container.innerHTML = ''; return; }
+    container.innerHTML = '<span class="rotulo">Tipo de devolução</span>' + statusUnicos.map((s) => `
+      <label><input type="checkbox" value="${s}" checked> ${s}</label>
+    `).join('');
+    container.querySelectorAll('input[type="checkbox"]').forEach((el) => {
+      el.addEventListener('change', () => montarChartDevolucaoPorOperador(ultimoDadosBipagem));
+    });
+  }
+
+  function montarChartDevolucaoPorOperador(dados) {
+    if (!dados) return;
+    const checkboxes = [...document.querySelectorAll('#filtro-status-devolucao input[type="checkbox"]')];
+    const temFiltro = checkboxes.length > 0;
+    const statusAtivos = new Set(checkboxes.filter((el) => el.checked).map((el) => el.value));
+
+    const contagem = new Map();
+    (dados.devolucoes || []).forEach((d) => {
+      const status = d.devolucao_status || '(sem status)';
+      if (temFiltro && !statusAtivos.has(status)) return;
+      const nome = d.bipado_por || '(não identificado)';
+      contagem.set(nome, (contagem.get(nome) || 0) + 1);
+    });
+    const entradas = [...contagem.entries()].sort((a, b) => b[1] - a[1]);
+
+    montarChart('chartDevolucao', {
+      type: 'bar',
+      data: {
+        labels: entradas.map(([nome]) => nome),
+        datasets: [{ label: 'Devoluções', data: entradas.map(([, qtd]) => qtd), backgroundColor: CORES.red, borderRadius: 4 }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        layout: { padding: { top: 18 } },
+        plugins: {
+          legend: { display: false },
+          datalabels: { display: (ctx) => ctx.dataset.data[ctx.dataIndex] > 0, color: '#2d3436', font: { weight: 'bold', size: 10 }, anchor: 'end', align: 'end', clamp: true },
+        },
+        scales: { x: { grid: { display: false } }, y: { grid: { color: CORES.grid }, beginAtZero: true, ticks: { precision: 0 } } },
+      },
+    });
+  }
+
   async function carregar() {
     const de = $('p-de').value;
     const ate = $('p-ate').value;
@@ -372,6 +435,7 @@
       alert(err.message);
       return;
     }
+    ultimoDadosBipagem = dados;
 
     $('aviso-vazio').hidden = dados.total > 0;
 
@@ -440,27 +504,9 @@
       },
     });
 
-    // cruzamento bipado x devolvido (por operador, só quem tem pelo menos 1 bipagem localizada no histórico)
-    const opsComLocalizados = opsOrdenados.filter((o) => o.localizados > 0);
-    montarChart('chartDevolucao', {
-      type: 'bar',
-      data: {
-        labels: opsComLocalizados.map((o) => o.nome),
-        datasets: [
-          { label: 'Bipado (localizado)', data: opsComLocalizados.map((o) => o.localizados), backgroundColor: CORES.blue, borderRadius: 4 },
-          { label: 'Devolvido', data: opsComLocalizados.map((o) => o.devolvidos), backgroundColor: CORES.red, borderRadius: 4 },
-        ],
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        layout: { padding: { top: 18 } },
-        plugins: {
-          legend: { position: 'bottom', labels: { boxWidth: 10 } },
-          datalabels: { display: (ctx) => ctx.dataset.data[ctx.dataIndex] > 0, color: '#2d3436', font: { weight: 'bold', size: 10 }, anchor: 'end', align: 'end', clamp: true },
-        },
-        scales: { x: { grid: { display: false } }, y: { grid: { color: CORES.grid }, beginAtZero: true } },
-      },
-    });
+    // devoluções por operador, com filtro por status/tipo de devolução
+    montarFiltroStatusDevolucao(dados);
+    montarChartDevolucaoPorOperador(dados);
 
     // tabela de operadores
     $('tabela-operadores').innerHTML = opsOrdenados.map((o, i) => `
