@@ -103,6 +103,10 @@
   /* Barra cheia no topo do conteúdo, mesmo azul-marinho da sidebar e do
      header do painel de Ponto — igual ao topbar do painel-entrega-turbo. */
   .topbar-full { background: var(--page-bg); border-bottom: 1px solid var(--border); margin-bottom: 20px; min-height: 64px; box-sizing: border-box; position: sticky; top: 0; z-index: 5; }
+  .hrow { max-width: 1180px; margin: 0 auto; padding: 0 24px; min-height: 64px; box-sizing: border-box; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .hrow h1 { font-family: var(--font-display); font-size: 1.05rem; font-weight: 700; margin: 0; margin-right: auto; color: var(--ink); display: flex; flex-direction: column; gap: 2px; line-height: 1.25; }
+  .h-title-row { display: flex; align-items: center; gap: 9px; }
+  .hrow .h-sub { font-size: 0.72rem; font-weight: 500; color: var(--ink-muted); letter-spacing: 0.01em; opacity: 1; margin-top: 0; }
 
   .kpi-strip {
     display: grid; grid-template-columns: repeat(4, 1fr); margin-bottom: 28px;
@@ -322,7 +326,11 @@
 </nav>
 
 <div class="conteudo-principal">
-<header class="topbar-full"></header>
+<header class="topbar-full">
+  <div class="hrow">
+    <h1><span class="h-title-row">Painel de Reposição</span><span class="h-sub">Estoque, lead time e sugestão de compra do Adesivo</span></h1>
+  </div>
+</header>
 <div id="last-updated" hidden></div>
 <div id="stock-updated" hidden></div>
 <div class="shell">
