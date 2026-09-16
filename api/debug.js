@@ -2406,17 +2406,28 @@ module.exports = async (req, res) => {
       const hoje = new Date();
       const futuro = new Date(hoje.getTime() + 45 * 24 * 60 * 60 * 1000);
 
+      // ?de=DD/MM/AAAA&ate=DD/MM/AAAA opcionais — janela default deu 0
+      // registros, então dá pra testar um intervalo bem mais largo (ex.:
+      // ?de=01/01/2024&ate=31/12/2026) pra descobrir se é falta de conta a
+      // pagar cadastrada no período ou o filtro de data errado.
+      const param = {
+        pagina: Number(req.query.pagina) || 1,
+        registros_por_pagina: 20,
+        apenas_importado_api: 'N',
+      };
+      if (req.query.de || req.query.ate) {
+        param.filtrar_por_data_de = req.query.de || fmtDataOmie(hoje);
+        param.filtrar_por_data_ate = req.query.ate || fmtDataOmie(futuro);
+      } else {
+        param.filtrar_por_data_de = fmtDataOmie(hoje);
+        param.filtrar_por_data_ate = fmtDataOmie(futuro);
+      }
+
       const body = {
         call: 'ListarContasPagar',
         app_key: appKey,
         app_secret: appSecret,
-        param: [{
-          pagina: Number(req.query.pagina) || 1,
-          registros_por_pagina: 20,
-          apenas_importado_api: 'N',
-          filtrar_por_data_de: fmtDataOmie(hoje),
-          filtrar_por_data_ate: fmtDataOmie(futuro),
-        }],
+        param: [param],
       };
       const resp = await fetch('https://app.omie.com/api/v1/financas/contapagar/', {
         method: 'POST',
