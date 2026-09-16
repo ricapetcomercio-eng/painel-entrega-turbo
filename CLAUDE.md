@@ -97,6 +97,20 @@ Também importante não confundir os dois ao mexer nesse código:
   bem menor que se fosse automático — mas se a cota apertar mesmo assim,
   este é um
   candidato claro pra revisar/reduzir primeiro.
+- **"Atualizar agora" busca 1 peça por vez (`?fonte=mercado-pago|shopee|
+  omie&conta=ricapet|thapets`), nunca as 6 numa chamada só.** Aconteceu de
+  verdade em produção: a versão antiga (`coletarProjecaoFinanceiraManual`
+  fazia MP×2 + Shopee×2 + Omie×2 sequencial numa função só) travava sem
+  terminar — a Shopee Ricapet sozinha já bateu no teto de 300 chamadas
+  (`truncado: true`), o que passa fácil do tempo de função da Vercel; o
+  botão ficava "Atualizando…" e nunca voltava, sem erro visível nenhum.
+  `coletarUmaPecaProjecaoFinanceira` (`api/collect.js`) faz merge (read-
+  modify-write) no mesmo objeto salvo em `entrega_turbo:ultima_coleta_
+  projecao_financeira`, então as 6 chamadas do frontend (`public/
+  projecao-financeira.html`, loop `PECAS_PROJECAO`) podem terminar em
+  qualquer ordem sem se sobrescrever. O caminho antigo (sem `?fonte=`, tudo
+  numa chamada) continua existindo só por compatibilidade — a tela não usa
+  mais.
 - ✅ Thapets no Mercado Pago **voltou a funcionar** (confirmado em
   16/set/2026 via `/api/debug?tipo=mp-payments-test&conta=thapets`, dado
   real de produção: 82 pagamentos, 74 aprovados) — `coletarProjecaoFinanceiraManual`

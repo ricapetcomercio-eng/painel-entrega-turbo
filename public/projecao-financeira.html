@@ -226,7 +226,10 @@
 <header>
   <div class="hrow">
     <h1><span class="h-title-row">Projeção Financeira</span><span class="h-sub">Fluxo de caixa projetado dia a dia — entradas menos saídas, a partir do saldo bancário atual</span></h1>
-    <button class="refresh-btn" id="btn-atualizar">↻ Atualizar agora</button>
+    <div style="display:flex; align-items:center; gap:10px">
+      <span id="txt-progresso-atualizar" style="font-size:12px; color:var(--ink-muted)"></span>
+      <button class="refresh-btn" id="btn-atualizar">↻ Atualizar agora</button>
+    </div>
   </div>
 </header>
 <div class="shell">
@@ -483,21 +486,52 @@
     }
   }
 
+  // Busca uma peça por vez (Mercado Pago x2 contas, Shopee x2 lojas, Omie x2
+  // contas — 6 chamadas no total) em vez de tudo numa chamada só: a Shopee
+  // sozinha pode fazer até 300 chamadas de API por loja (ver
+  // MAX_CONSULTAS_ESCROW em lib/shopeeProjecao.js) e já bateu nesse teto em
+  // produção — uma única chamada gigante corria risco real de estourar o
+  // tempo de função da Vercel e nunca terminar (relatado: botão "Atualizar
+  // agora" parecia não fazer nada). Cada peça isolada é rápida o bastante
+  // pra nunca dar timeout, e dá pra mostrar progresso/erro por fonte.
+  const PECAS_PROJECAO = [
+    { fonte: 'mercado-pago', conta: 'ricapet', label: 'Mercado Pago Ricapet' },
+    { fonte: 'mercado-pago', conta: 'thapets', label: 'Mercado Pago Thapets' },
+    { fonte: 'shopee', conta: 'ricapet', label: 'Shopee Ricapet' },
+    { fonte: 'shopee', conta: 'thapets', label: 'Shopee Thapets' },
+    { fonte: 'omie', conta: 'ricapet', label: 'Omie Ricapet' },
+    { fonte: 'omie', conta: 'thapets', label: 'Omie Thapets' },
+  ];
+
   async function atualizarAgora(){
     const btn = document.getElementById('btn-atualizar');
+    const txtProgresso = document.getElementById('txt-progresso-atualizar');
     const textoOriginal = btn.textContent;
     btn.disabled = true;
-    btn.textContent = 'Atualizando… (pode levar alguns segundos)';
+    const falhas = [];
     try {
-      const params = new URLSearchParams({ acao: 'projecao-financeira-manual' });
-      if (sessaoAtual) params.set('sessao', sessaoAtual.token);
-      const resp = await fetch('/api/collect?' + params.toString());
-      const json = await resp.json();
-      if (!resp.ok) throw new Error(json.error || ('HTTP ' + resp.status));
-      await carregar();
-    } catch(e){
-      console.error('Erro ao atualizar projeção financeira:', e);
-      alert('Erro ao atualizar: ' + (e.message || e));
+      for (let i = 0; i < PECAS_PROJECAO.length; i++) {
+        const peca = PECAS_PROJECAO[i];
+        btn.textContent = `Atualizando… (${i + 1}/${PECAS_PROJECAO.length})`;
+        txtProgresso.textContent = peca.label;
+        try {
+          const params = new URLSearchParams({ acao: 'projecao-financeira-manual', fonte: peca.fonte, conta: peca.conta });
+          if (sessaoAtual) params.set('sessao', sessaoAtual.token);
+          const resp = await fetch('/api/collect?' + params.toString());
+          const json = await resp.json();
+          if (!resp.ok) throw new Error(json.error || ('HTTP ' + resp.status));
+        } catch (e) {
+          console.error(`Erro ao atualizar ${peca.label}:`, e);
+          falhas.push(`${peca.label}: ${e.message || e}`);
+        }
+        await carregar(); // mostra cada peça assim que chega, sem esperar as 6
+      }
+      if (falhas.length) {
+        txtProgresso.textContent = `${falhas.length} com erro — ver console`;
+        console.warn('Falhas ao atualizar Projeção Financeira:', falhas);
+      } else {
+        txtProgresso.textContent = 'Atualizado.';
+      }
     } finally {
       btn.disabled = false;
       btn.textContent = textoOriginal;
