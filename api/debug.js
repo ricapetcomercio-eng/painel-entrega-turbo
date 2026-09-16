@@ -872,28 +872,48 @@ async function debugBipagemCruzamentoTeste(req, res) {
   });
 
   const idsBipagem = rsBipagem.rows.map((r) => String(r.n_id_pedido || '').trim()).filter(Boolean);
-  let encontrados = [];
-  if (idsBipagem.length) {
+
+  // Primeiro teste (rodado antes) descartou historico_todos.order_id (bate
+  // 0). Hipótese nova: pra Flex, a etiqueta mostra "Envio:XXXXX" (o
+  // shipment_id, ver comentário em marcar-coletado.js), não o order_id —
+  // então o n_id_pedido bipado pode ser na verdade o shipment_id
+  // (historico_flex tem os dois campos separados). Testa os candidatos
+  // mais prováveis de uma vez, sem precisar de mais uma rodada.
+  async function contarBatidas(tabela, coluna) {
+    if (!idsBipagem.length) return { batidas: 0, exemplos: [] };
     const placeholders = idsBipagem.map(() => '?').join(',');
-    const rsMatch = await db.execute({
-      sql: `SELECT order_id, marketplace FROM historico_todos WHERE order_id IN (${placeholders})`,
+    const rs = await db.execute({
+      sql: `SELECT ${coluna} AS id FROM ${tabela} WHERE ${coluna} IN (${placeholders})`,
       args: idsBipagem,
     });
-    encontrados = rsMatch.rows.map((r) => r.order_id);
+    return { batidas: rs.rows.length, exemplos: rs.rows.slice(0, 5).map((r) => r.id) };
   }
+
+  const candidatos = {
+    'historico_todos.order_id': await contarBatidas('historico_todos', 'order_id'),
+    'historico_flex.shipment_id': await contarBatidas('historico_flex', 'shipment_id'),
+    'historico_flex.order_id': await contarBatidas('historico_flex', 'order_id'),
+    'historico_turbo.order_id': await contarBatidas('historico_turbo', 'order_id'),
+    'historico_turbo_live.order_id': await contarBatidas('historico_turbo_live', 'order_id'),
+  };
 
   const rsHistorico = await db.execute({
     sql: `SELECT marketplace, order_id, date_created FROM historico_todos ORDER BY date_created_ts DESC LIMIT ?`,
+    args: [limite],
+  });
+  const rsFlex = await db.execute({
+    sql: `SELECT order_id, shipment_id, date_created FROM historico_flex ORDER BY date_created_ts DESC LIMIT ?`,
     args: [limite],
   });
 
   res.status(200).json({
     ok: true,
     tipo: 'bipagem-cruzamento-teste',
+    de_quantos_testados: idsBipagem.length,
+    batidas_por_candidato: candidatos,
     amostra_bipagem_diaria: rsBipagem.rows,
     amostra_historico_todos: rsHistorico.rows,
-    quantos_ids_de_bipagem_bateram_em_historico_todos: encontrados.length,
-    de_quantos_testados: idsBipagem.length,
+    amostra_historico_flex: rsFlex.rows,
   });
 }
 
