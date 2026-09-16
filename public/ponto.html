@@ -227,6 +227,8 @@
   .modal-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); width: 100%; max-width: 420px; padding: 20px; box-shadow: 0 20px 60px var(--shadow); max-height: 88vh; overflow-y: auto; }
   .modal-card h3 { font-family: var(--font-display); font-size: 1.1rem; margin: 0 0 14px; }
   .m-linha { display: flex; gap: 8px; margin-bottom: 10px; }
+  .m-linha.sugerido { background: var(--accent-bg, rgba(245,166,35,0.12)); border-radius: 9px; padding: 4px; margin: -4px -4px 10px; }
+  .m-sugestao-hint { font-size: 0.76rem; color: var(--ink-muted); line-height: 1.4; margin: 6px 0 0; }
   .m-linha select, .m-linha input { height: 40px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface-2); color: var(--ink); padding: 0 10px; font-size: 0.9rem; }
   .m-linha select { flex: 1; }
   .m-linha input[type="time"] { width: 110px; }
@@ -983,6 +985,97 @@
   modal.addEventListener('click', (e) => { if (e.target === modal) fecharModalComAviso(); });
   modalCorpo.addEventListener('click', (e) => { const rm = e.target.closest('.m-rm'); if (rm) rm.closest('.m-linha').remove(); });
 
+  // Lê o texto livre do motivo (ex.: "esqueci de bater o retorno do almoço
+  // às 15:11 e a saída às 18hrs") e tenta extrair pares (horário, tipo de
+  // batida) pra pré-preencher o editor na hora de aprovar -- só isso, nunca
+  // grava nada sozinho: o admin sempre revisa e clica Salvar (ver aviso ao
+  // fechar sem salvar, mais acima). Quando não dá pra reconhecer o tipo
+  // (ex.: "esqueci de bater o ponto 17h", sem dizer qual batida) ou não tem
+  // nenhum horário no texto (ex.: "AJUSTE MICHELLE OK"), fica como estava
+  // antes: o admin preenche/adiciona a batida manualmente.
+  function classificarHorariosMotivo(texto) {
+    const semAcento = String(texto || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+    const fmt = (h, m) => `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    const resultado = [];
+    const coberto = new Array(semAcento.length).fill(false);
+
+    // Caso comum nos pedidos reais: "almoço/intervalo 15 às 16hrs" -- uma
+    // faixa só, sem a palavra retorno/volta -- primeiro horário é a saída
+    // pro almoço, segundo é a volta. Tratado à parte porque senão as duas
+    // pistas ("almoco" perto dos dois horários) classificariam ambos como
+    // saída.
+    const RE_FAIXA = /(almoco|intervalo)[^\d]{0,20}(\d{1,2})(?::(\d{2}))?\s*h?(?:oras|rs)?\s*(?:as|ate|e|-)\s*(\d{1,2})(?::(\d{2}))?\s*h?(?:oras|rs)?/g;
+    let fm;
+    while ((fm = RE_FAIXA.exec(semAcento))) {
+      const h1 = Number(fm[2]), m1 = fm[3] !== undefined ? Number(fm[3]) : 0;
+      const h2 = Number(fm[4]), m2 = fm[5] !== undefined ? Number(fm[5]) : 0;
+      if (h1 <= 23 && m1 <= 59) resultado.push({ hora: fmt(h1, m1), tipo: 'saida' });
+      if (h2 <= 23 && m2 <= 59) resultado.push({ hora: fmt(h2, m2), tipo: 'entrada' });
+      for (let i = fm.index; i < RE_FAIXA.lastIndex; i++) coberto[i] = true;
+    }
+
+    const RE_HORA = /(\d{1,2}):(\d{2})|(\d{1,2})\s*h(?:oras|rs)?(?:\s*(\d{2}))?/gi;
+    // Ordem importa: primeira pista que bater no trecho antes do horário
+    // vence (ex.: "retorno do almoço" contém as duas palavras, mas quem
+    // manda é "retorno" -- por isso ela vem primeiro e a checagem para no
+    // primeiro match, em vez de deixar a última pista encontrada vencer).
+    const PISTAS = [
+      { re: /\b(retorno|volta)\b/, tipo: 'entrada' },
+      { re: /\b(almoco|intervalo)\b/, tipo: 'saida' },
+      { re: /\bentrada\b/, tipo: 'entrada' },
+      { re: /\b(saida|saiu|sainda)\b/, tipo: 'saida' },
+    ];
+    let cursor = 0;
+    let m;
+    while ((m = RE_HORA.exec(semAcento))) {
+      if (coberto[m.index]) { cursor = RE_HORA.lastIndex; continue; }
+      let h, min;
+      if (m[1] !== undefined) { h = Number(m[1]); min = Number(m[2]); }
+      else { h = Number(m[3]); min = m[4] !== undefined ? Number(m[4]) : 0; }
+      if (h > 23 || min > 59) { cursor = RE_HORA.lastIndex; continue; }
+      const trecho = semAcento.slice(cursor, m.index);
+      cursor = m.index;
+      let tipo = null;
+      for (const p of PISTAS) { if (p.re.test(trecho)) { tipo = p.tipo; break; } }
+      resultado.push({ hora: fmt(h, min), tipo });
+    }
+    return resultado;
+  }
+
+  // Aplica as sugestões extraídas do motivo no editor recém-aberto: pra
+  // horário com tipo reconhecido e sem nenhuma batida parecida já existindo
+  // naquele dia (mesmo tipo, a menos de 90min de distância -- pra não
+  // sugerir duplicata de uma batida que já está certa), adiciona uma linha
+  // nova já preenchida (marcada visualmente, o admin ainda revisa e pode
+  // apagar). O que não dá pra classificar vira só uma dica de texto, sem
+  // mexer em nada sozinho.
+  function aplicarSugestoesHorario(motivo, eventosExistentes) {
+    const horarios = classificarHorariosMotivo(motivo);
+    if (!horarios.length) return;
+    const paraMin = (hhmmStr) => { const [h, m] = hhmmStr.split(':').map(Number); return h * 60 + m; };
+    const existentesMin = (eventosExistentes || []).map((e) => ({ tipo: e.tipo, min: paraMin(hhmm(e.quando)) }));
+    const ambiguos = [];
+    horarios.forEach((sug) => {
+      if (!sug.tipo) { ambiguos.push(sug.hora); return; }
+      const minAlvo = paraMin(sug.hora);
+      const jaTem = existentesMin.some((e) => e.tipo === sug.tipo && Math.abs(e.min - minAlvo) <= 90);
+      if (jaTem) return;
+      const box = $('m-batidas');
+      const p = box.querySelector('p'); if (p) p.remove();
+      box.insertAdjacentHTML('beforeend', linhaBatida(null));
+      const linha = box.lastElementChild;
+      linha.classList.add('sugerido');
+      linha.querySelector('.m-tipo').value = sug.tipo;
+      linha.querySelector('.m-hora').value = sug.hora;
+    });
+    if (ambiguos.length) {
+      const hint = document.createElement('p');
+      hint.className = 'm-sugestao-hint';
+      hint.textContent = `Horário${ambiguos.length > 1 ? 's' : ''} mencionado${ambiguos.length > 1 ? 's' : ''} no pedido sem dar pra saber qual batida é: ${ambiguos.join(', ')} — confira e adicione abaixo se for o caso.`;
+      $('m-add').insertAdjacentElement('afterend', hint);
+    }
+  }
+
   function linhaBatida(ev) {
     return `<div class="m-linha" data-nsr="${ev ? ev.nsr : ''}">
       <select class="m-tipo"><option value="entrada"${ev && ev.tipo === 'entrada' ? ' selected' : ''}>Entrada</option><option value="saida"${ev && ev.tipo === 'saida' ? ' selected' : ''}>Saída</option></select>
@@ -1015,7 +1108,10 @@
           ${ab ? '<button type="button" id="ab-remover" style="height:36px;border-radius:8px;border:1px solid var(--bad);background:none;color:var(--bad);font-weight:600;padding:0 12px;cursor:pointer">Remover</button>' : ''}
         </div>
       </div>`;
-    if (motivoSugerido) $('m-motivo').value = motivoSugerido;
+    if (motivoSugerido) {
+      $('m-motivo').value = motivoSugerido;
+      aplicarSugestoesHorario(motivoSugerido, dia.eventos);
+    }
     $('m-add').addEventListener('click', () => {
       const box = $('m-batidas');
       const p = box.querySelector('p'); if (p) p.remove();
