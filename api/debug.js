@@ -14,6 +14,7 @@ const { shopeeGet } = require('../lib/shopeeAuth');
 const { getDb } = require('../lib/db');
 const { getRedis } = require('../lib/redis');
 const { kvGet, kvSet, kvDel } = require('../lib/kv');
+const { getOmieConfig } = require('../lib/omieContasPagar');
 const { importarContagemFisica, importarSaldoDaPlanilha, completarCatalogoFaltante, corrigirCorArranhadorAdesivoBege, enviarBalancoAgora } = require('../lib/estoqueSaldo');
 const { dataFusoLoja, isoDeDiaHoraLoja, resolverMarcacoes } = require('../lib/registrosPonto');
 
@@ -872,28 +873,97 @@ async function debugBipagemCruzamentoTeste(req, res) {
   });
 
   const idsBipagem = rsBipagem.rows.map((r) => String(r.n_id_pedido || '').trim()).filter(Boolean);
-  let encontrados = [];
-  if (idsBipagem.length) {
+
+  // Primeiro teste (rodado antes) descartou historico_todos.order_id (bate
+  // 0). Hipótese nova: pra Flex, a etiqueta mostra "Envio:XXXXX" (o
+  // shipment_id, ver comentário em marcar-coletado.js), não o order_id —
+  // então o n_id_pedido bipado pode ser na verdade o shipment_id
+  // (historico_flex tem os dois campos separados). Testa os candidatos
+  // mais prováveis de uma vez, sem precisar de mais uma rodada.
+  async function contarBatidas(tabela, coluna) {
+    if (!idsBipagem.length) return { batidas: 0, exemplos: [] };
     const placeholders = idsBipagem.map(() => '?').join(',');
-    const rsMatch = await db.execute({
-      sql: `SELECT order_id, marketplace FROM historico_todos WHERE order_id IN (${placeholders})`,
+    const rs = await db.execute({
+      sql: `SELECT ${coluna} AS id FROM ${tabela} WHERE ${coluna} IN (${placeholders})`,
       args: idsBipagem,
     });
-    encontrados = rsMatch.rows.map((r) => r.order_id);
+    return { batidas: rs.rows.length, exemplos: rs.rows.slice(0, 5).map((r) => r.id) };
   }
+
+  const candidatos = {
+    'historico_todos.order_id': await contarBatidas('historico_todos', 'order_id'),
+    'historico_flex.shipment_id': await contarBatidas('historico_flex', 'shipment_id'),
+    'historico_flex.order_id': await contarBatidas('historico_flex', 'order_id'),
+    'historico_turbo.order_id': await contarBatidas('historico_turbo', 'order_id'),
+    'historico_turbo_live.order_id': await contarBatidas('historico_turbo_live', 'order_id'),
+  };
 
   const rsHistorico = await db.execute({
     sql: `SELECT marketplace, order_id, date_created FROM historico_todos ORDER BY date_created_ts DESC LIMIT ?`,
+    args: [limite],
+  });
+  const rsFlex = await db.execute({
+    sql: `SELECT order_id, shipment_id, date_created FROM historico_flex ORDER BY date_created_ts DESC LIMIT ?`,
     args: [limite],
   });
 
   res.status(200).json({
     ok: true,
     tipo: 'bipagem-cruzamento-teste',
+    de_quantos_testados: idsBipagem.length,
+    batidas_por_candidato: candidatos,
     amostra_bipagem_diaria: rsBipagem.rows,
     amostra_historico_todos: rsHistorico.rows,
-    quantos_ids_de_bipagem_bateram_em_historico_todos: encontrados.length,
-    de_quantos_testados: idsBipagem.length,
+    amostra_historico_flex: rsFlex.rows,
+  });
+}
+
+// Investigação (continuação de bipagem-cruzamento-teste): nem order_id nem
+// shipment_id do ML bateram com bipagem_diaria.n_id_pedido. Hipótese nova:
+// n_id_pedido pode ser o codigo_pedido INTERNO da Omie (o "Número" visível
+// na tela da Omie é um contador sequencial pequeno tipo 104627 — bem menor
+// que os ~11 dígitos de n_id_pedido — então deve ser outro campo, o id
+// interno da API). Se for isso, ConsultarPedido devolve o pedido completo,
+// que deve ter o número do pedido do canal de venda (ML/Shopee) junto.
+// Remover depois que a causa for confirmada.
+async function debugOmiePedidoTeste(req, res) {
+  const conta = (req.query.conta || '').toLowerCase();
+  if (!['ricapet', 'thapets'].includes(conta)) { res.status(400).json({ error: 'Use ?conta=ricapet ou ?conta=thapets' }); return; }
+
+  let codigoPedido = req.query.codigo_pedido;
+  let origem = 'informado na query (?codigo_pedido=...)';
+  if (!codigoPedido) {
+    const db = getDb();
+    const rs = await db.execute({
+      sql: `SELECT n_id_pedido FROM bipagem_diaria WHERE empresa = ? AND n_id_pedido IS NOT NULL ORDER BY bipado_em_ts DESC LIMIT 1`,
+      args: [conta === 'ricapet' ? 'Ricapet' : 'Thapets'],
+    });
+    if (!rs.rows.length) { res.status(200).json({ ok: true, aviso: 'Nenhum n_id_pedido encontrado em bipagem_diaria pra essa empresa — passe ?codigo_pedido=... manualmente.' }); return; }
+    codigoPedido = rs.rows[0].n_id_pedido;
+    origem = 'auto (n_id_pedido mais recente de bipagem_diaria)';
+  }
+
+  const { appKey, appSecret } = getOmieConfig(conta);
+  const resp = await fetch('https://app.omie.com/api/v1/produtos/pedido/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      call: 'ConsultarPedido',
+      app_key: appKey,
+      app_secret: appSecret,
+      param: [{ codigo_pedido: Number(codigoPedido) }],
+    }),
+  });
+  const data = await resp.json();
+
+  res.status(200).json({
+    ok: true,
+    tipo: 'omie-pedido-teste',
+    conta,
+    codigo_pedido_testado: codigoPedido,
+    origem_codigo_pedido: origem,
+    http_ok: resp.ok,
+    resposta_bruta: data,
   });
 }
 
@@ -2572,6 +2642,7 @@ module.exports = async (req, res) => {
     if (req.query.tipo === 'registrar-bipagem-diaria') return await debugRegistrarBipagemDiaria(req, res);
     if (req.query.tipo === 'apagar-bipagem-diaria-teste') return await debugApagarBipagemDiariaTeste(req, res);
     if (req.query.tipo === 'bipagem-cruzamento-teste') return await debugBipagemCruzamentoTeste(req, res);
+    if (req.query.tipo === 'omie-pedido-teste') return await debugOmiePedidoTeste(req, res);
     if (req.query.tipo === 'backfill-prazo-shopee-todos') return await debugBackfillPrazoShopeeTodos(req, res);
     if (req.query.tipo === 'ml-sla') return await debugMlSla(req, res);
     if (req.query.tipo === 'shopee-returns') return await debugShopeeReturns(req, res);
