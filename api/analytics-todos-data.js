@@ -213,7 +213,7 @@ async function responderVisaoBipagem(req, res) {
   const fimTs = Math.floor(new Date(fimIso).getTime() / 1000) + 59;
 
   const rsPeriodo = await db.execute({
-    sql: `SELECT empresa, data, hora, cliente, n_id_pedido, tipo_envio, bipado_por, marcado_manualmente, bipado_em_ts
+    sql: `SELECT empresa, data, hora, cliente, n_id_pedido, order_id_resolvido, tipo_envio, bipado_por, marcado_manualmente, bipado_em_ts
           FROM bipagem_diaria WHERE bipado_em_ts BETWEEN ? AND ? ORDER BY bipado_em_ts`,
     args: [inicioTs, fimTs],
   });
@@ -224,23 +224,28 @@ async function responderVisaoBipagem(req, res) {
   // acabaram devolvidos (campo `devolvido`, atualizado por um processo
   // separado em api/collect.js quando a devolução é detectada no ML/Shopee
   // — pode acontecer bem depois da bipagem, por isso a busca aqui NÃO filtra
-  // por data, só pelo order_id). Junção por n_id_pedido = order_id: como o
-  // que é bipado no galpão é o próprio número do pedido impresso na
-  // etiqueta, e nunca foi confirmado 1:1 contra dado real de produção
-  // (mesma ressalva empírica de outras integrações deste projeto) —
-  // `nao_localizados` no retorno serve de sinal caso a suposição esteja
-  // errada (número alto = a junção não está batendo).
-  const idsPedidosUnicos = [...new Set(pedidos.map((p) => String(p.n_id_pedido || '').trim()).filter(Boolean))];
-  const devolucaoPorPedido = new Map();
+  // por data, só pelo order_id). Junção por order_id_resolvido = order_id —
+  // n_id_pedido (código interno da Omie) NUNCA bate com order_id de nenhum
+  // marketplace, confirmado empiricamente (ver CLAUDE.md e
+  // lib/bipagemResolver.js pra cadeia completa de tradução via Omie/ML).
+  // order_id_resolvido só existe depois que alguém clica "Resolver
+  // pendentes" em bipagem.html — até lá, esses pedidos ficam de fora do
+  // cruzamento (contam em `nao_localizados`, não é bug).
+  const idsPedidosUnicos = [...new Set(pedidos.map((p) => String(p.order_id_resolvido || '').trim()).filter(Boolean))];
+  const devolucaoPorPedido = new Map(); // order_id -> { devolvido, status, motivo }
   const TAMANHO_LOTE = 300;
   for (let i = 0; i < idsPedidosUnicos.length; i += TAMANHO_LOTE) {
     const lote = idsPedidosUnicos.slice(i, i + TAMANHO_LOTE);
     const placeholders = lote.map(() => '?').join(',');
     const rsDevolucao = await db.execute({
-      sql: `SELECT order_id, devolvido FROM historico_todos WHERE order_id IN (${placeholders})`,
+      sql: `SELECT order_id, devolvido, devolucao_status, devolucao_reason_id FROM historico_todos WHERE order_id IN (${placeholders})`,
       args: lote,
     });
-    rsDevolucao.rows.forEach((r) => devolucaoPorPedido.set(String(r.order_id), r.devolvido === 1));
+    rsDevolucao.rows.forEach((r) => devolucaoPorPedido.set(String(r.order_id), {
+      devolvido: r.devolvido === 1,
+      status: r.devolucao_status || null,
+      motivo: r.devolucao_reason_id || null,
+    }));
   }
 
   // Tendência diária vem do mesmo resultado acima (agrupado por dia), sem
@@ -260,6 +265,7 @@ async function responderVisaoBipagem(req, res) {
   let manuais = 0;
   let localizadosTotal = 0;
   let devolvidosTotal = 0;
+  const devolucoesDetalhadas = [];
 
   pedidos.forEach((p) => {
     const nome = p.bipado_por || '(não identificado)';
@@ -278,11 +284,20 @@ async function responderVisaoBipagem(req, res) {
 
     if (p.marcado_manualmente) { op.manual++; manuais++; }
 
-    const devolvido = devolucaoPorPedido.get(String(p.n_id_pedido || '').trim());
-    if (devolvido !== undefined) {
+    const devolucao = devolucaoPorPedido.get(String(p.order_id_resolvido || '').trim());
+    if (devolucao !== undefined) {
       op.localizados++;
       localizadosTotal++;
-      if (devolvido) { op.devolvidos++; devolvidosTotal++; }
+      if (devolucao.devolvido) {
+        op.devolvidos++;
+        devolvidosTotal++;
+        devolucoesDetalhadas.push({
+          data: p.data, hora: p.hora, empresa: p.empresa, cliente: p.cliente,
+          n_id_pedido: p.n_id_pedido, order_id: p.order_id_resolvido, tipo_envio: p.tipo_envio,
+          bipado_por: p.bipado_por || '(não identificado)', marcado_manualmente: !!p.marcado_manualmente,
+          devolucao_status: devolucao.status, devolucao_motivo: devolucao.motivo,
+        });
+      }
     }
 
     porEmpresa[p.empresa] = (porEmpresa[p.empresa] || 0) + 1;
@@ -344,11 +359,13 @@ async function responderVisaoBipagem(req, res) {
     localizados_total: localizadosTotal,
     devolvidos_total: devolvidosTotal,
     nao_localizados: pedidos.length - localizadosTotal,
+    nao_resolvidos: pedidos.filter((p) => p.n_id_pedido && !p.order_id_resolvido).length,
     por_empresa: porEmpresa,
     por_tipo: porTipo,
     por_hora: porHora,
     operadores,
     pedidos,
+    devolucoes: devolucoesDetalhadas.sort((a, b) => (b.data + b.hora).localeCompare(a.data + a.hora)),
     tendencia: [...porDia.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([data, total]) => ({ data, total })),
   });
 }
