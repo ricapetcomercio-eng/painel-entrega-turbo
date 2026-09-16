@@ -135,7 +135,7 @@
   table.matriz thead th.rotulo { z-index: 3; }
   table.matriz td.fds, table.matriz th.fds { background: var(--surface-2); }
   table.matriz td.rotulo.fds { background: var(--surface); }
-  tr.linha-secao td { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-soft); background: var(--surface-2); padding-top: 10px; padding-bottom: 10px; }
+  tr.linha-secao td { font-size: 14px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-soft); background: var(--surface-2); padding-top: 10px; padding-bottom: 10px; }
   tr.linha-total td { font-weight: 700; background: var(--surface-2); }
   tr.linha-saldo td { font-weight: 700; background: var(--brand-light); color: var(--brand); }
   tr.linha-saldo td.negativo { background: var(--danger-bg); color: var(--danger-text); }
@@ -352,7 +352,7 @@
 
   function renderLinhaSecao(titulo, qtdDias, tipo){
     const classe = tipo ? `linha-secao secao-${tipo}` : 'linha-secao';
-    return `<tr class="${classe}"><td colspan="${qtdDias + 1}" style="text-align:center;">${titulo}</td></tr>`;
+    return `<tr class="${classe}"><td colspan="${qtdDias + 1}" style="text-align:left;">${titulo}</td></tr>`;
   }
 
   function renderLinhaEspaco(qtdDias){
