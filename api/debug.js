@@ -852,6 +852,51 @@ async function debugApagarBipagemDiariaTeste(req, res) {
   res.status(200).json({ ok: true, tipo: 'apagar-bipagem-diaria-teste', apagadas: rs.rowsAffected || 0 });
 }
 
+// Investigação pontual: "Bipado × Devolvido por operador" e a % de
+// devolução em public/bipagem.html vêm vazias pra todo mundo — o join
+// entre bipagem_diaria.n_id_pedido e historico_todos.order_id não está
+// encontrando NENHUM pedido (ver "nao_localizados" no retorno de
+// responderVisaoBipagem, api/analytics-todos-data.js). Hipótese: n_id_pedido
+// vem do checkout_bipagem.py/RobotOmie e pode ser um número interno
+// (ex: pedido do Omie), não o order_id real do Mercado Livre/Shopee — este
+// endpoint só amostra os dois lados lado a lado pra confirmar visualmente.
+// Remover depois que a causa for confirmada e corrigida.
+async function debugBipagemCruzamentoTeste(req, res) {
+  const db = getDb();
+  const limite = Math.min(parseInt(req.query.limite, 10) || 15, 50);
+
+  const rsBipagem = await db.execute({
+    sql: `SELECT empresa, data, cliente, n_id_pedido, n_id_nfe, tipo_envio, bipado_por
+          FROM bipagem_diaria ORDER BY bipado_em_ts DESC LIMIT ?`,
+    args: [limite],
+  });
+
+  const idsBipagem = rsBipagem.rows.map((r) => String(r.n_id_pedido || '').trim()).filter(Boolean);
+  let encontrados = [];
+  if (idsBipagem.length) {
+    const placeholders = idsBipagem.map(() => '?').join(',');
+    const rsMatch = await db.execute({
+      sql: `SELECT order_id, marketplace FROM historico_todos WHERE order_id IN (${placeholders})`,
+      args: idsBipagem,
+    });
+    encontrados = rsMatch.rows.map((r) => r.order_id);
+  }
+
+  const rsHistorico = await db.execute({
+    sql: `SELECT marketplace, order_id, date_created FROM historico_todos ORDER BY date_created_ts DESC LIMIT ?`,
+    args: [limite],
+  });
+
+  res.status(200).json({
+    ok: true,
+    tipo: 'bipagem-cruzamento-teste',
+    amostra_bipagem_diaria: rsBipagem.rows,
+    amostra_historico_todos: rsHistorico.rows,
+    quantos_ids_de_bipagem_bateram_em_historico_todos: encontrados.length,
+    de_quantos_testados: idsBipagem.length,
+  });
+}
+
 // Lê a linha CRUA de historico_todos por order_id (qualquer marketplace) —
 // pra depurar de verdade o que está gravado (categoria/coletado/
 // coletado_em), sem passar pelo filtro de listarShopeeAguardando que só
@@ -2526,6 +2571,7 @@ module.exports = async (req, res) => {
     if (req.query.tipo === 'historico-todos-row') return await debugHistoricoTodosRow(req, res);
     if (req.query.tipo === 'registrar-bipagem-diaria') return await debugRegistrarBipagemDiaria(req, res);
     if (req.query.tipo === 'apagar-bipagem-diaria-teste') return await debugApagarBipagemDiariaTeste(req, res);
+    if (req.query.tipo === 'bipagem-cruzamento-teste') return await debugBipagemCruzamentoTeste(req, res);
     if (req.query.tipo === 'backfill-prazo-shopee-todos') return await debugBackfillPrazoShopeeTodos(req, res);
     if (req.query.tipo === 'ml-sla') return await debugMlSla(req, res);
     if (req.query.tipo === 'shopee-returns') return await debugShopeeReturns(req, res);
