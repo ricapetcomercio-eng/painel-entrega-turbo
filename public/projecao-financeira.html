@@ -108,11 +108,11 @@
   }
   .saldo-info { font-size: 12px; color: var(--ink-muted); margin-left: auto; }
 
-  .avisos-lista { margin: 0 0 18px; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
-  .avisos-lista li {
-    font-size: 12.5px; color: var(--warning-text); background: var(--warning-bg);
-    padding: 8px 12px; border-radius: 8px;
-  }
+  .avisos-lista { margin: 14px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 3px; }
+  .avisos-lista li { font-size: 11px; color: var(--ink-muted); line-height: 1.5; }
+
+  tr.linha-entrada td:not(.rotulo) { color: var(--brand); }
+  tr.linha-saida td:not(.rotulo) { color: var(--danger-solid); }
 
   .matriz-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
   table.matriz { width: max-content; min-width: 100%; border-collapse: collapse; }
@@ -216,7 +216,7 @@
 <div class="conteudo-principal">
 <div class="shell">
   <h1>Projeção Financeira</h1>
-  <p class="sub">Fluxo de caixa projetado dia a dia: entradas previstas (Mercado Pago, Shopee, Site) menos saídas previstas (Omie — contas a pagar), partindo do saldo bancário atual. Não atualiza sozinho — clique em "Atualizar agora" quando quiser buscar dado novo do Mercado Pago/Shopee.</p>
+  <p class="sub">Fluxo de caixa projetado dia a dia: entradas previstas (Mercado Pago, Shopee, Site) menos saídas previstas (Omie + avulso), partindo do saldo bancário atual. Não atualiza sozinho — clique em "Atualizar agora" quando quiser buscar dado novo do Mercado Pago/Shopee.</p>
 
   <div class="toolbar">
     <button class="refresh-btn" id="btn-atualizar">↻ Atualizar agora</button>
@@ -334,7 +334,15 @@
       const valor = valoresPorDia[d] || '';
       return `<td class="editavel${ehFimDeSemana(d) ? ' fds' : ''}"><input type="number" step="0.01" data-dia="${d}" class="site-input" value="${valor}"></td>`;
     }).join('');
-    return `<tr><td class="rotulo">Site (manual)</td>${celulas}</tr>`;
+    return `<tr class="linha-entrada"><td class="rotulo">Site (manual)</td>${celulas}</tr>`;
+  }
+
+  function renderLinhaAvulso(valoresPorDia, datas){
+    const celulas = datas.map((d) => {
+      const valor = valoresPorDia[d] || '';
+      return `<td class="editavel${ehFimDeSemana(d) ? ' fds' : ''}"><input type="number" step="0.01" data-dia="${d}" class="avulso-input" value="${valor}"></td>`;
+    }).join('');
+    return `<tr class="linha-saida"><td class="rotulo">A Pagar Avulso (Total)</td>${celulas}</tr>`;
   }
 
   function renderLinhaSecao(titulo, qtdDias){
@@ -373,6 +381,7 @@
         : '';
 
       const siteManual = (configJson.siteManual && configJson.siteManual.por_dia) || {};
+      const avulsoManual = (configJson.avulsoManual && configJson.avulsoManual.por_dia) || {};
       const projecao = dashJson.projecaoFinanceira;
       const datas = gerarDatas(HORIZONTE_DIAS_EXIBIDO);
       const avisos = [];
@@ -401,9 +410,10 @@
 
       const omieRicapet = linhaConta(contas.ricapet && contas.ricapet.omie, 'Contas a pagar Ricapet');
       const omieThapets = linhaConta(contas.thapets && contas.thapets.omie, 'Contas a pagar Thapets');
+      const avulsoValores = datas.map((d) => avulsoManual[d] || 0);
 
       const totalEntradas = somaLinhas([mpRicapet.valores, mpThapets.valores, shopeeRicapet.valores, shopeeThapets.valores, siteValores], datas);
-      const totalAPagar = somaLinhas([omieRicapet.valores, omieThapets.valores], datas);
+      const totalAPagar = somaLinhas([omieRicapet.valores, omieThapets.valores, avulsoValores], datas);
 
       const saldoInicial = (Number(saldoManual.ricapet) || 0) + (Number(saldoManual.thapets) || 0);
       const saldo = [];
@@ -416,25 +426,21 @@
       const linhasHtml = [
         renderLinhaCabecalho(datas),
         renderLinhaSecao('ENTRADAS', datas.length),
-        renderLinhaValores('Shopee Ricapet', shopeeRicapet.valores, datas),
-        renderLinhaValores('Shopee Thapets', shopeeThapets.valores, datas),
-        renderLinhaValores('Mercado Pago Ricapet', mpRicapet.valores, datas),
-        renderLinhaValores('Mercado Pago Thapets', mpThapets.valores, datas),
+        renderLinhaValores('Shopee Ricapet', shopeeRicapet.valores, datas, { classeLinha: 'linha-entrada' }),
+        renderLinhaValores('Shopee Thapets', shopeeThapets.valores, datas, { classeLinha: 'linha-entrada' }),
+        renderLinhaValores('Mercado Pago Ricapet', mpRicapet.valores, datas, { classeLinha: 'linha-entrada' }),
+        renderLinhaValores('Mercado Pago Thapets', mpThapets.valores, datas, { classeLinha: 'linha-entrada' }),
         renderLinhaSite(siteManual, datas),
-        renderLinhaValores('TOTAL ENTRADAS', totalEntradas, datas, { classeLinha: 'linha-total' }),
-        renderLinhaSecao('SAÍDAS (Omie)', datas.length),
-        renderLinhaValores('Contas a pagar Ricapet', omieRicapet.valores, datas),
-        renderLinhaValores('Contas a pagar Thapets', omieThapets.valores, datas),
-        renderLinhaValores('Total a pagar (Omie)', totalAPagar, datas, { classeLinha: 'linha-total' }),
+        renderLinhaValores('TOTAL ENTRADAS', totalEntradas, datas, { classeLinha: 'linha-total linha-entrada' }),
+        renderLinhaSecao('SAÍDAS', datas.length),
+        renderLinhaValores('Contas a pagar Ricapet (Omie)', omieRicapet.valores, datas, { classeLinha: 'linha-saida' }),
+        renderLinhaValores('Contas a pagar Thapets (Omie)', omieThapets.valores, datas, { classeLinha: 'linha-saida' }),
+        renderLinhaAvulso(avulsoManual, datas),
+        renderLinhaValores('TOTAL A PAGAR', totalAPagar, datas, { classeLinha: 'linha-total linha-saida' }),
         renderLinhaSaldo('SALDO', saldo, datas),
       ].join('');
 
-      const avisosHtml = avisos.length
-        ? `<ul class="avisos-lista">${avisos.map((a) => `<li>⚠ ${a}</li>`).join('')}</ul>`
-        : '';
-
       wrap.innerHTML = `
-        ${avisosHtml}
         <div class="matriz-wrap">
           <table class="matriz">
             <thead></thead>
@@ -442,6 +448,7 @@
           </table>
         </div>
         <p class="updated-note">Última coleta Mercado Pago/Shopee: ${projecao ? fmtDataHora(projecao.atualizado_em) : 'nunca — clique em "Atualizar agora"'}. Saldo inicial usado: ${fmtMoeda(saldoInicial)}.</p>
+        ${avisos.length ? `<ul class="avisos-lista">${avisos.map((a) => `<li>⚠ ${a}</li>`).join('')}</ul>` : ''}
       `;
 
       // separa a primeira linha (cabeçalho) pro <thead>, resto fica no <tbody>
@@ -451,6 +458,9 @@
 
       document.querySelectorAll('.site-input').forEach((input) => {
         input.addEventListener('change', () => salvarSite(input.dataset.dia, input.value));
+      });
+      document.querySelectorAll('.avulso-input').forEach((input) => {
+        input.addEventListener('change', () => salvarAvulso(input.dataset.dia, input.value));
       });
     } catch(e){
       console.error('Erro ao carregar fluxo de caixa:', e);
@@ -519,6 +529,24 @@
       await carregar();
     } catch(e){
       console.error('Erro ao salvar site:', e);
+      alert('Erro ao salvar: ' + (e.message || e));
+    }
+  }
+
+  async function salvarAvulso(dia, valor){
+    try {
+      const params = new URLSearchParams({ tipo: 'fluxo-caixa-config-set' });
+      if (sessaoAtual) params.set('token', sessaoAtual.token);
+      const resp = await fetch('/api/debug?' + params.toString(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ avulsoData: dia, avulsoValor: valor }),
+      });
+      const json = await resp.json();
+      if (!resp.ok) throw new Error(json.error || ('HTTP ' + resp.status));
+      await carregar();
+    } catch(e){
+      console.error('Erro ao salvar avulso:', e);
       alert('Erro ao salvar: ' + (e.message || e));
     }
   }
