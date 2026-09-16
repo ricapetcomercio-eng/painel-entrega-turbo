@@ -788,6 +788,41 @@ async function debugFlexStatus(req, res) {
   res.status(200).json({ ok: true, tipo: 'flex-status', total: resultado.length, registros: resultado });
 }
 
+// Investigação (continuação de omie-pedido-teste): a Omie guarda o
+// "Número do pedido Mercado Livre" num campo de texto livre
+// (observacoes.obs_venda / informacoes_adicionais.numero_pedido_cliente),
+// mas esse valor não bateu com order_id nem shipment_id em NENHUMA tabela
+// nossa — nem porque o formato é diferente, porque o pedido nem existe no
+// nosso histórico (possível lacuna no coletor "Todos os pedidos" pra
+// pedidos "Ponto de Coleta"). Este teste consulta a API do ML DIRETO (sem
+// passar pelo nosso banco) tentando os dois endpoints possíveis
+// (/orders/{id} e /shipments/{id}), pra descobrir com certeza que tipo de
+// ID é esse número e se o pedido existe de verdade do lado do ML. Remover
+// depois que a causa for confirmada.
+async function debugMlIdTeste(req, res) {
+  const conta = (req.query.conta || '').toLowerCase();
+  const identificador = (req.query.identificador || '').trim();
+  if (!['ricapet', 'thapets'].includes(conta) || !identificador) {
+    res.status(400).json({ error: 'Use ?conta=ricapet|thapets&identificador=...' });
+    return;
+  }
+
+  const accessToken = await getMLAccessToken(conta);
+  const resultado = {};
+
+  for (const [chave, path] of [['como_order_id', `/orders/${identificador}`], ['como_shipment_id', `/shipments/${identificador}`]]) {
+    try {
+      const resp = await fetch(`https://api.mercadolibre.com${path}`, { headers: { Authorization: `Bearer ${accessToken}` } });
+      const data = await resp.json();
+      resultado[chave] = { http_status: resp.status, encontrado: resp.ok, dados: resp.ok ? data : data };
+    } catch (err) {
+      resultado[chave] = { erro: err.message };
+    }
+  }
+
+  res.status(200).json({ ok: true, tipo: 'ml-id-teste', conta, identificador, resultado });
+}
+
 // Recebe o relatório de bipagem diário do checkout_bipagem.py (local,
 // C:\RobotOmie\enviar_relatorio_bipagem_nuvem.py) e grava/atualiza em
 // bipagem_diaria. POST com corpo { linhas: [{ empresa, data, hora, cliente,
@@ -2638,6 +2673,7 @@ module.exports = async (req, res) => {
     if (req.query.tipo === 'ml-claims') return await debugMlClaims(req, res);
     if (req.query.tipo === 'ml-shipment') return await debugMlShipment(req, res);
     if (req.query.tipo === 'flex-status') return await debugFlexStatus(req, res);
+    if (req.query.tipo === 'ml-id-teste') return await debugMlIdTeste(req, res);
     if (req.query.tipo === 'historico-todos-row') return await debugHistoricoTodosRow(req, res);
     if (req.query.tipo === 'registrar-bipagem-diaria') return await debugRegistrarBipagemDiaria(req, res);
     if (req.query.tipo === 'apagar-bipagem-diaria-teste') return await debugApagarBipagemDiariaTeste(req, res);
