@@ -399,10 +399,11 @@
       const shopeeThapets = linhaConta(contas.thapets && contas.thapets.shopee, 'Shopee Thapets');
       const siteValores = datas.map((d) => siteManual[d] || 0);
 
-      avisos.push('Saídas (Omie): integração ainda não configurada — total a pagar abaixo está zerado até conectarmos as contas a pagar do Omie.');
+      const omieRicapet = linhaConta(contas.ricapet && contas.ricapet.omie, 'Contas a pagar Ricapet');
+      const omieThapets = linhaConta(contas.thapets && contas.thapets.omie, 'Contas a pagar Thapets');
 
       const totalEntradas = somaLinhas([mpRicapet.valores, mpThapets.valores, shopeeRicapet.valores, shopeeThapets.valores, siteValores], datas);
-      const totalAPagar = datas.map(() => 0); // Omie: pendente de integração
+      const totalAPagar = somaLinhas([omieRicapet.valores, omieThapets.valores], datas);
 
       const saldoInicial = (Number(saldoManual.ricapet) || 0) + (Number(saldoManual.thapets) || 0);
       const saldo = [];
@@ -422,6 +423,8 @@
         renderLinhaSite(siteManual, datas),
         renderLinhaValores('TOTAL ENTRADAS', totalEntradas, datas, { classeLinha: 'linha-total' }),
         renderLinhaSecao('SAÍDAS (Omie)', datas.length),
+        renderLinhaValores('Contas a pagar Ricapet', omieRicapet.valores, datas),
+        renderLinhaValores('Contas a pagar Thapets', omieThapets.valores, datas),
         renderLinhaValores('Total a pagar (Omie)', totalAPagar, datas, { classeLinha: 'linha-total' }),
         renderLinhaSaldo('SALDO', saldo, datas),
       ].join('');
