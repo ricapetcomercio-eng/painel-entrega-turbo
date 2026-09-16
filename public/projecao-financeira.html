@@ -117,9 +117,9 @@
      .rotulo pra ganhar de table.matriz td.rotulo (mesma especificidade
      empataria pela ordem no arquivo). */
   tr.linha-secao.secao-entrada td,
-  tr.linha-secao.secao-entrada td.rotulo { background: #99CCFF; color: #1B2A4A; }
+  tr.linha-secao.secao-entrada td.rotulo { background: #D9E9FF; color: #1B2A4A; }
   tr.linha-secao.secao-saida td,
-  tr.linha-secao.secao-saida td.rotulo { background: #FFCC99; color: #1B2A4A; }
+  tr.linha-secao.secao-saida td.rotulo { background: #FFE4CC; color: #1B2A4A; }
 
   .matriz-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
   table.matriz { width: max-content; min-width: 100%; border-collapse: collapse; }
@@ -132,15 +132,15 @@
     background: var(--surface); min-width: 190px; max-width: 190px; white-space: normal;
   }
   table.matriz thead th {
-    background: var(--surface-2); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.02em;
-    color: var(--ink-muted); font-weight: 600; position: sticky; top: 0; z-index: 1; line-height: 1.5;
+    background: var(--surface-2); font-size: 12px; text-transform: uppercase; letter-spacing: 0.03em;
+    color: var(--ink); font-weight: 800; position: sticky; top: 0; z-index: 1; line-height: 1.5;
   }
   table.matriz thead th.rotulo { z-index: 3; }
   table.matriz td.fds, table.matriz th.fds { background: var(--surface-2); }
   table.matriz td.rotulo.fds { background: var(--surface); }
-  tr.linha-secao td { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-soft); background: var(--surface-2); text-align: left; padding-top: 10px; padding-bottom: 4px; }
+  tr.linha-secao td { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-soft); background: var(--surface-2); text-align: left; padding-top: 20px; padding-bottom: 4px; }
   tr.linha-total td { font-weight: 700; background: var(--surface-2); }
-  tr.linha-saldo td { font-weight: 700; background: var(--brand-light); color: var(--brand); }
+  tr.linha-saldo td { font-weight: 700; background: var(--brand-light); color: var(--brand); padding-top: 14px; border-top: 2px solid var(--border); }
   tr.linha-saldo td.negativo { background: var(--danger-bg); color: var(--danger-text); }
   td.editavel { padding: 3px 6px; }
   td.editavel input {
