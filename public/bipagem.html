@@ -582,14 +582,23 @@
     btnParar.hidden = false;
     let totalResolvidos = 0;
     let totalErros = 0;
+    const resumoErrosTotal = {};
     try {
       while (resolverEmAndamento) {
         const json = await resolverUmLote();
         totalResolvidos += json.resolvidos;
         totalErros += json.total_erros;
-        if (json.total_erros > 0) console.warn('Erros ao resolver bipagem:', json.erros);
-        txtProgresso.textContent = ` Resolvidos até agora: ${totalResolvidos}. Restam: ${json.restantes.toLocaleString('pt-BR')}.`;
+        if (json.total_erros > 0) {
+          console.warn('Erros ao resolver bipagem:', json.erros);
+          for (const [msg, qtd] of Object.entries(json.resumo_erros || {})) {
+            resumoErrosTotal[msg] = (resumoErrosTotal[msg] || 0) + qtd;
+          }
+        }
+        txtProgresso.textContent = ` Resolvidos até agora: ${totalResolvidos}. Restam (com chance de sucesso): ${json.restantes.toLocaleString('pt-BR')}.`;
         await carregar();
+        // processados === 0 acontece quando só sobram linhas que já falharam
+        // numa tentativa anterior (excluídas da próxima busca) — não é erro,
+        // é o loop terminando de verdade.
         if (json.restantes <= 0 || json.processados === 0) break;
       }
     } catch (err) {
@@ -598,7 +607,13 @@
       resolverEmAndamento = false;
       btn.hidden = false;
       btnParar.hidden = true;
-      if (totalErros) txtProgresso.textContent += ` (${totalErros} com erro — ver console)`;
+      if (totalErros) {
+        const linhas = Object.entries(resumoErrosTotal)
+          .sort((a, b) => b[1] - a[1])
+          .map(([msg, qtd]) => `${qtd}x ${msg}`)
+          .join(' · ');
+        txtProgresso.textContent += ` — ${totalErros} não resolvidos (ficam de fora das próximas tentativas): ${linhas}`;
+      }
     }
   }
   $('btn-resolver-pendentes').addEventListener('click', resolverTodosPendentes);
