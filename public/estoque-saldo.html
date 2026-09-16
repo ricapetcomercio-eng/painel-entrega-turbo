@@ -79,9 +79,14 @@
     .conteudo-principal { margin-left: 0; }
   }
 
-  .shell { max-width: 900px; margin: 0 auto; padding: 28px 20px 60px; }
-  h1 { font-family: var(--font-display); font-size: 22px; font-weight: 700; margin: 0 0 4px; }
-  .sub { font-size: 13.5px; color: var(--ink-soft); margin: 0 0 20px; max-width: 60ch; }
+  .shell { max-width: 900px; margin: 0 auto; padding: 20px 20px 60px; }
+
+  /* header — mesmo padrão usado em Ponto/Bipagem/Acessos */
+  header { position: sticky; top: 0; z-index: 5; background: var(--page-bg); border-bottom: 1px solid var(--border); }
+  .hrow { max-width: 900px; margin: 0 auto; padding: 0 20px; min-height: 64px; box-sizing: border-box; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .hrow h1 { font-family: var(--font-display); font-size: 1.05rem; font-weight: 700; margin: 0; margin-right: auto; color: var(--ink); display: flex; flex-direction: column; gap: 2px; line-height: 1.25; }
+  .h-title-row { display: flex; align-items: center; gap: 9px; }
+  .h-sub { font-size: 0.72rem; font-weight: 500; color: var(--ink-muted); letter-spacing: 0.01em; }
 
   .kpi-row {
     display: grid; grid-template-columns: repeat(3, 1fr); margin-bottom: 18px;
@@ -100,9 +105,8 @@
     .kpi:not(:first-child) { border-top: 1px solid var(--border); }
   }
 
-  .toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
-  .toolbar input[type="text"] {
-    flex: 1; min-width: 180px; padding: 9px 12px; border: 1.5px solid var(--border);
+  .hrow input[type="text"] {
+    min-width: 180px; padding: 9px 12px; border: 1.5px solid var(--border);
     border-radius: 8px; font-size: 14px; font-family: var(--font-body); background: var(--surface);
   }
   .refresh-btn, .checkbox-label {
@@ -213,17 +217,16 @@
 </nav>
 
 <div class="conteudo-principal">
-<div class="shell">
-  <h1>Saldo de Estoque</h1>
-  <p class="sub">Saldo calculado automaticamente: começa da última contagem física importada e desce sozinho a cada venda registrada (Mercado Livre / Shopee), voltando a subir se o pedido for cancelado ou devolvido depois.</p>
-
-  <div class="kpi-row" id="kpi-row"></div>
-
-  <div class="toolbar">
+<header>
+  <div class="hrow">
+    <h1><span class="h-title-row">Saldo de Estoque</span><span class="h-sub">Calculado automaticamente a partir da última contagem física</span></h1>
     <input type="text" id="filtro" placeholder="Filtrar por produto ou cor…">
     <label class="checkbox-label"><input type="checkbox" id="so-negativos"> Só saldo ≤ 0</label>
     <button class="refresh-btn" id="refresh-btn">↻ Atualizar</button>
   </div>
+</header>
+<div class="shell">
+  <div class="kpi-row" id="kpi-row"></div>
 
   <div id="conteudo"><div class="loading-note">Carregando…</div></div>
 
