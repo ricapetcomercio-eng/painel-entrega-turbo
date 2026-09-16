@@ -222,7 +222,8 @@ const TABELAS_SQL = [
     atualizado_em TEXT,
     order_id_resolvido TEXT,
     marketplace_resolvido TEXT,
-    resolvido_em TEXT
+    resolvido_em TEXT,
+    resolver_erro TEXT
   )`,
   `CREATE INDEX IF NOT EXISTS idx_bipagem_diaria_data ON bipagem_diaria(data)`,
   // Controle de acesso por página (tela Acessos, só super_admin) — presença
@@ -312,6 +313,7 @@ async function debugAdicionarColunaTipo(req, res) {
     ['bipagem_diaria.order_id_resolvido', 'ALTER TABLE bipagem_diaria ADD COLUMN order_id_resolvido TEXT'],
     ['bipagem_diaria.marketplace_resolvido', 'ALTER TABLE bipagem_diaria ADD COLUMN marketplace_resolvido TEXT'],
     ['bipagem_diaria.resolvido_em', 'ALTER TABLE bipagem_diaria ADD COLUMN resolvido_em TEXT'],
+    ['bipagem_diaria.resolver_erro', 'ALTER TABLE bipagem_diaria ADD COLUMN resolver_erro TEXT'],
   ]) {
     try {
       await db.execute(sql);
@@ -2273,9 +2275,13 @@ async function debugBipagemResolverPendentes(req, res) {
 
   const limite = Math.min(parseInt(req.query.limite, 10) || LIMITE_PADRAO_RESOLVER_BIPAGEM, LIMITE_MAXIMO_RESOLVER_BIPAGEM);
 
+  // resolver_erro IS NULL exclui linhas que já falharam numa tentativa
+  // anterior — sem isso, um lote que falha por inteiro (ex: pedido apagado
+  // na Omie) é reprocessado a cada clique pra sempre, o "restantes" nunca
+  // sai do lugar e o botão parece simplesmente não funcionar.
   const rsPendentes = await db.execute({
     sql: `SELECT id_unico, empresa, n_id_pedido FROM bipagem_diaria
-          WHERE order_id_resolvido IS NULL AND n_id_pedido IS NOT NULL
+          WHERE order_id_resolvido IS NULL AND resolver_erro IS NULL AND n_id_pedido IS NOT NULL
           ORDER BY bipado_em_ts DESC LIMIT ?`,
     args: [limite],
   });
@@ -2284,11 +2290,24 @@ async function debugBipagemResolverPendentes(req, res) {
   const erros = [];
   for (const linha of rsPendentes.rows) {
     const conta = EMPRESA_PARA_CONTA[linha.empresa];
-    if (!conta) { erros.push({ id_unico: linha.id_unico, erro: `Empresa desconhecida: ${linha.empresa}` }); continue; }
+    if (!conta) {
+      const erro = `Empresa desconhecida: ${linha.empresa}`;
+      erros.push({ id_unico: linha.id_unico, erro });
+      await db.execute({
+        sql: `UPDATE bipagem_diaria SET resolver_erro = ?, resolvido_em = ? WHERE id_unico = ?`,
+        args: [erro, new Date().toISOString(), linha.id_unico],
+      });
+      continue;
+    }
 
     const resultado = await resolverPedidoBipagem(conta, linha.n_id_pedido);
     if (resultado.erro || !resultado.orderId) {
-      erros.push({ id_unico: linha.id_unico, n_id_pedido: linha.n_id_pedido, erro: resultado.erro || 'Sem orderId.' });
+      const erro = resultado.erro || 'Sem orderId.';
+      erros.push({ id_unico: linha.id_unico, n_id_pedido: linha.n_id_pedido, erro });
+      await db.execute({
+        sql: `UPDATE bipagem_diaria SET resolver_erro = ?, resolvido_em = ? WHERE id_unico = ?`,
+        args: [String(erro).slice(0, 500), new Date().toISOString(), linha.id_unico],
+      });
       continue;
     }
     await db.execute({
@@ -2299,8 +2318,15 @@ async function debugBipagemResolverPendentes(req, res) {
   }
 
   const rsRestantes = await db.execute(
-    `SELECT COUNT(*) AS total FROM bipagem_diaria WHERE order_id_resolvido IS NULL AND n_id_pedido IS NOT NULL`
+    `SELECT COUNT(*) AS total FROM bipagem_diaria WHERE order_id_resolvido IS NULL AND resolver_erro IS NULL AND n_id_pedido IS NOT NULL`
   );
+
+  // Agrupa mensagens de erro pra dar pra ver a causa raiz sem precisar abrir
+  // o console do navegador (ex: "Pedido não encontrado na Omie." x 40).
+  const resumoErros = {};
+  for (const e of erros) {
+    resumoErros[e.erro] = (resumoErros[e.erro] || 0) + 1;
+  }
 
   res.status(200).json({
     ok: true,
@@ -2309,6 +2335,7 @@ async function debugBipagemResolverPendentes(req, res) {
     resolvidos,
     erros: erros.slice(0, 10),
     total_erros: erros.length,
+    resumo_erros: resumoErros,
     restantes: Number(rsRestantes.rows[0].total) || 0,
   });
 }

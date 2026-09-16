@@ -170,10 +170,23 @@ n_id_pedido (codigo_pedido da Omie)
   `order_id_resolvido`, não mais `n_id_pedido` — pedidos ainda não
   resolvidos ficam de fora do cruzamento (contam em `nao_resolvidos` no
   retorno) até alguém clicar em "Resolver pendentes".
-- Colunas `order_id_resolvido`/`marketplace_resolvido`/`resolvido_em` em
-  `bipagem_diaria` — migração idempotente já embutida em
+- Colunas `order_id_resolvido`/`marketplace_resolvido`/`resolvido_em`/
+  `resolver_erro` em `bipagem_diaria` — migração idempotente já embutida em
   `?tipo=adicionar-coluna-tipo` (`api/debug.js`), não precisa de passo
   manual separado.
+- **`resolver_erro`**: quando uma linha falha em resolver (pedido apagado
+  na Omie, `numero_pedido_cliente` vazio, etc.), fica marcada aqui em vez
+  de ficar só com `order_id_resolvido IS NULL` — sem isso o botão "Resolver
+  todos os pendentes" reprocessava pra sempre o mesmo lote de 50 que falha
+  por inteiro (ordenado por `bipado_em_ts DESC`, então é sempre o mesmo
+  topo), o "restantes" nunca saía do lugar e parecia que o botão não fazia
+  nada (aconteceu de verdade em produção — 1.741 pendentes praticamente
+  parados após rodar o loop). A busca de pendentes (`bipagem-resolver-
+  pendentes`) exclui `resolver_erro IS NOT NULL`; o resumo de erros
+  agrupados (`resumo_erros` na resposta) aparece direto na tela de bipagem
+  ao final do loop, sem precisar abrir o console do navegador. `nao_resolvidos`
+  no dashboard continua contando essas linhas normalmente (ainda não
+  entraram no cruzamento) — só param de ser retentadas automaticamente.
 
 ## Banco de dados
 
