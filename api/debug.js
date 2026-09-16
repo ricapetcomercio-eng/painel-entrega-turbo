@@ -2320,10 +2320,10 @@ module.exports = async (req, res) => {
 
       const agora = new Date();
       const passado = new Date(agora.getTime() - 30 * 24 * 60 * 60 * 1000);
-      const futuro = new Date(agora.getTime() + 30 * 24 * 60 * 60 * 1000);
+      const futuro = new Date(agora.getTime() + 45 * 24 * 60 * 60 * 1000);
       const fmt = (d) => d.toISOString().slice(0, 19) + '.000-00:00';
 
-      const params = new URLSearchParams({
+      const baseParams = {
         range: 'money_release_date',
         begin_date: fmt(passado),
         end_date: fmt(futuro),
@@ -2331,7 +2331,9 @@ module.exports = async (req, res) => {
         criteria: req.query.criteria === 'desc' ? 'desc' : 'asc',
         limit: '50',
         offset: req.query.offset || '0',
-      });
+      };
+      if (req.query.status) baseParams.status = req.query.status;
+      const params = new URLSearchParams(baseParams);
       const resp = await fetch(`https://api.mercadopago.com/v1/payments/search?${params.toString()}`, {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
@@ -2341,18 +2343,35 @@ module.exports = async (req, res) => {
         return;
       }
 
+      // Consulta separada só com status=approved, pra comparar o total geral
+      // (sem filtro) com o total só de aprovados — ajuda a diagnosticar se a
+      // paginação está sendo consumida por pagamentos não-aprovados.
+      let totalAprovados = null;
+      if (!req.query.status) {
+        const paramsAprovados = new URLSearchParams({ ...baseParams, status: 'approved', limit: '1' });
+        const respAprovados = await fetch(`https://api.mercadopago.com/v1/payments/search?${paramsAprovados.toString()}`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        const dataAprovados = await respAprovados.json();
+        if (respAprovados.ok) totalAprovados = dataAprovados.paging ? dataAprovados.paging.total : null;
+      }
+
       const pagamentos = data.results || [];
       const agoraMs = Date.now();
       res.status(200).json({
         ok: true,
         tipo: 'mp-payments-test',
         conta,
-        total_encontrado: data.paging ? data.paging.total : pagamentos.length,
+        total_geral_sem_filtro_status: data.paging ? data.paging.total : pagamentos.length,
+        total_apenas_aprovados: totalAprovados,
         amostra: pagamentos.slice(0, 15).map((p) => ({
           id: p.id,
           status: p.status,
           transaction_amount: p.transaction_amount,
           money_release_date: p.money_release_date,
+          date_approved: p.date_approved,
+          transaction_details: p.transaction_details,
+          fee_details: p.fee_details,
           no_futuro: p.money_release_date ? (new Date(p.money_release_date).getTime() > agoraMs) : null,
         })),
       });
