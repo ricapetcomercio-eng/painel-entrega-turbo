@@ -433,7 +433,8 @@
     carregar();
   });
   const HOJE_LOJA = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
-  $('p-de').value = HOJE_LOJA;
+  const INICIO_MES_LOJA = HOJE_LOJA.slice(0, 8) + '01'; // dia 1 do mês atual, mesmo fuso
+  $('p-de').value = INICIO_MES_LOJA;
   $('p-ate').value = HOJE_LOJA;
   carregar();
 
