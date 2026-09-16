@@ -397,9 +397,21 @@ DASHBOARD_TOKEN          # opcional; protege /api/dashboard-data (?token=...)
                          # o valor não é legível de volta nem pela CLI depois
                          # de criado; se precisar trocar, gera um valor novo
                          # (não tem como recuperar o antigo) e atualiza em
-                         # TODO lugar que abre a URL com token (RobotOmie/
+                         # TODO lugar que abre a URL com token: RobotOmie/
                          # abrir_painel_tv.ps1, bookmark de quem usa
-                         # index.html, link "Painel TV" da barra lateral).
+                         # index.html, e o link "Painel TV" da barra lateral
+                         # — este último está hardcoded com o token atual em
+                         # TODAS as páginas de sessão (acessos.html,
+                         # bipagem.html, estoque.html, estoque-saldo.html,
+                         # ponto.html, projecao-financeira.html), porque
+                         # essas páginas usam sessão de admin, não o token da
+                         # URL, e não têm de onde "repassar" o valor —
+                         # index.html é a única exceção, que já lê o próprio
+                         # `?token=` da URL e repassa pro link (ver `const
+                         # TOKEN` + `linkPainelTV`). Já aconteceu de verdade:
+                         # o link da barra lateral ficou sem o token por um
+                         # tempo e a TV abria com tudo zerado (401
+                         # silencioso) até alguém notar.
 
 # Integrações de estoque (lib/estoqueSaldo.js)
 JSONBIN_ESTOQUE_API_KEY
