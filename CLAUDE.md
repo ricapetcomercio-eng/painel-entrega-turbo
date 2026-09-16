@@ -97,12 +97,16 @@ Também importante não confundir os dois ao mexer nesse código:
   bem menor que se fosse automático — mas se a cota apertar mesmo assim,
   este é um
   candidato claro pra revisar/reduzir primeiro.
-- Thapets no Mercado Pago fica como placeholder (`erro: "Conta Thapets
-  ainda não autorizada..."`) — a conta não recebe o escopo `payments` do
-  Mercado Livre apesar de duas apps OAuth criadas com config idêntica à da
-  Ricapet; investigação aponta pra restrição de conta, não de config do
-  app. Shopee funciona normalmente para as duas lojas (não depende desse
-  escopo).
+- ✅ Thapets no Mercado Pago **voltou a funcionar** (confirmado em
+  16/set/2026 via `/api/debug?tipo=mp-payments-test&conta=thapets`, dado
+  real de produção: 82 pagamentos, 74 aprovados) — `coletarProjecaoFinanceiraManual`
+  (`api/collect.js`) chegou a ter um placeholder fixo (`erro: "Conta
+  Thapets ainda não autorizada..."`) por causa de uma restrição de escopo
+  `payments` que existiu por um tempo sem causa conhecida; removido porque
+  o teste ao vivo mostrou que a API já responde normalmente pra essa
+  conta. Se voltar a falhar, reconferir primeiro com o mesmo endpoint de
+  debug antes de reintroduzir qualquer placeholder — não assumir de novo
+  que é bloqueio de escopo sem testar.
 
 ### `projecao-financeira.html` é na verdade um Fluxo de Caixa (planilha)
 

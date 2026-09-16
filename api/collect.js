@@ -498,15 +498,13 @@ async function coletarProjecaoFinanceiraManual(req, res) {
 
   const contas = { ricapet: {}, thapets: {} };
 
-  try {
-    contas.ricapet.mercadoPago = await coletarProjecaoFinanceira('ricapet');
-  } catch (err) {
-    contas.ricapet.mercadoPago = { erro: err.message };
+  for (const conta of ['ricapet', 'thapets']) {
+    try {
+      contas[conta].mercadoPago = await coletarProjecaoFinanceira(conta);
+    } catch (err) {
+      contas[conta].mercadoPago = { erro: err.message };
+    }
   }
-  // Thapets/Mercado Pago: app OAuth criado, mas a conta não recebe o
-  // escopo "payments" do Mercado Livre (investigado, sem causa conhecida
-  // ainda) — placeholder até resolver com o suporte.
-  contas.thapets.mercadoPago = { erro: 'Conta Thapets ainda não autorizada para Mercado Pago (escopo payments pendente).' };
 
   for (const loja of LOJAS_SHOPEE) {
     try {
