@@ -975,8 +975,12 @@
   const modal = $('modal'), modalCorpo = $('modal-corpo'), modalErro = $('modal-erro'), modalOk = $('modal-ok');
   let modalCtx = null;
 
-  $('modal-cancelar').addEventListener('click', () => { modal.hidden = true; modalCtx = null; });
-  modal.addEventListener('click', (e) => { if (e.target === modal) { modal.hidden = true; modalCtx = null; } });
+  function fecharModalComAviso() {
+    if (modalCtx && modalCtx.viaAprovacao && !confirm('O pedido já está marcado como aprovado, mas fechar sem clicar em Salvar não corrige o horário do funcionário -- fechar mesmo assim?')) return;
+    modal.hidden = true; modalCtx = null;
+  }
+  $('modal-cancelar').addEventListener('click', fecharModalComAviso);
+  modal.addEventListener('click', (e) => { if (e.target === modal) fecharModalComAviso(); });
   modalCorpo.addEventListener('click', (e) => { const rm = e.target.closest('.m-rm'); if (rm) rm.closest('.m-linha').remove(); });
 
   function linhaBatida(ev) {
@@ -988,7 +992,7 @@
   }
 
   function abrirEditorDia(func, dia, focoAdd, motivoSugerido) {
-    modalCtx = { func, chave: dia.chave, originais: dia.eventos.map((e) => ({ nsr: String(e.nsr), tipo: e.tipo, hora: hhmm(e.quando) })), abonoAlterado: false };
+    modalCtx = { func, chave: dia.chave, originais: dia.eventos.map((e) => ({ nsr: String(e.nsr), tipo: e.tipo, hora: hhmm(e.quando) })), abonoAlterado: false, viaAprovacao: !!motivoSugerido };
     $('modal-titulo').textContent = `${func.nome} — ${rotuloLongo(dia.data)}`;
     modalErro.textContent = '';
     modalOk.textContent = 'Salvar';
@@ -1076,7 +1080,18 @@
     }
 
     if (acoes.length && !motivo) { modalErro.textContent = 'Escreva o motivo.'; return; }
-    if (!acoes.length && !modalCtx.abonoAlterado) { modal.hidden = true; modalCtx = null; return; }
+    if (!acoes.length && !modalCtx.abonoAlterado) {
+      // Veio do fluxo "aprovar solicitação" e nenhuma batida foi de fato
+      // alterada aqui -- aprovar só marca o pedido como resolvido, não
+      // corrige o horário sozinho (motivo é texto livre). Fechar direto
+      // deixaria a correção pedida sem nenhum efeito real, silenciosamente
+      // (bug relatado: solicitações aprovadas sem a batida aparecer depois
+      // na tela do funcionário) -- por isso barra aqui em vez de fechar.
+      if (modalCtx.viaAprovacao && !confirm('Nenhuma batida foi alterada aqui. O pedido já está marcado como aprovado, mas o horário do funcionário continua o mesmo de antes -- fechar sem ajustar os campos acima?')) {
+        return;
+      }
+      modal.hidden = true; modalCtx = null; return;
+    }
 
     modalErro.textContent = ''; modalOk.disabled = true;
     try {
