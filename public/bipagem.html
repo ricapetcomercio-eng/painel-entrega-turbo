@@ -104,9 +104,10 @@
   .chip-usuario-rotulo { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--ink-muted); font-weight: 700; }
 
   .aviso { text-align: center; padding: 24px; color: var(--ink-muted); font-size: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin: 18px 0; }
+  .aviso-mini { font-size: 11px; color: var(--ink-muted); line-height: 1.5; margin: 10px 2px 0; }
 
   /* KPIs */
-  .kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin: 18px 0; }
+  .kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin: 18px 0; }
   @media (max-width: 900px) { .kpis { grid-template-columns: repeat(2, 1fr); } }
   .kpi-card {
     background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
@@ -176,7 +177,7 @@
     </a>
     <a class="sidebar-link" href="/ponto.html" data-menu-key="ponto">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-      Ponto
+      Controle de Ponto
     </a>
     <a class="sidebar-link ativo" href="/bipagem.html" data-menu-key="bipagem">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/></svg>
@@ -231,6 +232,7 @@
       <div class="kpi-card"><div class="l">Thapets</div><div class="v" id="kpi-thapets">–</div></div>
       <div class="kpi-card"><div class="l">Operadores no período</div><div class="v" id="kpi-operadores">–</div></div>
       <div class="kpi-card"><div class="l">Bipado manualmente</div><div class="v" id="kpi-manual">–</div></div>
+      <div class="kpi-card"><div class="l">Devolvidos (localizados)</div><div class="v" id="kpi-devolvidos">–</div></div>
     </div>
 
     <div class="grid-charts">
@@ -255,13 +257,24 @@
       </div>
     </div>
 
+    <div class="card" style="margin-bottom:14px">
+      <h3>Bipado × Devolvido por operador</h3>
+      <div class="chart-wrap"><canvas id="chartDevolucao"></canvas></div>
+      <p class="aviso-mini">
+        Cruza o número do pedido bipado com o status de devolução do histórico geral (ML/Shopee) —
+        a devolução pode ser detectada dias depois da bipagem. Só entram na conta pedidos localizados
+        nesse histórico (<span id="txt-nao-localizados">–</span> não localizados no período); "% devolução"
+        na tabela abaixo é sobre os localizados, não sobre o total bipado.
+      </p>
+    </div>
+
     <div class="quadro">
       <h3 style="margin-bottom:10px">Performance por operador</h3>
       <table>
         <thead><tr>
           <th></th><th>Operador</th><th>Total</th><th>Ricapet</th><th>Thapets</th>
           <th>Flex</th><th>Turbo</th><th>Outros</th><th>Manual</th>
-          <th>Horas no Ponto</th><th>Bipagens/hora</th>
+          <th>Horas no Ponto</th><th>Bipagens/hora</th><th>Devolvidos</th><th>% Devolução</th>
         </tr></thead>
         <tbody id="tabela-operadores"></tbody>
       </table>
@@ -345,6 +358,10 @@
     $('kpi-manual').innerHTML = dados.total
       ? `${dados.manuais} <small>(${((dados.manuais / dados.total) * 100).toFixed(0)}%)</small>`
       : '0';
+    $('kpi-devolvidos').innerHTML = dados.localizados_total
+      ? `${dados.devolvidos_total} <small>(${((dados.devolvidos_total / dados.localizados_total) * 100).toFixed(1)}%)</small>`
+      : '<span class="zero">—</span>';
+    $('txt-nao-localizados').textContent = (dados.nao_localizados || 0).toLocaleString('pt-BR');
 
     // ranking por operador (bar horizontal)
     const opsOrdenados = [...dados.operadores];
@@ -356,7 +373,8 @@
       },
       options: {
         indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false }, datalabels: { color: '#2d3436', font: { weight: 'bold', size: 11 }, anchor: 'end', align: 'end' } },
+        layout: { padding: { right: 34 } },
+        plugins: { legend: { display: false }, datalabels: { color: '#2d3436', font: { weight: 'bold', size: 11 }, anchor: 'end', align: 'end', clamp: true } },
         scales: { x: { grid: { color: CORES.grid }, beginAtZero: true }, y: { grid: { display: false } } },
       },
     });
@@ -375,7 +393,8 @@
       data: { labels: Array.from({ length: 24 }, (_, i) => i + 'h'), datasets: [{ data: dados.por_hora, backgroundColor: CORES.blue, borderRadius: 4 }] },
       options: {
         responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false }, datalabels: { display: false } },
+        layout: { padding: { top: 18 } },
+        plugins: { legend: { display: false }, datalabels: { display: (ctx) => ctx.dataset.data[ctx.dataIndex] > 0, color: '#2d3436', font: { weight: 'bold', size: 9 }, anchor: 'end', align: 'end', clamp: true } },
         scales: { x: { grid: { display: false } }, y: { grid: { color: CORES.grid }, beginAtZero: true } },
       },
     });
@@ -389,7 +408,30 @@
       },
       options: {
         responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false }, datalabels: { display: false } },
+        layout: { padding: { top: 18 } },
+        plugins: { legend: { display: false }, datalabels: { display: (ctx) => ctx.dataset.data[ctx.dataIndex] > 0, color: CORES.teal, font: { weight: 'bold', size: 9 }, anchor: 'end', align: 'top', clamp: true } },
+        scales: { x: { grid: { display: false } }, y: { grid: { color: CORES.grid }, beginAtZero: true } },
+      },
+    });
+
+    // cruzamento bipado x devolvido (por operador, só quem tem pelo menos 1 bipagem localizada no histórico)
+    const opsComLocalizados = opsOrdenados.filter((o) => o.localizados > 0);
+    montarChart('chartDevolucao', {
+      type: 'bar',
+      data: {
+        labels: opsComLocalizados.map((o) => o.nome),
+        datasets: [
+          { label: 'Bipado (localizado)', data: opsComLocalizados.map((o) => o.localizados), backgroundColor: CORES.blue, borderRadius: 4 },
+          { label: 'Devolvido', data: opsComLocalizados.map((o) => o.devolvidos), backgroundColor: CORES.red, borderRadius: 4 },
+        ],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        layout: { padding: { top: 18 } },
+        plugins: {
+          legend: { position: 'bottom', labels: { boxWidth: 10 } },
+          datalabels: { display: (ctx) => ctx.dataset.data[ctx.dataIndex] > 0, color: '#2d3436', font: { weight: 'bold', size: 10 }, anchor: 'end', align: 'end', clamp: true },
+        },
         scales: { x: { grid: { display: false } }, y: { grid: { color: CORES.grid }, beginAtZero: true } },
       },
     });
@@ -408,8 +450,10 @@
         <td>${o.manual ? `${o.manual} (${((o.manual / o.total) * 100).toFixed(0)}%)` : '<span class="zero">—</span>'}</td>
         <td>${fmtHoras(o.minutos_trabalhados)}</td>
         <td>${o.bipagens_por_hora != null ? o.bipagens_por_hora : '<span class="zero">—</span>'}</td>
+        <td>${o.devolvidos || '<span class="zero">—</span>'}</td>
+        <td>${o.taxa_devolucao != null ? `${o.taxa_devolucao}%` : '<span class="zero">—</span>'}</td>
       </tr>
-    `).join('') || '<tr><td colspan="11" class="zero">Sem bipagens nesse dia.</td></tr>';
+    `).join('') || '<tr><td colspan="13" class="zero">Sem bipagens nesse dia.</td></tr>';
 
     // tabela de pedidos
     $('tabela-pedidos').innerHTML = dados.pedidos.map((p) => `
