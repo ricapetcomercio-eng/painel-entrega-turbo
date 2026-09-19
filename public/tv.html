@@ -29,6 +29,14 @@
     overflow-x: hidden;
   }
 
+  /* ---- marca d'água: logo grande, fixa e bem apagada atrás do conteúdo ---- */
+  body::before {
+    content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background: url('logo-ricapet.png') center / min(72vmin, 760px) no-repeat;
+    opacity: 0.06;
+  }
+  .secao-titulo, .area-cards { position: relative; z-index: 1; }
+
   /* ---- topo fixo (header+heatmap+kpis+controles não rolam com os cards) ---- */
   .topo-fixo { position: sticky; top: 0; z-index: 50; background: var(--bg); }
 
