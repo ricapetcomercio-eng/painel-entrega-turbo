@@ -333,6 +333,30 @@ public/
                    (INTERVALO_BUSCA_MS), relógio/contadores a cada 1s.
   index.html       painel operacional (tabela), uso normal no navegador
   backfill-runner.html   UI manual para disparar os backfills
+  assets/
+    auth.js              sessão de login único (sessionStorage), redireciona
+                         pra login.html se não tiver sessão válida
+    tokens-admin.css     identidade visual compartilhada ("Console Ricapet":
+                         sidebar roxa #5D4FA8/item ativo #372F72, destaque
+                         laranja #f5a623, fontes Sora/Manrope/IBM Plex Mono)
+                         — linkar no <head> de toda página admin, ANTES do
+                         próprio <style> da página. Cada página continua livre
+                         pra ter tokens só dela no próprio :root (cores de
+                         estado tipo --ok/--bad/--danger-*, --radius, etc.) —
+                         este arquivo cobre só o que é da marca (cor, sidebar,
+                         fonte). Extraído em set/2026 de um pacote de
+                         identidade visual (que por sua vez tinha sido
+                         originalmente capturado DESTE projeto) — os valores
+                         não mudaram, só pararam de estar duplicados (e um
+                         pouco divergentes de nome) em cada uma das ~9
+                         páginas. `tv.html` e `backfill-runner.html` ficam de
+                         fora de propósito (não são "admin" — TV é kiosk sem
+                         menu, backfill é ferramenta interna avulsa).
+                         Existe também uma identidade "portal" (teal #4FB8B9/
+                         terracota #B5651D) no mesmo pacote, pra um app/portal
+                         diferente — não usar aqui, é de outro projeto (ver
+                         nota sobre o Vercel `ricapet-portal`, projeto vazio
+                         sem repo conectado, possivelmente destinado a isso).
 
 scripts/
   gerar_tabela_produtos.py   regenera lib/tabelaProdutos.json a partir do

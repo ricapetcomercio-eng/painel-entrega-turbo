@@ -10,27 +10,17 @@
 <meta name="theme-color" content="#372F72">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Manrope:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="assets/tokens-admin.css">
 <script src="assets/auth.js"></script>
 <style>
   :root {
-    --bg: #F6F4FB; --surface: #FFFFFF; --surface-2: #EEF2F9;
-    --ink: #1B2A4A; --ink-soft: #566484; --ink-muted: #93A0BC;
-    --border: #E5E1F0; --shadow: rgba(27,42,74,0.10);
-    --brand: #f5a623; --accent: #f5a623; --accent-bg: #fdecc8; --accent-ink: #272456;
-    --ink-on-accent: #241f4d;
+    --surface-2: #EEF2F9;
+    --shadow: rgba(27,42,74,0.10);
+    --brand: #f5a623; --accent-ink: #272456;
     --warn: #B8860B; --warn-bg: #FBF1D9;
     --ok: #2F8F5B; --ok-bg: #E4F3EA; --bad: #C1443D; --bad-bg: #FBE7E5;
     --info-bg: #E7F0FF; --info-tx: #2657C4;
-    --font-display: 'Sora', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    --font-body: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
     --radius: 16px; --radius-sm: 10px;
-    --page-bg: #F6F4FB;
-    --sidebar-bg: #5D4FA8;
-    --sidebar-text: #F3F1FB;
-    --sidebar-muted: #C9C0EF;
-    --sidebar-hover: rgba(255,255,255,0.10);
-    --sidebar-border: rgba(255,255,255,0.16);
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: linear-gradient(180deg, #F8F7FC 0%, #F1EEFA 100%); color: var(--ink); font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
@@ -61,7 +51,7 @@
     font-weight: 600; margin-bottom: 2px; white-space: nowrap; transition: background .15s ease, color .15s ease, border-color .15s ease;
   }
   .sidebar-link:hover { background: var(--sidebar-hover); }
-  .sidebar-link.ativo { background: #372F72; color: #F3F1FB; border-left-color: #8B7CF6; }
+  .sidebar-link.ativo { background: var(--sidebar-active); color: var(--sidebar-text); border-left-color: #8B7CF6; }
   .sidebar-link.ativo svg { stroke: #B9AEFA; }
   .sidebar-link svg { flex-shrink: 0; }
   .sidebar.modo-edicao .sidebar-link[data-menu-key] { cursor: grab; }
@@ -123,7 +113,7 @@
     transition: background .15s ease, color .15s ease;
   }
   .tabs button:hover { background: var(--sidebar-hover); }
-  .tabs button.ativo { background: #372F72; color: #F3F1FB; border-left-color: #8B7CF6; font-weight: 700; }
+  .tabs button.ativo { background: var(--sidebar-active); color: var(--sidebar-text); border-left-color: #8B7CF6; font-weight: 700; }
   .tabs .badge { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; margin-left: 8px; border-radius: 999px; background: var(--bad); color: #fff; font-size: 0.7rem; font-weight: 700; }
 
   /* solicitações */
