@@ -1,0 +1,52 @@
+/* Ricapet — Painel Administrativo ("Console Ricapet"): tokens de identidade
+   visual compartilhados por TODAS as páginas do admin (sidebar roxa,
+   destaque laranja). Fonte: pacote de identidade visual Ricapet, identidade
+   "admin" (tela com menu lateral) — o próprio pacote foi originalmente
+   extraído de public/index.html, então os valores aqui não mudam nada
+   visualmente; só param de estar duplicados (e levemente divergentes de
+   nome) em cada página.
+
+   Import: <link rel="stylesheet" href="assets/tokens-admin.css"> no <head>,
+   ANTES do <style> da própria página. Cada página continua livre pra
+   definir no seu próprio <style> os tokens que são só dela (cores de
+   estado como --ok/--bad/--warn/--danger-*, --radius, --shadow, etc.) —
+   este arquivo cobre só a identidade compartilhada (cor de marca, sidebar,
+   fontes). Duas grafias de alguns nomes convivem de propósito (--bg e
+   --page-bg, --ink e --text, --ink-soft e --muted, --accent-bg/--accent-
+   light/--blue-light) porque páginas diferentes já usavam nomes diferentes
+   pro mesmo valor — trocar a grafia usada em cada regra CSS existente é
+   risco de regressão sem ganho visual, então este arquivo só evita que o
+   VALOR fique solto/hardcoded, sem forçar renomear tudo de uma vez.
+
+   Fontes (incluir também, se a página ainda não tiver):
+   <link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Manrope:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet"> */
+:root {
+  --page-bg: #F6F4FB; --bg: #F6F4FB;
+  --card: #ffffff; --surface: #ffffff;
+  --border: #E5E1F0;
+  --text: #1B2A4A; --ink: #1B2A4A;
+  --muted: #566484; --ink-soft: #566484;
+  --ink-muted: #93A0BC;
+
+  /* Sidebar roxa */
+  --sidebar-bg: #5D4FA8;            /* roxo médio */
+  --sidebar-active: #372F72;        /* item ativo do menu / roxo escuro da marca */
+  --sidebar-text: #F3F1FB;
+  --sidebar-muted: #C9C0EF;
+  --sidebar-hover: rgba(255,255,255,0.10);
+  --sidebar-border: rgba(255,255,255,0.16);
+
+  /* Destaque laranja */
+  --accent: #f5a623; --blue: #f5a623;
+  --accent-bg: #fdecc8; --accent-light: #fdecc8; --blue-light: #fdecc8;
+  --ink-on-accent: #241f4d;
+
+  /* Acentos secundários */
+  --teal: #1E9E86; --teal-light: #DCF3EE;
+  --brand: #2F8F5B; --brand-light: #E4F3EA;
+  --yellow: #F0C24C; --gray: #C3CBE0; --red: #C1443D;
+
+  --font-display: 'Sora', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-body: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
+}
