@@ -5,9 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Painel de Reposição — Ricapet · Thapets</title>
 <link rel="icon" type="image/png" href="favicon-ricapet.png">
+<script>(function(){try{var t=localStorage.getItem('ricapet_tema2');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 <script src="assets/auth.js"></script>
+<script src="assets/tema.js" defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Manrope:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
 <link rel="stylesheet" href="assets/tokens-admin.css">
 <style>
   :root {
@@ -33,9 +35,10 @@
   /* ---------- sidebar (mesmo padrão dos outros painéis Ricapet) ---------- */
   .sidebar {
     width: 212px; height: 100vh; position: fixed; top: 0; left: 0; z-index: 1000;
-    background: var(--sidebar-bg); border-right: 1px solid var(--sidebar-border);
+    background: linear-gradient(165deg, var(--sidebar-bg) 0%, #37A6A7 55%, #2E8385 100%);
+    border-right: 1px solid var(--sidebar-border);
     padding: 16px 12px; box-sizing: border-box; overflow-y: auto;
-    display: flex; flex-direction: column; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    display: flex; flex-direction: column;
   }
   .sidebar-brand { display: flex; align-items: center; gap: 8px; padding: 2px 8px 14px; margin-bottom: 10px; border-bottom: 1px solid var(--sidebar-border); }
   .sidebar-brand-icon { width: 32px; height: 32px; object-fit: contain; flex-shrink: 0; }
@@ -45,36 +48,38 @@
   .sidebar-titulo-com-editar { display: flex; align-items: center; justify-content: space-between; }
   .sidebar-editar-btn {
     background: none; border: none; color: var(--sidebar-muted); cursor: pointer;
-    font-size: 12px; opacity: 0.35; padding: 2px 5px; border-radius: 4px; line-height: 1;
+    font-size: 12px; opacity: 0.55; padding: 2px 5px; border-radius: 4px; line-height: 1;
     transition: opacity 0.15s, background 0.15s;
   }
   .sidebar-editar-btn:hover { opacity: 1; background: var(--sidebar-hover); }
-  .sidebar-editar-btn.ativo { opacity: 1; color: var(--accent); }
+  .sidebar-editar-btn.ativo { opacity: 1; color: #fff; }
   .sidebar-link {
     display: flex; align-items: center; gap: 8px; padding: 7px 9px; border-radius: 7px;
-    border-left: 1px solid transparent; color: var(--sidebar-text); text-decoration: none; font-size: 13px;
+    border-left: 2px solid transparent; color: var(--sidebar-text); text-decoration: none; font-size: 13px;
     font-weight: 600; margin-bottom: 2px; white-space: nowrap; transition: background .15s ease, border-color .15s ease;
   }
   .sidebar-link:hover { background: var(--sidebar-hover); }
-  .sidebar-link.ativo { background: var(--sidebar-active); color: var(--sidebar-text); border-left-color: #8B7CF6; }
-  .sidebar-link.ativo svg { stroke: #B9AEFA; }
+  .sidebar-link.ativo { background: rgba(255,255,255,0.18); border-left-color: #fff; }
   .sidebar-link svg { flex-shrink: 0; }
   .sidebar.modo-edicao .sidebar-link[data-menu-key] { cursor: grab; }
-  .sidebar.modo-edicao .sidebar-link[data-menu-key]::before { content: '⠿'; opacity: 0.55; }
+  .sidebar.modo-edicao .sidebar-link[data-menu-key]::before { content: '⠿'; opacity: 0.6; }
   .sidebar-link[data-menu-key].arrastando { opacity: 0.35; }
-  .sidebar-link[data-menu-key].alvo-antes { box-shadow: inset 0 2px 0 var(--accent); }
-  .sidebar-link[data-menu-key].alvo-depois { box-shadow: inset 0 -2px 0 var(--accent); }
+  .sidebar-link[data-menu-key].alvo-antes { box-shadow: inset 0 2px 0 #fff; }
+  .sidebar-link[data-menu-key].alvo-depois { box-shadow: inset 0 -2px 0 #fff; }
   .sidebar-submenu { margin: 2px 0 8px 14px; padding-left: 10px; border-left: 2px solid var(--sidebar-border); }
   .sidebar-submenu.oculto { display: none; }
   .sidebar-separador { border: none; border-top: 1px solid var(--sidebar-border); margin: 14px 0; }
   .sidebar-footer { display: flex; align-items: center; gap: 10px; padding: 10px; margin-top: auto; border-top: 1px solid var(--sidebar-border); }
-  .sidebar-avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--accent); color: var(--ink-on-accent); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; flex-shrink: 0; }
+  .sidebar-avatar { width: 30px; height: 30px; border-radius: 50%; background: rgba(255,255,255,0.22); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; flex-shrink: 0; }
   .sidebar-footer-name { font-size: 12px; font-weight: 700; color: var(--sidebar-text); }
   .sidebar-footer-sub { font-size: 11px; color: var(--sidebar-muted); }
   .conteudo-principal { margin-left: 212px; }
+  .tema-toggle { display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; background: rgba(255,255,255,0.14); border: 1px solid var(--sidebar-border); margin: 2px 0 10px; }
+  .tema-toggle button { display: grid; place-items: center; flex: 1; height: 26px; border-radius: 999px; border: none; background: none; color: rgba(255,255,255,0.75); cursor: pointer; font-size: 13px; }
+  .tema-toggle button.ativo { background: #fff; color: var(--sidebar-active); }
   @media (max-width: 900px) {
-    .sidebar { position: static; width: 100%; height: auto; flex-direction: row; flex-wrap: wrap; border-right: none; border-bottom: 1px solid var(--border); }
-    .sidebar-brand, .sidebar-footer, .sidebar-separador { display: none; }
+    .sidebar { position: static; width: 100%; height: auto; flex-direction: row; flex-wrap: wrap; border-right: none; border-bottom: 1px solid var(--border); background: linear-gradient(120deg, var(--sidebar-bg) 0%, #37A6A7 55%, #2E8385 100%); }
+    .sidebar-brand, .sidebar-footer, .sidebar-separador, .tema-toggle { display: none; }
     .conteudo-principal { margin-left: 0; }
   }
 
@@ -296,6 +301,11 @@
   </a>
 
   <hr class="sidebar-separador">
+
+  <div class="tema-toggle" data-tema-toggle>
+    <button type="button" data-tema="light" title="Tema claro">☀</button>
+    <button type="button" data-tema="dark" title="Tema escuro">☾</button>
+  </div>
 
   <div class="sidebar-footer">
     <div class="sidebar-avatar" id="sidebarAvatarInicial">R</div>

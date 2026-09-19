@@ -336,27 +336,43 @@ public/
   assets/
     auth.js              sessão de login único (sessionStorage), redireciona
                          pra login.html se não tiver sessão válida
-    tokens-admin.css     identidade visual compartilhada ("Console Ricapet":
-                         sidebar roxa #5D4FA8/item ativo #372F72, destaque
-                         laranja #f5a623, fontes Sora/Manrope/IBM Plex Mono)
-                         — linkar no <head> de toda página admin, ANTES do
-                         próprio <style> da página. Cada página continua livre
-                         pra ter tokens só dela no próprio :root (cores de
-                         estado tipo --ok/--bad/--danger-*, --radius, etc.) —
-                         este arquivo cobre só o que é da marca (cor, sidebar,
-                         fonte). Extraído em set/2026 de um pacote de
-                         identidade visual (que por sua vez tinha sido
-                         originalmente capturado DESTE projeto) — os valores
-                         não mudaram, só pararam de estar duplicados (e um
-                         pouco divergentes de nome) em cada uma das ~9
-                         páginas. `tv.html` e `backfill-runner.html` ficam de
+    tema.js              alternador de tema claro/escuro — salva escolha em
+                         localStorage['ricapet_tema2'], aplica data-theme no
+                         <html>. Cada página também tem um <script> INLINE no
+                         <head> (antes de qualquer CSS/imagem) que lê a mesma
+                         chave e aplica data-theme antes de pintar, pra não
+                         piscar — tema.js só cuida do botão depois que a
+                         página carregou. Sem escolha salva, segue
+                         prefers-color-scheme do sistema (não seta o atributo).
+    tokens-admin.css     identidade visual compartilhada de todas as páginas
+                         do admin. Migrada em set/2026 da identidade "Console
+                         Ricapet" (roxo #5D4FA8/laranja #f5a623, Sora/Manrope)
+                         pra identidade "portal" (teal #4FB8B9/terracota
+                         #B5651D, Space Grotesk/Inter/IBM Plex Mono, claro+
+                         escuro) — pacote de identidade visual fornecido pelo
+                         dono do projeto, aplicado a pedido dele mesmo depois
+                         de confirmado (a 1ª tentativa trocou a sidebar por um
+                         cabeçalho horizontal, como o portal originalmente não
+                         tem sidebar — revertido pra sidebar vertical de novo,
+                         só recolorida, porque era isso que ele queria manter).
+                         Os NOMES das variáveis (--page-bg, --ink, --sidebar-
+                         bg, --accent...) continuam os mesmos de antes da
+                         migração — só o VALOR mudou — pra não precisar
+                         reescrever cada regra CSS espalhada pelas páginas;
+                         por isso alguns nomes ficam "torcidos" (--teal agora
+                         guarda o terracota, não um teal de verdade — é só o
+                         2º acento da paleta). Linkar no <head> de toda página
+                         admin, ANTES do próprio <style> da página. Cada
+                         página continua livre pra ter tokens só dela no
+                         próprio :root (cores de estado tipo --ok/--bad/
+                         --danger-*, --radius, --surface-2, etc.) — este
+                         arquivo cobre só o que é da marca (cor, sidebar,
+                         fonte). `tv.html` e `backfill-runner.html` ficam de
                          fora de propósito (não são "admin" — TV é kiosk sem
                          menu, backfill é ferramenta interna avulsa).
-                         Existe também uma identidade "portal" (teal #4FB8B9/
-                         terracota #B5651D) no mesmo pacote, pra um app/portal
-                         diferente — não usar aqui, é de outro projeto (ver
-                         nota sobre o Vercel `ricapet-portal`, projeto vazio
-                         sem repo conectado, possivelmente destinado a isso).
+                         `estoque-atualizar.html` (mobile, sem sidebar por
+                         design) recebe só cor/fonte/tema, sem os tokens de
+                         sidebar.
 
 scripts/
   gerar_tabela_produtos.py   regenera lib/tabelaProdutos.json a partir do
