@@ -1492,7 +1492,21 @@ async function debugPontoValidarToken(req, res) {
   const token = (req.body && req.body.token) || req.query.token;
   const funcionario = verificarTokenPonto(token);
   if (!funcionario) { res.status(401).json({ ok: false, error: 'Token inválido ou expirado.' }); return; }
-  res.status(200).json({ ok: true, tipo: 'ponto-validar-token', id: funcionario.id, nome: funcionario.nome });
+
+  // Admin/super_admin/páginas vêm junto pra o portal poder entregar a sessão
+  // completa ao painel admin (login.html?pt=...) sem pedir o PIN de novo —
+  // quem chama já tem o token, então não expõe nada além do que o próprio
+  // ponto-login devolveria. checkout_bipagem.py só lê ok/nome.
+  const db = getDb();
+  await garantirEsquemaPonto(db);
+  const rs = await db.execute({ sql: 'SELECT admin, super_admin FROM funcionarios WHERE id = ? AND ativo = 1', args: [funcionario.id] });
+  const linha = rs.rows[0];
+  const superAdmin = !!linha && linha.super_admin === 1;
+  res.status(200).json({
+    ok: true, tipo: 'ponto-validar-token', id: funcionario.id, nome: funcionario.nome,
+    admin: !!linha && linha.admin === 1, super_admin: superAdmin,
+    paginas: linha ? await paginasPermitidas(db, funcionario.id, superAdmin) : [],
+  });
 }
 
 async function debugPontoBater(req, res) {

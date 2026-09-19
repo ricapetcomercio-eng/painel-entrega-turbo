@@ -82,7 +82,7 @@
   (function () {
     try {
       const sessao = JSON.parse(sessionStorage.getItem(CHAVE_SESSAO) || 'null');
-      if (sessao && sessao.token) irParaDestino();
+      if (sessao && sessao.token && !new URLSearchParams(location.search).get('pt')) irParaDestino();
     } catch (e) { /* ignora sessão corrompida */ }
   })();
 
@@ -90,7 +90,6 @@
     const redirect = new URLSearchParams(location.search).get('redirect');
     location.href = redirect ? decodeURIComponent(redirect) : '/';
   }
-
   const form = document.getElementById('formLogin');
   const btnEntrar = document.getElementById('btnEntrar');
   const erroLogin = document.getElementById('erroLogin');
@@ -100,6 +99,30 @@
   // validado no ponto-login abaixo). Mesmo valor já usado hoje em produção
   // pelo ricapet-ponto-admin (PONTO_PUBLIC_SECRET).
   const PONTO_PUBLIC_SECRET = 'f3BqH1JDY6dWb-n4aEhSVcZJrSPvU0Rf';
+
+  // Vindo do portal Ricapet (?pt=<token>): troca o token por uma sessão de
+  // admin sem pedir o PIN de novo. Só entra se o funcionário for admin —
+  // senão cai no formulário normal. O token sai da barra de endereço na hora.
+  (async function entrarPeloPortal() {
+    const params = new URLSearchParams(location.search);
+    const pt = params.get('pt');
+    if (!pt) return;
+    params.delete('pt');
+    history.replaceState(null, '', location.pathname + (params.toString() ? '?' + params.toString() : ''));
+    try {
+      const resp = await fetch('/api/debug?tipo=ponto-validar-token&secret=' + encodeURIComponent(PONTO_PUBLIC_SECRET), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: pt }),
+      });
+      const dados = await resp.json().catch(() => ({}));
+      if (!resp.ok || !dados.ok || !dados.admin) return;
+      sessionStorage.setItem(CHAVE_SESSAO, JSON.stringify({
+        token: pt, nome: dados.nome, super_admin: !!dados.super_admin, paginas: dados.paginas || [],
+      }));
+      irParaDestino();
+    } catch (e) { /* cai no formulário de login normal */ }
+  })();
 
   form.addEventListener('submit', async (ev) => {
     ev.preventDefault();
