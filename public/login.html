@@ -5,9 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Login — Ricapet</title>
 <link rel="icon" type="image/png" href="favicon-ricapet.png">
+<script>(function(){try{var t=localStorage.getItem('ricapet_tema2');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Manrope:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
 <link rel="stylesheet" href="assets/tokens-admin.css">
+<script src="assets/tema.js" defer></script>
 <style>
   * { box-sizing: border-box; }
   body {
@@ -16,9 +18,12 @@
     background: var(--page-bg); color: var(--text);
   }
   .card {
-    width: 100%; max-width: 340px; background: var(--card); border: 1px solid var(--border);
+    position: relative; width: 100%; max-width: 340px; background: var(--card); border: 1px solid var(--border);
     border-radius: 16px; padding: 28px 24px; box-shadow: 0 16px 44px rgba(39,36,86,0.16);
   }
+  .tema-toggle { position: absolute; top: 10px; right: 10px; display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; background: var(--page-bg); border: 1px solid var(--border); }
+  .tema-toggle button { display: grid; place-items: center; width: 26px; height: 24px; border-radius: 999px; border: none; background: none; color: var(--muted); cursor: pointer; font-size: 13px; }
+  .tema-toggle button.ativo { background: var(--card); color: var(--accent); box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
   .marca { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; }
   .marca img { width: 40px; height: 40px; object-fit: contain; }
   .marca-nome { font-family: var(--font-display); font-size: 15px; font-weight: 700; }
@@ -42,6 +47,10 @@
 </head>
 <body>
 <form class="card" id="formLogin" autocomplete="off">
+  <div class="tema-toggle" data-tema-toggle>
+    <button type="button" data-tema="light" title="Tema claro">☀</button>
+    <button type="button" data-tema="dark" title="Tema escuro">☾</button>
+  </div>
   <div class="marca">
     <img src="logo-ricapet.png" alt="Ricapet">
     <div>
