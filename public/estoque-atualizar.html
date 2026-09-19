@@ -44,12 +44,18 @@
   .gravar-status.ok { color: var(--success-solid); font-weight: 600; }
   .gravar-status.err { color: var(--danger-solid); font-weight: 600; }
 
-  header.topbar { position: sticky; top: 0; z-index: 10; background: linear-gradient(135deg, var(--sidebar-active) 0%, #443A8C 100%); box-shadow: 0 2px 14px rgba(55,47,114,0.14); color: #fff; padding: 16px 18px 14px; }
+  header.topbar { position: sticky; top: 0; z-index: 10; background: linear-gradient(135deg, var(--sidebar-bg) 0%, var(--sidebar-active) 100%); box-shadow: 0 2px 14px rgba(46,131,133,0.20); color: #fff; padding: 16px 18px 14px; }
   header.topbar h1 { font-family: var(--font-display); font-size: 18px; font-weight: 700; margin: 0 0 2px; }
   header.topbar p { font-size: 12px; margin: 0; opacity: .85; }
   header.topbar .save-pill { display: inline-block; margin-top: 8px; font-size: 11.5px; font-weight: 600; padding: 4px 10px; border-radius: 999px; background: rgba(255,255,255,.15); }
 
-  main { padding: 16px; max-width: 560px; margin: 0 auto; }
+  main { padding: 16px; max-width: 560px; margin: 0 auto; position: relative; z-index: 1; }
+  /* ---- marca d'água: logo grande, fixa e bem apagada atrás do conteúdo (mesmo padrão do Painel TV) ---- */
+  body::before {
+    content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background: url('logo-ricapet-teal.png') center / min(72vmin, 760px) no-repeat;
+    opacity: 0.06;
+  }
 
   .field-block { margin-bottom: 18px; }
   .field-block label { display: block; font-size: 13px; font-weight: 600; color: var(--ink-soft); margin-bottom: 8px; }

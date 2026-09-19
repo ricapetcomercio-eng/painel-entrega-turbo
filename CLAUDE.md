@@ -373,7 +373,21 @@ public/
                          `estoque-atualizar.html` (mobile, sem sidebar por
                          design) recebe só cor/fonte/tema, sem os tokens de
                          sidebar.
+    logo-ricapet-teal.png  logo em teal sobre fundo TRANSPARENTE (a arte
+                         BRANCA em `logo-ricapet.png` só funciona sobre fundo
+                         escuro/roxo — invisível numa marca d'água sobre fundo
+                         claro). Usada só como marca d'água (ver abaixo);
+                         a sidebar/topo continua usando a versão branca,
+                         porque ali o fundo é sempre o degradê teal escuro.
 
+  **Marca d'água**: todas as páginas do admin (as 9 com sidebar + `estoque-
+  atualizar.html`) têm `body::before` — logo grande, `min(72vmin, 760px)`,
+  `opacity: 0.06`, `position: fixed` atrás do conteúdo — mesmo padrão já
+  usado em `tv.html`. O wrapper de conteúdo de cada página (`.conteudo-
+  principal` ou `main`) precisa de `position: relative; z-index: 1` pra
+  ficar acima da marca d'água (sidebar/header já são positioned com z-index
+  próprio, não precisam). `login.html` fica de fora (card centralizado
+  pequeno, sem "fundo" de verdade pra mostrar a marca d'água).
 scripts/
   gerar_tabela_produtos.py   regenera lib/tabelaProdutos.json a partir do
                              Excel local — rodar sempre que TABELA_AUXILIAR mudar
