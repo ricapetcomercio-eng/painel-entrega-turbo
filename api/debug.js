@@ -245,6 +245,7 @@ const ALTERS_PONTO = [
   "ALTER TABLE funcionarios ADD COLUMN admin INTEGER NOT NULL DEFAULT 0",
   "ALTER TABLE funcionarios ADD COLUMN cpf TEXT",
   "ALTER TABLE funcionarios ADD COLUMN super_admin INTEGER NOT NULL DEFAULT 0",
+  "ALTER TABLE funcionarios ADD COLUMN cargo TEXT",
   "ALTER TABLE registros_ponto ADD COLUMN origem TEXT NOT NULL DEFAULT 'batida'",
   "ALTER TABLE registros_ponto ADD COLUMN motivo TEXT",
   "ALTER TABLE registros_ponto ADD COLUMN editado_por TEXT",
@@ -1352,7 +1353,7 @@ async function garantirEsquemaPonto(db) {
     await db.execute('SELECT nsr, hash, ref_nsr, cnpj FROM registros_ponto LIMIT 1');
     await db.execute('SELECT 1 FROM abonos_ponto LIMIT 1');
     await db.execute('SELECT 1 FROM config_ponto LIMIT 1');
-    await db.execute('SELECT super_admin FROM funcionarios LIMIT 1');
+    await db.execute('SELECT super_admin, cargo FROM funcionarios LIMIT 1');
     await db.execute('SELECT 1 FROM funcionarios_paginas LIMIT 1');
     _esquemaPontoOk = true;
     return;
@@ -1761,7 +1762,7 @@ async function debugAcessosListar(req, res) {
   const db = getDb();
   const chamador = await exigirSuperAdmin(req, res, db);
   if (!chamador) return;
-  const funcs = await db.execute('SELECT id, nome, admin, super_admin FROM funcionarios WHERE ativo = 1 ORDER BY nome');
+  const funcs = await db.execute('SELECT id, nome, admin, super_admin, cargo FROM funcionarios WHERE ativo = 1 ORDER BY nome');
   const paginasRs = await db.execute('SELECT funcionario_id, pagina FROM funcionarios_paginas');
   const paginasPorFuncionario = new Map();
   paginasRs.rows.forEach((r) => {
@@ -1773,6 +1774,7 @@ async function debugAcessosListar(req, res) {
     nome: f.nome,
     admin: f.admin === 1,
     super_admin: f.super_admin === 1,
+    cargo: f.cargo || '',
     paginas: f.super_admin === 1 ? [...PAGINAS_PAINEL] : (paginasPorFuncionario.get(f.id) || []),
   }));
   res.status(200).json({ ok: true, tipo: 'acessos-listar', paginas_disponiveis: PAGINAS_PAINEL, usuarios });
@@ -1784,12 +1786,12 @@ async function debugAcessosListar(req, res) {
 // debugPontoDefinirSuperAdmin) nem permite que o próprio super_admin tire
 // o próprio admin por engano.
 async function debugAcessosDefinir(req, res) {
-  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { sessao, funcionario_id, admin, paginas: [...] }' }); return; }
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { sessao, funcionario_id, admin, paginas: [...], cargo? }' }); return; }
   const db = getDb();
   const chamador = await exigirSuperAdmin(req, res, db);
   if (!chamador) return;
 
-  const { funcionario_id, admin, paginas } = req.body || {};
+  const { funcionario_id, admin, paginas, cargo } = req.body || {};
   if (!funcionario_id) { res.status(400).json({ error: 'Informe funcionario_id.' }); return; }
   const paginasValidas = (Array.isArray(paginas) ? paginas : []).filter((p) => PAGINAS_PAINEL.includes(p));
 
@@ -1802,6 +1804,9 @@ async function debugAcessosDefinir(req, res) {
 
   if (admin !== undefined) {
     await db.execute({ sql: 'UPDATE funcionarios SET admin = ? WHERE id = ?', args: [admin ? 1 : 0, funcionario_id] });
+  }
+  if (cargo !== undefined) {
+    await db.execute({ sql: 'UPDATE funcionarios SET cargo = ? WHERE id = ?', args: [String(cargo).trim() || null, funcionario_id] });
   }
   await db.execute({ sql: 'DELETE FROM funcionarios_paginas WHERE funcionario_id = ?', args: [funcionario_id] });
   const agora = new Date().toISOString();
@@ -1856,7 +1861,7 @@ async function debugPontoAdminVisao(req, res) {
   // admin (Solicitações, Por funcionário, Visão geral, Jornadas), a pedido do dono.
   const NOMES_OCULTOS_VISAO_ADMIN = ['ricardo', 'nivaldo'];
   const primeiroNome = (nome) => String(nome || '').trim().split(/\s+/)[0].toLowerCase();
-  const funcsBrutos = await db.execute('SELECT id, nome, admin, cpf FROM funcionarios WHERE ativo = 1 ORDER BY nome');
+  const funcsBrutos = await db.execute('SELECT id, nome, admin, cpf, cargo FROM funcionarios WHERE ativo = 1 ORDER BY nome');
   const funcs = { rows: funcsBrutos.rows.filter((f) => !NOMES_OCULTOS_VISAO_ADMIN.includes(primeiroNome(f.nome))) };
   const regs = await db.execute({
     sql: `SELECT id, funcionario_id, tipo, registrado_em, metodo_validacao, latitude, longitude,
@@ -1881,7 +1886,7 @@ async function debugPontoAdminVisao(req, res) {
   const nomePorId = new Map(funcsBrutos.rows.map((f) => [f.id, f.nome]));
 
   const porFunc = new Map(funcs.rows.map((f) => [f.id, {
-    id: f.id, nome: f.nome, admin: f.admin === 1, cpf: f.cpf || null,
+    id: f.id, nome: f.nome, admin: f.admin === 1, cpf: f.cpf || null, cargo: f.cargo || null,
     registros: [], marcacoes: [], solicitacoes: [], jornada: null, abonos: [],
   }]));
   const rawPorFunc = new Map();

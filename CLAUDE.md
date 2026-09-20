@@ -216,6 +216,46 @@ apenas em `api/debug.js`. Não usar para código novo.
 ⚠️ O README na raiz ainda descreve o Redis como armazenamento principal —
 está desatualizado nesse ponto; confie neste arquivo e em `lib/db.js`/`lib/kv.js`.
 
+## Cargo do funcionário
+
+Coluna `cargo` (texto livre, ex. "Auxiliar de Expedição") na tabela
+`funcionarios` — usada só para exibição (Cartão de Ponto, ver abaixo) e
+editável na tela Acessos (`public/acessos.html`, campo por linha). Sem
+`cargo` preenchido, aparece "—" no cartão. Migra sozinha: faz parte de
+`ALTERS_PONTO`/`garantirEsquemaPonto()` em `api/debug.js` — não precisa
+rodar nada manualmente, a próxima chamada a qualquer rota de Ponto já
+adiciona a coluna se ela não existir.
+
+## Cartão de Ponto (impressão, aba "Por funcionário" do Ponto)
+
+Botão "Cartão de Ponto" em `public/ponto.html` gera uma folha de impressão
+no layout do cartão mensal usado pela empresa (cabeçalho, dados do
+funcionário/cargo, horário semanal, tabela diária com 4 batidas + saldo
+acumulado, legenda de origem da marcação, alterações administrativas e
+linha de assinatura) — reaproveita a mesma chamada `ponto-admin-visao` já
+usada pelas outras abas, só que com um `de` bem largo, para ter o
+histórico completo de marcações do funcionário disponível no cliente
+(cálculo de banco de horas acumulado é sempre client-side, feito sob
+demanda só quando o botão é clicado — nunca em `dashboard-data.js` nem em
+background).
+
+BANCO SALDO (coluna de saldo acumulado de horas) é calculado do zero a
+partir de `INICIO_HISTORICO_CARTAO = '2024-01-01'` (constante em
+`ponto.html`), somando dia a dia até o fim do período impresso, usando a
+MESMA fórmula de saldo diário já usada em `montarFolha()` (trabalhado vs.
+previsto pela jornada, zerado dentro da tolerância de `tolerancia_min`,
+zerado se negativo e abonado) — só que acumulando em vez de resetar a
+cada filtro de período, e só exibindo as linhas a partir do início do
+período impresso (dias antes disso entram só para compor o saldo inicial
+arrastado). É uma fórmula própria, não uma tentativa de bater número por
+número com nenhum sistema de ponto eletrônico de terceiros — o objetivo é
+o layout do cartão ser fiel ao modelo, não os valores serem idênticos aos
+de outro software (que costuma ter regras de arredondamento por marcação
+não documentadas).
+
+TOTAL NOTURNO fica sempre em branco por decisão do dono do produto — não
+há cálculo de adicional noturno implementado.
+
 ## Controle de acesso por página (tela Acessos, só super_admin)
 
 Além da flag `admin` (que sozinha sempre controlou 100% do acesso ao login

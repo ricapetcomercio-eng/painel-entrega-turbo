@@ -216,6 +216,7 @@
           <thead>
             <tr>
               <th>Funcionário</th>
+              <th>Cargo</th>
               <th>Admin</th>
               <th>Ponto</th>
               <th>Dashboard</th>
@@ -257,7 +258,7 @@
       return `
         <tr>
           <td class="c-nome">${u.nome}</td>
-          <td colspan="8"><span class="badge-super">🔒 Super admin — acesso total</span></td>
+          <td colspan="9"><span class="badge-super">🔒 Super admin — acesso total</span></td>
         </tr>`;
     }
     const checks = PAGINAS.map((p) => `
@@ -266,6 +267,8 @@
     return `
       <tr data-funcionario-id="${u.id}">
         <td class="c-nome">${u.nome}</td>
+        <td><input type="text" data-cargo value="${(u.cargo || '').replace(/"/g, '&quot;')}" placeholder="ex.: Assistente"
+          style="width:150px;height:30px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--ink);padding:0 8px;font-size:0.82rem"></td>
         <td><input type="checkbox" data-admin ${u.admin ? 'checked' : ''}></td>
         ${checks}
         <td>
@@ -280,6 +283,7 @@
     const status = tr.querySelector('.status-linha');
     const funcionarioId = tr.dataset.funcionarioId;
     const admin = tr.querySelector('[data-admin]').checked;
+    const cargo = tr.querySelector('[data-cargo]').value.trim();
     const paginas = [...tr.querySelectorAll('[data-pagina]')].filter((c) => c.checked).map((c) => c.dataset.pagina);
 
     btn.disabled = true;
@@ -289,7 +293,7 @@
       const resp = await fetch('/api/debug?tipo=acessos-definir', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessao: sessao.token, funcionario_id: funcionarioId, admin, paginas }),
+        body: JSON.stringify({ sessao: sessao.token, funcionario_id: funcionarioId, admin, paginas, cargo }),
       });
       const dados = await resp.json().catch(() => ({}));
       if (resp.status === 401) { window.RicapetAuth.sair(); return; }
