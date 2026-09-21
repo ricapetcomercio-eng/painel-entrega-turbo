@@ -274,14 +274,14 @@
       <label for="input-saldo-ricapet">Saldo bancário Ricapet</label>
       <div class="saldo-input-wrap">
         <span class="saldo-prefixo">R$</span>
-        <input type="number" step="0.01" id="input-saldo-ricapet" placeholder="0,00">
+        <input type="text" inputmode="decimal" id="input-saldo-ricapet" placeholder="0,00">
       </div>
     </div>
     <div class="saldo-campo">
       <label for="input-saldo-thapets">Saldo bancário Thapets</label>
       <div class="saldo-input-wrap">
         <span class="saldo-prefixo">R$</span>
-        <input type="number" step="0.01" id="input-saldo-thapets" placeholder="0,00">
+        <input type="text" inputmode="decimal" id="input-saldo-thapets" placeholder="0,00">
       </div>
     </div>
     <button class="salvar-btn" id="btn-salvar-saldo">Salvar saldo</button>
@@ -333,6 +333,33 @@
   function fmtMoedaCompacta(v){
     if (!v) return '-';
     return (v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  }
+
+  // Campos editáveis (Saldo Bancário, Site, Avulso) são <input type="text">,
+  // não type="number" — o HTML não permite separador de milhar num
+  // type="number" (spec), então pra mostrar "11.651,84" em vez de "11651,84"
+  // precisa ser texto livre, formatado aqui e reconvertido em número puro
+  // antes de mandar pro backend (ver parseValorInput). Sem o "R$" (isso já
+  // vem de um <span> à parte, ver .valor-prefixo/.saldo-prefixo no CSS).
+  function fmtValorInput(v){
+    const n = Number(v) || 0;
+    if (!n) return '';
+    return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  // Desfaz fmtValorInput. Se tiver vírgula, assume formato BR (ponto =
+  // milhar, vírgula = decimal) e remove os pontos antes de trocar a vírgula
+  // por ponto decimal; sem vírgula, assume que já é um número "cru" (ex.:
+  // colado de outro lugar como "15000.5" ou só dígitos) e usa direto — cobre
+  // tanto o texto que a própria formatação produz quanto entrada digitada
+  // à mão sem separador de milhar.
+  function parseValorInput(s){
+    if (s == null) return 0;
+    let str = String(s).trim();
+    if (!str) return 0;
+    if (str.includes(',')) str = str.replace(/\./g, '').replace(',', '.');
+    const n = parseFloat(str.replace(/[^\d.-]/g, ''));
+    return Number.isFinite(n) ? n : 0;
   }
 
   function fmtDataHora(iso){
@@ -408,8 +435,8 @@
 
   function renderLinhaSite(valoresPorDia, datas){
     const celulas = datas.map((d) => {
-      const valor = valoresPorDia[d] || '';
-      return `<td class="editavel${ehFimDeSemana(d) ? ' fds' : ''}"><span class="valor-input-wrap"><span class="valor-prefixo">R$</span><input type="number" step="0.01" data-dia="${d}" class="site-input" value="${valor}"></span></td>`;
+      const valor = fmtValorInput(valoresPorDia[d]);
+      return `<td class="editavel${ehFimDeSemana(d) ? ' fds' : ''}"><span class="valor-input-wrap"><span class="valor-prefixo">R$</span><input type="text" inputmode="decimal" data-dia="${d}" class="site-input" value="${valor}"></span></td>`;
     }).join('');
     return `<tr><td class="rotulo">Site (manual)</td>${celulas}</tr>`;
   }
@@ -442,8 +469,8 @@
 
   function renderLinhaAvulso(valoresPorDia, datas){
     const celulas = datas.map((d) => {
-      const valor = valoresPorDia[d] || '';
-      return `<td class="editavel${ehFimDeSemana(d) ? ' fds' : ''}"><span class="valor-input-wrap"><span class="valor-prefixo">R$</span><input type="number" step="0.01" data-dia="${d}" class="avulso-input" value="${valor}"></span></td>`;
+      const valor = fmtValorInput(valoresPorDia[d]);
+      return `<td class="editavel${ehFimDeSemana(d) ? ' fds' : ''}"><span class="valor-input-wrap"><span class="valor-prefixo">R$</span><input type="text" inputmode="decimal" data-dia="${d}" class="avulso-input" value="${valor}"></span></td>`;
     }).join('');
     return `<tr><td class="rotulo">A Pagar Avulso (Total)</td>${celulas}</tr>`;
   }
@@ -482,8 +509,8 @@
       if (!configResp.ok) throw new Error(configJson.error || ('HTTP ' + configResp.status));
 
       const saldoManual = configJson.saldoManual || { ricapet: 0, thapets: 0 };
-      document.getElementById('input-saldo-ricapet').value = saldoManual.ricapet || '';
-      document.getElementById('input-saldo-thapets').value = saldoManual.thapets || '';
+      document.getElementById('input-saldo-ricapet').value = fmtValorInput(saldoManual.ricapet);
+      document.getElementById('input-saldo-thapets').value = fmtValorInput(saldoManual.thapets);
       document.getElementById('saldo-info').textContent = saldoManual.atualizado_em
         ? `Atualizado em ${fmtDataHora(saldoManual.atualizado_em)} por ${saldoManual.atualizado_por || '—'}`
         : '';
@@ -576,10 +603,10 @@
       tabela.querySelector('thead').appendChild(primeiraLinha);
 
       document.querySelectorAll('.site-input').forEach((input) => {
-        input.addEventListener('change', () => salvarSite(input.dataset.dia, input.value));
+        input.addEventListener('change', () => salvarSite(input.dataset.dia, parseValorInput(input.value)));
       });
       document.querySelectorAll('.avulso-input').forEach((input) => {
-        input.addEventListener('change', () => salvarAvulso(input.dataset.dia, input.value));
+        input.addEventListener('change', () => salvarAvulso(input.dataset.dia, parseValorInput(input.value)));
       });
     } catch(e){
       console.error('Erro ao carregar fluxo de caixa:', e);
@@ -644,8 +671,8 @@
     const btn = document.getElementById('btn-salvar-saldo');
     btn.disabled = true;
     try {
-      const ricapet = document.getElementById('input-saldo-ricapet').value;
-      const thapets = document.getElementById('input-saldo-thapets').value;
+      const ricapet = parseValorInput(document.getElementById('input-saldo-ricapet').value);
+      const thapets = parseValorInput(document.getElementById('input-saldo-thapets').value);
       const params = new URLSearchParams({ tipo: 'fluxo-caixa-config-set' });
       if (sessaoAtual) params.set('token', sessaoAtual.token);
       const resp = await fetch('/api/debug?' + params.toString(), {
