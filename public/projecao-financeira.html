@@ -316,7 +316,7 @@
 
   function fmtMoedaCompacta(v){
     if (!v) return '-';
-    return (Math.round(v * 100) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return (v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   }
 
   function fmtDataHora(iso){
