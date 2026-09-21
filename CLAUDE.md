@@ -154,38 +154,48 @@ categorias nas linhas, saldo acumulado embaixo). Peças do modelo:
     em produção (títulos do dia sumindo da tela) — corrigido, mas é o tipo
     de erro fácil de reintroduzir se alguém trocar `dataFusoLoja` por
     `new Date()` direto num ajuste futuro nesse arquivo.
-  - **✅ Título atrasado (não pago) dobra pra "hoje" — resolvido em
-    set/2026**: causa raiz confirmada com dado real (`omie-contas-pagar-
-    dia`, ver `CONTAS = ['ricapet', 'thapets']` acima) — um título
-    (INYLBRA, R$ 5.387,90) tinha `data_vencimento` de **ontem**, mas
-    `status_titulo` já vinha da própria Omie como `"VENCE HOJE"` (status
-    real da API, não só rótulo de UI). A Omie mostra atrasado-e-não-pago
-    junto com "vence hoje" na Movimentação da Conta Corrente; nosso código
-    agrupava estritamente por `data_vencimento`, então um título vencido
-    ontem caía no dia de ontem — que já tinha passado do filtro
-    (`diaStr < hojeChave`) e sumia da tela por completo, em vez de
-    aparecer em algum lugar. Não era só a INYLBRA: **todo título
-    `"ATRASADO"` estava assim, invisível na Projeção Financeira inteira**
-    (confirmado com o mesmo dado real: SABESP, CBC FLEX, COMPENSADOS,
-    ENEL, ITAÚ, LEBIANCO, CAIXA/FGTS, RECEITA FEDERAL/INSS, todos
-    faltando).
-    - Fix em `coletarContasPagar`: título com `data_vencimento` no
-      passado (`diaStr < hojeChave`) não é mais descartado — é
-      "dobrado" pro dia de hoje (`diaStr = hojeChave`), mesmo critério
-      que a própria Omie usa na Conta Corrente. `titulo.atrasado = true`
-      + `titulo.data_vencimento_original` marcam a origem, e o popup de
-      detalhe (`projecao-financeira.html`) mostra um badge "ATRASADO" +
-      "atrasado desde DD/MM/AAAA" nesses casos, pra não confundir com um
-      título genuinamente vencendo hoje.
+  - **✅ Só título vencido no fim de semana dobra pra "hoje" — set/2026**:
+    causa raiz do "sumiço" confirmada com dado real (`omie-contas-pagar-
+    dia`) — um título (INYLBRA, R$ 5.387,90) tinha `data_vencimento` de
+    **domingo**, mas `status_titulo` já vinha da própria Omie como
+    `"VENCE HOJE"` (status real da API, não só rótulo de UI). A Omie
+    mostra atrasado-e-não-pago junto com "vence hoje" na Movimentação da
+    Conta Corrente; nosso código agrupava estritamente por
+    `data_vencimento`, então um título vencido no fim de semana caía num
+    dia que já tinha passado do filtro (`diaStr < hojeChave`) e sumia da
+    tela por completo. Não era só a INYLBRA: confirmado com o mesmo dado
+    real que **todo título `"ATRASADO"` estava assim** (SABESP, CBC FLEX,
+    COMPENSADOS, ENEL, ITAÚ, LEBIANCO, CAIXA/FGTS, RECEITA FEDERAL/INSS,
+    todos faltando).
+    - Primeira tentativa de fix dobrava QUALQUER título vencido no passado
+      pra "hoje", sem olhar pra quantos dias fazia — **decisão explícita
+      do dono do projeto reverteu isso**: só o vencimento que caiu em
+      sábado/domingo (sem expediente bancário pra pagar) é absorvido pelo
+      próximo dia útil; título vencido num dia útil de verdade (ex.: uma
+      quarta-feira) e ainda não pago **volta a sumir da tela** — o
+      controle desse tipo de atraso "de verdade" fica fora desta
+      ferramenta, não empurrado indefinidamente pro "hoje".
+    - `atrasoEhSoDeFimDeSemana(diaVencimento, diaHoje)`
+      (`lib/omieContasPagar.js`): só retorna `true` se `diaVencimento` cai
+      num sábado/domingo E não existe nenhum dia útil entre ele e
+      `diaHoje` (ex.: sábado→domingo, sábado→segunda, domingo→segunda —
+      mas NÃO sexta→segunda, mesmo passando pelo fim de semana no meio,
+      porque sexta em si já era dia útil pra pagar). Testado com os casos
+      reais do incidente.
+    - `titulo.venceu_fim_de_semana` + `titulo.data_vencimento_original`
+      marcam a origem só nesses casos; o popup de detalhe
+      (`projecao-financeira.html`) mostra um badge neutro "FIM DE SEMANA"
+      (não "ATRASADO" — não é um atraso de verdade, é só a ausência de
+      expediente bancário) + "venceu DD/MM/AAAA".
     - Título com `status_titulo` "PAGO" continua excluído; título fora do
-      horizonte futuro (`diaStr > futuroChave`) continua ignorado — só a
-      borda inferior (passado) mudou de comportamento.
+      horizonte futuro (`diaStr > futuroChave`) continua ignorado.
     - `status_titulo` da Omie tem pelo menos 4 valores reais confirmados
-      agora (não só "PAGO"/"A VENCER" como o comentário original supunha):
+      (não só "PAGO"/"A VENCER" como o comentário original supunha):
       `"PAGO"`, `"A VENCER"`, `"VENCE HOJE"`, `"ATRASADO"` — o filtro
-      nunca discriminou por esses três últimos (só exclui "PAGO"), então
-      não precisou de ajuste ali; documentando aqui só pra não assumir de
-      novo que só existem dois valores.
+      nunca discriminou por esses três últimos além do critério de data
+      acima, então não precisou de ajuste específico por status;
+      documentando aqui só pra não assumir de novo que só existem dois
+      valores.
     - `omie-contas-pagar-dia` (endpoint de debug, ver acima) continua útil
       pra investigações futuras — resolve nome do fornecedor e aceita
       `&janela=N` pra checar títulos com `data_vencimento` alguns dias

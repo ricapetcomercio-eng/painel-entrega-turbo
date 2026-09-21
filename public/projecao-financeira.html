@@ -183,9 +183,9 @@
   table.tabela-omie-detalhe tfoot td { font-weight: 700; background: var(--surface-2); }
   .omie-fornecedor { font-family: var(--font-body); font-weight: 600; }
   .omie-doc-sub { font-family: var(--font-body); font-size: 11px; color: var(--ink-muted); margin-top: 2px; }
-  .omie-atrasado {
+  .omie-fds {
     font-family: var(--font-body); font-size: 9.5px; font-weight: 700; letter-spacing: 0.03em;
-    color: var(--danger-text); background: var(--danger-bg); padding: 1px 6px; border-radius: 999px;
+    color: var(--warning-text); background: var(--warning-bg); padding: 1px 6px; border-radius: 999px;
     vertical-align: middle;
   }
   .modal-omie-vazio { color: var(--ink-muted); font-size: 13px; }
@@ -753,12 +753,12 @@
             ${titulos.map((t) => {
               const nome = t.fornecedor_nome || (t.codigo_cliente_fornecedor ? `Fornecedor #${t.codigo_cliente_fornecedor}` : '—');
               const partesSub = [t.numero_documento, t.observacao].filter(Boolean);
-              if (t.atrasado && t.data_vencimento_original) partesSub.push(`atrasado desde ${fmtDataCurta(t.data_vencimento_original)}`);
+              if (t.venceu_fim_de_semana && t.data_vencimento_original) partesSub.push(`venceu ${fmtDataCurta(t.data_vencimento_original)}`);
               const sub = partesSub.join(' · ');
               return `
               <tr>
                 <td>
-                  <div class="omie-fornecedor">${escHtml(nome)}${t.atrasado ? ' <span class="omie-atrasado">ATRASADO</span>' : ''}</div>
+                  <div class="omie-fornecedor">${escHtml(nome)}${t.venceu_fim_de_semana ? ' <span class="omie-fds">FIM DE SEMANA</span>' : ''}</div>
                   ${sub ? `<div class="omie-doc-sub">${escHtml(sub)}</div>` : ''}
                 </td>
                 <td>${fmtMoeda(t.valor)}</td>
