@@ -155,19 +155,32 @@ categorias nas linhas, saldo acumulado embaixo). Peças do modelo:
     de erro fácil de reintroduzir se alguém trocar `dataFusoLoja` por
     `new Date()` direto num ajuste futuro nesse arquivo.
   - **⚠️ Ainda em investigação (set/2026)**: mesmo com o fix de fuso acima,
-    o dono do projeto já reportou pelo menos 1 título faltando na tela que
-    aparece normalmente como "Vence hoje" na própria Movimentação da Conta
-    Corrente do Omie — ao lado de outros títulos do mesmo dia que aparecem
-    certinho. Causa raiz ainda não confirmada (hipóteses: página específica
-    fora da janela varrida, status_titulo inesperado, ou o lançamento não
-    ser um título formal em Contas a Pagar). Pra investigar: `GET /api/
-    debug?tipo=omie-contas-pagar-dia&conta=ricapet&dia=AAAA-MM-DD&secret=
-    CRON_SECRET` (`listarTitulosPorDia` em `lib/omieContasPagar.js`) varre
-    a MESMA paginação/janela da coleta real mas devolve todo título
-    (qualquer status, inclusive `PAGO`) que vence naquele dia — compare o
-    `encontrados` da resposta com o que a Omie mostra na Conta Corrente pra
-    ver se o título sumido aparece aqui (problema de status/filtro) ou nem
-    isso (problema de paginação/janela).
+    o dono do projeto já reportou mais de uma vez pelo menos 1 título
+    faltando na tela (ex.: INYLBRA, R$ 5.387,90) que aparece normalmente
+    como "Vence hoje" na própria Movimentação da Conta Corrente do Omie —
+    ao lado de outros títulos do mesmo dia que aparecem certinho (VIVO,
+    WAKANDA). Revisão do código (filtro de status, paginação, conversão de
+    data) não achou bug óbvio — precisa de dado real do Omie pra confirmar
+    a causa, e ninguém aqui tem acesso às credenciais/API pra puxar isso
+    diretamente. Pra investigar: `GET /api/debug?tipo=omie-contas-pagar-
+    dia&conta=ricapet&dia=AAAA-MM-DD&janela=N&secret=CRON_SECRET`
+    (`listarTitulosPorDia` em `lib/omieContasPagar.js`) varre a MESMA
+    paginação/janela da coleta real mas devolve todo título (qualquer
+    status, inclusive `PAGO`) que vence entre `dia-N` e `dia+N` (`janela`
+    default 0 = só o dia exato), já com o nome do fornecedor resolvido —
+    compare o `encontrados` da resposta com o que a Omie mostra na Conta
+    Corrente:
+    - não aparece nem com `janela` larga (ex. 5): título nunca chega na
+      nossa paginação — problema de volume/janela (`JANELA_PASSADO_DIAS`/
+      `MAX_PAGINAS`).
+    - aparece só com `janela` > 0, numa data diferente da que a Omie marca
+      como "vence hoje": a `data_vencimento` real do título é outra — a
+      Omie pode estar mostrando uma data prevista/reagendada diferente do
+      campo que usamos pra agrupar.
+    - aparece com `janela=0` e `status_titulo`/`data_vencimento` normais:
+      bug de verdade em algum lugar do filtro de `coletarContasPagar` que
+      ainda não foi encontrado — precisa olhar de novo com esse resultado
+      em mãos.
   - **Clique no valor abre um popup com o detalhe** ("Contas a pagar
     Ricapet/Thapets (Omie)" em `projecao-financeira.html`): cada dia
     guarda a lista de títulos que compõem o total (`por_dia[].titulos`),
