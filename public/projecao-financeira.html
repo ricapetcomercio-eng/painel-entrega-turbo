@@ -17,8 +17,11 @@
     --accent-dark: #272456;
     --danger-bg: #FBE7E5; --danger-text: #8A2A24; --danger-solid: #C1443D;
     --warning-bg: #FBF1D9; --warning-text: #6B4308;
+    --radius: 16px;
+    --shadow: rgba(27,42,74,0.10);
   }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   body { margin: 0; padding: 0; background: var(--page-bg); color: var(--ink); font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
   h1, h2, h3 { font-family: var(--font-display); }
 
@@ -152,6 +155,23 @@
 
   .updated-note { font-size: 12px; color: var(--ink-muted); margin: 10px 0 0; }
   footer.foot { text-align: center; font-size: 12px; color: var(--ink-muted); margin-top: 24px; }
+
+  td.clicavel { cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
+  td.clicavel:hover { background: var(--brand-light); color: var(--brand); }
+
+  /* modal de detalhe (mesmo padrão usado em ponto.html) */
+  .modal { position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; padding: 16px; }
+  .modal-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); width: 100%; max-width: 560px; padding: 20px; box-shadow: 0 20px 60px var(--shadow); max-height: 88vh; overflow-y: auto; }
+  .modal-card h3 { font-family: var(--font-display); font-size: 1.05rem; margin: 0 0 14px; }
+  .modal-acoes { display: flex; margin-top: 16px; }
+  .modal-acoes button { margin-left: auto; height: 38px; border-radius: 999px; font-weight: 700; font-size: 0.85rem; cursor: pointer; padding: 0 22px; border: 1px solid var(--border); background: none; color: var(--ink-soft); }
+  .modal-acoes button:hover { background: var(--surface-2); }
+
+  table.tabela-omie-detalhe { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  table.tabela-omie-detalhe th, table.tabela-omie-detalhe td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+  table.tabela-omie-detalhe th:last-child, table.tabela-omie-detalhe td:last-child { text-align: right; font-family: var(--font-mono); white-space: nowrap; }
+  table.tabela-omie-detalhe tfoot td { font-weight: 700; background: var(--surface-2); }
+  .modal-omie-vazio { color: var(--ink-muted); font-size: 13px; }
 </style>
 </head>
 <body>
@@ -257,6 +277,16 @@
 </div>
 </div><!-- fecha #tela-painel -->
 
+<div class="modal" id="modal-omie" hidden>
+  <div class="modal-card">
+    <h3 id="modal-omie-titulo">Contas a pagar</h3>
+    <div id="modal-omie-corpo"></div>
+    <div class="modal-acoes">
+      <button type="button" id="modal-omie-fechar">Fechar</button>
+    </div>
+  </div>
+</div>
+
 <script>
 (function(){
   const sessaoAtual = window.RicapetAuth.sessao;
@@ -272,6 +302,11 @@
 
   const HORIZONTE_DIAS_EXIBIDO = 30;
   const DIAS_SEMANA_ABREV = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'];
+  // Preenchido a cada carregar() — usado pelo clique nas células de Omie
+  // (o #conteudo é recriado a cada carregar(), então o listener de clique
+  // fica no wrap fixo e lê este estado por fora, em vez de religar handler
+  // por célula a cada render).
+  let omiePorDiaAtual = { ricapet: new Map(), thapets: new Map() };
 
   function fmtMoeda(v){
     return (v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -285,6 +320,15 @@
   function fmtDataHora(iso){
     if(!iso) return '—';
     try { return new Date(iso).toLocaleString('pt-BR'); } catch(e){ return iso; }
+  }
+
+  function fmtDataCurta(d){
+    const [ano, mes, dia] = d.split('-');
+    return `${dia}/${mes}/${ano}`;
+  }
+
+  function escHtml(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
 
   function gerarDatas(qtdDias){
@@ -350,6 +394,27 @@
       return `<td class="editavel${ehFimDeSemana(d) ? ' fds' : ''}"><input type="number" step="0.01" data-dia="${d}" class="site-input" value="${valor}"></td>`;
     }).join('');
     return `<tr><td class="rotulo">Site (manual)</td>${celulas}</tr>`;
+  }
+
+  // Igual a renderLinhaValores, mas cada dia com título(s) da Omie vira uma
+  // célula clicável — abre o modal de detalhe (ver abrirModalOmie) com a
+  // lista de contas que compõem aquele total. `dado` é o objeto bruto
+  // { por_dia: [{ data, total, qtd, titulos }] } retornado por
+  // lib/omieContasPagar.js (não o `.valores` já achatado de linhaConta()).
+  function renderLinhaOmie(rotulo, contaChave, dado, datas){
+    const porDiaLookup = new Map(((dado && dado.por_dia) || []).map((d) => [d.data, d]));
+    const celulas = datas.map((d) => {
+      const entrada = porDiaLookup.get(d);
+      const valor = entrada ? entrada.total : 0;
+      const classes = [ehFimDeSemana(d) ? 'fds' : ''];
+      if (entrada && entrada.qtd > 0) {
+        classes.push('clicavel');
+        return `<td class="${classes.filter(Boolean).join(' ')}" data-conta-omie="${contaChave}" data-dia-omie="${d}" title="Ver contas deste dia">${fmtMoedaCompacta(valor)}</td>`;
+      }
+      const classeAttr = classes.filter(Boolean).join(' ');
+      return `<td${classeAttr ? ' class="' + classeAttr + '"' : ''}>${fmtMoedaCompacta(valor)}</td>`;
+    }).join('');
+    return `<tr><td class="rotulo${ehFimDeSemana(datas[0]) ? ' fds' : ''}">${rotulo}</td>${celulas}</tr>`;
   }
 
   function renderLinhaAvulso(valoresPorDia, datas){
@@ -428,8 +493,14 @@
       const shopeeThapets = linhaConta(contas.thapets && contas.thapets.shopee, 'Shopee Thapets');
       const siteValores = datas.map((d) => siteManual[d] || 0);
 
-      const omieRicapet = linhaConta(contas.ricapet && contas.ricapet.omie, 'Contas a pagar Ricapet');
-      const omieThapets = linhaConta(contas.thapets && contas.thapets.omie, 'Contas a pagar Thapets');
+      const omieRicapetDado = contas.ricapet && contas.ricapet.omie;
+      const omieThapetsDado = contas.thapets && contas.thapets.omie;
+      const omieRicapet = linhaConta(omieRicapetDado, 'Contas a pagar Ricapet');
+      const omieThapets = linhaConta(omieThapetsDado, 'Contas a pagar Thapets');
+      omiePorDiaAtual = {
+        ricapet: new Map(((omieRicapetDado && omieRicapetDado.por_dia) || []).map((d) => [d.data, d])),
+        thapets: new Map(((omieThapetsDado && omieThapetsDado.por_dia) || []).map((d) => [d.data, d])),
+      };
       const avulsoValores = datas.map((d) => avulsoManual[d] || 0);
 
       const totalEntradas = somaLinhas([mpRicapet.valores, mpThapets.valores, shopeeRicapet.valores, shopeeThapets.valores, siteValores], datas);
@@ -454,8 +525,8 @@
         renderLinhaValores('TOTAL ENTRADAS', totalEntradas, datas, { classeLinha: 'linha-total' }),
         renderLinhaEspaco(datas.length),
         renderLinhaSecao('SAÍDAS', datas.length, 'saida'),
-        renderLinhaValores('Contas a pagar Ricapet (Omie)', omieRicapet.valores, datas),
-        renderLinhaValores('Contas a pagar Thapets (Omie)', omieThapets.valores, datas),
+        renderLinhaOmie('Contas a pagar Ricapet (Omie)', 'ricapet', omieRicapetDado, datas),
+        renderLinhaOmie('Contas a pagar Thapets (Omie)', 'thapets', omieThapetsDado, datas),
         renderLinhaAvulso(avulsoManual, datas),
         renderLinhaValores('TOTAL A PAGAR', totalAPagar, datas, { classeLinha: 'linha-total' }),
         renderLinhaEspaco(datas.length),
@@ -603,6 +674,46 @@
       alert('Erro ao salvar: ' + (e.message || e));
     }
   }
+
+  // ---------- modal de detalhe das Contas a Pagar (Omie) ----------
+  const modalOmie = document.getElementById('modal-omie');
+  const modalOmieTitulo = document.getElementById('modal-omie-titulo');
+  const modalOmieCorpo = document.getElementById('modal-omie-corpo');
+
+  function abrirModalOmie(contaChave, dia){
+    const nomeConta = contaChave === 'ricapet' ? 'Ricapet' : 'Thapets';
+    const entrada = (omiePorDiaAtual[contaChave] || new Map()).get(dia);
+    const titulos = (entrada && entrada.titulos) || [];
+    modalOmieTitulo.textContent = `Contas a pagar — ${nomeConta} — ${fmtDataCurta(dia)}`;
+    if (!titulos.length) {
+      modalOmieCorpo.innerHTML = '<p class="modal-omie-vazio">Nenhum título encontrado para este dia.</p>';
+    } else {
+      modalOmieCorpo.innerHTML = `
+        <table class="tabela-omie-detalhe">
+          <thead><tr><th>Documento</th><th>Observação</th><th>Valor</th></tr></thead>
+          <tbody>
+            ${titulos.map((t) => `
+              <tr>
+                <td>${escHtml(t.numero_documento || '—')}</td>
+                <td>${escHtml(t.observacao || '—')}</td>
+                <td>${fmtMoeda(t.valor)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+          <tfoot><tr><td colspan="2">Total (${titulos.length} título${titulos.length === 1 ? '' : 's'})</td><td>${fmtMoeda(entrada.total)}</td></tr></tfoot>
+        </table>
+      `;
+    }
+    modalOmie.hidden = false;
+  }
+
+  document.getElementById('conteudo').addEventListener('click', (e) => {
+    const td = e.target.closest('td[data-conta-omie]');
+    if (!td) return;
+    abrirModalOmie(td.dataset.contaOmie, td.dataset.diaOmie);
+  });
+  document.getElementById('modal-omie-fechar').addEventListener('click', () => { modalOmie.hidden = true; });
+  modalOmie.addEventListener('click', (e) => { if (e.target === modalOmie) modalOmie.hidden = true; });
 
   carregar();
 })();
