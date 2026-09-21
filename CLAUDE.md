@@ -154,33 +154,42 @@ categorias nas linhas, saldo acumulado embaixo). Peças do modelo:
     em produção (títulos do dia sumindo da tela) — corrigido, mas é o tipo
     de erro fácil de reintroduzir se alguém trocar `dataFusoLoja` por
     `new Date()` direto num ajuste futuro nesse arquivo.
-  - **⚠️ Ainda em investigação (set/2026)**: mesmo com o fix de fuso acima,
-    o dono do projeto já reportou mais de uma vez pelo menos 1 título
-    faltando na tela (ex.: INYLBRA, R$ 5.387,90) que aparece normalmente
-    como "Vence hoje" na própria Movimentação da Conta Corrente do Omie —
-    ao lado de outros títulos do mesmo dia que aparecem certinho (VIVO,
-    WAKANDA). Revisão do código (filtro de status, paginação, conversão de
-    data) não achou bug óbvio — precisa de dado real do Omie pra confirmar
-    a causa, e ninguém aqui tem acesso às credenciais/API pra puxar isso
-    diretamente. Pra investigar: `GET /api/debug?tipo=omie-contas-pagar-
-    dia&conta=ricapet&dia=AAAA-MM-DD&janela=N&secret=CRON_SECRET`
-    (`listarTitulosPorDia` em `lib/omieContasPagar.js`) varre a MESMA
-    paginação/janela da coleta real mas devolve todo título (qualquer
-    status, inclusive `PAGO`) que vence entre `dia-N` e `dia+N` (`janela`
-    default 0 = só o dia exato), já com o nome do fornecedor resolvido —
-    compare o `encontrados` da resposta com o que a Omie mostra na Conta
-    Corrente:
-    - não aparece nem com `janela` larga (ex. 5): título nunca chega na
-      nossa paginação — problema de volume/janela (`JANELA_PASSADO_DIAS`/
-      `MAX_PAGINAS`).
-    - aparece só com `janela` > 0, numa data diferente da que a Omie marca
-      como "vence hoje": a `data_vencimento` real do título é outra — a
-      Omie pode estar mostrando uma data prevista/reagendada diferente do
-      campo que usamos pra agrupar.
-    - aparece com `janela=0` e `status_titulo`/`data_vencimento` normais:
-      bug de verdade em algum lugar do filtro de `coletarContasPagar` que
-      ainda não foi encontrado — precisa olhar de novo com esse resultado
-      em mãos.
+  - **✅ Título atrasado (não pago) dobra pra "hoje" — resolvido em
+    set/2026**: causa raiz confirmada com dado real (`omie-contas-pagar-
+    dia`, ver `CONTAS = ['ricapet', 'thapets']` acima) — um título
+    (INYLBRA, R$ 5.387,90) tinha `data_vencimento` de **ontem**, mas
+    `status_titulo` já vinha da própria Omie como `"VENCE HOJE"` (status
+    real da API, não só rótulo de UI). A Omie mostra atrasado-e-não-pago
+    junto com "vence hoje" na Movimentação da Conta Corrente; nosso código
+    agrupava estritamente por `data_vencimento`, então um título vencido
+    ontem caía no dia de ontem — que já tinha passado do filtro
+    (`diaStr < hojeChave`) e sumia da tela por completo, em vez de
+    aparecer em algum lugar. Não era só a INYLBRA: **todo título
+    `"ATRASADO"` estava assim, invisível na Projeção Financeira inteira**
+    (confirmado com o mesmo dado real: SABESP, CBC FLEX, COMPENSADOS,
+    ENEL, ITAÚ, LEBIANCO, CAIXA/FGTS, RECEITA FEDERAL/INSS, todos
+    faltando).
+    - Fix em `coletarContasPagar`: título com `data_vencimento` no
+      passado (`diaStr < hojeChave`) não é mais descartado — é
+      "dobrado" pro dia de hoje (`diaStr = hojeChave`), mesmo critério
+      que a própria Omie usa na Conta Corrente. `titulo.atrasado = true`
+      + `titulo.data_vencimento_original` marcam a origem, e o popup de
+      detalhe (`projecao-financeira.html`) mostra um badge "ATRASADO" +
+      "atrasado desde DD/MM/AAAA" nesses casos, pra não confundir com um
+      título genuinamente vencendo hoje.
+    - Título com `status_titulo` "PAGO" continua excluído; título fora do
+      horizonte futuro (`diaStr > futuroChave`) continua ignorado — só a
+      borda inferior (passado) mudou de comportamento.
+    - `status_titulo` da Omie tem pelo menos 4 valores reais confirmados
+      agora (não só "PAGO"/"A VENCER" como o comentário original supunha):
+      `"PAGO"`, `"A VENCER"`, `"VENCE HOJE"`, `"ATRASADO"` — o filtro
+      nunca discriminou por esses três últimos (só exclui "PAGO"), então
+      não precisou de ajuste ali; documentando aqui só pra não assumir de
+      novo que só existem dois valores.
+    - `omie-contas-pagar-dia` (endpoint de debug, ver acima) continua útil
+      pra investigações futuras — resolve nome do fornecedor e aceita
+      `&janela=N` pra checar títulos com `data_vencimento` alguns dias
+      antes/depois do dia pedido.
   - **Clique no valor abre um popup com o detalhe** ("Contas a pagar
     Ricapet/Thapets (Omie)" em `projecao-financeira.html`): cada dia
     guarda a lista de títulos que compõem o total (`por_dia[].titulos`),
