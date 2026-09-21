@@ -143,6 +143,17 @@ categorias nas linhas, saldo acumulado embaixo). Peças do modelo:
   implementado). O filtro de data da própria API do Omie não é confiável
   pra isso (ver comentário no topo do arquivo), então a busca pagina um
   histórico bem mais largo e filtra `data_vencimento` no nosso lado.
+  - **⚠️ "Hoje" tem que ser calculado no fuso de São Paulo, não no relógio
+    do servidor**: o corte usado pra decidir se um título "já venceu"
+    (`hojeChave` em `coletarContasPagar`) usa `dataFusoLoja` (mesmo helper
+    já usado em `lib/registrosPonto.js`/Mercado Pago), nunca
+    `new Date().getDate()` cru — o Vercel roda em UTC, então entre ~21h e
+    23h59 em Brasília (já é madrugada em UTC) um cálculo ingênuo faz
+    `hojeChave` ficar 1 dia à frente do calendário real do Brasil e
+    descarta títulos que vencem HOJE de verdade. Bug real que já aconteceu
+    em produção (títulos do dia sumindo da tela) — corrigido, mas é o tipo
+    de erro fácil de reintroduzir se alguém trocar `dataFusoLoja` por
+    `new Date()` direto num ajuste futuro nesse arquivo.
   - **Clique no valor abre um popup com o detalhe** ("Contas a pagar
     Ricapet/Thapets (Omie)" em `projecao-financeira.html`): cada dia
     guarda a lista de títulos que compõem o total (`por_dia[].titulos`),
