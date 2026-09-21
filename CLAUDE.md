@@ -135,14 +135,24 @@ categorias nas linhas, saldo acumulado embaixo). Peças do modelo:
   cada, não por dia) — ponto de partida do saldo acumulado projetado.
   Guardado em `entrega_turbo:fluxo_caixa_saldo_manual`
   (kv). Editado via `/api/debug?tipo=fluxo-caixa-config-set`.
-- **Saídas**: **pendente de integração com o Omie** ("contas a pagar",
-  categoria por categoria — Aluguel, Fornecedores, FGTS/INSS, etc.). Até
-  isso existir, a tela mostra uma linha zerada e um aviso. Vai precisar de
-  `lib/omieContasPagar.js` (novo) + credenciais `OMIE_RICAPET_APP_KEY`/
-  `_APP_SECRET` e `OMIE_THAPETS_APP_KEY`/`_APP_SECRET` (Omie trata as duas
-  empresas como contas separadas) — seguir o mesmo padrão empírico já usado
-  pro Mercado Pago/Shopee: endpoint de debug primeiro, confirmar o formato
-  real da resposta com dado de produção, só depois escrever o código final.
+- **Saídas**: Contas a Pagar do Omie (`lib/omieContasPagar.js`), credenciais
+  `OMIE_RICAPET_APP_KEY`/`_APP_SECRET` e `OMIE_THAPETS_APP_KEY`/`_APP_SECRET`
+  (Omie trata as duas empresas como contas separadas). Soma, por dia de
+  vencimento, todo título não-`PAGO` (`A VENCER`/`VENCIDO`) — sem
+  discriminar por categoria (Aluguel/Fornecedores/FGTS etc., ainda não
+  implementado). O filtro de data da própria API do Omie não é confiável
+  pra isso (ver comentário no topo do arquivo), então a busca pagina um
+  histórico bem mais largo e filtra `data_vencimento` no nosso lado.
+  - **Clique no valor abre um popup com o detalhe** ("Contas a pagar
+    Ricapet/Thapets (Omie)" em `projecao-financeira.html`): cada dia
+    guarda a lista de títulos que compõem o total (`por_dia[].titulos`),
+    não só a soma — célula fica com `.clicavel` quando tem título, o clique
+    lê de `omiePorDiaAtual` (montado a cada `carregar()`) e abre o modal
+    `#modal-omie` com documento/observação/valor de cada um. **Não** mostra
+    nome do fornecedor — a API de Contas a Pagar só devolve o código
+    (`codigo_cliente_fornecedor`), resolver o nome exigiria uma chamada
+    extra por fornecedor (fora de escopo por ora, ver comentário em
+    `lib/omieContasPagar.js`).
 - **Saldo acumulado**: calculado no frontend (não vem pronto do backend) —
   `saldo do dia anterior + total de entradas do dia − total a pagar do
   dia`, começando do saldo bancário manual somado (Ricapet + Thapets).
