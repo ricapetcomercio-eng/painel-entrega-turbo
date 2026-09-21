@@ -2750,18 +2750,24 @@ module.exports = async (req, res) => {
     }
     if (req.query.tipo === 'omie-contas-pagar-dia') {
       // Debug: acha TODO título (qualquer status, inclusive PAGO) cujo
-      // data_vencimento bate com ?dia= — pra comparar direto com o que a
-      // Omie mostra como "Vence hoje" na Movimentação da Conta Corrente e
-      // achar títulos que somem da Projeção Financeira sem motivo óbvio.
-      // ?dia=AAAA-MM-DD opcional, default hoje (fuso de São Paulo).
+      // data_vencimento bate com ?dia= (ou caia até ?janela= dias antes/
+      // depois dele) — já com o nome do fornecedor resolvido, pra comparar
+      // direto com o que a Omie mostra como "Vence hoje" na Movimentação
+      // da Conta Corrente e achar títulos que somem da Projeção Financeira
+      // sem motivo óbvio. ?dia=AAAA-MM-DD opcional, default hoje (fuso de
+      // São Paulo). ?janela=N opcional (dias antes/depois, default 0 = só
+      // o dia exato) — use se o título não aparecer nem com ?janela=0,
+      // pra checar se a data_vencimento real está uns dias fora do que a
+      // Omie mostra como "vence hoje".
       const conta = req.query.conta;
       if (!conta || !['ricapet', 'thapets'].includes(conta)) {
         res.status(400).json({ error: 'Use ?conta=ricapet ou ?conta=thapets' });
         return;
       }
       const dia = /^\d{4}-\d{2}-\d{2}$/.test(req.query.dia || '') ? req.query.dia : dataFusoLoja(new Date());
+      const janela = req.query.janela;
       try {
-        const resultado = await listarTitulosPorDia(conta, dia);
+        const resultado = await listarTitulosPorDia(conta, dia, janela);
         res.status(200).json({ ok: true, tipo: 'omie-contas-pagar-dia', conta, ...resultado });
       } catch (err) {
         res.status(500).json({ error: err.message });
