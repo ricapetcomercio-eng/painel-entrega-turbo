@@ -2774,6 +2774,116 @@ module.exports = async (req, res) => {
       }
       return;
     }
+    if (req.query.tipo === 'omie-extrato-test') {
+      // Endpoint exploratório pra descobrir o schema real da API de
+      // Movimentação/Extrato de Conta Corrente do Omie — precisamos dela
+      // pra achar as transferências entre contas (ex. "Transf. ITAÚ
+      // CORRENTE >> CARTÃO DE CRÉDITO - ITAÚ" na Ricapet, "Transf. BRADESCO
+      // C/C >> American Express" na Thapets) que hoje NÃO aparecem em
+      // Contas a Pagar: ListarContasPagar (lib/omieContasPagar.js) só cobre
+      // títulos formais, transferência é lançamento de extrato/movimento
+      // financeiro, API bem diferente. Mesmo padrão empírico já usado pra
+      // Contas a Pagar (ver omie-contas-pagar-test acima): a documentação
+      // pública do Omie não é confiável o bastante sozinha (já mordeu este
+      // projeto antes com filtrar_por_data_de) — confirmar contra uma
+      // resposta real antes de escrever lib/omieExtrato.js definitivo.
+      // `?parte=` escolhe o que testar:
+      //   contas     -> ListarContasCorrentes (geral/contacorrente/), pra
+      //                 descobrir o nCodCC de cada conta bancária
+      //                 cadastrada (precisa dele pra testar `extrato`
+      //                 abaixo).
+      //   movimentos -> ListarMovimentos (financas/mf/) — candidato A:
+      //                 lançamentos/baixas de contas a pagar+receber+conta
+      //                 corrente juntos, num único call.
+      //   extrato    -> ListarExtrato (financas/extrato/) — candidato B:
+      //                 extrato bancário + saldo de UMA conta corrente,
+      //                 mais parecido com a tela "Movimentação da Conta
+      //                 Corrente" que o dono do projeto está olhando
+      //                 (precisa de &conta_corrente=<nCodCC>, pegue um
+      //                 valor real na resposta de ?parte=contas).
+      // Nenhum desses nomes de campo foi confirmado contra a documentação
+      // oficial (inacessível pra pesquisa nesta sessão) — só triangulado
+      // por busca. Devolve a resposta CRUA da Omie pra inspecionar; se um
+      // nome de call/campo estiver errado, a própria Omie devolve o erro
+      // (faultstring) e isso já é dado útil.
+      const conta = req.query.conta;
+      if (!conta || !['ricapet', 'thapets'].includes(conta)) {
+        res.status(400).json({ error: 'Use ?conta=ricapet ou ?conta=thapets' });
+        return;
+      }
+      let appKey, appSecret;
+      try {
+        ({ appKey, appSecret } = getOmieConfig(conta));
+      } catch (err) {
+        res.status(400).json({ error: err.message });
+        return;
+      }
+
+      const parte = req.query.parte || 'contas';
+      const fmtDataOmie = (d) => {
+        const dd = String(d.getDate()).padStart(2, '0');
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        return `${dd}/${mm}/${d.getFullYear()}`;
+      };
+
+      let url, body;
+      if (parte === 'contas') {
+        url = 'https://app.omie.com/api/v1/geral/contacorrente/';
+        body = {
+          call: 'ListarContasCorrentes',
+          app_key: appKey,
+          app_secret: appSecret,
+          param: [{ pagina: Number(req.query.pagina) || 1, registros_por_pagina: 50, apenas_importado_api: 'N' }],
+        };
+      } else if (parte === 'movimentos') {
+        url = 'https://app.omie.com/api/v1/financas/mf/';
+        body = {
+          call: 'ListarMovimentos',
+          app_key: appKey,
+          app_secret: appSecret,
+          param: [{ nPagina: Number(req.query.pagina) || 1, nRegPorPagina: 20 }],
+        };
+      } else if (parte === 'extrato') {
+        const nCodCC = req.query.conta_corrente;
+        if (!nCodCC) {
+          res.status(400).json({ error: 'Use &conta_corrente=<nCodCC>, pegue um valor real na resposta de ?parte=contas' });
+          return;
+        }
+        const hoje = new Date();
+        const passado = new Date(hoje.getTime() - 60 * 24 * 60 * 60 * 1000);
+        url = 'https://app.omie.com/api/v1/financas/extrato/';
+        body = {
+          call: 'ListarExtrato',
+          app_key: appKey,
+          app_secret: appSecret,
+          param: [{
+            nCodCC: Number(nCodCC),
+            dPeriodoInicial: req.query.de || fmtDataOmie(passado),
+            dPeriodoFinal: req.query.ate || fmtDataOmie(hoje),
+          }],
+        };
+      } else {
+        res.status(400).json({ error: 'Use &parte=contas | movimentos | extrato' });
+        return;
+      }
+
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await resp.json();
+      res.status(resp.status).json({
+        ok: resp.ok,
+        tipo: 'omie-extrato-test',
+        conta,
+        parte,
+        status_http: resp.status,
+        requisicao: body.param[0],
+        resposta: data,
+      });
+      return;
+    }
     if (req.query.tipo === 'ml-client-ids') {
       res.status(200).json({
         ok: true, tipo: 'ml-client-ids',
