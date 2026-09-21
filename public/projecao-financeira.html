@@ -171,6 +171,8 @@
   table.tabela-omie-detalhe th, table.tabela-omie-detalhe td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); }
   table.tabela-omie-detalhe th:last-child, table.tabela-omie-detalhe td:last-child { text-align: right; font-family: var(--font-mono); white-space: nowrap; }
   table.tabela-omie-detalhe tfoot td { font-weight: 700; background: var(--surface-2); }
+  .omie-fornecedor { font-family: var(--font-body); font-weight: 600; }
+  .omie-doc-sub { font-family: var(--font-body); font-size: 11px; color: var(--ink-muted); margin-top: 2px; }
   .modal-omie-vazio { color: var(--ink-muted); font-size: 13px; }
 </style>
 </head>
@@ -488,6 +490,9 @@
         if (dado.truncado) {
           avisos.push(`${nomeAviso}: aviso — volume de pagamentos muito alto, resultado pode estar incompleto (mais de 10.000 pagamentos no período).`);
         }
+        if (dado.truncado_fornecedores) {
+          avisos.push(`${nomeAviso}: aviso — muitos fornecedores distintos no período, o nome de alguns títulos no popup de detalhe pode aparecer só como "Fornecedor #<código>".`);
+        }
         return { valores: linhaValores(mapaPorDia(dado.por_dia), datas) };
       }
 
@@ -695,17 +700,23 @@
     } else {
       modalOmieCorpo.innerHTML = `
         <table class="tabela-omie-detalhe">
-          <thead><tr><th>Documento</th><th>Observação</th><th>Valor</th></tr></thead>
+          <thead><tr><th>Fornecedor</th><th>Valor</th></tr></thead>
           <tbody>
-            ${titulos.map((t) => `
+            ${titulos.map((t) => {
+              const nome = t.fornecedor_nome || (t.codigo_cliente_fornecedor ? `Fornecedor #${t.codigo_cliente_fornecedor}` : '—');
+              const sub = [t.numero_documento, t.observacao].filter(Boolean).join(' · ');
+              return `
               <tr>
-                <td>${escHtml(t.numero_documento || '—')}</td>
-                <td>${escHtml(t.observacao || '—')}</td>
+                <td>
+                  <div class="omie-fornecedor">${escHtml(nome)}</div>
+                  ${sub ? `<div class="omie-doc-sub">${escHtml(sub)}</div>` : ''}
+                </td>
                 <td>${fmtMoeda(t.valor)}</td>
               </tr>
-            `).join('')}
+            `;
+            }).join('')}
           </tbody>
-          <tfoot><tr><td colspan="2">Total (${titulos.length} título${titulos.length === 1 ? '' : 's'})</td><td>${fmtMoeda(entrada.total)}</td></tr></tfoot>
+          <tfoot><tr><td>Total (${titulos.length} título${titulos.length === 1 ? '' : 's'})</td><td>${fmtMoeda(entrada.total)}</td></tr></tfoot>
         </table>
       `;
     }

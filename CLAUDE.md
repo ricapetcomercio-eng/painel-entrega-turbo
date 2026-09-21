@@ -146,13 +146,25 @@ categorias nas linhas, saldo acumulado embaixo). Peças do modelo:
   - **Clique no valor abre um popup com o detalhe** ("Contas a pagar
     Ricapet/Thapets (Omie)" em `projecao-financeira.html`): cada dia
     guarda a lista de títulos que compõem o total (`por_dia[].titulos`),
-    não só a soma — célula fica com `.clicavel` quando tem título, o clique
-    lê de `omiePorDiaAtual` (montado a cada `carregar()`) e abre o modal
-    `#modal-omie` com documento/observação/valor de cada um. **Não** mostra
-    nome do fornecedor — a API de Contas a Pagar só devolve o código
-    (`codigo_cliente_fornecedor`), resolver o nome exigiria uma chamada
-    extra por fornecedor (fora de escopo por ora, ver comentário em
-    `lib/omieContasPagar.js`).
+    não só a soma — célula fica com `.clicavel` quando tem título (gate em
+    `titulos.length > 0`, não em `qtd`, pra dado coletado num formato mais
+    antigo — sem `titulos` — não virar clicável mostrando popup vazio), o
+    clique lê de `omiePorDiaAtual` (montado a cada `carregar()`) e abre o
+    modal `#modal-omie` com fornecedor/documento/valor de cada título.
+  - **Nome do fornecedor**: a API de Contas a Pagar só devolve o código
+    (`codigo_cliente_fornecedor`), não o nome — `resolverNomesFornecedores`
+    (`lib/omieContasPagar.js`) resolve via API de Clientes/Fornecedores do
+    Omie (`ConsultarCliente`, `geral/clientes/`), **1 chamada por
+    fornecedor ÚNICO no período** (não por título — cacheado num `Map`
+    dentro da própria coleta), trava de segurança
+    `MAX_FORNECEDORES_RESOLVIDOS` (150). Testável isoladamente via
+    `/api/debug?tipo=omie-cliente-test&conta=ricapet&codigo=...`. Falha
+    silenciosa por fornecedor (não derruba a coleta): sem nome resolvido,
+    a tela cai pro fallback `Fornecedor #<código>`. Ainda sob demanda (só
+    no clique de "Atualizar agora"), mas é custo extra real por cima da
+    paginação de títulos que já existia — se a cota do Omie apertar, esse
+    é candidato a rever primeiro (ex.: cachear nomes já resolvidos entre
+    coletas em vez de resolver tudo de novo a cada clique).
 - **Saldo acumulado**: calculado no frontend (não vem pronto do backend) —
   `saldo do dia anterior + total de entradas do dia − total a pagar do
   dia`, começando do saldo bancário manual somado (Ricapet + Thapets).
