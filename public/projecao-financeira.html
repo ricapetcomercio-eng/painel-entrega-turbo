@@ -407,7 +407,12 @@
       const entrada = porDiaLookup.get(d);
       const valor = entrada ? entrada.total : 0;
       const classes = [ehFimDeSemana(d) ? 'fds' : ''];
-      if (entrada && entrada.qtd > 0) {
+      // Gate no `titulos` (não no `qtd`, que já existia antes desta feature):
+      // dado coletado antes deste PR tem `total`/`qtd` mas não tem `titulos`
+      // — sem essa checagem a célula ficava clicável mostrando um popup
+      // vazio ("nenhum título encontrado") até alguém clicar em "Atualizar
+      // agora" e recoletar no formato novo.
+      if (entrada && entrada.titulos && entrada.titulos.length > 0) {
         classes.push('clicavel');
         return `<td class="${classes.filter(Boolean).join(' ')}" data-conta-omie="${contaChave}" data-dia-omie="${d}" title="Ver contas deste dia">${fmtMoedaCompacta(valor)}</td>`;
       }
