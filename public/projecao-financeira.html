@@ -17,6 +17,7 @@
     --accent-dark: #272456;
     --danger-bg: #FBE7E5; --danger-text: #8A2A24; --danger-solid: #C1443D;
     --warning-bg: #FBF1D9; --warning-text: #6B4308;
+    --neutral-bg: #E7E9EF; --neutral-text: #3A3F4B;
     --radius: 16px;
     --shadow: rgba(27,42,74,0.10);
   }
@@ -186,6 +187,11 @@
   .omie-fds {
     font-family: var(--font-body); font-size: 9.5px; font-weight: 700; letter-spacing: 0.03em;
     color: var(--warning-text); background: var(--warning-bg); padding: 1px 6px; border-radius: 999px;
+    vertical-align: middle;
+  }
+  .omie-transf {
+    font-family: var(--font-body); font-size: 9.5px; font-weight: 700; letter-spacing: 0.03em;
+    color: var(--neutral-text); background: var(--neutral-bg); padding: 1px 6px; border-radius: 999px;
     vertical-align: middle;
   }
   .modal-omie-vazio { color: var(--ink-muted); font-size: 13px; }
@@ -758,7 +764,7 @@
               return `
               <tr>
                 <td>
-                  <div class="omie-fornecedor">${escHtml(nome)}${t.venceu_fim_de_semana ? ' <span class="omie-fds">FIM DE SEMANA</span>' : ''}</div>
+                  <div class="omie-fornecedor">${escHtml(nome)}${t.venceu_fim_de_semana ? ' <span class="omie-fds">FIM DE SEMANA</span>' : ''}${t.transferencia ? ' <span class="omie-transf">TRANSFERÊNCIA</span>' : ''}</div>
                   ${sub ? `<div class="omie-doc-sub">${escHtml(sub)}</div>` : ''}
                 </td>
                 <td>${fmtMoeda(t.valor)}</td>
