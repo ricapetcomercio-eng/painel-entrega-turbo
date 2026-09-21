@@ -154,6 +154,20 @@ categorias nas linhas, saldo acumulado embaixo). Peças do modelo:
     em produção (títulos do dia sumindo da tela) — corrigido, mas é o tipo
     de erro fácil de reintroduzir se alguém trocar `dataFusoLoja` por
     `new Date()` direto num ajuste futuro nesse arquivo.
+  - **⚠️ Ainda em investigação (set/2026)**: mesmo com o fix de fuso acima,
+    o dono do projeto já reportou pelo menos 1 título faltando na tela que
+    aparece normalmente como "Vence hoje" na própria Movimentação da Conta
+    Corrente do Omie — ao lado de outros títulos do mesmo dia que aparecem
+    certinho. Causa raiz ainda não confirmada (hipóteses: página específica
+    fora da janela varrida, status_titulo inesperado, ou o lançamento não
+    ser um título formal em Contas a Pagar). Pra investigar: `GET /api/
+    debug?tipo=omie-contas-pagar-dia&conta=ricapet&dia=AAAA-MM-DD&secret=
+    CRON_SECRET` (`listarTitulosPorDia` em `lib/omieContasPagar.js`) varre
+    a MESMA paginação/janela da coleta real mas devolve todo título
+    (qualquer status, inclusive `PAGO`) que vence naquele dia — compare o
+    `encontrados` da resposta com o que a Omie mostra na Conta Corrente pra
+    ver se o título sumido aparece aqui (problema de status/filtro) ou nem
+    isso (problema de paginação/janela).
   - **Clique no valor abre um popup com o detalhe** ("Contas a pagar
     Ricapet/Thapets (Omie)" em `projecao-financeira.html`): cada dia
     guarda a lista de títulos que compõem o total (`por_dia[].titulos`),

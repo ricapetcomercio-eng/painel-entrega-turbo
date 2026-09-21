@@ -14,7 +14,7 @@ const { shopeeGet } = require('../lib/shopeeAuth');
 const { getDb } = require('../lib/db');
 const { getRedis } = require('../lib/redis');
 const { kvGet, kvSet, kvDel } = require('../lib/kv');
-const { getOmieConfig } = require('../lib/omieContasPagar');
+const { getOmieConfig, listarTitulosPorDia } = require('../lib/omieContasPagar');
 const { resolverPedidoBipagem } = require('../lib/bipagemResolver');
 const { importarContagemFisica, importarSaldoDaPlanilha, completarCatalogoFaltante, corrigirCorArranhadorAdesivoBege, enviarBalancoAgora } = require('../lib/estoqueSaldo');
 const { dataFusoLoja, isoDeDiaHoraLoja, resolverMarcacoes } = require('../lib/registrosPonto');
@@ -2746,6 +2746,26 @@ module.exports = async (req, res) => {
         status_http: resp.status,
         resposta: data,
       });
+      return;
+    }
+    if (req.query.tipo === 'omie-contas-pagar-dia') {
+      // Debug: acha TODO título (qualquer status, inclusive PAGO) cujo
+      // data_vencimento bate com ?dia= — pra comparar direto com o que a
+      // Omie mostra como "Vence hoje" na Movimentação da Conta Corrente e
+      // achar títulos que somem da Projeção Financeira sem motivo óbvio.
+      // ?dia=AAAA-MM-DD opcional, default hoje (fuso de São Paulo).
+      const conta = req.query.conta;
+      if (!conta || !['ricapet', 'thapets'].includes(conta)) {
+        res.status(400).json({ error: 'Use ?conta=ricapet ou ?conta=thapets' });
+        return;
+      }
+      const dia = /^\d{4}-\d{2}-\d{2}$/.test(req.query.dia || '') ? req.query.dia : dataFusoLoja(new Date());
+      try {
+        const resultado = await listarTitulosPorDia(conta, dia);
+        res.status(200).json({ ok: true, tipo: 'omie-contas-pagar-dia', conta, ...resultado });
+      } catch (err) {
+        res.status(500).json({ error: err.message });
+      }
       return;
     }
     if (req.query.tipo === 'ml-client-ids') {
