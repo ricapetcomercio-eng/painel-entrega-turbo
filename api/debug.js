@@ -2704,6 +2704,50 @@ module.exports = async (req, res) => {
       });
       return;
     }
+    if (req.query.tipo === 'omie-cliente-test') {
+      // Teste da API de Clientes/Fornecedores do Omie — usada por
+      // lib/omieContasPagar.js (resolverNomeFornecedor) pra traduzir
+      // codigo_cliente_fornecedor (vindo de Contas a Pagar) num nome
+      // exibível. ?codigo= é obrigatório: pegue um codigo_cliente_fornecedor
+      // real de uma resposta de omie-contas-pagar-test pra testar aqui.
+      const conta = req.query.conta;
+      if (!conta || !['ricapet', 'thapets'].includes(conta)) {
+        res.status(400).json({ error: 'Use ?conta=ricapet ou ?conta=thapets' });
+        return;
+      }
+      const codigo = req.query.codigo;
+      if (!codigo) {
+        res.status(400).json({ error: 'Use &codigo=<codigo_cliente_fornecedor>, pegue um valor real na resposta de omie-contas-pagar-test' });
+        return;
+      }
+      const prefix = `OMIE_${conta.toUpperCase()}`;
+      const appKey = process.env[`${prefix}_APP_KEY`];
+      const appSecret = process.env[`${prefix}_APP_SECRET`];
+      if (!appKey || !appSecret) {
+        res.status(400).json({ error: `Faltam variáveis de ambiente ${prefix}_APP_KEY / ${prefix}_APP_SECRET.` });
+        return;
+      }
+      const resp = await fetch('https://app.omie.com/api/v1/geral/clientes/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          call: 'ConsultarCliente',
+          app_key: appKey,
+          app_secret: appSecret,
+          param: [{ codigo_cliente_omie: Number(codigo) }],
+        }),
+      });
+      const data = await resp.json();
+      res.status(resp.status).json({
+        ok: resp.ok,
+        tipo: 'omie-cliente-test',
+        conta,
+        codigo,
+        status_http: resp.status,
+        resposta: data,
+      });
+      return;
+    }
     if (req.query.tipo === 'ml-client-ids') {
       res.status(200).json({
         ok: true, tipo: 'ml-client-ids',
