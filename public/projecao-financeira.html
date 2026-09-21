@@ -152,9 +152,14 @@
   tr.linha-saldo td.negativo { background: var(--danger-bg); color: var(--danger-text); }
   tr.linha-espaco td { border: none; background: transparent; padding: 8px 0; }
   td.editavel { padding: 3px 6px; }
+  td.editavel .valor-input-wrap { position: relative; display: inline-block; }
+  td.editavel .valor-prefixo {
+    position: absolute; left: 5px; top: 50%; transform: translateY(-50%);
+    font-family: var(--font-mono); font-size: 11px; color: var(--ink-muted); pointer-events: none;
+  }
   td.editavel input {
-    width: 72px; text-align: right; font-family: var(--font-mono); font-size: 12px;
-    padding: 4px 5px; border: 1px solid var(--border); border-radius: 5px; background: var(--surface);
+    width: 92px; text-align: right; font-family: var(--font-mono); font-size: 12px;
+    padding: 4px 5px 4px 24px; border: 1px solid var(--border); border-radius: 5px; background: var(--surface);
   }
   td.editavel input:focus { border-color: var(--accent); outline: none; }
 
@@ -404,7 +409,7 @@
   function renderLinhaSite(valoresPorDia, datas){
     const celulas = datas.map((d) => {
       const valor = valoresPorDia[d] || '';
-      return `<td class="editavel${ehFimDeSemana(d) ? ' fds' : ''}"><input type="number" step="0.01" data-dia="${d}" class="site-input" value="${valor}"></td>`;
+      return `<td class="editavel${ehFimDeSemana(d) ? ' fds' : ''}"><span class="valor-input-wrap"><span class="valor-prefixo">R$</span><input type="number" step="0.01" data-dia="${d}" class="site-input" value="${valor}"></span></td>`;
     }).join('');
     return `<tr><td class="rotulo">Site (manual)</td>${celulas}</tr>`;
   }
@@ -438,7 +443,7 @@
   function renderLinhaAvulso(valoresPorDia, datas){
     const celulas = datas.map((d) => {
       const valor = valoresPorDia[d] || '';
-      return `<td class="editavel${ehFimDeSemana(d) ? ' fds' : ''}"><input type="number" step="0.01" data-dia="${d}" class="avulso-input" value="${valor}"></td>`;
+      return `<td class="editavel${ehFimDeSemana(d) ? ' fds' : ''}"><span class="valor-input-wrap"><span class="valor-prefixo">R$</span><input type="number" step="0.01" data-dia="${d}" class="avulso-input" value="${valor}"></span></td>`;
     }).join('');
     return `<tr><td class="rotulo">A Pagar Avulso (Total)</td>${celulas}</tr>`;
   }
