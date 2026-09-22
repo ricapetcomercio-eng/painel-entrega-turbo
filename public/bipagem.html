@@ -102,7 +102,6 @@
   .periodo input, .periodo select { height: 32px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); padding: 0 8px; font-size: 0.8rem; }
   .periodo button { height: 32px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); padding: 0 12px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all .15s ease; }
   .periodo button:hover { background: var(--surface-2); border-color: var(--accent); color: var(--accent); transform: translateY(-1px); }
-  .periodo button.btn-mini { height: 26px; padding: 0 9px; font-size: 0.72rem; }
   .chip-usuario { display: inline-flex; align-items: center; gap: 5px; font-size: 0.78rem; color: var(--ink-soft); background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 6px 13px; }
   .chip-usuario-rotulo { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--ink-muted); font-weight: 700; }
 
@@ -255,7 +254,6 @@
         <span>até</span>
         <input type="date" id="p-ate">
         <button id="p-aplicar">Aplicar</button>
-        <button id="p-historico" type="button" class="btn-mini">Histórico completo</button>
       </div>
     </div>
     <div class="hrow hrow-filtros">
@@ -870,11 +868,6 @@
   }
   $('btn-resolver-pendentes').addEventListener('click', resolverTodosPendentes);
   $('btn-parar-resolver').addEventListener('click', () => { resolverEmAndamento = false; });
-  $('p-historico').addEventListener('click', () => {
-    $('p-de').value = '2025-01-01'; // bem antes de bipagem_diaria existir, pra trazer tudo
-    $('p-ate').value = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
-    carregar();
-  });
   const HOJE_LOJA = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
   const INICIO_MES_LOJA = HOJE_LOJA.slice(0, 8) + '01'; // dia 1 do mês atual, mesmo fuso
   $('p-de').value = INICIO_MES_LOJA;
