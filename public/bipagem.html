@@ -102,6 +102,7 @@
   .periodo input, .periodo select { height: 32px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); padding: 0 8px; font-size: 0.8rem; }
   .periodo button, .chip-sair { height: 32px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); padding: 0 12px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all .15s ease; }
   .periodo button:hover, .chip-sair:hover { background: var(--surface-2); border-color: var(--accent); color: var(--accent); transform: translateY(-1px); }
+  .periodo button.btn-mini { height: 26px; padding: 0 9px; font-size: 0.72rem; }
   .chip-usuario { display: inline-flex; align-items: center; gap: 5px; font-size: 0.78rem; color: var(--ink-soft); background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 6px 13px; }
   .chip-usuario-rotulo { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--ink-muted); font-weight: 700; }
 
@@ -253,7 +254,7 @@
         <span>até</span>
         <input type="date" id="p-ate">
         <button id="p-aplicar">Aplicar</button>
-        <button id="p-historico" type="button">Ver histórico completo</button>
+        <button id="p-historico" type="button" class="btn-mini">Histórico completo</button>
       </div>
       <button class="chip-sair" id="btn-sair">Sair</button>
     </div>
@@ -264,8 +265,7 @@
         <select id="fp-plataforma"><option value="">Plataforma (todas)</option></select>
         <button type="button" id="fp-limpar">🧹 Limpar filtros</button>
         <span class="filtro-pedidos-espaco"></span>
-        <button type="button" id="fp-baixar-filtrado">⬇ Baixar (filtro atual)</button>
-        <button type="button" id="fp-baixar-completo">⬇ Baixar completo</button>
+        <button type="button" id="fp-baixar" title="Baixa o filtro atual, ou tudo se não tiver filtro">⬇ Baixar</button>
         <span id="fp-contagem"></span>
       </div>
     </div>
@@ -639,8 +639,18 @@
     const de = $('p-de').value, ate = $('p-ate').value;
     baixar(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }), `bipagem_${de}_a_${ate}_${sufixo}.csv`);
   }
-  $('fp-baixar-filtrado').addEventListener('click', () => baixarRelatorioPedidos((dadosFiltrados && dadosFiltrados.pedidos) || [], 'filtrado'));
-  $('fp-baixar-completo').addEventListener('click', () => baixarRelatorioPedidos((ultimoDadosBipagem && ultimoDadosBipagem.pedidos) || [], 'completo'));
+  // Botão único: baixa o resultado filtrado se algum filtro estiver
+  // preenchido, senão baixa o período inteiro -- não precisa escolher
+  // entre dois botões, o próprio filtro já diz o que baixar.
+  $('fp-baixar').addEventListener('click', () => {
+    const f = obterFiltroAtual();
+    const temFiltro = !!(f.busca || f.tipo || f.plataforma);
+    if (temFiltro) {
+      baixarRelatorioPedidos((dadosFiltrados && dadosFiltrados.pedidos) || [], 'filtrado');
+    } else {
+      baixarRelatorioPedidos((ultimoDadosBipagem && ultimoDadosBipagem.pedidos) || [], 'completo');
+    }
+  });
 
   // Renderiza KPIs, gráficos e tabelas a partir de um objeto no formato de
   // resposta de responderVisaoBipagem -- chamado tanto com o dado cru do
