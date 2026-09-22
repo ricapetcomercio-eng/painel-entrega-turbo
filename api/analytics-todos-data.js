@@ -213,7 +213,7 @@ async function responderVisaoBipagem(req, res) {
   const fimTs = Math.floor(new Date(fimIso).getTime() / 1000) + 59;
 
   const rsPeriodo = await db.execute({
-    sql: `SELECT empresa, data, hora, cliente, n_id_pedido, order_id_resolvido, tipo_envio, bipado_por, marcado_manualmente, bipado_em_ts
+    sql: `SELECT empresa, data, hora, cliente, n_id_pedido, order_id_resolvido, marketplace_resolvido, tipo_envio, bipado_por, marcado_manualmente, bipado_em_ts
           FROM bipagem_diaria WHERE bipado_em_ts BETWEEN ? AND ? ORDER BY bipado_em_ts`,
     args: [inicioTs, fimTs],
   });

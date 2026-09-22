@@ -161,6 +161,19 @@
   .tag-manual.nao { color: var(--ink-muted); }
   .pedidos-scroll { max-height: 480px; overflow-y: auto; }
   .pedidos-scroll table thead th { position: sticky; top: 0; z-index: 2; }
+  .filtro-pedidos { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 0 16px 10px; }
+  .filtro-pedidos input, .filtro-pedidos select {
+    height: 32px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface);
+    color: var(--ink); padding: 0 8px; font-size: 0.8rem;
+  }
+  .filtro-pedidos input[type="text"] { width: 160px; }
+  .filtro-pedidos button {
+    height: 32px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface);
+    color: var(--ink); padding: 0 12px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all .15s ease;
+  }
+  .filtro-pedidos button:hover { background: var(--surface-2); border-color: var(--accent); color: var(--accent); }
+  .filtro-pedidos-espaco { flex: 1; }
+  #fp-contagem { padding: 0 16px; margin-top: -2px; }
 </style>
 </head>
 <body>
@@ -313,9 +326,21 @@
 
     <div class="quadro">
       <h3 style="margin-bottom:10px">Todos os pedidos do período</h3>
+      <div class="filtro-pedidos">
+        <input type="text" id="fp-nome" placeholder="Nome do cliente...">
+        <input type="text" id="fp-pedido" placeholder="Número do pedido...">
+        <input type="date" id="fp-data" title="Data">
+        <select id="fp-tipo"><option value="">Tipo de coleta (todos)</option></select>
+        <select id="fp-plataforma"><option value="">Plataforma (todas)</option></select>
+        <button type="button" id="fp-limpar">🧹 Limpar filtros</button>
+        <span class="filtro-pedidos-espaco"></span>
+        <button type="button" id="fp-baixar-filtrado">⬇ Baixar (filtro atual)</button>
+        <button type="button" id="fp-baixar-completo">⬇ Baixar completo</button>
+      </div>
+      <p class="aviso-mini" id="fp-contagem"></p>
       <div class="pedidos-scroll">
         <table>
-          <thead><tr><th>Hora</th><th>Empresa</th><th>Pedido</th><th>Cliente</th><th>Tipo</th><th>Bipado por</th><th>Manual</th></tr></thead>
+          <thead><tr><th>Data</th><th>Hora</th><th>Empresa</th><th>Pedido</th><th>Cliente</th><th>Tipo</th><th>Plataforma</th><th>Bipado por</th><th>Manual</th></tr></thead>
           <tbody id="tabela-pedidos"></tbody>
         </table>
       </div>
@@ -423,6 +448,107 @@
       },
     });
   }
+
+  // Filtro da tabela "Todos os pedidos do período" (nome, número do pedido,
+  // data, tipo de coleta, plataforma) — 100% client-side sobre o que já foi
+  // carregado pro período (sem chamada nova ao servidor a cada filtro).
+  const LABEL_PLATAFORMA = { mercado_livre: 'Mercado Livre', shopee: 'Shopee' };
+  function labelPlataforma(v) { return v ? (LABEL_PLATAFORMA[v] || v) : 'Não resolvido'; }
+
+  function montarFiltrosPedidos(dados) {
+    const tipos = [...new Set((dados.pedidos || []).map((p) => p.tipo_envio || 'Outros'))].sort();
+    const selTipo = $('fp-tipo');
+    const tipoAtual = selTipo.value;
+    selTipo.innerHTML = '<option value="">Tipo de coleta (todos)</option>' + tipos.map((t) => `<option value="${t}">${t}</option>`).join('');
+    if (tipos.includes(tipoAtual)) selTipo.value = tipoAtual;
+
+    const plataformas = [...new Set((dados.pedidos || []).map((p) => p.marketplace_resolvido || ''))].sort();
+    const selPlataforma = $('fp-plataforma');
+    const plataformaAtual = selPlataforma.value;
+    selPlataforma.innerHTML = '<option value="">Plataforma (todas)</option>' + plataformas.map((v) => `<option value="${v}">${labelPlataforma(v)}</option>`).join('');
+    if (plataformas.includes(plataformaAtual)) selPlataforma.value = plataformaAtual;
+  }
+
+  function pedidosFiltrados() {
+    if (!ultimoDadosBipagem) return [];
+    const nome = $('fp-nome').value.trim().toLowerCase();
+    const pedido = $('fp-pedido').value.trim().toLowerCase();
+    const data = $('fp-data').value;
+    const tipo = $('fp-tipo').value;
+    const plataforma = $('fp-plataforma').value;
+    return (ultimoDadosBipagem.pedidos || []).filter((p) => {
+      if (nome && !String(p.cliente || '').toLowerCase().includes(nome)) return false;
+      if (pedido) {
+        const bateNumero = String(p.n_id_pedido || '').toLowerCase().includes(pedido)
+          || String(p.order_id_resolvido || '').toLowerCase().includes(pedido);
+        if (!bateNumero) return false;
+      }
+      if (data && p.data !== data) return false;
+      if (tipo && (p.tipo_envio || 'Outros') !== tipo) return false;
+      if (plataforma && (p.marketplace_resolvido || '') !== plataforma) return false;
+      return true;
+    });
+  }
+
+  function renderizarTabelaPedidos() {
+    const lista = pedidosFiltrados();
+    $('tabela-pedidos').innerHTML = lista.map((p) => `
+      <tr>
+        <td>${p.data || '—'}</td>
+        <td>${p.hora || '—'}</td>
+        <td>${p.empresa}</td>
+        <td class="c-nome">${p.n_id_pedido}</td>
+        <td class="c-nome">${p.cliente || '—'}</td>
+        <td>${p.tipo_envio || '—'}</td>
+        <td>${labelPlataforma(p.marketplace_resolvido)}</td>
+        <td class="c-nome">${p.bipado_por || '(não identificado)'}</td>
+        <td>${p.marcado_manualmente ? '<span class="tag-manual sim">Manual</span>' : '<span class="tag-manual nao">Scanner</span>'}</td>
+      </tr>
+    `).join('') || '<tr><td colspan="9" class="zero">Nenhum pedido encontrado com esse filtro.</td></tr>';
+
+    const total = ((ultimoDadosBipagem && ultimoDadosBipagem.pedidos) || []).length;
+    $('fp-contagem').textContent = lista.length === total
+      ? `${total.toLocaleString('pt-BR')} pedido${total === 1 ? '' : 's'} no período.`
+      : `${lista.length.toLocaleString('pt-BR')} de ${total.toLocaleString('pt-BR')} pedidos (filtro aplicado).`;
+  }
+
+  ['fp-nome', 'fp-pedido', 'fp-data', 'fp-tipo', 'fp-plataforma'].forEach((id) => {
+    $(id).addEventListener('input', renderizarTabelaPedidos);
+    $(id).addEventListener('change', renderizarTabelaPedidos);
+  });
+  $('fp-limpar').addEventListener('click', () => {
+    $('fp-nome').value = '';
+    $('fp-pedido').value = '';
+    $('fp-data').value = '';
+    $('fp-tipo').value = '';
+    $('fp-plataforma').value = '';
+    renderizarTabelaPedidos();
+  });
+
+  // Baixar relatório em CSV -- mesmo padrão já usado em ponto.html (BOM +
+  // ponto-e-vírgula, convenção do Excel pt-BR), 100% client-side, sem rota
+  // nova no servidor.
+  function baixar(blob, nome) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = nome;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  }
+
+  function baixarRelatorioPedidos(lista, sufixo) {
+    const cab = ['Data', 'Hora', 'Empresa', 'Pedido', 'Cliente', 'Tipo', 'Plataforma', 'Bipado por', 'Manual'];
+    const linhas = [cab].concat(lista.map((p) => [
+      p.data || '', p.hora || '', p.empresa || '', p.n_id_pedido || '', p.cliente || '',
+      p.tipo_envio || '', labelPlataforma(p.marketplace_resolvido), p.bipado_por || '(não identificado)',
+      p.marcado_manualmente ? 'sim' : 'não',
+    ]));
+    const csv = linhas.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\r\n');
+    const de = $('p-de').value, ate = $('p-ate').value;
+    baixar(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }), `bipagem_${de}_a_${ate}_${sufixo}.csv`);
+  }
+  $('fp-baixar-filtrado').addEventListener('click', () => baixarRelatorioPedidos(pedidosFiltrados(), 'filtrado'));
+  $('fp-baixar-completo').addEventListener('click', () => baixarRelatorioPedidos((ultimoDadosBipagem && ultimoDadosBipagem.pedidos) || [], 'completo'));
 
   async function carregar() {
     const de = $('p-de').value;
@@ -535,18 +661,9 @@
       </tr>
     `).join('') || '<tr><td colspan="13" class="zero">Sem bipagens nesse dia.</td></tr>';
 
-    // tabela de pedidos
-    $('tabela-pedidos').innerHTML = dados.pedidos.map((p) => `
-      <tr>
-        <td>${p.hora || '—'}</td>
-        <td>${p.empresa}</td>
-        <td class="c-nome">${p.n_id_pedido}</td>
-        <td class="c-nome">${p.cliente || '—'}</td>
-        <td>${p.tipo_envio || '—'}</td>
-        <td class="c-nome">${p.bipado_por || '(não identificado)'}</td>
-        <td>${p.marcado_manualmente ? '<span class="tag-manual sim">Manual</span>' : '<span class="tag-manual nao">Scanner</span>'}</td>
-      </tr>
-    `).join('') || '<tr><td colspan="7" class="zero">Sem pedidos nesse dia.</td></tr>';
+    // tabela de pedidos (com filtro por nome/pedido/data/tipo/plataforma)
+    montarFiltrosPedidos(dados);
+    renderizarTabelaPedidos();
 
     // tabela de devoluções localizadas
     $('tabela-devolucoes').innerHTML = (dados.devolucoes || []).map((d) => `
