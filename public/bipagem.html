@@ -330,11 +330,20 @@
     </div>
 
     <div class="quadro">
-      <h3 style="margin-bottom:10px">Devoluções localizadas no período</h3>
-      <p class="aviso-mini">Pedidos bipados nesse período que o histórico geral (ML/Shopee) marca como devolvidos — só entram aqui os já traduzidos pro número do canal de venda (ver "Resolver pendentes" acima).</p>
+      <h3 style="margin-bottom:10px">Devoluções e reclamações localizadas no período</h3>
+      <p class="aviso-mini">
+        Pedidos bipados nesse período que o histórico geral (ML/Shopee) marca como devolvidos, ou reclamações
+        do Mercado Livre (mediação/disputa) que ainda não viraram devolução física — só entram aqui os já
+        traduzidos pro número do canal de venda (ver "Resolver pendentes" acima). O motivo vem cru da API do
+        marketplace: hoje não existe um dicionário pra traduzir os códigos em texto legível.
+      </p>
+      <div class="filtro-status" id="filtro-origem-devolucao"></div>
+      <div class="filtro-pedidos" style="margin-bottom:10px">
+        <select id="fd-motivo"><option value="">Motivo (todos)</option></select>
+      </div>
       <div class="pedidos-scroll">
         <table>
-          <thead><tr><th>Data</th><th>Hora</th><th>Empresa</th><th>Pedido</th><th>Cliente</th><th>Tipo</th><th>Bipado por</th><th>Status devolução</th></tr></thead>
+          <thead><tr><th>Data</th><th>Hora</th><th>Empresa</th><th>Pedido</th><th>Cliente</th><th>Coleta</th><th>Origem</th><th>Motivo</th><th>Status</th><th>Bipado por</th></tr></thead>
           <tbody id="tabela-devolucoes"></tbody>
         </table>
       </div>
@@ -432,6 +441,72 @@
     });
   }
 
+  // Tabela unificada "Devoluções e reclamações localizadas no período" —
+  // junta dados.devolucoes (produto físico voltando) e dados.reclamacoes
+  // (mediação/disputa do ML que nunca virou devolução, ver CLAUDE.md) numa
+  // lista só, cada linha marcada com a origem, filtrável por origem e por
+  // motivo. Motivo/status continuam crus (sem dicionário de tradução, ver
+  // aviso na própria tela).
+  function itensDevolucaoReclamacao(dados) {
+    const devolucoes = (dados.devolucoes || []).map((d) => ({
+      ...d, origem: 'Devolução', motivo: d.devolucao_motivo, status: d.devolucao_status,
+    }));
+    const reclamacoes = (dados.reclamacoes || []).map((r) => ({
+      ...r, origem: 'Reclamação', motivo: r.reclamacao_motivo, status: r.reclamacao_status,
+    }));
+    return [...devolucoes, ...reclamacoes].sort((a, b) => (b.data + b.hora).localeCompare(a.data + a.hora));
+  }
+
+  function montarFiltroOrigemDevolucao(dados) {
+    const itens = itensDevolucaoReclamacao(dados);
+    const origensUnicas = [...new Set(itens.map((i) => i.origem))].sort();
+    const container = $('filtro-origem-devolucao');
+    if (!origensUnicas.length) { container.innerHTML = ''; return; }
+    container.innerHTML = '<span class="rotulo">Origem</span>' + origensUnicas.map((o) => `
+      <label><input type="checkbox" value="${o}" checked> ${o}</label>
+    `).join('');
+    container.querySelectorAll('input[type="checkbox"]').forEach((el) => {
+      el.addEventListener('change', () => renderizarTabelaDevolucoes(dadosFiltrados));
+    });
+  }
+
+  function montarFiltroMotivoDevolucao(dados) {
+    const motivosUnicos = [...new Set(itensDevolucaoReclamacao(dados).map((i) => i.motivo || '(sem motivo)'))].sort();
+    const sel = $('fd-motivo');
+    const atual = sel.value;
+    sel.innerHTML = '<option value="">Motivo (todos)</option>' + motivosUnicos.map((m) => `<option value="${m}">${m}</option>`).join('');
+    if (motivosUnicos.includes(atual)) sel.value = atual;
+  }
+
+  function renderizarTabelaDevolucoes(dados) {
+    if (!dados) return;
+    const checkboxes = [...document.querySelectorAll('#filtro-origem-devolucao input[type="checkbox"]')];
+    const temFiltroOrigem = checkboxes.length > 0;
+    const origensAtivas = new Set(checkboxes.filter((el) => el.checked).map((el) => el.value));
+    const motivoAtivo = $('fd-motivo').value;
+
+    const linhas = itensDevolucaoReclamacao(dados).filter((i) => {
+      if (temFiltroOrigem && !origensAtivas.has(i.origem)) return false;
+      if (motivoAtivo && (i.motivo || '(sem motivo)') !== motivoAtivo) return false;
+      return true;
+    });
+
+    $('tabela-devolucoes').innerHTML = linhas.map((i) => `
+      <tr>
+        <td>${i.data || '—'}</td>
+        <td>${i.hora || '—'}</td>
+        <td>${i.empresa}</td>
+        <td class="c-nome">${i.order_id || i.n_id_pedido}</td>
+        <td class="c-nome">${i.cliente || '—'}</td>
+        <td>${i.tipo_envio || '—'}</td>
+        <td><span class="tag-manual ${i.origem === 'Devolução' ? 'sim' : 'nao'}">${i.origem}</span></td>
+        <td>${i.motivo || '—'}</td>
+        <td>${i.status || '—'}</td>
+        <td class="c-nome">${i.bipado_por}</td>
+      </tr>
+    `).join('') || '<tr><td colspan="10" class="zero">Nenhuma devolução ou reclamação localizada nesse período.</td></tr>';
+  }
+
   // Filtro do topo (nome, número do pedido, data, tipo de coleta,
   // plataforma) -- afeta TODO o painel (KPIs, gráficos e tabelas), não só a
   // tabela de pedidos: em vez de re-buscar do servidor a cada filtro,
@@ -507,6 +582,7 @@
     let localizadosTotal = 0;
     let devolvidosTotal = 0;
     const devolucoesDetalhadas = [];
+    const reclamacoesDetalhadas = [];
 
     pedidos.forEach((p) => {
       const nome = p.bipado_por || '(não identificado)';
@@ -537,6 +613,15 @@
             marketplace_resolvido: p.marketplace_resolvido,
             bipado_por: p.bipado_por || '(não identificado)', marcado_manualmente: !!p.marcado_manualmente,
             devolucao_status: p.devolucao_status, devolucao_motivo: p.devolucao_motivo,
+          });
+        }
+        if (p.reclamado) {
+          reclamacoesDetalhadas.push({
+            data: p.data, hora: p.hora, empresa: p.empresa, cliente: p.cliente,
+            n_id_pedido: p.n_id_pedido, order_id: p.order_id_resolvido, tipo_envio: p.tipo_envio,
+            marketplace_resolvido: p.marketplace_resolvido,
+            bipado_por: p.bipado_por || '(não identificado)', marcado_manualmente: !!p.marcado_manualmente,
+            reclamacao_status: p.reclamacao_status, reclamacao_motivo: p.reclamacao_motivo, reclamacao_tipo: p.reclamacao_tipo,
           });
         }
       }
@@ -577,6 +662,7 @@
       operadores,
       pedidos,
       devolucoes: devolucoesDetalhadas.sort((a, b) => (b.data + b.hora).localeCompare(a.data + a.hora)),
+      reclamacoes: reclamacoesDetalhadas.sort((a, b) => (b.data + b.hora).localeCompare(a.data + a.hora)),
       tendencia: [...porDia.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([data, total]) => ({ data, total })),
     };
   }
@@ -597,6 +683,10 @@
     $('fp-plataforma').value = '';
     aplicarFiltroTopo();
   });
+  // #fd-motivo tem as <option> recriadas a cada render (montarFiltroMotivoDevolucao),
+  // mas o próprio <select> nunca é substituído -- então este listener, preso
+  // uma única vez no elemento, sobrevive aos re-renders.
+  $('fd-motivo').addEventListener('change', () => renderizarTabelaDevolucoes(dadosFiltrados));
 
   // Baixar relatório em CSV -- mesmo padrão já usado em ponto.html (BOM +
   // ponto-e-vírgula, convenção do Excel pt-BR), 100% client-side, sem rota
@@ -746,19 +836,10 @@
       </tr>
     `).join('') || '<tr><td colspan="9" class="zero">Nenhum pedido encontrado com esse filtro.</td></tr>';
 
-    // tabela de devoluções localizadas
-    $('tabela-devolucoes').innerHTML = (dados.devolucoes || []).map((d) => `
-      <tr>
-        <td>${d.data || '—'}</td>
-        <td>${d.hora || '—'}</td>
-        <td>${d.empresa}</td>
-        <td class="c-nome">${d.order_id || d.n_id_pedido}</td>
-        <td class="c-nome">${d.cliente || '—'}</td>
-        <td>${d.tipo_envio || '—'}</td>
-        <td class="c-nome">${d.bipado_por}</td>
-        <td>${d.devolucao_status || '—'}</td>
-      </tr>
-    `).join('') || '<tr><td colspan="8" class="zero">Nenhuma devolução localizada nesse período.</td></tr>';
+    // tabela de devoluções + reclamações localizadas, com filtro por origem/motivo
+    montarFiltroOrigemDevolucao(dados);
+    montarFiltroMotivoDevolucao(dados);
+    renderizarTabelaDevolucoes(dados);
 
     // contagem "n de m pedidos" na barra de filtro do topo
     const totalPeriodo = ((ultimoDadosBipagem && ultimoDadosBipagem.pedidos) || []).length;

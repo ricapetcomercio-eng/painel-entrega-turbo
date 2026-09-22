@@ -35,9 +35,9 @@ const { buscarPedidosPeriodo, verificarFlex, montarPedidoFlex, reverificarStatus
 const { registrarHistoricoFlex, listarRecentes } = require('../lib/historicoFlex');
 const { registrarHistoricoTurboLive, listarRecentesTurbo } = require('../lib/historicoTurboLive');
 const { buscarDetalhesShipment, montarPedidoGenerico } = require('../lib/mlAllOrders');
-const { buscarDevolucoesPeriodo } = require('../lib/mlClaims');
+const { buscarClaimsClassificadosPeriodo } = require('../lib/mlClaims');
 const { buscarDevolucoesPorPedido: buscarDevolucoesShopeePorPedido } = require('../lib/shopeeReturns');
-const { registrarHistoricoTodos, marcarDevolucao, listarShopeeAguardando, listarShopeePendentesParaReverificar } = require('../lib/historicoTodos');
+const { registrarHistoricoTodos, marcarDevolucao, marcarReclamacao, listarShopeeAguardando, listarShopeePendentesParaReverificar } = require('../lib/historicoTodos');
 const { enviarBalancoMensalSeNecessario } = require('../lib/estoqueSaldo');
 const { coletarProjecaoFinanceira } = require('../lib/mpProjecao');
 const { coletarProjecaoFinanceiraShopee } = require('../lib/shopeeProjecao');
@@ -419,19 +419,34 @@ async function reverificarPendentesShopeeTodos(erros) {
   }
 }
 
+// Busca os claims do período UMA vez e já sai classificado em devolução
+// (produto físico voltando) e reclamação (mediação/disputa que nunca virou
+// devolução) — ver lib/mlClaims.js. Uma única rodada de chamadas cobre os
+// dois grupos, sem custo extra de API/CPU em relação à versão antiga que só
+// tratava devolução.
 async function enriquecerDevolucoes(conta, erros) {
   try {
     const desde = new Date(Date.now() - DIAS_JANELA_DEVOLUCOES * 24 * 60 * 60 * 1000).toISOString();
     const ate = new Date().toISOString();
-    const devolucoesPorPedido = await buscarDevolucoesPeriodo(conta, desde, ate);
+    const { devolucoes, reclamacoes } = await buscarClaimsClassificadosPeriodo(conta, desde, ate);
 
     let atualizados = 0;
-    for (const [orderId, info] of Object.entries(devolucoesPorPedido)) {
+    for (const [orderId, info] of Object.entries(devolucoes)) {
       const idUnico = `mercado_livre:${orderId}`;
       const marcou = await marcarDevolucao(idUnico, {
         claimId: info.claim_id,
         status: info.status,
         reasonId: info.reason_id,
+      });
+      if (marcou) atualizados++;
+    }
+    for (const [orderId, info] of Object.entries(reclamacoes)) {
+      const idUnico = `mercado_livre:${orderId}`;
+      const marcou = await marcarReclamacao(idUnico, {
+        claimId: info.claim_id,
+        status: info.status,
+        motivo: info.reason_id,
+        tipo: info.tipo,
       });
       if (marcou) atualizados++;
     }
