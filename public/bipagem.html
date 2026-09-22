@@ -100,8 +100,8 @@
   @keyframes bipPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(74,222,128,0.5); } 50% { box-shadow: 0 0 0 5px rgba(74,222,128,0); } }
   .periodo { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--ink-soft); }
   .periodo input, .periodo select { height: 32px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); padding: 0 8px; font-size: 0.8rem; }
-  .periodo button, .chip-sair { height: 32px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); padding: 0 12px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all .15s ease; }
-  .periodo button:hover, .chip-sair:hover { background: var(--surface-2); border-color: var(--accent); color: var(--accent); transform: translateY(-1px); }
+  .periodo button { height: 32px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); padding: 0 12px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all .15s ease; }
+  .periodo button:hover { background: var(--surface-2); border-color: var(--accent); color: var(--accent); transform: translateY(-1px); }
   .periodo button.btn-mini { height: 26px; padding: 0 9px; font-size: 0.72rem; }
   .chip-usuario { display: inline-flex; align-items: center; gap: 5px; font-size: 0.78rem; color: var(--ink-soft); background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 6px 13px; }
   .chip-usuario-rotulo { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--ink-muted); font-weight: 700; }
@@ -174,6 +174,7 @@
     color: var(--ink); padding: 0 12px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all .15s ease;
   }
   .filtro-pedidos button:hover { background: var(--surface-2); border-color: var(--accent); color: var(--accent); }
+  .filtro-pedidos button.btn-icon { width: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; font-size: 0.95rem; }
   .filtro-pedidos-espaco { flex: 1; }
   #fp-contagem { font-size: 0.76rem; color: var(--ink-muted); white-space: nowrap; }
 </style>
@@ -248,7 +249,7 @@
   <div class="conteudo-principal">
   <header>
     <div class="hrow">
-      <h1><span class="h-title-row">Performance Expedição · Dashboard <span class="live-badge"><span class="live-dot"></span>1x/dia às 23:30</span></span><span class="h-sub">Volume, operadores e produtividade da expedição</span></h1>
+      <h1><span class="h-title-row">Performance Expedição <span class="live-badge"><span class="live-dot"></span>1x/dia às 23:30</span></span><span class="h-sub">Volume, operadores e produtividade da expedição</span></h1>
       <div class="periodo">
         <input type="date" id="p-de">
         <span>até</span>
@@ -256,16 +257,15 @@
         <button id="p-aplicar">Aplicar</button>
         <button id="p-historico" type="button" class="btn-mini">Histórico completo</button>
       </div>
-      <button class="chip-sair" id="btn-sair">Sair</button>
     </div>
     <div class="hrow hrow-filtros">
       <div class="filtro-pedidos">
         <input type="text" id="fp-busca" placeholder="Cliente ou número do pedido...">
         <select id="fp-tipo"><option value="">Tipo de coleta (todos)</option></select>
         <select id="fp-plataforma"><option value="">Plataforma (todas)</option></select>
-        <button type="button" id="fp-limpar">🧹 Limpar filtros</button>
+        <button type="button" id="fp-limpar" class="btn-icon" title="Limpar filtros">🧹</button>
         <span class="filtro-pedidos-espaco"></span>
-        <button type="button" id="fp-baixar" title="Baixa o filtro atual, ou tudo se não tiver filtro">⬇ Baixar</button>
+        <button type="button" id="fp-baixar" class="btn-icon" title="Baixar relatório (CSV) — filtro atual, ou tudo se não tiver filtro">📊</button>
         <span id="fp-contagem"></span>
       </div>
     </div>
@@ -366,7 +366,6 @@
   const sessao = window.RicapetAuth.sessao;
   $('admin-nome').textContent = sessao.nome;
   window.RicapetAuth.aplicarVisibilidadeMenu();
-  $('btn-sair').addEventListener('click', () => window.RicapetAuth.sair());
 
   const CORES = { teal: '#17a389', yellow: '#f2c94c', gray: '#bdc3c7', blue: '#1d4ed8', red: '#eb5757', muted: '#93A0BC', grid: 'rgba(27,42,74,0.06)' };
   const PALETA_OPERADORES = [CORES.teal, CORES.blue, CORES.yellow, '#9b59b6', CORES.red, '#2ecc71', CORES.gray];
