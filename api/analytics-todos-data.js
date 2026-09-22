@@ -349,6 +349,27 @@ async function responderVisaoBipagem(req, res) {
   }
   operadores.sort((a, b) => b.total - a.total);
 
+  // Pedidos enviados ao frontend levam junto o resultado do cruzamento com
+  // historico_todos (localizado/devolvido/status/motivo) que já foi
+  // calculado acima -- é o que permite ao filtro por nome/pedido/data/tipo/
+  // plataforma (bipagem.html) recalcular TODO o painel (KPIs, gráficos,
+  // tabelas) no cliente sem precisar de uma chamada nova ao servidor a cada
+  // filtro (mesmo espírito "CPU quase zero" do resto do arquivo).
+  const pedidosParaFrontend = pedidos.map((p) => {
+    const devolucao = devolucaoPorPedido.get(String(p.order_id_resolvido || '').trim());
+    return {
+      empresa: p.empresa, data: p.data, hora: p.hora, cliente: p.cliente,
+      n_id_pedido: p.n_id_pedido, order_id_resolvido: p.order_id_resolvido,
+      marketplace_resolvido: p.marketplace_resolvido, tipo_envio: p.tipo_envio,
+      bipado_por: p.bipado_por, marcado_manualmente: !!p.marcado_manualmente,
+      bipado_em_ts: p.bipado_em_ts,
+      localizado: devolucao !== undefined,
+      devolvido: !!(devolucao && devolucao.devolvido),
+      devolucao_status: devolucao ? devolucao.status : null,
+      devolucao_motivo: devolucao ? devolucao.motivo : null,
+    };
+  });
+
   res.status(200).json({
     ok: true,
     tipo: 'bipagem-dashboard',
@@ -364,7 +385,7 @@ async function responderVisaoBipagem(req, res) {
     por_tipo: porTipo,
     por_hora: porHora,
     operadores,
-    pedidos,
+    pedidos: pedidosParaFrontend,
     devolucoes: devolucoesDetalhadas.sort((a, b) => (b.data + b.hora).localeCompare(a.data + a.hora)),
     tendencia: [...porDia.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([data, total]) => ({ data, total })),
   });

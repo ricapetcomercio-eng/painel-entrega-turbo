@@ -161,7 +161,7 @@
   .tag-manual.nao { color: var(--ink-muted); }
   .pedidos-scroll { max-height: 480px; overflow-y: auto; }
   .pedidos-scroll table thead th { position: sticky; top: 0; z-index: 2; }
-  .filtro-pedidos { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 0 16px 10px; }
+  .filtro-pedidos { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0 6px; }
   .filtro-pedidos input, .filtro-pedidos select {
     height: 32px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface);
     color: var(--ink); padding: 0 8px; font-size: 0.8rem;
@@ -173,7 +173,7 @@
   }
   .filtro-pedidos button:hover { background: var(--surface-2); border-color: var(--accent); color: var(--accent); }
   .filtro-pedidos-espaco { flex: 1; }
-  #fp-contagem { padding: 0 16px; margin-top: -2px; }
+  #fp-contagem { margin: 0; }
 </style>
 </head>
 <body>
@@ -259,6 +259,23 @@
   </header>
 
   <div class="shell">
+    <div class="card" style="margin-bottom:14px">
+      <h3 style="margin-bottom:2px">Filtrar</h3>
+      <p class="aviso-mini" style="margin-top:0">Filtra todo o painel abaixo (KPIs, gráficos e tabelas) pelo que estiver preenchido aqui — não só a tabela de pedidos.</p>
+      <div class="filtro-pedidos">
+        <input type="text" id="fp-nome" placeholder="Nome do cliente...">
+        <input type="text" id="fp-pedido" placeholder="Número do pedido...">
+        <input type="date" id="fp-data" title="Data">
+        <select id="fp-tipo"><option value="">Tipo de coleta (todos)</option></select>
+        <select id="fp-plataforma"><option value="">Plataforma (todas)</option></select>
+        <button type="button" id="fp-limpar">🧹 Limpar filtros</button>
+        <span class="filtro-pedidos-espaco"></span>
+        <button type="button" id="fp-baixar-filtrado">⬇ Baixar (filtro atual)</button>
+        <button type="button" id="fp-baixar-completo">⬇ Baixar completo</button>
+      </div>
+      <p class="aviso-mini" id="fp-contagem"></p>
+    </div>
+
     <p id="aviso-vazio" class="aviso" hidden>Nenhuma bipagem registrada nesse período ainda. A rotina local roda 1x por dia, às 23:30 — se for hoje, o dado só chega à noite.</p>
 
     <div class="kpis">
@@ -326,18 +343,6 @@
 
     <div class="quadro">
       <h3 style="margin-bottom:10px">Todos os pedidos do período</h3>
-      <div class="filtro-pedidos">
-        <input type="text" id="fp-nome" placeholder="Nome do cliente...">
-        <input type="text" id="fp-pedido" placeholder="Número do pedido...">
-        <input type="date" id="fp-data" title="Data">
-        <select id="fp-tipo"><option value="">Tipo de coleta (todos)</option></select>
-        <select id="fp-plataforma"><option value="">Plataforma (todas)</option></select>
-        <button type="button" id="fp-limpar">🧹 Limpar filtros</button>
-        <span class="filtro-pedidos-espaco"></span>
-        <button type="button" id="fp-baixar-filtrado">⬇ Baixar (filtro atual)</button>
-        <button type="button" id="fp-baixar-completo">⬇ Baixar completo</button>
-      </div>
-      <p class="aviso-mini" id="fp-contagem"></p>
       <div class="pedidos-scroll">
         <table>
           <thead><tr><th>Data</th><th>Hora</th><th>Empresa</th><th>Pedido</th><th>Cliente</th><th>Tipo</th><th>Plataforma</th><th>Bipado por</th><th>Manual</th></tr></thead>
@@ -396,7 +401,8 @@
     return pos === 0 ? '🥇' : pos === 1 ? '🥈' : pos === 2 ? '🥉' : '';
   }
 
-  let ultimoDadosBipagem = null;
+  let ultimoDadosBipagem = null; // resposta crua do servidor pro período (de/ate do topo, sem o filtro de nome/pedido/data/tipo/plataforma aplicado)
+  let dadosFiltrados = null; // mesma forma de `ultimoDadosBipagem`, recalculada em cima do filtro -- o que as funções de render abaixo leem
 
   // Filtro por status de devolução ("tipo de devolução" na prática — vem
   // de historico_todos.devolucao_status: status do claim no ML
@@ -412,7 +418,7 @@
       <label><input type="checkbox" value="${s}" checked> ${s}</label>
     `).join('');
     container.querySelectorAll('input[type="checkbox"]').forEach((el) => {
-      el.addEventListener('change', () => montarChartDevolucaoPorOperador(ultimoDadosBipagem));
+      el.addEventListener('change', () => montarChartDevolucaoPorOperador(dadosFiltrados));
     });
   }
 
@@ -449,12 +455,21 @@
     });
   }
 
-  // Filtro da tabela "Todos os pedidos do período" (nome, número do pedido,
-  // data, tipo de coleta, plataforma) — 100% client-side sobre o que já foi
-  // carregado pro período (sem chamada nova ao servidor a cada filtro).
+  // Filtro do topo (nome, número do pedido, data, tipo de coleta,
+  // plataforma) -- afeta TODO o painel (KPIs, gráficos e tabelas), não só a
+  // tabela de pedidos: em vez de re-buscar do servidor a cada filtro,
+  // `computarAgregados()` refaz no cliente a MESMA agregação que
+  // `responderVisaoBipagem` (api/analytics-todos-data.js) faz no servidor,
+  // em cima só dos pedidos que passam no filtro -- por isso o backend manda
+  // cada pedido já com `localizado`/`devolvido`/`devolucao_status` embutidos
+  // (ver comentário em api/analytics-todos-data.js), senão não daria pra
+  // recalcular "Devolvidos (localizados)" no cliente sem outra chamada.
   const LABEL_PLATAFORMA = { mercado_livre: 'Mercado Livre', shopee: 'Shopee' };
   function labelPlataforma(v) { return v ? (LABEL_PLATAFORMA[v] || v) : 'Não resolvido'; }
 
+  // Opções dos selects "Tipo de coleta"/"Plataforma" vêm sempre do período
+  // INTEIRO (não do resultado já filtrado), pra não ir sumindo opção conforme
+  // a pessoa filtra por outra coisa.
   function montarFiltrosPedidos(dados) {
     const tipos = [...new Set((dados.pedidos || []).map((p) => p.tipo_envio || 'Outros'))].sort();
     const selTipo = $('fp-tipo');
@@ -469,52 +484,132 @@
     if (plataformas.includes(plataformaAtual)) selPlataforma.value = plataformaAtual;
   }
 
-  function pedidosFiltrados() {
-    if (!ultimoDadosBipagem) return [];
-    const nome = $('fp-nome').value.trim().toLowerCase();
-    const pedido = $('fp-pedido').value.trim().toLowerCase();
-    const data = $('fp-data').value;
-    const tipo = $('fp-tipo').value;
-    const plataforma = $('fp-plataforma').value;
-    return (ultimoDadosBipagem.pedidos || []).filter((p) => {
-      if (nome && !String(p.cliente || '').toLowerCase().includes(nome)) return false;
-      if (pedido) {
-        const bateNumero = String(p.n_id_pedido || '').toLowerCase().includes(pedido)
-          || String(p.order_id_resolvido || '').toLowerCase().includes(pedido);
+  function obterFiltroAtual() {
+    return {
+      nome: $('fp-nome').value.trim().toLowerCase(),
+      pedido: $('fp-pedido').value.trim().toLowerCase(),
+      data: $('fp-data').value,
+      tipo: $('fp-tipo').value,
+      plataforma: $('fp-plataforma').value,
+    };
+  }
+
+  function filtrarPedidos(pedidos, f) {
+    return (pedidos || []).filter((p) => {
+      if (f.nome && !String(p.cliente || '').toLowerCase().includes(f.nome)) return false;
+      if (f.pedido) {
+        const bateNumero = String(p.n_id_pedido || '').toLowerCase().includes(f.pedido)
+          || String(p.order_id_resolvido || '').toLowerCase().includes(f.pedido);
         if (!bateNumero) return false;
       }
-      if (data && p.data !== data) return false;
-      if (tipo && (p.tipo_envio || 'Outros') !== tipo) return false;
-      if (plataforma && (p.marketplace_resolvido || '') !== plataforma) return false;
+      if (f.data && p.data !== f.data) return false;
+      if (f.tipo && (p.tipo_envio || 'Outros') !== f.tipo) return false;
+      if (f.plataforma && (p.marketplace_resolvido || '') !== f.plataforma) return false;
       return true;
     });
   }
 
-  function renderizarTabelaPedidos() {
-    const lista = pedidosFiltrados();
-    $('tabela-pedidos').innerHTML = lista.map((p) => `
-      <tr>
-        <td>${p.data || '—'}</td>
-        <td>${p.hora || '—'}</td>
-        <td>${p.empresa}</td>
-        <td class="c-nome">${p.n_id_pedido}</td>
-        <td class="c-nome">${p.cliente || '—'}</td>
-        <td>${p.tipo_envio || '—'}</td>
-        <td>${labelPlataforma(p.marketplace_resolvido)}</td>
-        <td class="c-nome">${p.bipado_por || '(não identificado)'}</td>
-        <td>${p.marcado_manualmente ? '<span class="tag-manual sim">Manual</span>' : '<span class="tag-manual nao">Scanner</span>'}</td>
-      </tr>
-    `).join('') || '<tr><td colspan="9" class="zero">Nenhum pedido encontrado com esse filtro.</td></tr>';
+  // Reproduz no cliente a mesma agregação de responderVisaoBipagem
+  // (api/analytics-todos-data.js) -- mesma forma de retorno, pra
+  // renderizarPainel() poder ser usada tanto com o dado cru do servidor
+  // (sem filtro) quanto com o resultado filtrado, sem duplicar a
+  // renderização. `operadoresBase` (dados.operadores originais, do servidor)
+  // é de onde vêm minutos_trabalhados/funcionario_id -- horas batidas no
+  // Ponto não mudam com o filtro de pedidos, só de onde vem o numerador de
+  // "bipagens/hora" muda.
+  function computarAgregados(pedidos, operadoresBase) {
+    const porOperadorMapa = new Map();
+    const porEmpresa = {};
+    const porTipo = {};
+    const porHora = Array.from({ length: 24 }, () => 0);
+    const porDia = new Map();
+    let manuais = 0;
+    let localizadosTotal = 0;
+    let devolvidosTotal = 0;
+    const devolucoesDetalhadas = [];
 
-    const total = ((ultimoDadosBipagem && ultimoDadosBipagem.pedidos) || []).length;
-    $('fp-contagem').textContent = lista.length === total
-      ? `${total.toLocaleString('pt-BR')} pedido${total === 1 ? '' : 's'} no período.`
-      : `${lista.length.toLocaleString('pt-BR')} de ${total.toLocaleString('pt-BR')} pedidos (filtro aplicado).`;
+    pedidos.forEach((p) => {
+      const nome = p.bipado_por || '(não identificado)';
+      if (!porOperadorMapa.has(nome)) {
+        porOperadorMapa.set(nome, { nome, total: 0, ricapet: 0, thapets: 0, flex: 0, turbo: 0, outros: 0, manual: 0, localizados: 0, devolvidos: 0 });
+      }
+      const op = porOperadorMapa.get(nome);
+      op.total++;
+      if (p.empresa === 'Ricapet') op.ricapet++;
+      else if (p.empresa === 'Thapets') op.thapets++;
+
+      const tipo = String(p.tipo_envio || '').toLowerCase();
+      if (tipo === 'flex') op.flex++;
+      else if (tipo === 'turbo') op.turbo++;
+      else op.outros++;
+
+      if (p.marcado_manualmente) { op.manual++; manuais++; }
+
+      if (p.localizado) {
+        op.localizados++;
+        localizadosTotal++;
+        if (p.devolvido) {
+          op.devolvidos++;
+          devolvidosTotal++;
+          devolucoesDetalhadas.push({
+            data: p.data, hora: p.hora, empresa: p.empresa, cliente: p.cliente,
+            n_id_pedido: p.n_id_pedido, order_id: p.order_id_resolvido, tipo_envio: p.tipo_envio,
+            marketplace_resolvido: p.marketplace_resolvido,
+            bipado_por: p.bipado_por || '(não identificado)', marcado_manualmente: !!p.marcado_manualmente,
+            devolucao_status: p.devolucao_status, devolucao_motivo: p.devolucao_motivo,
+          });
+        }
+      }
+
+      porEmpresa[p.empresa] = (porEmpresa[p.empresa] || 0) + 1;
+      porTipo[p.tipo_envio || 'Outros'] = (porTipo[p.tipo_envio || 'Outros'] || 0) + 1;
+      if (p.hora) {
+        const h = parseInt(String(p.hora).split(':')[0], 10);
+        if (h >= 0 && h < 24) porHora[h]++;
+      }
+      if (p.data) porDia.set(p.data, (porDia.get(p.data) || 0) + 1);
+    });
+
+    const baseMap = new Map((operadoresBase || []).map((o) => [o.nome, o]));
+    const operadores = [...porOperadorMapa.values()].map((op) => {
+      const base = baseMap.get(op.nome);
+      const minutosTrabalhados = base ? base.minutos_trabalhados : null;
+      return {
+        ...op,
+        funcionario_id: base ? base.funcionario_id : null,
+        minutos_trabalhados: minutosTrabalhados,
+        bipagens_por_hora: minutosTrabalhados > 0 ? Number((op.total / (minutosTrabalhados / 60)).toFixed(2)) : null,
+        taxa_devolucao: op.localizados > 0 ? Number(((op.devolvidos / op.localizados) * 100).toFixed(1)) : null,
+      };
+    });
+    operadores.sort((a, b) => b.total - a.total);
+
+    return {
+      total: pedidos.length,
+      manuais,
+      localizados_total: localizadosTotal,
+      devolvidos_total: devolvidosTotal,
+      nao_localizados: pedidos.length - localizadosTotal,
+      nao_resolvidos: pedidos.filter((p) => p.n_id_pedido && !p.order_id_resolvido).length,
+      por_empresa: porEmpresa,
+      por_tipo: porTipo,
+      por_hora: porHora,
+      operadores,
+      pedidos,
+      devolucoes: devolucoesDetalhadas.sort((a, b) => (b.data + b.hora).localeCompare(a.data + a.hora)),
+      tendencia: [...porDia.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([data, total]) => ({ data, total })),
+    };
+  }
+
+  function aplicarFiltroTopo() {
+    if (!ultimoDadosBipagem) return;
+    const pedidos = filtrarPedidos(ultimoDadosBipagem.pedidos, obterFiltroAtual());
+    renderizarPainel(computarAgregados(pedidos, ultimoDadosBipagem.operadores));
   }
 
   ['fp-nome', 'fp-pedido', 'fp-data', 'fp-tipo', 'fp-plataforma'].forEach((id) => {
-    $(id).addEventListener('input', renderizarTabelaPedidos);
-    $(id).addEventListener('change', renderizarTabelaPedidos);
+    $(id).addEventListener('input', aplicarFiltroTopo);
+    $(id).addEventListener('change', aplicarFiltroTopo);
   });
   $('fp-limpar').addEventListener('click', () => {
     $('fp-nome').value = '';
@@ -522,7 +617,7 @@
     $('fp-data').value = '';
     $('fp-tipo').value = '';
     $('fp-plataforma').value = '';
-    renderizarTabelaPedidos();
+    aplicarFiltroTopo();
   });
 
   // Baixar relatório em CSV -- mesmo padrão já usado em ponto.html (BOM +
@@ -547,29 +642,15 @@
     const de = $('p-de').value, ate = $('p-ate').value;
     baixar(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }), `bipagem_${de}_a_${ate}_${sufixo}.csv`);
   }
-  $('fp-baixar-filtrado').addEventListener('click', () => baixarRelatorioPedidos(pedidosFiltrados(), 'filtrado'));
+  $('fp-baixar-filtrado').addEventListener('click', () => baixarRelatorioPedidos((dadosFiltrados && dadosFiltrados.pedidos) || [], 'filtrado'));
   $('fp-baixar-completo').addEventListener('click', () => baixarRelatorioPedidos((ultimoDadosBipagem && ultimoDadosBipagem.pedidos) || [], 'completo'));
 
-  async function carregar() {
-    const de = $('p-de').value;
-    const ate = $('p-ate').value;
-    const url = `/api/analytics-todos-data?visao=bipagem&sessao=${encodeURIComponent(sessao.token)}&de=${de}&ate=${ate}`;
-    let dados;
-    try {
-      const resp = await fetch(url);
-      dados = await resp.json();
-      if (!resp.ok || dados.ok === false) {
-        // 401 = sessão expirada de verdade (desloga); 403 = sessão válida
-        // mas sem acesso a esta página (overlay, não desloga).
-        if (resp.status === 401) { window.RicapetAuth.sair(); return; }
-        if (resp.status === 403) { window.RicapetAuth.mostrarAcessoNegado(dados.error); return; }
-        throw new Error(dados.error || 'Falha ao carregar.');
-      }
-    } catch (err) {
-      alert(err.message);
-      return;
-    }
-    ultimoDadosBipagem = dados;
+  // Renderiza KPIs, gráficos e tabelas a partir de um objeto no formato de
+  // resposta de responderVisaoBipagem -- chamado tanto com o dado cru do
+  // servidor (sem filtro) quanto com o resultado de computarAgregados()
+  // (filtrado), via aplicarFiltroTopo().
+  function renderizarPainel(dados) {
+    dadosFiltrados = dados;
 
     $('aviso-vazio').hidden = dados.total > 0;
 
@@ -661,9 +742,21 @@
       </tr>
     `).join('') || '<tr><td colspan="13" class="zero">Sem bipagens nesse dia.</td></tr>';
 
-    // tabela de pedidos (com filtro por nome/pedido/data/tipo/plataforma)
-    montarFiltrosPedidos(dados);
-    renderizarTabelaPedidos();
+    // tabela de pedidos -- `dados.pedidos` já vem filtrado (ver
+    // aplicarFiltroTopo/computarAgregados), não filtra de novo aqui.
+    $('tabela-pedidos').innerHTML = dados.pedidos.map((p) => `
+      <tr>
+        <td>${p.data || '—'}</td>
+        <td>${p.hora || '—'}</td>
+        <td>${p.empresa}</td>
+        <td class="c-nome">${p.n_id_pedido}</td>
+        <td class="c-nome">${p.cliente || '—'}</td>
+        <td>${p.tipo_envio || '—'}</td>
+        <td>${labelPlataforma(p.marketplace_resolvido)}</td>
+        <td class="c-nome">${p.bipado_por || '(não identificado)'}</td>
+        <td>${p.marcado_manualmente ? '<span class="tag-manual sim">Manual</span>' : '<span class="tag-manual nao">Scanner</span>'}</td>
+      </tr>
+    `).join('') || '<tr><td colspan="9" class="zero">Nenhum pedido encontrado com esse filtro.</td></tr>';
 
     // tabela de devoluções localizadas
     $('tabela-devolucoes').innerHTML = (dados.devolucoes || []).map((d) => `
@@ -678,6 +771,36 @@
         <td>${d.devolucao_status || '—'}</td>
       </tr>
     `).join('') || '<tr><td colspan="8" class="zero">Nenhuma devolução localizada nesse período.</td></tr>';
+
+    // contagem "n de m pedidos" na barra de filtro do topo
+    const totalPeriodo = ((ultimoDadosBipagem && ultimoDadosBipagem.pedidos) || []).length;
+    $('fp-contagem').textContent = dados.total === totalPeriodo
+      ? `${totalPeriodo.toLocaleString('pt-BR')} pedido${totalPeriodo === 1 ? '' : 's'} no período.`
+      : `${dados.total.toLocaleString('pt-BR')} de ${totalPeriodo.toLocaleString('pt-BR')} pedidos (filtro aplicado).`;
+  }
+
+  async function carregar() {
+    const de = $('p-de').value;
+    const ate = $('p-ate').value;
+    const url = `/api/analytics-todos-data?visao=bipagem&sessao=${encodeURIComponent(sessao.token)}&de=${de}&ate=${ate}`;
+    let dados;
+    try {
+      const resp = await fetch(url);
+      dados = await resp.json();
+      if (!resp.ok || dados.ok === false) {
+        // 401 = sessão expirada de verdade (desloga); 403 = sessão válida
+        // mas sem acesso a esta página (overlay, não desloga).
+        if (resp.status === 401) { window.RicapetAuth.sair(); return; }
+        if (resp.status === 403) { window.RicapetAuth.mostrarAcessoNegado(dados.error); return; }
+        throw new Error(dados.error || 'Falha ao carregar.');
+      }
+    } catch (err) {
+      alert(err.message);
+      return;
+    }
+    ultimoDadosBipagem = dados;
+    montarFiltrosPedidos(dados);
+    aplicarFiltroTopo();
   }
 
   $('p-aplicar').addEventListener('click', carregar);
