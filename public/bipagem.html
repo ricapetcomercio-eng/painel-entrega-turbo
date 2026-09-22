@@ -89,7 +89,7 @@
   .shell { max-width: 1200px; margin: 0 auto; padding: 0 16px 60px; }
 
   header { position: sticky; top: 0; z-index: 5; background: var(--page-bg); border-bottom: 1px solid var(--border); }
-  .hrow { max-width: 1200px; margin: 0 auto; padding: 10px 16px; box-sizing: border-box; display: flex; align-items: center; gap: 12px 20px; flex-wrap: wrap; }
+  .hrow { max-width: 1600px; margin: 0 auto; padding: 10px 16px; box-sizing: border-box; display: flex; align-items: center; gap: 12px 20px; flex-wrap: wrap; }
   .hrow h1 { font-family: var(--font-display); font-size: 1.05rem; margin: 0; margin-right: auto; color: var(--ink); display: flex; flex-direction: column; gap: 2px; line-height: 1.25; }
   .h-title-row { display: flex; align-items: center; gap: 9px; }
   .h-sub { font-size: 0.72rem; font-weight: 500; color: var(--ink-muted); letter-spacing: 0.01em; }
@@ -99,6 +99,7 @@
   @keyframes bipPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(74,222,128,0.5); } 50% { box-shadow: 0 0 0 5px rgba(74,222,128,0); } }
   .periodo { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--ink-soft); }
   .periodo input, .periodo select { height: 32px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); padding: 0 8px; font-size: 0.8rem; }
+  .periodo input[type="date"] { width: 118px; }
   .periodo button { height: 32px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); padding: 0 12px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all .15s ease; }
   .periodo button:hover { background: var(--surface-2); border-color: var(--accent); color: var(--accent); transform: translateY(-1px); }
   .periodo button.btn-icon { width: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; font-size: 0.95rem; }
@@ -162,7 +163,7 @@
   .tag-manual.nao { color: var(--ink-muted); }
   .pedidos-scroll { max-height: 480px; overflow-y: auto; }
   .pedidos-scroll table thead th { position: sticky; top: 0; z-index: 2; }
-  #fp-busca { width: 200px; }
+  #fp-busca { width: 130px; }
   #fp-contagem { font-size: 0.76rem; color: var(--ink-muted); white-space: nowrap; }
 </style>
 </head>
@@ -242,13 +243,13 @@
         <span>até</span>
         <input type="date" id="p-ate">
         <input type="text" id="fp-busca" placeholder="Cliente ou número do pedido...">
-        <select id="fp-tipo"><option value="">Tipo de coleta (todos)</option></select>
-        <select id="fp-plataforma"><option value="">Plataforma (todas)</option></select>
+        <select id="fp-tipo"><option value="">Tipo (todos)</option></select>
+        <select id="fp-plataforma"><option value="">Plataforma</option></select>
         <button id="p-aplicar">Aplicar</button>
         <button type="button" id="fp-limpar" class="btn-icon" title="Limpar filtros">🧹</button>
         <button type="button" id="fp-baixar" class="btn-icon" title="Baixar relatório (CSV) — filtro atual, ou tudo se não tiver filtro">📊</button>
-        <span id="fp-contagem"></span>
       </div>
+      <span id="fp-contagem"></span>
     </div>
   </header>
 
@@ -450,13 +451,13 @@
     const tipos = [...new Set((dados.pedidos || []).map((p) => p.tipo_envio || 'Outros'))].sort();
     const selTipo = $('fp-tipo');
     const tipoAtual = selTipo.value;
-    selTipo.innerHTML = '<option value="">Tipo de coleta (todos)</option>' + tipos.map((t) => `<option value="${t}">${t}</option>`).join('');
+    selTipo.innerHTML = '<option value="">Tipo (todos)</option>' + tipos.map((t) => `<option value="${t}">${t}</option>`).join('');
     if (tipos.includes(tipoAtual)) selTipo.value = tipoAtual;
 
     const plataformas = [...new Set((dados.pedidos || []).map((p) => p.marketplace_resolvido || ''))].sort();
     const selPlataforma = $('fp-plataforma');
     const plataformaAtual = selPlataforma.value;
-    selPlataforma.innerHTML = '<option value="">Plataforma (todas)</option>' + plataformas.map((v) => `<option value="${v}">${labelPlataforma(v)}</option>`).join('');
+    selPlataforma.innerHTML = '<option value="">Plataforma</option>' + plataformas.map((v) => `<option value="${v}">${labelPlataforma(v)}</option>`).join('');
     if (plataformas.includes(plataformaAtual)) selPlataforma.value = plataformaAtual;
   }
 
