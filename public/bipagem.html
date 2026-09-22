@@ -167,7 +167,7 @@
     height: 32px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface);
     color: var(--ink); padding: 0 8px; font-size: 0.8rem;
   }
-  .filtro-pedidos input[type="text"] { width: 160px; }
+  .filtro-pedidos input[type="text"] { width: 220px; }
   .filtro-pedidos button {
     height: 32px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface);
     color: var(--ink); padding: 0 12px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all .15s ease;
@@ -259,8 +259,7 @@
     </div>
     <div class="hrow hrow-filtros">
       <div class="filtro-pedidos">
-        <input type="text" id="fp-nome" placeholder="Nome do cliente...">
-        <input type="text" id="fp-pedido" placeholder="Número do pedido...">
+        <input type="text" id="fp-busca" placeholder="Cliente ou número do pedido...">
         <select id="fp-tipo"><option value="">Tipo de coleta (todos)</option></select>
         <select id="fp-plataforma"><option value="">Plataforma (todas)</option></select>
         <button type="button" id="fp-limpar">🧹 Limpar filtros</button>
@@ -487,8 +486,9 @@
   // que o período sozinho já não cobrisse.
   function obterFiltroAtual() {
     return {
-      nome: $('fp-nome').value.trim().toLowerCase(),
-      pedido: $('fp-pedido').value.trim().toLowerCase(),
+      // Um campo só pra cliente OU número do pedido -- bate em qualquer um
+      // dos dois, não precisa escolher em qual campo digitar.
+      busca: $('fp-busca').value.trim().toLowerCase(),
       tipo: $('fp-tipo').value,
       plataforma: $('fp-plataforma').value,
     };
@@ -496,11 +496,11 @@
 
   function filtrarPedidos(pedidos, f) {
     return (pedidos || []).filter((p) => {
-      if (f.nome && !String(p.cliente || '').toLowerCase().includes(f.nome)) return false;
-      if (f.pedido) {
-        const bateNumero = String(p.n_id_pedido || '').toLowerCase().includes(f.pedido)
-          || String(p.order_id_resolvido || '').toLowerCase().includes(f.pedido);
-        if (!bateNumero) return false;
+      if (f.busca) {
+        const bate = String(p.cliente || '').toLowerCase().includes(f.busca)
+          || String(p.n_id_pedido || '').toLowerCase().includes(f.busca)
+          || String(p.order_id_resolvido || '').toLowerCase().includes(f.busca);
+        if (!bate) return false;
       }
       if (f.tipo && (p.tipo_envio || 'Outros') !== f.tipo) return false;
       if (f.plataforma && (p.marketplace_resolvido || '') !== f.plataforma) return false;
@@ -606,13 +606,12 @@
     renderizarPainel(computarAgregados(pedidos, ultimoDadosBipagem.operadores));
   }
 
-  ['fp-nome', 'fp-pedido', 'fp-tipo', 'fp-plataforma'].forEach((id) => {
+  ['fp-busca', 'fp-tipo', 'fp-plataforma'].forEach((id) => {
     $(id).addEventListener('input', aplicarFiltroTopo);
     $(id).addEventListener('change', aplicarFiltroTopo);
   });
   $('fp-limpar').addEventListener('click', () => {
-    $('fp-nome').value = '';
-    $('fp-pedido').value = '';
+    $('fp-busca').value = '';
     $('fp-tipo').value = '';
     $('fp-plataforma').value = '';
     aplicarFiltroTopo();
