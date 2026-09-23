@@ -266,9 +266,12 @@
 .topbar .theme-toggle button.ativo { background: var(--bg-card); color: var(--brand-primary-dark); box-shadow: 0 1px 4px var(--shadow); }
 
 /* ---- marca d'água (padrão já usado nas páginas admin) ---- */
+/* Caminho absoluto (não relativo) -- url() num CSS compartilhado resolve
+   relativo à PRÓPRIA folha de estilo (assets/), não à página que a importa;
+   as páginas ficam na raiz de public/, onde o arquivo realmente está. */
 .marca-dagua::before {
   content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
-  background: url('logo-ricapet-teal.png') center / min(72vmin, 760px) no-repeat;
+  background: url('/logo-ricapet-teal.png') center / min(72vmin, 760px) no-repeat;
   opacity: 0.06;
 }
 
