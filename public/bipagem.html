@@ -305,6 +305,12 @@
         <button id="btn-parar-resolver" type="button" hidden>Parar</button>
         <span id="txt-progresso-resolver"></span>
       </p>
+      <div id="bloco-erros-resolver" class="pedidos-scroll" style="max-height:240px; margin-bottom:10px" hidden>
+        <table>
+          <thead><tr><th>Qtd</th><th>Motivo (não resolvidos — ficam de fora das próximas tentativas)</th></tr></thead>
+          <tbody id="tabela-erros-resolver"></tbody>
+        </table>
+      </div>
     </div>
 
     <div class="quadro">
@@ -745,6 +751,7 @@
     $('txt-nao-localizados').textContent = (dados.nao_localizados || 0).toLocaleString('pt-BR');
     $('txt-nao-resolvidos').textContent = (dados.nao_resolvidos || 0).toLocaleString('pt-BR');
     $('bloco-resolver').hidden = !(dados.nao_resolvidos > 0);
+    $('bloco-erros-resolver').hidden = true;
 
     // ranking por operador (bar horizontal)
     const opsOrdenados = [...dados.operadores];
@@ -922,12 +929,16 @@
       resolverEmAndamento = false;
       btn.hidden = false;
       btnParar.hidden = true;
+      const blocoErros = $('bloco-erros-resolver');
       if (totalErros) {
-        const linhas = Object.entries(resumoErrosTotal)
-          .sort((a, b) => b[1] - a[1])
-          .map(([msg, qtd]) => `${qtd}x ${msg}`)
-          .join(' · ');
-        txtProgresso.textContent += ` — ${totalErros} não resolvidos (ficam de fora das próximas tentativas): ${linhas}`;
+        txtProgresso.textContent += ` — ${totalErros} não resolvidos (lista abaixo).`;
+        const linhas = Object.entries(resumoErrosTotal).sort((a, b) => b[1] - a[1]);
+        $('tabela-erros-resolver').innerHTML = linhas.map(([msg, qtd]) => `
+          <tr><td>${qtd}x</td><td class="c-nome">${msg}</td></tr>
+        `).join('');
+        blocoErros.hidden = false;
+      } else {
+        blocoErros.hidden = true;
       }
     }
   }
