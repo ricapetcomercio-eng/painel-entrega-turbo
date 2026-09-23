@@ -27,6 +27,10 @@
     --bad: #DC2626;  --bad-bg: #FEE2E2;
     --info: #2563EB; --info-bg: #DBEAFE; --info-ink: #1D4ED8;
     --cat-1: #1E8E5A; --cat-2: #2F6FE0; --cat-3: #B8791F;
+    /* Gradiente da sidebar (nova -- ver comentário na regra .sidebar mais
+       abaixo) -- só varia entre claro/escuro, por isso redeclarado nos 3
+       blocos de tema como os demais tokens desta página. */
+    --sidebar-gradient: linear-gradient(165deg, #2BA876 0%, #1E8E5A 55%, #176E46 100%);
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
@@ -41,6 +45,7 @@
       --bad: #F87171;  --bad-bg: #3A1414;
       --info: #60A5FA; --info-bg: #142A4A; --info-ink: #93C5FD;
       --cat-1: #22A870; --cat-2: #5B7FE0; --cat-3: #B87A26;
+      --sidebar-gradient: linear-gradient(165deg, #1E8E5A 0%, #176E46 55%, #0E4A2E 100%);
     }
   }
   :root[data-theme="dark"] {
@@ -55,6 +60,7 @@
     --bad: #F87171;  --bad-bg: #3A1414;
     --info: #60A5FA; --info-bg: #142A4A; --info-ink: #93C5FD;
     --cat-1: #22A870; --cat-2: #5B7FE0; --cat-3: #B87A26;
+    --sidebar-gradient: linear-gradient(165deg, #1E8E5A 0%, #176E46 55%, #0E4A2E 100%);
   }
 
   * { box-sizing: border-box; }
@@ -68,6 +74,72 @@
   h1, h2, h3 { text-wrap: balance; margin: 0; }
   a { color: var(--accent-ink); }
   ::selection { background: var(--accent-soft); color: var(--accent-ink); }
+
+  /* ---- Sidebar (mesmo padrão das demais páginas do admin) ----
+     Esta página nunca linkou assets/tokens-admin.css (usa seu próprio
+     conjunto de tokens desde a prototipagem original) -- adicionar o link
+     agora colidiria por especificidade com o .theme-toggle que esta página
+     já tem no topbar (a regra ".topbar .theme-toggle" do arquivo
+     compartilhado tem mais especificidade e ganharia da regra local
+     ".theme-toggle", trocando a cor do texto do botão ativo no tema escuro
+     por uma praticamente ilegível). Por isso a sidebar é replicada aqui
+     100% local, com os tokens já existentes desta página -- sem link novo,
+     sem risco de colisão. */
+  .sidebar {
+    width: 212px; height: 100vh; position: fixed; top: 0; left: 0; z-index: 1000;
+    background: var(--sidebar-gradient);
+    border-right: 1px solid rgba(255,255,255,0.28);
+    padding: 16px 12px; box-sizing: border-box; overflow-y: auto;
+    display: flex; flex-direction: column; font-family: inherit;
+  }
+  .sidebar-brand { display: flex; align-items: center; gap: 8px; padding: 2px 8px 14px; margin-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.28); }
+  .sidebar-brand-icon { width: 32px; height: 32px; object-fit: contain; flex-shrink: 0; }
+  .sidebar-brand-name { font-size: 14px; font-weight: 800; color: #fff; line-height: 1.2; }
+  .sidebar-brand-sub { font-size: 11px; color: rgba(255,255,255,0.78); }
+  .sidebar-titulo { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: rgba(255,255,255,0.78); padding: 0 10px; margin-bottom: 10px; }
+  .sidebar-titulo-com-editar { display: flex; align-items: center; justify-content: space-between; }
+  .sidebar-editar-btn {
+    background: none; border: none; color: rgba(255,255,255,0.78); cursor: pointer;
+    font-size: 12px; opacity: 0.55; padding: 2px 5px; border-radius: 4px; line-height: 1;
+    transition: opacity 0.15s, background 0.15s;
+  }
+  .sidebar-editar-btn:hover { opacity: 1; background: rgba(255,255,255,0.16); }
+  .sidebar-editar-btn.ativo { opacity: 1; color: #fff; }
+  .sidebar-link {
+    display: flex; align-items: center; gap: 8px; padding: 7px 9px; border-radius: 7px;
+    border-left: 2px solid transparent; color: #fff; text-decoration: none; font-size: 13px;
+    font-weight: 600; margin-bottom: 2px; white-space: nowrap; transition: background .15s ease, border-color .15s ease;
+  }
+  .sidebar-link:hover { background: rgba(255,255,255,0.16); }
+  .sidebar-link.ativo { background: rgba(255,255,255,0.18); border-left-color: #fff; }
+  .sidebar-link svg { flex-shrink: 0; }
+  .sidebar.modo-edicao .sidebar-link[data-menu-key] { cursor: grab; }
+  .sidebar.modo-edicao .sidebar-link[data-menu-key]::before { content: '⠿'; opacity: 0.6; }
+  .sidebar-link[data-menu-key].arrastando { opacity: 0.35; }
+  .sidebar-link[data-menu-key].alvo-antes { box-shadow: inset 0 2px 0 #fff; }
+  .sidebar-link[data-menu-key].alvo-depois { box-shadow: inset 0 -2px 0 #fff; }
+  .sidebar-separador { border: none; border-top: 1px solid rgba(255,255,255,0.28); margin: 14px 0; }
+  .sidebar-footer { display: flex; align-items: center; gap: 10px; padding: 10px; margin-top: auto; border-top: 1px solid rgba(255,255,255,0.28); }
+  .sidebar-avatar { width: 30px; height: 30px; border-radius: 50%; background: rgba(255,255,255,0.22); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; flex-shrink: 0; }
+  .sidebar-footer-name { font-size: 12px; font-weight: 700; color: #fff; }
+  .sidebar-footer-sub { font-size: 11px; color: rgba(255,255,255,0.78); }
+  .conteudo-principal { margin-left: 212px; position: relative; z-index: 1; }
+  /* marca d'água -- mesmo padrão das demais páginas com sidebar */
+  body::before {
+    content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background: url('/logo-ricapet-teal.png') center / min(72vmin, 760px) no-repeat;
+    opacity: 0.06;
+  }
+  /* toggle de tema da SIDEBAR -- classe própria (.tema-toggle, não
+     .theme-toggle) pra não colidir com o toggle que já existe no topbar. */
+  .tema-toggle { display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.28); margin: 2px 0 10px; }
+  .tema-toggle button { display: grid; place-items: center; flex: 1; height: 26px; border-radius: 999px; border: none; background: none; color: rgba(255,255,255,0.75); cursor: pointer; font-size: 13px; }
+  .tema-toggle button.ativo { background: #fff; color: #176E46; }
+  @media (max-width: 900px) {
+    .sidebar { position: static; width: 100%; height: auto; flex-direction: row; flex-wrap: wrap; border-right: none; border-bottom: 1px solid rgba(255,255,255,0.28); }
+    .sidebar-brand, .sidebar-footer, .sidebar-separador, .tema-toggle { display: none; }
+    .conteudo-principal { margin-left: 0; }
+  }
 
   .topbar {
     position: sticky; top: 0; z-index: 20;
@@ -318,6 +390,71 @@
 </head>
 <body>
 
+<nav class="sidebar">
+  <div class="sidebar-brand">
+    <img class="sidebar-brand-icon" src="logo-ricapet.png" alt="Ricapet">
+    <div>
+      <div class="sidebar-brand-name">Ricapet</div>
+      <div class="sidebar-brand-sub">Painel Administrativo</div>
+    </div>
+  </div>
+
+  <div class="sidebar-titulo sidebar-titulo-com-editar" id="tituloPaineis">
+    Painéis Ricapet
+    <button type="button" class="sidebar-editar-btn" id="btnEditarMenu" onclick="alternarEdicaoMenu()" title="Reordenar menu">✎</button>
+  </div>
+
+  <a class="sidebar-link" href="/?painel=dashboard" data-menu-key="dashboard">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+    Dashboard
+  </a>
+  <a class="sidebar-link" href="/?painel=concorrencia" data-menu-key="concorrencia">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 15l4-6 3 3 5-7"/></svg>
+    Análise de Concorrência
+  </a>
+  <a class="sidebar-link" href="/estoque.html" data-menu-key="estoque">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8L12 3 3 8l9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>
+    Estoque Adesivo
+  </a>
+  <a class="sidebar-link" href="/ponto.html" data-menu-key="ponto">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+    Controle de Ponto
+  </a>
+  <a class="sidebar-link ativo" href="/bipagem-v2.html" data-menu-key="bipagem">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/></svg>
+    Expedição
+  </a>
+  <a class="sidebar-link" href="/projecao-financeira.html" data-menu-key="projecao-financeira">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l4-5 3 3 5-6"/><path d="M15 6h4v4"/></svg>
+    Projeção Financeira
+  </a>
+  <a class="sidebar-link" href="/tv.html?token=8IZtk2mmDv2dBiLV8T7kiLHfSzkoMjsD" target="_blank" rel="noopener" data-menu-key="tv">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+    Painel TV
+  </a>
+
+  <a class="sidebar-link" href="/acessos.html" data-menu-key="acessos" style="display:none;">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+    Acessos
+  </a>
+
+  <hr class="sidebar-separador">
+
+  <div class="tema-toggle" data-tema-toggle>
+    <button type="button" data-tema="light" title="Tema claro">☀</button>
+    <button type="button" data-tema="dark" title="Tema escuro">☾</button>
+  </div>
+
+  <div class="sidebar-footer">
+    <div class="sidebar-avatar">R</div>
+    <div>
+      <div class="sidebar-footer-name" id="admin-nome">Ricapet</div>
+      <div class="sidebar-footer-sub">Minha conta</div>
+    </div>
+  </div>
+</nav>
+
+<div class="conteudo-principal">
 <div class="topbar">
   <div class="topbar-row">
     <a class="brand" href="/">
@@ -629,6 +766,7 @@
 
   <div class="foot-pad"></div>
 </div>
+</div>
 
 <div class="drawer-backdrop" id="drawerBackdrop"></div>
 <aside class="drawer" id="drawer" aria-hidden="true">
@@ -660,6 +798,8 @@
   const $ = (id) => document.getElementById(id);
   const sessao = window.RicapetAuth.sessao;
   $('admin-avatar').textContent = (sessao.nome || '?').slice(0, 2).toUpperCase();
+  $('admin-nome').textContent = sessao.nome;
+  window.RicapetAuth.aplicarVisibilidadeMenu();
 
   const CORES = { muted: '#93A0BC', grid: 'rgba(27,42,74,0.06)' };
   function cssVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
@@ -1358,6 +1498,109 @@
   $('p-de').value = INICIO_MES_LOJA;
   $('p-ate').value = HOJE_LOJA;
   carregar();
+
+  // Reordenar o menu da sidebar (lápis ao lado de "Painéis Ricapet") --
+  // mesma lógica/chave de localStorage usada em todas as outras páginas.
+  (function () {
+    const CHAVE_ORDEM = 'ricapet_ordem_menu_sidebar';
+    const nav = document.querySelector('.sidebar');
+    const titulo = document.getElementById('tituloPaineis');
+    if (!nav || !titulo) return;
+
+    function coletarUnidades() {
+      const unidades = [];
+      let el = titulo.nextElementSibling;
+      while (el && !el.classList.contains('sidebar-separador') && !el.classList.contains('sidebar-footer')) {
+        if (el.dataset && el.dataset.menuKey) {
+          const unidade = [el];
+          if (el.nextElementSibling && el.nextElementSibling.classList.contains('sidebar-submenu')) {
+            unidade.push(el.nextElementSibling);
+          }
+          unidades.push(unidade);
+          el = unidade[unidade.length - 1].nextElementSibling;
+        } else {
+          el = el.nextElementSibling;
+        }
+      }
+      return unidades;
+    }
+
+    function salvarOrdemAtual() {
+      const chaves = coletarUnidades().map((u) => u[0].dataset.menuKey);
+      localStorage.setItem(CHAVE_ORDEM, JSON.stringify(chaves));
+    }
+
+    function aplicarOrdemSalva() {
+      let ordem;
+      try { ordem = JSON.parse(localStorage.getItem(CHAVE_ORDEM) || '[]'); } catch (e) { ordem = []; }
+      if (!ordem.length) return;
+      const unidades = coletarUnidades();
+      const mapa = new Map(unidades.map((u) => [u[0].dataset.menuKey, u]));
+      const usadas = new Set();
+      let ancora = titulo;
+      ordem.forEach((chave) => {
+        const u = mapa.get(chave);
+        if (!u) return;
+        usadas.add(chave);
+        u.forEach((elemento) => { ancora.after(elemento); ancora = elemento; });
+      });
+      unidades.forEach((u) => {
+        if (usadas.has(u[0].dataset.menuKey)) return;
+        u.forEach((elemento) => { ancora.after(elemento); ancora = elemento; });
+      });
+    }
+
+    let arrastando = null;
+
+    function configurarArrasto(u) {
+      const link = u[0];
+      link.addEventListener('dragstart', (e) => {
+        arrastando = u;
+        link.classList.add('arrastando');
+        e.dataTransfer.effectAllowed = 'move';
+      });
+      link.addEventListener('dragend', () => {
+        link.classList.remove('arrastando');
+        document.querySelectorAll('.alvo-antes, .alvo-depois').forEach((el) => el.classList.remove('alvo-antes', 'alvo-depois'));
+        arrastando = null;
+      });
+      link.addEventListener('dragover', (e) => {
+        if (!arrastando || arrastando[0] === link) return;
+        e.preventDefault();
+        const rect = link.getBoundingClientRect();
+        const depois = (e.clientY - rect.top) > rect.height / 2;
+        link.classList.toggle('alvo-antes', !depois);
+        link.classList.toggle('alvo-depois', depois);
+      });
+      link.addEventListener('dragleave', () => link.classList.remove('alvo-antes', 'alvo-depois'));
+      link.addEventListener('drop', (e) => {
+        e.preventDefault();
+        const eraDepois = link.classList.contains('alvo-depois');
+        link.classList.remove('alvo-antes', 'alvo-depois');
+        if (!arrastando || arrastando[0] === link) return;
+        const ref = eraDepois ? u[u.length - 1].nextElementSibling : link;
+        arrastando.forEach((elemento) => link.parentNode.insertBefore(elemento, ref));
+        salvarOrdemAtual();
+      });
+    }
+
+    nav.addEventListener('click', (e) => {
+      if (!nav.classList.contains('modo-edicao')) return;
+      if (e.target.closest('.sidebar-link[data-menu-key]')) { e.preventDefault(); e.stopImmediatePropagation(); }
+    }, true);
+
+    window.alternarEdicaoMenu = function () {
+      const btn = document.getElementById('btnEditarMenu');
+      const emEdicao = nav.classList.toggle('modo-edicao');
+      btn.textContent = emEdicao ? '✓' : '✎';
+      btn.classList.toggle('ativo', emEdicao);
+      btn.title = emEdicao ? 'Concluir edição do menu' : 'Reordenar menu';
+      coletarUnidades().forEach((u) => { u[0].draggable = emEdicao; });
+    };
+
+    aplicarOrdemSalva();
+    coletarUnidades().forEach(configurarArrasto);
+  })();
 </script>
 </body>
 </html>
