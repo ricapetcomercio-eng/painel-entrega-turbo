@@ -990,14 +990,26 @@ async function debugOmiePedidoTeste(req, res) {
   if (!codigoPedido) {
     const db = getDb();
     const filtroTipo = req.query.tipo_envio_contem; // ex: "Shopee" pra pegar uma bipagem Shopee em vez da mais recente qualquer
-    const sql = filtroTipo
-      ? `SELECT n_id_pedido, tipo_envio FROM bipagem_diaria WHERE empresa = ? AND n_id_pedido IS NOT NULL AND tipo_envio LIKE ? ORDER BY bipado_em_ts DESC LIMIT 1`
-      : `SELECT n_id_pedido, tipo_envio FROM bipagem_diaria WHERE empresa = ? AND n_id_pedido IS NOT NULL ORDER BY bipado_em_ts DESC LIMIT 1`;
-    const args = filtroTipo ? [conta === 'ricapet' ? 'Ricapet' : 'Thapets', `%${filtroTipo}%`] : [conta === 'ricapet' ? 'Ricapet' : 'Thapets'];
+    // ex: ?resolver_erro_contem=MZL -- pra investigar uma linha que já falhou
+    // em "Resolver pendentes" com um origem_pedido da Omie desconhecido
+    // (ver lib/bipagemResolver.js), sem precisar descobrir o n_id_pedido na mão.
+    const filtroErro = req.query.resolver_erro_contem;
+    let sql;
+    let filtroValor;
+    if (filtroErro) {
+      sql = `SELECT n_id_pedido, tipo_envio, resolver_erro FROM bipagem_diaria WHERE empresa = ? AND n_id_pedido IS NOT NULL AND resolver_erro LIKE ? ORDER BY bipado_em_ts DESC LIMIT 1`;
+      filtroValor = `%${filtroErro}%`;
+    } else if (filtroTipo) {
+      sql = `SELECT n_id_pedido, tipo_envio, resolver_erro FROM bipagem_diaria WHERE empresa = ? AND n_id_pedido IS NOT NULL AND tipo_envio LIKE ? ORDER BY bipado_em_ts DESC LIMIT 1`;
+      filtroValor = `%${filtroTipo}%`;
+    } else {
+      sql = `SELECT n_id_pedido, tipo_envio, resolver_erro FROM bipagem_diaria WHERE empresa = ? AND n_id_pedido IS NOT NULL ORDER BY bipado_em_ts DESC LIMIT 1`;
+    }
+    const args = filtroValor ? [conta === 'ricapet' ? 'Ricapet' : 'Thapets', filtroValor] : [conta === 'ricapet' ? 'Ricapet' : 'Thapets'];
     const rs = await db.execute({ sql, args });
-    if (!rs.rows.length) { res.status(200).json({ ok: true, aviso: `Nenhum n_id_pedido encontrado em bipagem_diaria pra essa empresa${filtroTipo ? ` com tipo_envio contendo "${filtroTipo}"` : ''} — passe ?codigo_pedido=... manualmente.` }); return; }
+    if (!rs.rows.length) { res.status(200).json({ ok: true, aviso: `Nenhum n_id_pedido encontrado em bipagem_diaria pra essa empresa${filtroTipo ? ` com tipo_envio contendo "${filtroTipo}"` : ''}${filtroErro ? ` com resolver_erro contendo "${filtroErro}"` : ''} — passe ?codigo_pedido=... manualmente.` }); return; }
     codigoPedido = rs.rows[0].n_id_pedido;
-    origem = `auto (n_id_pedido mais recente de bipagem_diaria${filtroTipo ? `, tipo_envio="${rs.rows[0].tipo_envio}"` : ''})`;
+    origem = `auto (n_id_pedido mais recente de bipagem_diaria${filtroTipo ? `, tipo_envio="${rs.rows[0].tipo_envio}"` : ''}${filtroErro ? `, resolver_erro="${rs.rows[0].resolver_erro}"` : ''})`;
   }
 
   const { appKey, appSecret } = getOmieConfig(conta);
