@@ -703,6 +703,12 @@
   let ultimoDadosBipagem = null;
   let dadosFiltrados = null;
 
+  // Dono/admin do painel — bipa esporadicamente (teste, cobertura de pico),
+  // mas não é da equipe de expedição. Some da lista/ranking/gráficos por
+  // funcionário e do painel lateral; os pedidos que ele bipou continuam
+  // valendo nos totais gerais (Total bipado, heatmap, etc.) e na tabela
+  // "Todos os pedidos do período" — só não vira uma "pessoa" no ranking.
+  const FUNCIONARIOS_OCULTOS_RANKING = ['ricardo'];
   const LABEL_PLATAFORMA = { mercado_livre: 'Mercado Livre', shopee: 'Shopee' };
   function labelPlataforma(v) { return v ? (LABEL_PLATAFORMA[v] || v) : 'Não resolvido'; }
 
@@ -719,7 +725,9 @@
     selPlataforma.innerHTML = '<option value="">Marketplace (todos)</option>' + plataformas.map((v) => `<option value="${v}">${labelPlataforma(v)}</option>`).join('');
     if (plataformas.includes(plataformaAtual)) selPlataforma.value = plataformaAtual;
 
-    const funcionarios = [...new Set((dados.pedidos || []).map((p) => p.bipado_por || '(não identificado)'))].sort();
+    const funcionarios = [...new Set((dados.pedidos || []).map((p) => p.bipado_por || '(não identificado)'))]
+      .filter((f) => !FUNCIONARIOS_OCULTOS_RANKING.includes(f.trim().toLowerCase()))
+      .sort();
     const selFunc = $('fp-funcionario');
     const funcAtual = selFunc.value;
     selFunc.innerHTML = '<option value="">Funcionário (todos)</option>' + funcionarios.map((f) => `<option value="${f}">${f}</option>`).join('');
@@ -818,7 +826,9 @@
     });
 
     const baseMap = new Map((operadoresBase || []).map((o) => [o.nome, o]));
-    const operadores = [...porOperadorMapa.values()].map((op) => {
+    const operadores = [...porOperadorMapa.values()]
+      .filter((op) => !FUNCIONARIOS_OCULTOS_RANKING.includes(op.nome.trim().toLowerCase()))
+      .map((op) => {
       const base = baseMap.get(op.nome);
       const minutosTrabalhados = base ? base.minutos_trabalhados : null;
       return {
@@ -1141,7 +1151,9 @@
     selMotivo.innerHTML = '<option value="">Todos</option>' + motivos.map((m) => `<option value="${m}">${m}</option>`).join('');
     if (motivos.includes(motivoAtual)) selMotivo.value = motivoAtual;
 
-    const funcs = [...new Set(itens.map((i) => i.bipado_por))].sort();
+    const funcs = [...new Set(itens.map((i) => i.bipado_por))]
+      .filter((f) => !FUNCIONARIOS_OCULTOS_RANKING.includes(String(f || '').trim().toLowerCase()))
+      .sort();
     const selFunc = $('fd-funcionario'); const funcAtual = selFunc.value;
     selFunc.innerHTML = '<option value="">Todos</option>' + funcs.map((f) => `<option value="${f}">${f}</option>`).join('');
     if (funcs.includes(funcAtual)) selFunc.value = funcAtual;
