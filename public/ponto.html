@@ -10,83 +10,22 @@
 <meta name="theme-color" content="#4FB8B9">
 <script>(function(){try{var t=localStorage.getItem('ricapet_tema2');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap">
 <link rel="stylesheet" href="assets/tokens-admin.css">
 <script src="assets/auth.js"></script>
 <script src="assets/tema.js" defer></script>
 <style>
-  :root {
-    --surface-2: #EEF2F9;
-    --shadow: rgba(27,42,74,0.10);
-    --brand: #f5a623; --accent-ink: #272456;
-    --warn: #B8860B; --warn-bg: #FBF1D9;
-    --ok: #2F8F5B; --ok-bg: #E4F3EA; --bad: #C1443D; --bad-bg: #FBE7E5;
-    --info-bg: #E7F0FF; --info-tx: #2657C4;
-    --radius: 16px; --radius-sm: 10px;
-  }
+  /* Tokens/componentes de sidebar, kpi, card, tabela, badge, marca d'água e
+     tema-toggle agora vêm de assets/tokens-admin.css (Design System
+     compartilhado) -- aqui fica só o que é específico desta página.
+     Exceção deliberada: o modal (.modal/.modal-card, mais abaixo) continua
+     100% local -- o componente de modal compartilhado abre/fecha via classe
+     .aberto, enquanto o JS desta página sempre usou o atributo [hidden];
+     como é só CSS/markup nesta migração (sem mexer em JS), as regras da
+     página continuam sobrescrevendo por nome de classe de propósito. */
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--page-bg); color: var(--ink); font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
-
-  /* ---- Sidebar (mesmo padrão dos outros painéis Ricapet — voltou a ser
-     lateral a pedido do dono do projeto; só a cor/fonte é da identidade
-     portal agora, degradê teal vertical em vez de roxo sólido) ---- */
-  .sidebar {
-    width: 212px; height: 100vh; position: fixed; top: 0; left: 0; z-index: 1000;
-    background: linear-gradient(165deg, var(--sidebar-bg) 0%, #37A6A7 55%, #2E8385 100%);
-    border-right: 1px solid var(--sidebar-border);
-    padding: 16px 12px; box-sizing: border-box; overflow-y: auto;
-    display: flex; flex-direction: column;
-  }
-  .sidebar-brand { display: flex; align-items: center; gap: 8px; padding: 2px 8px 14px; margin-bottom: 10px; border-bottom: 1px solid var(--sidebar-border); }
-  .sidebar-brand-icon { width: 32px; height: 32px; object-fit: contain; flex-shrink: 0; }
-  .sidebar-brand-name { font-size: 14px; font-weight: 800; color: var(--sidebar-text); line-height: 1.2; }
-  .sidebar-brand-sub { font-size: 11px; color: var(--sidebar-muted); }
-  .sidebar-titulo { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sidebar-muted); padding: 0 10px; margin-bottom: 10px; }
-  .sidebar-titulo-com-editar { display: flex; align-items: center; justify-content: space-between; }
-  .sidebar-editar-btn {
-    background: none; border: none; color: var(--sidebar-muted); cursor: pointer;
-    font-size: 12px; opacity: 0.55; padding: 2px 5px; border-radius: 4px; line-height: 1;
-    transition: opacity 0.15s, background 0.15s;
-  }
-  .sidebar-editar-btn:hover { opacity: 1; background: var(--sidebar-hover); }
-  .sidebar-editar-btn.ativo { opacity: 1; color: #fff; }
-  .sidebar-link {
-    display: flex; align-items: center; gap: 8px; padding: 7px 9px; border-radius: 7px;
-    border-left: 2px solid transparent; color: var(--sidebar-text); text-decoration: none; font-size: 13px;
-    font-weight: 600; margin-bottom: 2px; white-space: nowrap; transition: background .15s ease, color .15s ease, border-color .15s ease;
-  }
-  .sidebar-link:hover { background: var(--sidebar-hover); }
-  .sidebar-link.ativo { background: rgba(255,255,255,0.18); border-left-color: #fff; }
-  .sidebar-link svg { flex-shrink: 0; }
-  .sidebar.modo-edicao .sidebar-link[data-menu-key] { cursor: grab; }
-  .sidebar.modo-edicao .sidebar-link[data-menu-key]::before { content: '⠿'; opacity: 0.6; }
-  .sidebar-link[data-menu-key].arrastando { opacity: 0.35; }
-  .sidebar-link[data-menu-key].alvo-antes { box-shadow: inset 0 2px 0 #fff; }
-  .sidebar-link[data-menu-key].alvo-depois { box-shadow: inset 0 -2px 0 #fff; }
-  .sidebar-submenu { margin: 2px 0 8px 14px; padding-left: 10px; border-left: 2px solid var(--sidebar-border); }
-  .sidebar-submenu.oculto { display: none; }
-  .sidebar-separador { border: none; border-top: 1px solid var(--sidebar-border); margin: 14px 0; }
-  .sidebar-footer { display: flex; align-items: center; gap: 10px; padding: 10px; margin-top: auto; border-top: 1px solid var(--sidebar-border); }
-  .sidebar-avatar { width: 30px; height: 30px; border-radius: 50%; background: rgba(255,255,255,0.22); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; flex-shrink: 0; }
-  .sidebar-footer-name { font-size: 12px; font-weight: 700; color: var(--sidebar-text); }
-  .sidebar-footer-sub { font-size: 11px; color: var(--sidebar-muted); }
-  .conteudo-principal { margin-left: 212px; position: relative; z-index: 1; }
-  /* ---- marca d'água: logo grande, fixa e bem apagada atrás do conteúdo (mesmo padrão do Painel TV) ---- */
-  body::before {
-    content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
-    background: url('logo-ricapet-teal.png') center / min(72vmin, 760px) no-repeat;
-    opacity: 0.06;
-  }
-  .tema-toggle { display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; background: rgba(255,255,255,0.14); border: 1px solid var(--sidebar-border); margin: 2px 0 10px; }
-  .tema-toggle button { display: grid; place-items: center; flex: 1; height: 26px; border-radius: 999px; border: none; background: none; color: rgba(255,255,255,0.75); cursor: pointer; font-size: 13px; }
-  .tema-toggle button.ativo { background: #fff; color: var(--sidebar-active); }
-  @media (max-width: 900px) {
-    .sidebar { position: static; width: 100%; height: auto; flex-direction: row; flex-wrap: wrap; border-right: none; border-bottom: 1px solid var(--sidebar-border); background: linear-gradient(120deg, var(--sidebar-bg) 0%, #37A6A7 55%, #2E8385 100%); }
-    .sidebar-brand, .sidebar-footer, .sidebar-separador, .tema-toggle { display: none; }
-    .conteudo-principal { margin-left: 0; }
-  }
   button, input, select, textarea { font: inherit; }
-  [hidden] { display: none !important; }
   a { color: var(--accent); }
 
   .shell { max-width: 1000px; margin: 0 auto; padding: 0 16px 60px; }
@@ -109,15 +48,11 @@
   .periodo { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--ink-soft); }
   .periodo input { height: 32px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); padding: 0 8px; font-size: 0.8rem; transition: background .15s ease, border-color .15s ease; }
   .periodo button, .chip-sair { height: 32px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); padding: 0 12px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: background .15s ease, border-color .15s ease, color .15s ease, transform .1s ease; }
-  .periodo button:hover, .chip-sair:hover { background: var(--surface-2); }
-  .chip-usuario {
-    display: inline-flex; align-items: center; gap: 5px; font-size: 0.78rem; color: var(--ink-soft);
-    background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 6px 13px;
-  }
-  .chip-usuario-rotulo { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--ink-muted); font-weight: 700; }
-  .periodo button:hover, .chip-sair:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-1px); }
+  .periodo button:hover, .chip-sair:hover { background: var(--surface-2); border-color: var(--accent); color: var(--accent); transform: translateY(-1px); }
 
-  /* tabs */
+  /* tabs (sub-menu "Controle de Ponto" dentro da sidebar) */
+  .sidebar-submenu { margin: 2px 0 8px 14px; padding-left: 10px; border-left: 2px solid var(--sidebar-border); }
+  .sidebar-submenu.oculto { display: none; }
   .tabs { display: flex; flex-direction: column; gap: 2px; }
   .tabs button {
     display: flex; align-items: center; width: 100%; text-align: left;
@@ -126,7 +61,7 @@
     transition: background .15s ease, color .15s ease;
   }
   .tabs button:hover { background: var(--sidebar-hover); }
-  .tabs button.ativo { background: var(--sidebar-active); color: var(--sidebar-text); border-left-color: #8B7CF6; font-weight: 700; }
+  .tabs button.ativo { background: var(--sidebar-active); color: var(--sidebar-text); border-left-color: #fff; font-weight: 700; }
   .tabs .badge { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; margin-left: 8px; border-radius: 999px; background: var(--bad); color: #fff; font-size: 0.7rem; font-weight: 700; }
 
   /* solicitações */
@@ -155,7 +90,7 @@
   .folha-topo select { height: 38px; border-radius: 9px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); padding: 0 12px; font-size: 0.9rem; transition: border-color .15s ease; }
   .folha-topo .espaco { margin-left: auto; }
   .folha-topo button { height: 36px; border-radius: 9px; border: 1px solid var(--border); background: var(--surface-2); color: var(--ink-soft); padding: 0 13px; font-weight: 600; font-size: 0.82rem; cursor: pointer; transition: all .15s ease; }
-  .folha-topo button:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-1px); box-shadow: 0 4px 10px rgba(245,166,35,0.18); }
+  .folha-topo button:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-1px); box-shadow: 0 4px 10px rgba(30,142,90,0.18); }
 
   .resumo {
     display: grid; grid-template-columns: repeat(4, 1fr); margin-bottom: 18px;
@@ -180,24 +115,34 @@
     .resumo .box:nth-child(3), .resumo .box:nth-child(4) { border-top: 1px solid var(--border); }
   }
 
-  .quadro { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow-x: auto; box-shadow: 0 2px 10px rgba(27,42,74,0.06); }
+  /* tabela diária (Por funcionário/Visão geral) — densa (até 12 colunas),
+     alinhamento central e números tabulares em monoespaçado; cor de fundo,
+     borda, box-shadow e o hover padrão de linha já vêm do Design System
+     compartilhado (.quadro/table/thead th/tbody td). */
+  .quadro { overflow-x: auto; }
   .quadro::-webkit-scrollbar { height: 8px; }
   .quadro::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; }
   .quadro::-webkit-scrollbar-thumb:hover { background: var(--ink-muted); }
-  table { width: 100%; border-collapse: collapse; min-width: 560px; }
-  th { text-align: center; font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.02em; color: var(--ink-muted); padding: 9px 8px; background: var(--surface-2); border-bottom: 1px solid var(--border); white-space: nowrap; }
+  table { min-width: 560px; }
+  th { font-size: 0.66rem; padding: 9px 8px; }
+  td { font-family: var(--font-mono); font-size: 0.8rem; padding: 9px 8px; }
+  th, td { text-align: center; }
   th:first-child, td:first-child { text-align: left; padding-left: 14px; }
-  td { padding: 9px 8px; border-bottom: 1px solid var(--border); text-align: center; font-family: var(--font-mono); font-size: 0.8rem; white-space: nowrap; }
-  tbody tr { transition: background-color .12s ease; }
+  /* células de status (st-ok/atraso/falta/abono) precisam manter a própria
+     cor mesmo com o mouse em cima — sem isso o hover genérico do Design
+     System (var(--surface-2) em qualquer <td>) apagaria a cor. */
   tbody tr:hover td:not(.st-ok):not(.st-atraso):not(.st-falta):not(.st-abono) { background: var(--surface-2); }
-  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover td.st-ok { background: var(--ok-bg); }
+  tbody tr:hover td.st-atraso { background: var(--warn-bg); }
+  tbody tr:hover td.st-falta { background: var(--bad-bg); }
+  tbody tr:hover td.st-abono { background: var(--info-bg); }
   tr.hoje td:first-child { box-shadow: inset 3px 0 0 var(--brand); }
   tr.hoje td.c-dia { color: var(--accent-ink); font-weight: 700; }
   .chip-hoje { display: inline-block; background: var(--brand); color: var(--ink-on-accent); font-size: 0.6rem; font-weight: 800; padding: 1px 7px; border-radius: 999px; margin-left: 6px; text-transform: uppercase; letter-spacing: 0.04em; vertical-align: 1px; }
   .c-dia { font-family: var(--font-body) !important; font-weight: 600; color: var(--ink-soft); text-transform: capitalize; }
   .c-sub { display: block; font-family: var(--font-body); font-weight: 500; font-size: 0.68rem; color: var(--ink-muted); text-transform: none; margin-top: 1px; }
   .c-nenhum { color: var(--ink-muted); font-family: var(--font-body) !important; text-align: left !important; }
-  .extra { color: var(--ok); } .falta { color: var(--bad); } .zero { color: var(--ink-muted); }
+  .extra { color: var(--ok); } .falta { color: var(--bad); }
   .saldo.pos { color: var(--ok); font-weight: 600; } .saldo.neg { color: var(--bad); font-weight: 600; }
   td.st-ok     { background: var(--ok-bg);   color: var(--ok); }
   td.st-atraso { background: var(--warn-bg); color: var(--warn); }
@@ -223,14 +168,30 @@
 
   /* visão geral */
   .vg-linha { cursor: pointer; }
-  .vg-linha:hover td { background: var(--surface-2); }
 
-  /* modal */
-  .modal { position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; padding: 16px; }
-  .modal-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); width: 100%; max-width: 420px; padding: 20px; box-shadow: 0 20px 60px var(--shadow); max-height: 88vh; overflow-y: auto; }
+  /* modal -- mantido 100% local (JS abre/fecha via [hidden], não via classe
+     .aberto como o componente compartilhado). O Design System já define
+     ".modal, .modal-card" com opacity/pointer-events/transform pensados
+     pro toggle por .aberto -- como aqui o nome da classe é o mesmo (de
+     propósito, é o mesmo padrão visual), essas propriedades continuam
+     "vazando" mesmo com [hidden] cuidando de mostrar/esconder, então
+     precisam ser neutralizadas aqui pra não deixar o modal com
+     opacity:0/pointer-events:none por baixo do JS -- sem isso o modal abre
+     ([hidden] some) mas fica invisível e inclicável. */
+  .modal {
+    position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,0.55); display: flex;
+    align-items: center; justify-content: center; padding: 16px;
+    max-width: none; max-height: none; border: none; border-radius: 0; box-shadow: none; overflow: visible;
+    opacity: 1; pointer-events: auto; transform: none;
+  }
+  .modal-card {
+    position: static; top: auto; left: auto; transform: none; opacity: 1; pointer-events: auto;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); width: 100%;
+    max-width: 420px; padding: 20px; box-shadow: 0 20px 60px var(--shadow); max-height: 88vh; overflow-y: auto;
+  }
   .modal-card h3 { font-family: var(--font-display); font-size: 1.1rem; margin: 0 0 14px; }
   .m-linha { display: flex; gap: 8px; margin-bottom: 10px; }
-  .m-linha.sugerido { background: var(--accent-bg, rgba(245,166,35,0.12)); border-radius: 9px; padding: 4px; margin: -4px -4px 10px; }
+  .m-linha.sugerido { background: var(--accent-bg, rgba(30,142,90,0.12)); border-radius: 9px; padding: 4px; margin: -4px -4px 10px; }
   .m-sugestao-hint { font-size: 0.76rem; color: var(--ink-muted); line-height: 1.4; margin: 6px 0 0; }
   .m-linha select, .m-linha input { height: 40px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface-2); color: var(--ink); padding: 0 10px; font-size: 0.9rem; }
   .m-linha select { flex: 1; }
@@ -244,7 +205,7 @@
   .modal-acoes .cancelar { border: 1px solid var(--border); background: none; color: var(--ink-soft); }
   .modal-acoes .cancelar:hover { background: var(--surface-2); }
   .modal-acoes .ok { border: none; background: var(--brand); color: var(--ink-on-accent); }
-  .modal-acoes .ok:hover:not(:disabled) { filter: brightness(1.06); transform: translateY(-1px); box-shadow: 0 8px 18px rgba(245,166,35,0.35); }
+  .modal-acoes .ok:hover:not(:disabled) { filter: brightness(1.06); transform: translateY(-1px); box-shadow: 0 8px 18px rgba(30,142,90,0.35); }
   .modal-acoes .ok:disabled { opacity: 0.5; }
 
   .vazio { color: var(--ink-muted); font-size: 0.95rem; text-align: center; padding: 48px 16px; line-height: 1.6; }
@@ -301,7 +262,7 @@
   .cp-linha { width: 260px; margin: 0 auto 4px; border-top: 1px solid #000; }
 </style>
 </head>
-<body>
+<body class="marca-dagua">
 
 <!-- PAINEL (o login em si é a tela compartilhada /login.html — assets/auth.js
      já garantiu, antes desta página carregar, que existe uma sessão válida) -->
