@@ -9,78 +9,18 @@
 <script src="assets/auth.js"></script>
 <script src="assets/tema.js" defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap">
 <link rel="stylesheet" href="assets/tokens-admin.css">
 <style>
-  :root {
-    --surface-2: #EEF2F9;
-    --accent-dark: #272456;
-    --danger-bg: #FBE7E5; --danger-text: #8A2A24; --danger-solid: #C1443D;
-    --warning-bg: #FBF1D9; --warning-text: #6B4308;
-    --neutral-bg: #E7E9EF; --neutral-text: #3A3F4B;
-    --radius: 16px;
-    --shadow: rgba(27,42,74,0.10);
-  }
+  /* Tokens/componentes de sidebar, topbar, kpi, card, tabela, badge, marca
+     d'água, tema-toggle etc. agora vêm de assets/tokens-admin.css (Design
+     System compartilhado) -- aqui fica só o que é específico desta página:
+     a grade de planilha (linhas/colunas de dias), o formulário de saldo
+     bancário e o modal de detalhe do Omie. Mantém IBM Plex Mono carregado
+     (o resto do sistema não usa mais por padrão) porque a matriz inteira
+     depende de números tabulares monoespaçados pra alinhar as colunas. */
   * { box-sizing: border-box; }
-  [hidden] { display: none !important; }
-  body { margin: 0; padding: 0; background: var(--page-bg); color: var(--ink); font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
-  h1, h2, h3 { font-family: var(--font-display); }
-
-  .sidebar {
-    width: 212px; height: 100vh; position: fixed; top: 0; left: 0; z-index: 1000;
-    background: linear-gradient(165deg, var(--sidebar-bg) 0%, #37A6A7 55%, #2E8385 100%);
-    border-right: 1px solid var(--sidebar-border);
-    padding: 16px 12px; box-sizing: border-box; overflow-y: auto;
-    display: flex; flex-direction: column;
-  }
-  .sidebar-brand { display: flex; align-items: center; gap: 8px; padding: 2px 8px 14px; margin-bottom: 10px; border-bottom: 1px solid var(--sidebar-border); }
-  .sidebar-brand-icon { width: 32px; height: 32px; object-fit: contain; flex-shrink: 0; }
-  .sidebar-brand-name { font-size: 14px; font-weight: 800; color: var(--sidebar-text); line-height: 1.2; }
-  .sidebar-brand-sub { font-size: 11px; color: var(--sidebar-muted); }
-  .sidebar-titulo { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sidebar-muted); padding: 0 10px; margin-bottom: 10px; }
-  .sidebar-titulo-com-editar { display: flex; align-items: center; justify-content: space-between; }
-  .sidebar-editar-btn {
-    background: none; border: none; color: var(--sidebar-muted); cursor: pointer;
-    font-size: 12px; opacity: 0.55; padding: 2px 5px; border-radius: 4px; line-height: 1;
-    transition: opacity 0.15s, background 0.15s;
-  }
-  .sidebar-editar-btn:hover { opacity: 1; background: var(--sidebar-hover); }
-  .sidebar-editar-btn.ativo { opacity: 1; color: #fff; }
-  .sidebar-link {
-    display: flex; align-items: center; gap: 8px; padding: 7px 9px; border-radius: 7px;
-    border-left: 2px solid transparent; color: var(--sidebar-text); text-decoration: none; font-size: 13px;
-    font-weight: 600; margin-bottom: 2px; white-space: nowrap; transition: background .15s ease, border-color .15s ease;
-  }
-  .sidebar-link:hover { background: var(--sidebar-hover); }
-  .sidebar-link.ativo { background: rgba(255,255,255,0.18); border-left-color: #fff; }
-  .sidebar-link svg { flex-shrink: 0; }
-  .sidebar.modo-edicao .sidebar-link[data-menu-key] { cursor: grab; }
-  .sidebar.modo-edicao .sidebar-link[data-menu-key]::before { content: '⠿'; opacity: 0.6; }
-  .sidebar-link[data-menu-key].arrastando { opacity: 0.35; }
-  .sidebar-link[data-menu-key].alvo-antes { box-shadow: inset 0 2px 0 #fff; }
-  .sidebar-link[data-menu-key].alvo-depois { box-shadow: inset 0 -2px 0 #fff; }
-  .sidebar-submenu { margin: 2px 0 8px 14px; padding-left: 10px; border-left: 2px solid var(--sidebar-border); }
-  .sidebar-submenu.oculto { display: none; }
-  .sidebar-separador { border: none; border-top: 1px solid var(--sidebar-border); margin: 14px 0; }
-  .sidebar-footer { display: flex; align-items: center; gap: 10px; padding: 10px; margin-top: auto; border-top: 1px solid var(--sidebar-border); }
-  .sidebar-avatar { width: 30px; height: 30px; border-radius: 50%; background: rgba(255,255,255,0.22); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; flex-shrink: 0; }
-  .sidebar-footer-name { font-size: 12px; font-weight: 700; color: var(--sidebar-text); }
-  .sidebar-footer-sub { font-size: 11px; color: var(--sidebar-muted); }
-  .conteudo-principal { margin-left: 212px; position: relative; z-index: 1; }
-  /* ---- marca d'água: logo grande, fixa e bem apagada atrás do conteúdo (mesmo padrão do Painel TV) ---- */
-  body::before {
-    content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
-    background: url('logo-ricapet-teal.png') center / min(72vmin, 760px) no-repeat;
-    opacity: 0.06;
-  }
-  .tema-toggle { display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; background: rgba(255,255,255,0.14); border: 1px solid var(--sidebar-border); margin: 2px 0 10px; }
-  .tema-toggle button { display: grid; place-items: center; flex: 1; height: 26px; border-radius: 999px; border: none; background: none; color: rgba(255,255,255,0.75); cursor: pointer; font-size: 13px; }
-  .tema-toggle button.ativo { background: #fff; color: var(--sidebar-active); }
-  @media (max-width: 900px) {
-    .sidebar { position: static; width: 100%; height: auto; flex-direction: row; flex-wrap: wrap; border-right: none; border-bottom: 1px solid var(--border); background: linear-gradient(120deg, var(--sidebar-bg) 0%, #37A6A7 55%, #2E8385 100%); }
-    .sidebar-brand, .sidebar-footer, .sidebar-separador, .tema-toggle { display: none; }
-    .conteudo-principal { margin-left: 0; }
-  }
+  body { margin: 0; padding: 0; background: var(--page-bg); color: var(--ink); font-family: var(--font-body); -webkit-font-smoothing: antialiased; font-variant-numeric: tabular-nums; }
 
   .shell { max-width: 100%; margin: 0 auto; padding: 20px 24px 60px; }
 
@@ -91,17 +31,11 @@
   .h-title-row { display: flex; align-items: center; gap: 9px; }
   .h-sub { font-size: 0.72rem; font-weight: 500; color: var(--ink-muted); letter-spacing: 0.01em; }
 
-  .empty-note, .error-note, .loading-note, .pendente-note { text-align: center; padding: 24px; color: var(--ink-muted); font-size: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
-  .error-note { color: var(--danger-text); background: var(--danger-bg); border-color: transparent; }
-  .pendente-note { color: var(--warning-text); background: var(--warning-bg); border-color: transparent; text-align: left; }
-
-  .refresh-btn, .salvar-btn {
-    font-size: 13px; padding: 9px 14px; border-radius: 8px; border: 1.5px solid var(--border);
-    background: var(--surface); cursor: pointer; color: var(--ink-soft); font-weight: 600;
-    display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
-  }
-  .refresh-btn:hover:not(:disabled), .salvar-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent-dark); }
-  .refresh-btn:disabled, .salvar-btn:disabled { opacity: 0.6; cursor: default; }
+  /* .loading-note já vem do Design System (empty-state/loading genéricos);
+     .error-note/.pendente-note são variantes de status só desta página. */
+  .error-note, .pendente-note { text-align: center; padding: 24px; font-size: 14px; border-radius: var(--radius); }
+  .error-note { color: var(--danger-text); background: var(--danger-bg); }
+  .pendente-note { color: var(--warning-text); background: var(--warning-bg); text-align: left; }
 
   .saldo-form {
     display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 18px;
@@ -123,12 +57,13 @@
   .avisos-lista { margin: 14px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 3px; }
   .avisos-lista li { font-size: 11px; color: var(--ink-muted); line-height: 1.5; }
 
-  /* Mesmas cores da planilha de referência do dono do projeto (seção de
-     ENTRADAS em azul claro, SAÍDAS em laranja claro — só a barra de
-     cabeçalho da seção, não cada linha individual). Essas linhas usam uma
+  /* Mesma distinção da planilha de referência do dono do projeto (seção de
+     ENTRADAS num tom, SAÍDAS noutro — só a barra de cabeçalho da seção, não
+     cada linha individual). Usa os tokens de status --info/--warning em vez
+     de hex fixo pra acompanhar o tema claro/escuro. Essas linhas usam uma
      única célula com colspan (sem .rotulo), texto centralizado. */
-  tr.linha-secao.secao-entrada td { background: #D9E9FF; color: #1B2A4A; }
-  tr.linha-secao.secao-saida td { background: #FFE4CC; color: #1B2A4A; }
+  tr.linha-secao.secao-entrada td { background: var(--info-bg); color: var(--text-primary); }
+  tr.linha-secao.secao-saida td { background: var(--warning-bg); color: var(--text-primary); }
 
   .matriz-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
   table.matriz { width: max-content; min-width: 100%; border-collapse: collapse; }
@@ -170,13 +105,17 @@
   td.clicavel { cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
   td.clicavel:hover { background: var(--brand-light); color: var(--brand); }
 
-  /* modal de detalhe (mesmo padrão usado em ponto.html) */
-  .modal { position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; padding: 16px; }
-  .modal-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); width: 100%; max-width: 560px; padding: 20px; box-shadow: 0 20px 60px var(--shadow); max-height: 88vh; overflow-y: auto; }
-  .modal-card h3 { font-family: var(--font-display); font-size: 1.05rem; margin: 0 0 14px; }
-  .modal-acoes { display: flex; margin-top: 16px; }
-  .modal-acoes button { margin-left: auto; height: 38px; border-radius: 999px; font-weight: 700; font-size: 0.85rem; cursor: pointer; padding: 0 22px; border: 1px solid var(--border); background: none; color: var(--ink-soft); }
-  .modal-acoes button:hover { background: var(--surface-2); }
+  /* Modal de detalhe do Omie: o Design System já tem um componente .modal/
+     .modal-card, mas ele é mostrado/escondido via classe "aberto" (opacity),
+     e este popup é mostrado/escondido via atributo `hidden` no JS (ver
+     abrirModalOmie) — mudar o mecanismo de exibição seria mexer em
+     <script>, fora do escopo desta migração visual. Por isso o backdrop e o
+     cartão ficam com classes próprias (não colidem com .modal/.modal-card
+     do Design System), mas já usando os mesmos tokens de cor/raio/sombra.
+     .modal-acoes é reaproveitado (mesmo nome, mesmo comportamento). */
+  #modal-omie { position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; padding: 16px; }
+  .fc-modal-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); width: 100%; max-width: 560px; padding: 20px; box-shadow: 0 20px 60px var(--shadow); max-height: 88vh; overflow-y: auto; }
+  .fc-modal-card h3 { font-family: var(--font-display); font-size: 1.05rem; margin: 0 0 14px; }
 
   table.tabela-omie-detalhe { width: 100%; border-collapse: collapse; font-size: 12.5px; }
   table.tabela-omie-detalhe th, table.tabela-omie-detalhe td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); }
@@ -197,7 +136,7 @@
   .modal-omie-vazio { color: var(--ink-muted); font-size: 13px; }
 </style>
 </head>
-<body>
+<body class="marca-dagua">
 <div id="tela-painel">
 <nav class="sidebar">
   <div class="sidebar-brand">
@@ -275,7 +214,7 @@
     <h1><span class="h-title-row">Projeção Financeira</span><span class="h-sub">Fluxo de caixa projetado dia a dia — entradas menos saídas, a partir do saldo bancário atual</span></h1>
     <div style="display:flex; align-items:center; gap:10px">
       <span id="txt-progresso-atualizar" style="font-size:12px; color:var(--ink-muted)"></span>
-      <button class="refresh-btn" id="btn-atualizar">↻ Atualizar agora</button>
+      <button class="btn refresh-btn" id="btn-atualizar">↻ Atualizar agora</button>
     </div>
   </div>
 </header>
@@ -295,7 +234,7 @@
         <input type="text" inputmode="decimal" id="input-saldo-thapets" placeholder="0,00">
       </div>
     </div>
-    <button class="salvar-btn" id="btn-salvar-saldo">Salvar saldo</button>
+    <button class="btn salvar-btn" id="btn-salvar-saldo">Salvar saldo</button>
     <span class="saldo-info" id="saldo-info"></span>
   </div>
 
@@ -306,12 +245,12 @@
 </div>
 </div><!-- fecha #tela-painel -->
 
-<div class="modal" id="modal-omie" hidden>
-  <div class="modal-card">
+<div id="modal-omie" hidden>
+  <div class="fc-modal-card">
     <h3 id="modal-omie-titulo">Contas a pagar</h3>
     <div id="modal-omie-corpo"></div>
     <div class="modal-acoes">
-      <button type="button" id="modal-omie-fechar">Fechar</button>
+      <button type="button" id="modal-omie-fechar" class="btn">Fechar</button>
     </div>
   </div>
 </div>
