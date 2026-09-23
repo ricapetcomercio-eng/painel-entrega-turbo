@@ -233,6 +233,17 @@
 .sidebar-footer-name { font-size: 12px; font-weight: 700; color: var(--sidebar-text); }
 .sidebar-footer-sub { font-size: 11px; color: var(--sidebar-muted); }
 .conteudo-principal { margin-left: 212px; position: relative; z-index: 1; }
+
+/* toggle de tema (usado tanto na sidebar quanto na topbar) -- precisa vir
+   ANTES do @media (max-width:900px) da sidebar logo abaixo: mesma
+   especificidade (uma classe), então quem vem depois no arquivo é que
+   "ganha" em telas estreitas; declarado depois, esse display:inline-flex
+   incondicional sobrescrevia o display:none do breakpoint mobile e o
+   toggle nunca sumia da sidebar no celular. */
+.tema-toggle, .theme-toggle { display: inline-flex; gap: 2px; padding: 3px; border-radius: var(--radius-pill); background: var(--sidebar-hover); border: 1px solid var(--sidebar-border); margin: 2px 0 10px; }
+.tema-toggle button, .theme-toggle button { display: grid; place-items: center; flex: 1; height: 26px; border-radius: var(--radius-pill); border: none; background: none; color: rgba(255,255,255,0.75); cursor: pointer; font-size: 13px; }
+.tema-toggle button.ativo, .theme-toggle button.ativo { background: #fff; color: var(--brand-primary-dark); }
+
 @media (max-width: 900px) {
   .sidebar { position: static; width: 100%; height: auto; flex-direction: row; flex-wrap: wrap; border-right: none; border-bottom: 1px solid var(--sidebar-border); }
   .sidebar-brand, .sidebar-footer, .sidebar-separador, .tema-toggle { display: none; }
@@ -257,10 +268,6 @@
 .brand-text b { font-size: 14.5px; font-weight: 800; color: var(--text-primary); }
 .brand-text span { font-size: 11px; color: var(--text-secondary); font-weight: 500; }
 
-/* toggle de tema (usado tanto na sidebar quanto na topbar) */
-.tema-toggle, .theme-toggle { display: inline-flex; gap: 2px; padding: 3px; border-radius: var(--radius-pill); background: var(--sidebar-hover); border: 1px solid var(--sidebar-border); margin: 2px 0 10px; }
-.tema-toggle button, .theme-toggle button { display: grid; place-items: center; flex: 1; height: 26px; border-radius: var(--radius-pill); border: none; background: none; color: rgba(255,255,255,0.75); cursor: pointer; font-size: 13px; }
-.tema-toggle button.ativo, .theme-toggle button.ativo { background: #fff; color: var(--brand-primary-dark); }
 .topbar .theme-toggle { background: var(--bg-card-2); border-color: var(--border-soft); margin: 0; }
 .topbar .theme-toggle button { color: var(--text-secondary); width: 26px; height: 26px; flex: none; }
 .topbar .theme-toggle button.ativo { background: var(--bg-card); color: var(--brand-primary-dark); box-shadow: 0 1px 4px var(--shadow); }
