@@ -16,6 +16,7 @@ const { getRedis } = require('../lib/redis');
 const { kvGet, kvSet, kvDel } = require('../lib/kv');
 const { getOmieConfig, listarTitulosPorDia } = require('../lib/omieContasPagar');
 const { resolverPedidoBipagem } = require('../lib/bipagemResolver');
+const { resumirClaimsPeriodo } = require('../lib/mlClaims');
 const { importarContagemFisica, importarSaldoDaPlanilha, completarCatalogoFaltante, corrigirCorArranhadorAdesivoBege, enviarBalancoAgora } = require('../lib/estoqueSaldo');
 const { dataFusoLoja, isoDeDiaHoraLoja, resolverMarcacoes } = require('../lib/registrosPonto');
 
@@ -681,6 +682,22 @@ async function debugMlClaims(req, res) {
     accessToken
   );
   res.status(200).json({ ok: true, tipo: 'ml-claims', conta, periodo: { desde, ate }, resposta_bruta: dados });
+}
+
+// Diagnóstico do "por que devolução nunca aparece?" — resumo agregado em vez
+// de despejar a resposta bruta inteira (ver comentário em
+// lib/mlClaims.js/resumirClaimsPeriodo). Cobre o mesmo período de 60 dias
+// usado de verdade pelo cron (DIAS_JANELA_DEVOLUCOES, api/collect.js) por
+// padrão, pra refletir o que o painel realmente coletaria.
+async function debugMlClaimsResumo(req, res) {
+  const conta = req.query.conta;
+  const dias = parseInt(req.query.dias, 10) || 60;
+  if (!conta) { res.status(400).json({ error: 'Use ?conta=ricapet ou ?conta=thapets' }); return; }
+
+  const desde = new Date(Date.now() - dias * 24 * 60 * 60 * 1000).toISOString();
+  const ate = new Date().toISOString();
+  const resumo = await resumirClaimsPeriodo(conta, desde, ate);
+  res.status(200).json({ ok: true, tipo: 'ml-claims-resumo', conta, periodo: { desde, ate, dias }, ...resumo });
 }
 
 async function debugMlShipment(req, res) {
@@ -2972,6 +2989,7 @@ module.exports = async (req, res) => {
       return;
     }
     if (req.query.tipo === 'ml-claims') return await debugMlClaims(req, res);
+    if (req.query.tipo === 'ml-claims-resumo') return await debugMlClaimsResumo(req, res);
     if (req.query.tipo === 'ml-shipment') return await debugMlShipment(req, res);
     if (req.query.tipo === 'flex-status') return await debugFlexStatus(req, res);
     if (req.query.tipo === 'ml-id-teste') return await debugMlIdTeste(req, res);
@@ -3028,7 +3046,7 @@ module.exports = async (req, res) => {
     if (req.query.tipo === 'ponto-reindexar-cadeia') return await debugPontoReindexarCadeia(req, res);
     if (req.query.tipo === 'ponto-relatorio') return await debugPontoRelatorio(req, res);
     if (req.query.tipo === 'ponto-cadastrar-funcionario') return await debugPontoCadastrarFuncionario(req, res);
-    res.status(400).json({ error: 'Use ?tipo=ml-claims, ?tipo=ml-shipment, ?tipo=ml-sla, ?tipo=shopee-returns, ?tipo=shopee-channels, ?tipo=criar-tabelas, ?tipo=migrar-redis-turso, ?tipo=corrigir-shipment-id ou ?tipo=adicionar-coluna-tipo' });
+    res.status(400).json({ error: 'Use ?tipo=ml-claims, ?tipo=ml-claims-resumo, ?tipo=ml-shipment, ?tipo=ml-sla, ?tipo=shopee-returns, ?tipo=shopee-channels, ?tipo=criar-tabelas, ?tipo=migrar-redis-turso, ?tipo=corrigir-shipment-id ou ?tipo=adicionar-coluna-tipo' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
