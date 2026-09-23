@@ -281,6 +281,56 @@ n_id_pedido (codigo_pedido da Omie)
   no dashboard continua contando essas linhas normalmente (ainda não
   entraram no cruzamento) — só param de ser retentadas automaticamente.
 
+### Devoluções e reclamações na tela de Bipagem (set/2026)
+
+`bipagem.html` tem uma tabela unificada no rodapé ("Devoluções e
+reclamações localizadas no período") com filtro por Origem
+(Devolução/Reclamação) e por Motivo — antes só existia devolução, sem
+coluna de motivo nem filtro nenhum.
+
+- **Devolução** = produto físico voltando (ML ou Shopee). **Reclamação** =
+  claim do Mercado Livre de mediação/disputa que o cliente abriu mas que
+  **nunca** envolveu devolução física — antes desse recurso, esses claims
+  eram simplesmente descartados (nunca persistidos em lugar nenhum). Shopee
+  não tem essa distinção nesta integração: `lib/shopeeReturns.js` só expõe
+  devolução (não existe endpoint de "disputa sem devolução" sendo usado
+  aqui), então reclamação hoje é exclusiva do Mercado Livre.
+- **Zero custo extra de API**: `lib/mlClaims.js` já buscava todos os claims
+  do período pra filtrar devolução (`claimEhDevolucao`, heurística baseada
+  em `available_actions` tipo `return_review_*` — ver comentário no topo do
+  arquivo, inferida empiricamente, não documentada pelo ML). Antes,
+  qualquer claim que não batesse essa heurística era jogado fora;
+  `buscarClaimsClassificadosPeriodo` (mesmo arquivo) reaproveita a MESMA
+  busca (2 chamadas por conta: `opened` + `closed`) e só separa em dois
+  mapas (`devolucoes`/`reclamacoes`) em vez de descartar um deles — não
+  aumenta a frequência nem o número de chamadas do throttle de 30 min
+  (`INTERVALO_MINIMO_DEVOLUCOES_MS`, `api/collect.js`).
+- **Sem dicionário de motivo**: nem devolução nem reclamação têm hoje uma
+  tradução de `reason_id`/`reason` pra texto legível — a coluna "Motivo"
+  mostra o código cru que vem da API do marketplace (ML: código numérico
+  tipo `reason_id`; Shopee: string tipo `reason`, só pra devolução). Se
+  precisar de texto amigável no futuro, esse mapeamento ainda não existe em
+  lugar nenhum do repo e precisaria ser construído (idealmente confirmado
+  com dado real de produção antes, como o resto das heurísticas deste
+  arquivo).
+- **Persistência**: novas colunas em `historico_todos` — `reclamado`,
+  `reclamacao_claim_id`, `reclamacao_status`, `reclamacao_motivo`,
+  `reclamacao_tipo` (espelham as 4 colunas de devolução que já existiam).
+  Migração **manual**, não roda sozinha: precisa de
+  `POST /api/debug?tipo=adicionar-coluna-tipo&secret=CRON_SECRET` uma vez
+  depois do deploy — sem isso `marcarReclamacao`/o cruzamento em
+  `responderVisaoBipagem` falham (coluna inexistente).
+- **Mutuamente exclusivas no mesmo pedido**: um claim é classificado como
+  devolução OU reclamação a cada ciclo, nunca os dois. Se uma reclamação
+  "gradua" pra devolução física depois (claim muda de estágio e passa a ter
+  ação de devolução), `marcarDevolucao` (`lib/historicoTodos.js`) zera os
+  4 campos de reclamação daquele pedido — evita ficar mostrando como
+  "reclamação em aberto" um pedido que já virou devolução resolvida.
+- `registrarHistoricoTodos` preserva os campos de reclamação entre
+  re-sincronizações normais de pedido, do mesmo jeito que já fazia com
+  devolução (o fluxo normal de coleta de pedidos não sabe nada sobre
+  devolução/reclamação — só quem grava isso é `enriquecerDevolucoes`).
+
 ## Banco de dados
 
 Turso (libSQL/SQLite cloud) é o banco principal — `lib/db.js` + `lib/kv.js`

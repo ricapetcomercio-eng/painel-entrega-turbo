@@ -93,6 +93,11 @@ const TABELAS_SQL = [
     devolucao_claim_id TEXT,
     devolucao_status TEXT,
     devolucao_reason_id TEXT,
+    reclamado INTEGER,
+    reclamacao_claim_id TEXT,
+    reclamacao_status TEXT,
+    reclamacao_motivo TEXT,
+    reclamacao_tipo TEXT,
     itens TEXT
   )`,
   `CREATE INDEX IF NOT EXISTS idx_historico_todos_data ON historico_todos(date_created_ts)`,
@@ -315,6 +320,11 @@ async function debugAdicionarColunaTipo(req, res) {
     ['bipagem_diaria.marketplace_resolvido', 'ALTER TABLE bipagem_diaria ADD COLUMN marketplace_resolvido TEXT'],
     ['bipagem_diaria.resolvido_em', 'ALTER TABLE bipagem_diaria ADD COLUMN resolvido_em TEXT'],
     ['bipagem_diaria.resolver_erro', 'ALTER TABLE bipagem_diaria ADD COLUMN resolver_erro TEXT'],
+    ['historico_todos.reclamado', 'ALTER TABLE historico_todos ADD COLUMN reclamado INTEGER'],
+    ['historico_todos.reclamacao_claim_id', 'ALTER TABLE historico_todos ADD COLUMN reclamacao_claim_id TEXT'],
+    ['historico_todos.reclamacao_status', 'ALTER TABLE historico_todos ADD COLUMN reclamacao_status TEXT'],
+    ['historico_todos.reclamacao_motivo', 'ALTER TABLE historico_todos ADD COLUMN reclamacao_motivo TEXT'],
+    ['historico_todos.reclamacao_tipo', 'ALTER TABLE historico_todos ADD COLUMN reclamacao_tipo TEXT'],
   ]) {
     try {
       await db.execute(sql);
