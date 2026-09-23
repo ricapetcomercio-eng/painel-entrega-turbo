@@ -9,74 +9,21 @@
 <script src="assets/auth.js"></script>
 <script src="assets/tema.js" defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <link rel="stylesheet" href="assets/tokens-admin.css">
 <style>
-  :root {
-    --surface-2: #EEF2F9;
-    --accent-dark: #272456;
-    --danger-bg: #FBE7E5; --danger-text: #8A2A24; --danger-solid: #C1443D;
-    --warning-bg: #FBF1D9; --warning-text: #6B4308;
-  }
+  /* Tokens/componentes de sidebar, tema-toggle, marca d'água, kpi-card,
+     card, quadro/tabela, badges etc. agora vêm de assets/tokens-admin.css
+     (Design System compartilhado) -- aqui fica só o que é específico desta
+     página. */
   * { box-sizing: border-box; }
   body { margin: 0; padding: 0; background: var(--page-bg); color: var(--ink); font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
   h1, h2, h3 { font-family: var(--font-display); }
 
-  .sidebar {
-    width: 212px; height: 100vh; position: fixed; top: 0; left: 0; z-index: 1000;
-    background: linear-gradient(165deg, var(--sidebar-bg) 0%, #37A6A7 55%, #2E8385 100%);
-    border-right: 1px solid var(--sidebar-border);
-    padding: 16px 12px; box-sizing: border-box; overflow-y: auto;
-    display: flex; flex-direction: column;
-  }
-  .sidebar-brand { display: flex; align-items: center; gap: 8px; padding: 2px 8px 14px; margin-bottom: 10px; border-bottom: 1px solid var(--sidebar-border); }
-  .sidebar-brand-icon { width: 32px; height: 32px; object-fit: contain; flex-shrink: 0; }
-  .sidebar-brand-name { font-size: 14px; font-weight: 800; color: var(--sidebar-text); line-height: 1.2; }
-  .sidebar-brand-sub { font-size: 11px; color: var(--sidebar-muted); }
-  .sidebar-titulo { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sidebar-muted); padding: 0 10px; margin-bottom: 10px; }
-  .sidebar-titulo-com-editar { display: flex; align-items: center; justify-content: space-between; }
-  .sidebar-editar-btn {
-    background: none; border: none; color: var(--sidebar-muted); cursor: pointer;
-    font-size: 12px; opacity: 0.55; padding: 2px 5px; border-radius: 4px; line-height: 1;
-    transition: opacity 0.15s, background 0.15s;
-  }
-  .sidebar-editar-btn:hover { opacity: 1; background: var(--sidebar-hover); }
-  .sidebar-editar-btn.ativo { opacity: 1; color: #fff; }
-  .sidebar-link {
-    display: flex; align-items: center; gap: 8px; padding: 7px 9px; border-radius: 7px;
-    border-left: 2px solid transparent; color: var(--sidebar-text); text-decoration: none; font-size: 13px;
-    font-weight: 600; margin-bottom: 2px; white-space: nowrap; transition: background .15s ease, border-color .15s ease;
-  }
-  .sidebar-link:hover { background: var(--sidebar-hover); }
-  .sidebar-link.ativo { background: rgba(255,255,255,0.18); border-left-color: #fff; }
-  .sidebar-link svg { flex-shrink: 0; }
-  .sidebar.modo-edicao .sidebar-link[data-menu-key] { cursor: grab; }
-  .sidebar.modo-edicao .sidebar-link[data-menu-key]::before { content: '⠿'; opacity: 0.6; }
-  .sidebar-link[data-menu-key].arrastando { opacity: 0.35; }
-  .sidebar-link[data-menu-key].alvo-antes { box-shadow: inset 0 2px 0 #fff; }
-  .sidebar-link[data-menu-key].alvo-depois { box-shadow: inset 0 -2px 0 #fff; }
+  /* "Estoque Adesivo" tem visões aninhadas na sidebar -- submenu não é um
+     componente do Design System, só esta seção do menu tem. */
   .sidebar-submenu { margin: 2px 0 8px 14px; padding-left: 10px; border-left: 2px solid var(--sidebar-border); }
   .sidebar-submenu.oculto { display: none; }
-  .sidebar-separador { border: none; border-top: 1px solid var(--sidebar-border); margin: 14px 0; }
-  .sidebar-footer { display: flex; align-items: center; gap: 10px; padding: 10px; margin-top: auto; border-top: 1px solid var(--sidebar-border); }
-  .sidebar-avatar { width: 30px; height: 30px; border-radius: 50%; background: rgba(255,255,255,0.22); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; flex-shrink: 0; }
-  .sidebar-footer-name { font-size: 12px; font-weight: 700; color: var(--sidebar-text); }
-  .sidebar-footer-sub { font-size: 11px; color: var(--sidebar-muted); }
-  .conteudo-principal { margin-left: 212px; position: relative; z-index: 1; }
-  /* ---- marca d'água: logo grande, fixa e bem apagada atrás do conteúdo (mesmo padrão do Painel TV) ---- */
-  body::before {
-    content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
-    background: url('logo-ricapet-teal.png') center / min(72vmin, 760px) no-repeat;
-    opacity: 0.06;
-  }
-  .tema-toggle { display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; background: rgba(255,255,255,0.14); border: 1px solid var(--sidebar-border); margin: 2px 0 10px; }
-  .tema-toggle button { display: grid; place-items: center; flex: 1; height: 26px; border-radius: 999px; border: none; background: none; color: rgba(255,255,255,0.75); cursor: pointer; font-size: 13px; }
-  .tema-toggle button.ativo { background: #fff; color: var(--sidebar-active); }
-  @media (max-width: 900px) {
-    .sidebar { position: static; width: 100%; height: auto; flex-direction: row; flex-wrap: wrap; border-right: none; border-bottom: 1px solid var(--border); background: linear-gradient(120deg, var(--sidebar-bg) 0%, #37A6A7 55%, #2E8385 100%); }
-    .sidebar-brand, .sidebar-footer, .sidebar-separador, .tema-toggle { display: none; }
-    .conteudo-principal { margin-left: 0; }
-  }
 
   .shell { max-width: 900px; margin: 0 auto; padding: 20px 20px 60px; }
 
@@ -87,22 +34,13 @@
   .h-title-row { display: flex; align-items: center; gap: 9px; }
   .h-sub { font-size: 0.72rem; font-weight: 500; color: var(--ink-muted); letter-spacing: 0.01em; }
 
-  .kpi-row {
-    display: grid; grid-template-columns: repeat(3, 1fr); margin-bottom: 18px;
-    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius, 14px);
-    box-shadow: 0 2px 10px rgba(27,42,74,0.06); overflow: hidden;
-  }
-  .kpi { padding: 14px 16px; border-right: 1px solid var(--border); }
-  .kpi:last-child { border-right: none; }
+  /* KPIs -- grid (.kpi-row) e cartão (.kpi) já vêm do Design System
+     compartilhado; aqui só os nomes de classe gerados no <script>
+     (k-label/k-value) e os tons de estado (warn/danger). */
   .kpi .k-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: var(--ink-muted); margin-bottom: 4px; }
   .kpi .k-value { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 18px; font-weight: 600; }
   .kpi.warn .k-value { color: var(--warning-text); }
   .kpi.danger .k-value { color: var(--danger-text); }
-  @media (max-width: 560px) {
-    .kpi-row { grid-template-columns: 1fr; }
-    .kpi { border-right: none; }
-    .kpi:not(:first-child) { border-top: 1px solid var(--border); }
-  }
 
   .hrow input[type="text"] {
     min-width: 180px; padding: 9px 12px; border: 1.5px solid var(--border);
@@ -113,27 +51,28 @@
     background: var(--surface); cursor: pointer; color: var(--ink-soft); font-weight: 600;
     display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
   }
-  .refresh-btn:hover { border-color: var(--accent); color: var(--accent-dark); }
+  .refresh-btn:hover { border-color: var(--accent); color: var(--accent-ink); }
   .checkbox-label input { margin: 0; }
 
-  table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
-  th, td { text-align: left; padding: 9px 12px; font-size: 13.5px; border-bottom: 1px solid var(--border); }
-  th { background: var(--surface-2); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-muted); font-weight: 600; }
-  tr:last-child td { border-bottom: none; }
-  td.num { font-family: var(--font-mono); text-align: right; font-weight: 600; }
+  /* Tabela -- cabeçalho/linhas (thead th, tbody td) já vêm do Design System
+     (regras não escopadas a .quadro, valem pra qualquer <table>); aqui só a
+     "caixa" da tabela (fundo/borda, já que #conteudo não usa .quadro por
+     também hospedar loading-note/error-note/empty-note) e os estados de
+     linha específicos desta página (saldo negativo/zerado). */
+  table { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  td.num { font-family: var(--font-mono); font-weight: 600; }
   tr.negativo td.num { color: var(--danger-text); }
   tr.negativo { background: var(--danger-bg); }
   tr.zerado td.num { color: var(--warning-text); }
   .updated-cell { color: var(--ink-muted); font-size: 12px; }
 
-  .empty-note, .error-note, .loading-note { text-align: center; padding: 30px; color: var(--ink-muted); font-size: 14px; }
-  .error-note { color: var(--danger-text); }
+  .error-note { text-align: center; padding: 30px; color: var(--danger-text); font-size: 14px; }
 
   footer.foot { text-align: center; font-size: 12px; color: var(--ink-muted); margin-top: 24px; }
   footer.foot a { color: var(--accent); }
 </style>
 </head>
-<body>
+<body class="marca-dagua">
 <div id="tela-painel">
 <nav class="sidebar">
   <div class="sidebar-brand">
