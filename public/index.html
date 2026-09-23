@@ -12,7 +12,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
 <script src="https://cdn.jsdelivr.net/npm/d3@7.8.5/dist/d3.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <link rel="stylesheet" href="assets/tokens-admin.css">
 <style>
   * { box-sizing: border-box; }
@@ -48,10 +48,10 @@
   }
   .periodo-controle label { color: var(--muted); display: flex; align-items: center; gap: 4px; }
   .periodo-controle select, .periodo-controle input[type="date"] {
-    background: #fff; border: 1px solid var(--border); color: var(--text);
+    background: var(--card); border: 1px solid var(--border); color: var(--text);
     border-radius: 6px; padding: 5px 8px; font-size: 12px;
   }
-  .periodo-btn { background: #fff; border: 1px solid var(--border); color: var(--muted); border-radius: 6px; padding: 5px 10px; font-size: 12px; cursor: pointer; }
+  .periodo-btn { background: var(--card); border: 1px solid var(--border); color: var(--muted); border-radius: 6px; padding: 5px 10px; font-size: 12px; cursor: pointer; }
   .periodo-btn.periodo-ativo { color: var(--ink-on-accent); background: var(--blue); border-color: var(--blue); }
   .periodo-aplicar { color: var(--ink-on-accent); background: var(--blue); border-color: var(--blue); }
   .periodo-label { color: var(--muted); margin-left: auto; }
@@ -116,7 +116,7 @@
   .legenda-valor { color: var(--muted); font-weight: 700; }
 
   .icon-stat { display: flex; align-items: center; gap: 14px; padding: 6px 0; }
-  .icon-stat .icone { width: 46px; height: 46px; border-radius: 10px; background: var(--teal-light); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .icon-stat .icone { width: 46px; height: 46px; border-radius: 10px; background: var(--brand-primary-light); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
   .icon-stat .valor { font-size: 24px; font-weight: 800; line-height: 1.1; }
   .icon-stat .rotulo { font-size: 12px; color: var(--muted); }
 
@@ -128,7 +128,7 @@
   .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; }
   .badge-ml { background: #fff7d6; color: #a3810c; }
   .badge-shopee { background: #ffe4dc; color: #ee4d2d; }
-  .status-coletado { color: var(--teal); font-weight: 700; }
+  .status-coletado { color: var(--success); font-weight: 700; }
   .status-aguardando { color: var(--muted); font-weight: 700; }
   .status-transito { color: var(--blue); font-weight: 700; }
   .empty { text-align: center; padding: 40px; color: var(--muted); }
@@ -173,7 +173,7 @@
   .tabela-abc { width: 100%; border-collapse: collapse; font-size: 13px; }
   .tabela-abc th { text-align: left; color: var(--muted); font-size: 11px; text-transform: uppercase; padding: 8px 10px; border-bottom: 1px solid var(--border); }
   .tabela-abc td { padding: 7px 10px; border-bottom: 1px solid var(--border); }
-  .tabela-abc tbody tr:hover { background: #fafbfc; }
+  .tabela-abc tbody tr:hover { background: var(--bg-card-2); }
 
   .grid-produtos-mov { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
   @media (max-width: 900px) { .grid-produtos-mov { grid-template-columns: 1fr; } }
@@ -196,7 +196,7 @@
     position: sticky; left: 0; z-index: 1; background: var(--card); text-align: left;
     max-width: 220px; overflow: hidden; text-overflow: ellipsis;
   }
-  #tabelaDesempenhoMatriz thead th { position: sticky; top: 0; z-index: 2; background: #fafbfc; }
+  #tabelaDesempenhoMatriz thead th { position: sticky; top: 0; z-index: 2; background: var(--bg-card-2); }
   #tabelaDesempenhoMatriz thead th:first-child { z-index: 3; }
 
   .alerta-card { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border-radius: 10px; margin-bottom: 8px; font-size: 13px; border-left: 4px solid; }
@@ -212,69 +212,17 @@
   .heatmap-table td { width: 26px; height: 22px; text-align: center; border-radius: 3px; cursor: default; }
   .heatmap-table td .heatmap-cell { display: block; width: 100%; height: 100%; border-radius: 3px; }
 
-  /* ---- Menu lateral ---- */
-  .sidebar {
-    width: 212px; height: 100vh; position: fixed; top: 0; left: 0; z-index: 1000;
-    background: linear-gradient(165deg, var(--sidebar-bg) 0%, #37A6A7 55%, #2E8385 100%);
-    border-right: 1px solid var(--sidebar-border);
-    padding: 16px 12px; box-sizing: border-box; overflow-y: auto;
-    display: flex; flex-direction: column;
-  }
-  .sidebar-brand { display: flex; align-items: center; gap: 8px; padding: 2px 8px 14px; margin-bottom: 10px; border-bottom: 1px solid var(--sidebar-border); }
-  .sidebar-brand-icon { width: 32px; height: 32px; object-fit: contain; flex-shrink: 0; }
-  .sidebar-brand-name { font-size: 14px; font-weight: 800; color: var(--sidebar-text); line-height: 1.2; }
-  .sidebar-brand-sub { font-size: 11px; color: var(--sidebar-muted); }
-  .sidebar-titulo {
-    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
-    color: var(--sidebar-muted); padding: 0 10px; margin-bottom: 10px;
-  }
-  .sidebar-titulo-com-editar { display: flex; align-items: center; justify-content: space-between; }
-  .sidebar-editar-btn {
-    background: none; border: none; color: var(--sidebar-muted); cursor: pointer;
-    font-size: 12px; opacity: 0.35; padding: 2px 5px; border-radius: 4px; line-height: 1;
-    transition: opacity 0.15s, background 0.15s;
-  }
-  .sidebar-editar-btn:hover { opacity: 1; background: var(--sidebar-hover); }
-  .sidebar-editar-btn.ativo { opacity: 1; color: #fff; }
-  .sidebar-link {
-    display: flex; align-items: center; gap: 8px; padding: 7px 9px; border-radius: 7px;
-    border-left: 2px solid transparent; color: var(--sidebar-text); text-decoration: none; font-size: 13px;
-    font-weight: 600; margin-bottom: 2px; transition: background 0.15s, border-color 0.15s; white-space: nowrap;
-  }
-  .sidebar-link:hover { background: var(--sidebar-hover); }
-  .sidebar-link.ativo { background: rgba(255,255,255,0.18); color: var(--sidebar-text); border-left-color: #fff; }
-  .sidebar-link svg { flex-shrink: 0; }
-  .sidebar.modo-edicao .sidebar-link[data-menu-key] { cursor: grab; }
-  .sidebar.modo-edicao .sidebar-link[data-menu-key]::before { content: '⠿'; opacity: 0.6; }
-  .sidebar-link[data-menu-key].arrastando { opacity: 0.35; }
-  .sidebar-link[data-menu-key].alvo-antes { box-shadow: inset 0 2px 0 #fff; }
-  .sidebar-link[data-menu-key].alvo-depois { box-shadow: inset 0 -2px 0 #fff; }
-  .sidebar-separador { border: none; border-top: 1px solid var(--sidebar-border); margin: 14px 0; }
+  /* ---- Menu lateral: sidebar, tema-toggle e marca d'água já vêm de
+     assets/tokens-admin.css (Design System compartilhado) — aqui fica só o
+     que é específico desta página: o submenu expansível (itens dentro de
+     "Dashboard" e as lojas de Concorrência) e o padding do conteúdo. ---- */
   .sidebar-submenu { margin: 2px 0 8px 14px; padding-left: 10px; border-left: 2px solid var(--sidebar-border); }
   .sidebar-submenu.oculto { display: none; }
   .sidebar-externo-icone { margin-left: auto; opacity: 0.5; }
-  .sidebar-footer { display: flex; align-items: center; gap: 10px; padding: 10px; margin-top: auto; border-top: 1px solid var(--sidebar-border); }
-  .sidebar-avatar { width: 30px; height: 30px; border-radius: 50%; background: rgba(255,255,255,0.22); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; flex-shrink: 0; }
-  .sidebar-footer-name { font-size: 12px; font-weight: 700; color: var(--sidebar-text); }
-  .sidebar-footer-sub { font-size: 11px; color: var(--sidebar-muted); }
-  .conteudo-principal { padding: 24px 28px; margin-left: 212px; position: relative; z-index: 1; }
-  /* ---- marca d'água: logo grande, fixa e bem apagada atrás do conteúdo (mesmo padrão do Painel TV) ---- */
-  body::before {
-    content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
-    background: url('logo-ricapet-teal.png') center / min(72vmin, 760px) no-repeat;
-    opacity: 0.06;
-  }
-  .tema-toggle { display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; background: rgba(255,255,255,0.14); border: 1px solid var(--sidebar-border); margin: 2px 0 10px; }
-  .tema-toggle button { display: grid; place-items: center; flex: 1; height: 26px; border-radius: 999px; border: none; background: none; color: rgba(255,255,255,0.75); cursor: pointer; font-size: 13px; }
-  .tema-toggle button.ativo { background: #fff; color: var(--sidebar-active); }
-  @media (max-width: 900px) {
-    .sidebar { position: static; width: 100%; height: auto; flex-direction: row; flex-wrap: wrap; border-right: none; border-bottom: 1px solid var(--sidebar-border); background: linear-gradient(120deg, var(--sidebar-bg) 0%, #37A6A7 55%, #2E8385 100%); }
-    .sidebar-brand, .sidebar-footer, .sidebar-separador, .tema-toggle { display: none; }
-    .conteudo-principal { margin-left: 0; }
-  }
+  .conteudo-principal { padding: 24px 28px; }
 </style>
 </head>
-<body>
+<body class="marca-dagua">
 <div id="tela-painel">
   <nav class="sidebar">
     <div class="sidebar-brand">
@@ -677,7 +625,7 @@
           <svg viewBox="0 0 200 115" style="width:100%; max-width:220px; display:block; margin:0 auto;">
             <path d="M 20,100 A 80,80 0 0,1 60,30.72" fill="none" stroke="var(--red)" stroke-width="22" stroke-linecap="round"/>
             <path d="M 60,30.72 A 80,80 0 0,1 140,30.72" fill="none" stroke="var(--yellow)" stroke-width="22" stroke-linecap="round"/>
-            <path d="M 140,30.72 A 80,80 0 0,1 180,100" fill="none" stroke="var(--teal)" stroke-width="22" stroke-linecap="round"/>
+            <path d="M 140,30.72 A 80,80 0 0,1 180,100" fill="none" stroke="var(--success)" stroke-width="22" stroke-linecap="round"/>
             <line id="gaugeAgulha" x1="100" y1="100" x2="20" y2="100" stroke="#2d3436" stroke-width="4" stroke-linecap="round"/>
             <circle cx="100" cy="100" r="7" fill="#2d3436"/>
           </svg>
@@ -1075,13 +1023,19 @@
     coletarUnidades().forEach(configurarArrasto);
   })();
 
+  // Cores dos gráficos lidas do Design System (assets/tokens-admin.css) em
+  // vez de hex fixo -- acompanham automaticamente o tema claro/escuro,
+  // mesmo padrão já usado em bipagem.html/bipagem-v2.html. ml/shopee
+  // continuam fixas (identidade de marca de cada marketplace, não da
+  // Ricapet) e muted/grid seguem como estavam (tom neutro pra eixo/grade).
+  function cssVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
   const CORES = {
-    teal: '#17a389', yellow: '#f2c94c', gray: '#bdc3c7', blue: '#1d4ed8', red: '#eb5757',
+    teal: cssVar('--chart-1'), yellow: cssVar('--chart-3'), gray: '#bdc3c7', blue: cssVar('--chart-2'), red: cssVar('--danger'),
     ml: '#f2b90c', shopee: '#ee4d2d',
     muted: '#7f8c96',
     grid: 'rgba(0,0,0,0.06)',
   };
-  const PALETA_MULTI = [CORES.teal, CORES.blue, CORES.yellow, CORES.gray, CORES.red, '#9b59b6', '#2ecc71'];
+  const PALETA_MULTI = ['--chart-1', '--chart-2', '--chart-3', '--chart-4', '--chart-5'].map(cssVar);
 
   if (typeof Chart !== 'undefined') {
     Chart.defaults.color = CORES.muted;
@@ -1443,9 +1397,9 @@
       const evolucao = agregarPorDia(pedidosAtual);
       renderizarHeatmap(pedidosAtual);
       const rotulosDias = evolucao.dias.map(d => d.slice(8, 10) + '/' + d.slice(5, 7));
-      criarOuAtualizarChart('chartExecFaturamentoDia', { type: 'line', data: { labels: rotulosDias, datasets: [{ data: evolucao.faturamento, borderColor: CORES.teal, backgroundColor: 'rgba(23,163,137,0.12)', fill: true, tension: 0.3, pointRadius: 2 }] }, options: baseLineOptions() });
-      criarOuAtualizarChart('chartExecPedidosDia', { type: 'line', data: { labels: rotulosDias, datasets: [{ data: evolucao.pedidos, borderColor: CORES.blue, backgroundColor: 'rgba(47,128,237,0.12)', fill: true, tension: 0.3, pointRadius: 2 }] }, options: baseLineOptions() });
-      criarOuAtualizarChart('chartExecTicketDia', { type: 'line', data: { labels: rotulosDias, datasets: [{ data: evolucao.ticketMedio, borderColor: CORES.yellow, backgroundColor: 'rgba(242,201,76,0.18)', fill: true, tension: 0.3, pointRadius: 2 }] }, options: baseLineOptions('R$ ') });
+      criarOuAtualizarChart('chartExecFaturamentoDia', { type: 'line', data: { labels: rotulosDias, datasets: [{ data: evolucao.faturamento, borderColor: CORES.teal, backgroundColor: 'rgba(30,142,90,0.12)', fill: true, tension: 0.3, pointRadius: 2 }] }, options: baseLineOptions() });
+      criarOuAtualizarChart('chartExecPedidosDia', { type: 'line', data: { labels: rotulosDias, datasets: [{ data: evolucao.pedidos, borderColor: CORES.blue, backgroundColor: 'rgba(47,111,224,0.12)', fill: true, tension: 0.3, pointRadius: 2 }] }, options: baseLineOptions() });
+      criarOuAtualizarChart('chartExecTicketDia', { type: 'line', data: { labels: rotulosDias, datasets: [{ data: evolucao.ticketMedio, borderColor: CORES.yellow, backgroundColor: 'rgba(184,121,31,0.18)', fill: true, tension: 0.3, pointRadius: 2 }] }, options: baseLineOptions('R$ ') });
 
       // Comparativos fixos (hoje/ontem, semana/semana passada, mês/mês
       // anterior) — independem do filtro de período selecionado acima, e
@@ -2261,9 +2215,9 @@
     const container = document.getElementById('chipsFiltroContainer');
     const chips = [];
     const chip = (rotulo, valor, tipo) => `
-      <span style="display:inline-flex; align-items:center; gap:4px; background:var(--teal-light); color:#0F6E56; padding:4px 10px; border-radius:999px; font-weight:700; font-size:12px;">
+      <span style="display:inline-flex; align-items:center; gap:4px; background:var(--brand-primary-light); color:var(--brand-primary-dark); padding:4px 10px; border-radius:999px; font-weight:700; font-size:12px;">
         ${rotulo}: ${valor}
-        <button onclick="removerFiltro('${tipo}')" style="background:none; border:none; color:#0F6E56; cursor:pointer; font-weight:700;">✕</button>
+        <button onclick="removerFiltro('${tipo}')" style="background:none; border:none; color:var(--brand-primary-dark); cursor:pointer; font-weight:700;">✕</button>
       </span>`;
     if (filtroEstado) chips.push(chip('Estado', filtroEstado, 'estado'));
     if (filtroCidade) chips.push(chip('Cidade', filtroCidade, 'cidade'));
