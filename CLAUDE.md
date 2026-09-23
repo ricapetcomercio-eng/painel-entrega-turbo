@@ -300,6 +300,25 @@ coluna de motivo nem filtro nenhum.
   em `available_actions` tipo `return_review_*` — ver comentário no topo do
   arquivo, inferida empiricamente, não documentada pelo ML). Antes,
   qualquer claim que não batesse essa heurística era jogado fora;
+  - **✅ Bug real corrigido — devolução fechada nunca era detectada (set/2026)**:
+    confirmado com dado real de produção (`?tipo=ml-claims-resumo`, conta
+    Thapets: 5 claims no período, todos `status: "closed"`,
+    `available_actions` vazio nos 5) que o critério original
+    (`return_review_*` em `available_actions`) só funciona enquanto o claim
+    do Mercado Livre está ABERTO — assim que o ML fecha o claim,
+    `available_actions` esvazia pra todo mundo, e toda devolução já
+    concluída virava "reclamação" na marra, mesmo sendo produto físico que
+    voltou de verdade. `claimEhDevolucao` ganhou um 2º critério que
+    sobrevive ao fechamento: `claim.type === 'returns'` (constante
+    `TIPOS_DEVOLUCAO`) — o próprio ML já categoriza o claim como devolução
+    formal desde a criação, campo que não é limpo quando o claim fecha.
+    Qualquer um dos dois critérios basta. `type: "returns"` não garante que
+    o produto voltou fisicamente (o vendedor pode ter vencido a disputa,
+    `return_review_fail`) — é "cliente abriu devolução formal", não
+    "confirmado que voltou"; conferir `devolucao_status`/`devolucao_motivo`
+    na tela pro desfecho real. `?tipo=ml-claims-resumo` agora também expõe
+    `tipos_esperados_devolucao` no diagnóstico, junto do
+    `acoes_esperadas_devolucao` que já existia.
   `buscarClaimsClassificadosPeriodo` (mesmo arquivo) reaproveita a MESMA
   busca (2 chamadas por conta: `opened` + `closed`) e só separa em dois
   mapas (`devolucoes`/`reclamacoes`) em vez de descartar um deles — não
