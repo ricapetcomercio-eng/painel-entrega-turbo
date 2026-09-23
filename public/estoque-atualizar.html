@@ -8,20 +8,20 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Estoque Ricapet">
-<meta name="theme-color" content="#2E8385">
+<meta name="theme-color" content="#1E8E5A">
 <script>(function(){try{var t=localStorage.getItem('ricapet_tema2');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <link rel="stylesheet" href="assets/tokens-admin.css">
 <script src="assets/auth.js"></script>
 <script src="assets/tema.js" defer></script>
 <style>
-  :root {
-    --surface-2: #EEF2F9;
-    --success-bg: #E4F3EA; --success-text: #2F8F5B; --success-solid: #2F8F5B;
-    --warning-bg: #FBF1D9; --warning-text: #6B4308; --warning-solid: #B8860B;
-    --danger-bg: #FBE7E5; --danger-text: #8A2A24; --danger-solid: #C1443D;
-  }
+  /* Tokens de cor/fonte/tema já vêm de assets/tokens-admin.css (Design System
+     compartilhado, identidade verde) -- aqui fica só o que é específico desta
+     página mobile (sem sidebar por design, ver CLAUDE.md). O :root local que
+     existia aqui redefinia --surface-2/--success-*/--warning-*/--danger-* com
+     hex fixo da identidade antiga; removido para herdar os tokens do Design
+     System (os mesmos nomes de variável continuam funcionando embaixo).  */
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { margin: 0; padding: 0; background: var(--page-bg); color: var(--ink); font-family: var(--font-body); }
   h1, h2, h3 { font-family: var(--font-display); }
@@ -44,18 +44,13 @@
   .gravar-status.ok { color: var(--success-solid); font-weight: 600; }
   .gravar-status.err { color: var(--danger-solid); font-weight: 600; }
 
-  header.topbar { position: sticky; top: 0; z-index: 10; background: linear-gradient(135deg, var(--sidebar-bg) 0%, var(--sidebar-active) 100%); box-shadow: 0 2px 14px rgba(46,131,133,0.20); color: #fff; padding: 16px 18px 14px; }
+  header.topbar { position: sticky; top: 0; z-index: 10; background: linear-gradient(135deg, var(--sidebar-bg) 0%, var(--sidebar-active) 100%); box-shadow: 0 2px 14px rgba(30,142,90,0.20); color: #fff; padding: 16px 18px 14px; }
   header.topbar h1 { font-family: var(--font-display); font-size: 18px; font-weight: 700; margin: 0 0 2px; }
   header.topbar p { font-size: 12px; margin: 0; opacity: .85; }
   header.topbar .save-pill { display: inline-block; margin-top: 8px; font-size: 11.5px; font-weight: 600; padding: 4px 10px; border-radius: 999px; background: rgba(255,255,255,.15); }
 
+  /* Marca d'água (.marca-dagua::before, no <body>) já vem do Design System. */
   main { padding: 16px; max-width: 560px; margin: 0 auto; position: relative; z-index: 1; }
-  /* ---- marca d'água: logo grande, fixa e bem apagada atrás do conteúdo (mesmo padrão do Painel TV) ---- */
-  body::before {
-    content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
-    background: url('logo-ricapet-teal.png') center / min(72vmin, 760px) no-repeat;
-    opacity: 0.06;
-  }
 
   .field-block { margin-bottom: 18px; }
   .field-block label { display: block; font-size: 13px; font-weight: 600; color: var(--ink-soft); margin-bottom: 8px; }
@@ -71,13 +66,17 @@
     display: flex; align-items: center; gap: 7px; padding: 10px 14px; border-radius: 999px;
     border: 1.5px solid var(--border); background: var(--surface); font-size: 14px; font-weight: 600; color: var(--ink-soft);
   }
-  .color-pill.active { background: var(--ink); border-color: var(--ink); color: #fff; }
+  /* color: var(--bg-page) (não #fff fixo) -- --ink vira quase-branco no tema
+     escuro, então o texto precisa ser escuro nesse tema pra não ficar
+     invisível (branco sobre quase-branco); --bg-page é sempre o oposto de
+     --ink em cada tema, então o texto acompanha claro/escuro corretamente. */
+  .color-pill.active { background: var(--ink); border-color: var(--ink); color: var(--bg-page); }
   .color-pill.completo { border-color: var(--success-solid); }
-  .color-pill.completo.active { background: var(--success-solid); border-color: var(--success-solid); }
+  .color-pill.completo.active { background: var(--success-solid); border-color: var(--success-solid); color: #fff; }
   .color-pill .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
   .pill-badge { font-size: 10.5px; font-weight: 700; padding: 1px 6px; border-radius: 999px; background: var(--surface-2); color: var(--ink-muted); }
   .color-pill.completo .pill-badge { background: var(--success-bg); color: var(--success-text); }
-  .color-pill.active .pill-badge { background: rgba(255,255,255,.25); color: #fff; }
+  .color-pill.active .pill-badge { background: rgba(127,127,127,.25); color: var(--bg-page); }
 
   .medida-card {
     background: var(--surface); border: 1.5px solid var(--border); border-radius: 14px;
@@ -86,7 +85,7 @@
   .medida-card.pendente { border-color: var(--warning-solid); background: var(--warning-bg); }
   .medida-card.feito { border-color: var(--success-solid); background: var(--success-bg); }
   .medida-card .m-title { font-size: 14.5px; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-  .status-badge { font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+  /* Formato do .status-badge (tamanho/padding/pill) já vem do Design System -- aqui só a cor por estado. */
   .preco-tag { font-family: var(--font-mono); font-size: 12px; font-weight: 600; color: var(--ink-muted); white-space: nowrap; }
   .medida-card.pendente .status-badge { background: var(--warning-solid); color: #fff; }
   .medida-card.feito .status-badge { background: var(--success-solid); color: #fff; }
@@ -109,7 +108,7 @@
   section.card h2 { font-family: var(--font-display); font-size: 16px; font-weight: 700; margin: 0 0 4px; }
   section.card .sub { font-size: 12.5px; color: var(--ink-soft); margin: 0 0 14px; }
 
-  .empty-note { text-align: center; padding: 24px 10px; color: var(--ink-muted); font-size: 13.5px; }
+  /* .empty-note (estado vazio) já vem completo do Design System. */
 
   .roll-toggle {
     display: flex; align-items: center; justify-content: space-between; width: 100%;
@@ -130,7 +129,7 @@
   .status-banner.err { background: var(--danger-bg); color: var(--danger-text); }
 </style>
 </head>
-<body>
+<body class="marca-dagua">
 
 <header class="topbar">
   <a href="estoque.html" style="display:inline-flex;align-items:center;gap:4px;color:#fff;opacity:.85;text-decoration:none;font-size:11.5px;font-weight:600;margin-bottom:6px;">← Painéis Ricapet</a>
