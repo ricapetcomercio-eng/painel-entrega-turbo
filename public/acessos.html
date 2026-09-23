@@ -15,73 +15,12 @@
 <script src="assets/auth.js"></script>
 <script src="assets/tema.js" defer></script>
 <style>
-  :root {
-    --surface-2: #EEF2F9;
-    --shadow: rgba(27,42,74,0.10);
-    --brand: #f5a623; --accent-ink: #272456;
-    --ok: #2F8F5B; --ok-bg: #E4F3EA; --bad: #C1443D; --bad-bg: #FBE7E5;
-    --info-bg: #E7F0FF; --info-tx: #2657C4;
-    --radius: 16px;
-  }
+  /* Tokens/componentes de sidebar, topbar, kpi, card, tabela, badge, marca
+     d'água, tema-toggle etc. agora vêm de assets/tokens-admin.css (Design
+     System compartilhado) -- aqui fica só o que é específico desta página. */
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--page-bg); color: var(--ink); font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
-
-  /* ---- Sidebar (mesmo padrão dos outros painéis Ricapet) ---- */
-  .sidebar {
-    width: 212px; height: 100vh; position: fixed; top: 0; left: 0; z-index: 1000;
-    background: linear-gradient(165deg, var(--sidebar-bg) 0%, #37A6A7 55%, #2E8385 100%);
-    border-right: 1px solid var(--sidebar-border);
-    padding: 16px 12px; box-sizing: border-box; overflow-y: auto;
-    display: flex; flex-direction: column;
-  }
-  .sidebar-brand { display: flex; align-items: center; gap: 8px; padding: 2px 8px 14px; margin-bottom: 10px; border-bottom: 1px solid var(--sidebar-border); }
-  .sidebar-brand-icon { width: 32px; height: 32px; object-fit: contain; flex-shrink: 0; }
-  .sidebar-brand-name { font-size: 14px; font-weight: 800; color: var(--sidebar-text); line-height: 1.2; }
-  .sidebar-brand-sub { font-size: 11px; color: var(--sidebar-muted); }
-  .sidebar-titulo { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sidebar-muted); padding: 0 10px; margin-bottom: 10px; }
-  .sidebar-titulo-com-editar { display: flex; align-items: center; justify-content: space-between; }
-  .sidebar-editar-btn {
-    background: none; border: none; color: var(--sidebar-muted); cursor: pointer;
-    font-size: 12px; opacity: 0.55; padding: 2px 5px; border-radius: 4px; line-height: 1;
-    transition: opacity 0.15s, background 0.15s;
-  }
-  .sidebar-editar-btn:hover { opacity: 1; background: var(--sidebar-hover); }
-  .sidebar-editar-btn.ativo { opacity: 1; color: #fff; }
-  .sidebar-link {
-    display: flex; align-items: center; gap: 8px; padding: 7px 9px; border-radius: 7px;
-    border-left: 2px solid transparent; color: var(--sidebar-text); text-decoration: none; font-size: 13px;
-    font-weight: 600; margin-bottom: 2px; white-space: nowrap; transition: background .15s ease, color .15s ease, border-color .15s ease;
-  }
-  .sidebar-link:hover { background: var(--sidebar-hover); }
-  .sidebar-link.ativo { background: rgba(255,255,255,0.18); border-left-color: #fff; }
-  .sidebar-link svg { flex-shrink: 0; }
-  .sidebar.modo-edicao .sidebar-link[data-menu-key] { cursor: grab; }
-  .sidebar.modo-edicao .sidebar-link[data-menu-key]::before { content: '⠿'; opacity: 0.6; }
-  .sidebar-link[data-menu-key].arrastando { opacity: 0.35; }
-  .sidebar-link[data-menu-key].alvo-antes { box-shadow: inset 0 2px 0 #fff; }
-  .sidebar-link[data-menu-key].alvo-depois { box-shadow: inset 0 -2px 0 #fff; }
-  .sidebar-separador { border: none; border-top: 1px solid var(--sidebar-border); margin: 14px 0; }
-  .sidebar-footer { display: flex; align-items: center; gap: 10px; padding: 10px; margin-top: auto; border-top: 1px solid var(--sidebar-border); }
-  .sidebar-avatar { width: 30px; height: 30px; border-radius: 50%; background: rgba(255,255,255,0.22); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; flex-shrink: 0; }
-  .sidebar-footer-name { font-size: 12px; font-weight: 700; color: var(--sidebar-text); }
-  .sidebar-footer-sub { font-size: 11px; color: var(--sidebar-muted); }
-  .conteudo-principal { margin-left: 212px; position: relative; z-index: 1; }
-  /* ---- marca d'água: logo grande, fixa e bem apagada atrás do conteúdo (mesmo padrão do Painel TV) ---- */
-  body::before {
-    content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
-    background: url('logo-ricapet-teal.png') center / min(72vmin, 760px) no-repeat;
-    opacity: 0.06;
-  }
-  .tema-toggle { display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; background: rgba(255,255,255,0.14); border: 1px solid var(--sidebar-border); margin: 2px 0 10px; }
-  .tema-toggle button { display: grid; place-items: center; flex: 1; height: 26px; border-radius: 999px; border: none; background: none; color: rgba(255,255,255,0.75); cursor: pointer; font-size: 13px; }
-  .tema-toggle button.ativo { background: #fff; color: var(--sidebar-active); }
-  @media (max-width: 900px) {
-    .sidebar { position: static; width: 100%; height: auto; flex-direction: row; flex-wrap: wrap; border-right: none; border-bottom: 1px solid var(--sidebar-border); background: linear-gradient(120deg, var(--sidebar-bg) 0%, #37A6A7 55%, #2E8385 100%); }
-    .sidebar-brand, .sidebar-footer, .sidebar-separador, .tema-toggle { display: none; }
-    .conteudo-principal { margin-left: 0; }
-  }
   button, input, select { font: inherit; }
-  [hidden] { display: none !important; }
   a { color: var(--accent); }
 
   .shell { max-width: 1200px; margin: 0 auto; padding: 0 16px 60px; }
@@ -91,41 +30,24 @@
   .hrow h1 { font-family: var(--font-display); font-size: 1.05rem; margin: 0; margin-right: auto; color: var(--ink); display: flex; flex-direction: column; gap: 2px; line-height: 1.25; }
   .h-title-row { display: flex; align-items: center; gap: 9px; }
   .h-sub { font-size: 0.72rem; font-weight: 500; color: var(--ink-muted); letter-spacing: 0.01em; }
-  .chip-usuario { display: inline-flex; align-items: center; gap: 5px; font-size: 0.78rem; color: var(--ink-soft); background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 6px 13px; }
-  .chip-usuario-rotulo { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--ink-muted); font-weight: 700; }
-  .chip-sair { height: 32px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); padding: 0 12px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all .15s ease; }
-  .chip-sair:hover { background: var(--surface-2); border-color: var(--accent); color: var(--accent); }
 
-  .aviso { text-align: center; padding: 24px; color: var(--ink-muted); font-size: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin: 18px 0; }
-  .nota {
-    background: var(--info-bg); color: var(--info-tx); border-radius: var(--radius); padding: 12px 16px;
-    font-size: 0.82rem; line-height: 1.5; margin: 18px 0;
-  }
+  .alert { margin: 18px 0; }
 
-  .quadro { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow-x: auto; box-shadow: 0 2px 10px var(--shadow); margin-bottom: 18px; }
-  table { width: 100%; border-collapse: collapse; min-width: 780px; }
-  th { text-align: center; font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.02em; color: var(--ink-muted); padding: 9px 8px; background: var(--surface-2); border-bottom: 1px solid var(--border); white-space: nowrap; }
+  /* Tabela -- fundo/borda/título (.quadro) e badge (.badge) já vêm do Design
+     System; aqui só o que é específico desta página: rolagem horizontal (10
+     colunas) e alinhamento centralizado das colunas de checkbox, com a 1ª
+     coluna (nome do funcionário) alinhada à esquerda. */
+  .quadro { overflow-x: auto; }
+  table { min-width: 780px; }
+  th, td { text-align: center; }
   th:first-child, td:first-child { text-align: left; padding-left: 14px; }
-  td { padding: 9px 8px; border-bottom: 1px solid var(--border); text-align: center; font-size: 0.82rem; }
-  tbody tr:last-child td { border-bottom: none; }
-  .c-nome { font-weight: 700; color: var(--ink); text-align: left !important; }
-  .badge-super {
-    display: inline-block; font-size: 0.68rem; font-weight: 700; padding: 3px 10px; border-radius: 999px;
-    background: var(--accent-bg); color: var(--accent-ink);
-  }
-  .btn-salvar {
-    height: 30px; border-radius: 8px; border: 1px solid var(--accent); background: var(--accent); color: #241f4d;
-    padding: 0 12px; font-size: 0.78rem; font-weight: 700; cursor: pointer;
-  }
-  .btn-salvar:hover { filter: brightness(1.05); }
-  .btn-salvar:disabled { opacity: 0.5; cursor: default; }
   .status-linha { font-size: 0.7rem; color: var(--ink-muted); display: block; margin-top: 4px; }
   .status-linha.ok { color: var(--ok); }
   .status-linha.erro { color: var(--bad); }
   input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; }
 </style>
 </head>
-<body>
+<body class="marca-dagua">
 
 <div id="tela-painel">
   <nav class="sidebar">
@@ -196,7 +118,7 @@
   <header>
     <div class="hrow">
       <h1><span class="h-title-row">Acessos · Administração</span><span class="h-sub">Quem entra no painel e o que cada um pode ver</span></h1>
-      <button class="chip-sair" id="btn-sair">Sair</button>
+      <button class="btn" id="btn-sair">Sair</button>
     </div>
   </header>
 
@@ -204,12 +126,14 @@
     <p id="aviso-carregando" class="aviso">Carregando…</p>
 
     <div id="conteudo" hidden>
-      <p class="nota">
-        Marque as páginas que cada pessoa pode acessar e clique em "Salvar" na linha dela.
-        Quem não tem a caixa "Admin" marcada não consegue nem fazer login no painel
-        (continua batendo ponto normalmente). Super admin (🔒) sempre tem acesso a tudo
-        e só é definido manualmente, nunca por esta tela.
-      </p>
+      <div class="alert">
+        <p>
+          Marque as páginas que cada pessoa pode acessar e clique em "Salvar" na linha dela.
+          Quem não tem a caixa "Admin" marcada não consegue nem fazer login no painel
+          (continua batendo ponto normalmente). Super admin (🔒) sempre tem acesso a tudo
+          e só é definido manualmente, nunca por esta tela.
+        </p>
+      </div>
 
       <div class="quadro">
         <table>
@@ -258,7 +182,7 @@
       return `
         <tr>
           <td class="c-nome">${u.nome}</td>
-          <td colspan="9"><span class="badge-super">🔒 Super admin — acesso total</span></td>
+          <td colspan="9"><span class="badge badge-info">🔒 Super admin — acesso total</span></td>
         </tr>`;
     }
     const checks = PAGINAS.map((p) => `
@@ -268,11 +192,11 @@
       <tr data-funcionario-id="${u.id}">
         <td class="c-nome">${u.nome}</td>
         <td><input type="text" data-cargo value="${(u.cargo || '').replace(/"/g, '&quot;')}" placeholder="ex.: Assistente"
-          style="width:150px;height:30px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--ink);padding:0 8px;font-size:0.82rem"></td>
+          class="ds-input" style="width:150px"></td>
         <td><input type="checkbox" data-admin ${u.admin ? 'checked' : ''}></td>
         ${checks}
         <td>
-          <button class="btn-salvar" type="button">Salvar</button>
+          <button class="btn btn-salvar" type="button">Salvar</button>
           <span class="status-linha"></span>
         </td>
       </tr>`;

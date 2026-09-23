@@ -10,80 +10,19 @@
 <meta name="theme-color" content="#4FB8B9">
 <script>(function(){try{var t=localStorage.getItem('ricapet_tema2');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <link rel="stylesheet" href="assets/tokens-admin.css">
 <script src="assets/auth.js"></script>
 <script src="assets/tema.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
 <style>
-  :root {
-    --surface-2: #EEF2F9;
-    --shadow: rgba(27,42,74,0.10);
-    --brand: #f5a623; --accent-ink: #272456;
-    --ok: #2F8F5B; --ok-bg: #E4F3EA; --bad: #C1443D; --bad-bg: #FBE7E5;
-    --info-bg: #E7F0FF; --info-tx: #2657C4;
-    --radius: 16px;
-  }
+  /* Tokens/componentes de sidebar, topbar, kpi, card, tabela, badge, marca
+     d'água, tema-toggle etc. agora vêm de assets/tokens-admin.css (Design
+     System compartilhado) -- aqui fica só o que é específico desta página. */
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--page-bg); color: var(--ink); font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
-
-  /* ---- Sidebar (mesmo padrão dos outros painéis Ricapet) ---- */
-  .sidebar {
-    width: 212px; height: 100vh; position: fixed; top: 0; left: 0; z-index: 1000;
-    background: linear-gradient(165deg, var(--sidebar-bg) 0%, #37A6A7 55%, #2E8385 100%);
-    border-right: 1px solid var(--sidebar-border);
-    padding: 16px 12px; box-sizing: border-box; overflow-y: auto;
-    display: flex; flex-direction: column;
-  }
-  .sidebar-brand { display: flex; align-items: center; gap: 8px; padding: 2px 8px 14px; margin-bottom: 10px; border-bottom: 1px solid var(--sidebar-border); }
-  .sidebar-brand-icon { width: 32px; height: 32px; object-fit: contain; flex-shrink: 0; }
-  .sidebar-brand-name { font-size: 14px; font-weight: 800; color: var(--sidebar-text); line-height: 1.2; }
-  .sidebar-brand-sub { font-size: 11px; color: var(--sidebar-muted); }
-  .sidebar-titulo { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sidebar-muted); padding: 0 10px; margin-bottom: 10px; }
-  .sidebar-titulo-com-editar { display: flex; align-items: center; justify-content: space-between; }
-  .sidebar-editar-btn {
-    background: none; border: none; color: var(--sidebar-muted); cursor: pointer;
-    font-size: 12px; opacity: 0.55; padding: 2px 5px; border-radius: 4px; line-height: 1;
-    transition: opacity 0.15s, background 0.15s;
-  }
-  .sidebar-editar-btn:hover { opacity: 1; background: var(--sidebar-hover); }
-  .sidebar-editar-btn.ativo { opacity: 1; color: #fff; }
-  .sidebar-link {
-    display: flex; align-items: center; gap: 8px; padding: 7px 9px; border-radius: 7px;
-    border-left: 2px solid transparent; color: var(--sidebar-text); text-decoration: none; font-size: 13px;
-    font-weight: 600; margin-bottom: 2px; white-space: nowrap; transition: background .15s ease, color .15s ease, border-color .15s ease;
-  }
-  .sidebar-link:hover { background: var(--sidebar-hover); }
-  .sidebar-link.ativo { background: rgba(255,255,255,0.18); border-left-color: #fff; }
-  .sidebar-link svg { flex-shrink: 0; }
-  .sidebar.modo-edicao .sidebar-link[data-menu-key] { cursor: grab; }
-  .sidebar.modo-edicao .sidebar-link[data-menu-key]::before { content: '⠿'; opacity: 0.6; }
-  .sidebar-link[data-menu-key].arrastando { opacity: 0.35; }
-  .sidebar-link[data-menu-key].alvo-antes { box-shadow: inset 0 2px 0 #fff; }
-  .sidebar-link[data-menu-key].alvo-depois { box-shadow: inset 0 -2px 0 #fff; }
-  .sidebar-separador { border: none; border-top: 1px solid var(--sidebar-border); margin: 14px 0; }
-  .sidebar-footer { display: flex; align-items: center; gap: 10px; padding: 10px; margin-top: auto; border-top: 1px solid var(--sidebar-border); }
-  .sidebar-avatar { width: 30px; height: 30px; border-radius: 50%; background: rgba(255,255,255,0.22); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; flex-shrink: 0; }
-  .sidebar-footer-name { font-size: 12px; font-weight: 700; color: var(--sidebar-text); }
-  .sidebar-footer-sub { font-size: 11px; color: var(--sidebar-muted); }
-  .conteudo-principal { margin-left: 212px; position: relative; z-index: 1; }
-  /* ---- marca d'água: logo grande, fixa e bem apagada atrás do conteúdo (mesmo padrão do Painel TV) ---- */
-  body::before {
-    content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
-    background: url('logo-ricapet-teal.png') center / min(72vmin, 760px) no-repeat;
-    opacity: 0.06;
-  }
-  .tema-toggle { display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; background: rgba(255,255,255,0.14); border: 1px solid var(--sidebar-border); margin: 2px 0 10px; }
-  .tema-toggle button { display: grid; place-items: center; flex: 1; height: 26px; border-radius: 999px; border: none; background: none; color: rgba(255,255,255,0.75); cursor: pointer; font-size: 13px; }
-  .tema-toggle button.ativo { background: #fff; color: var(--sidebar-active); }
-  @media (max-width: 900px) {
-    .sidebar { position: static; width: 100%; height: auto; flex-direction: row; flex-wrap: wrap; border-right: none; border-bottom: 1px solid var(--sidebar-border); background: linear-gradient(120deg, var(--sidebar-bg) 0%, #37A6A7 55%, #2E8385 100%); }
-    .sidebar-brand, .sidebar-footer, .sidebar-separador, .tema-toggle { display: none; }
-    .conteudo-principal { margin-left: 0; }
-  }
+  body { margin: 0; background: var(--page-bg); color: var(--ink); font-family: var(--font-body); -webkit-font-smoothing: antialiased; font-variant-numeric: tabular-nums; }
   button, input, select { font: inherit; }
-  [hidden] { display: none !important; }
   a { color: var(--accent); }
 
   .shell { max-width: 1200px; margin: 0 auto; padding: 0 16px 60px; }
@@ -103,20 +42,9 @@
   .periodo button { height: 32px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); padding: 0 12px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all .15s ease; }
   .periodo button:hover { background: var(--surface-2); border-color: var(--accent); color: var(--accent); transform: translateY(-1px); }
   .periodo button.btn-icon { width: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; font-size: 0.95rem; }
-  .chip-usuario { display: inline-flex; align-items: center; gap: 5px; font-size: 0.78rem; color: var(--ink-soft); background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 6px 13px; }
-  .chip-usuario-rotulo { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--ink-muted); font-weight: 700; }
 
-  .aviso { text-align: center; padding: 24px; color: var(--ink-muted); font-size: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin: 18px 0; }
+  #aviso-vazio { margin: 18px 0; }
   .aviso-mini { font-size: 11px; color: var(--ink-muted); line-height: 1.5; margin: 10px 2px 0; }
-  .filtro-status { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 2px 0 10px; }
-  .filtro-status .rotulo { font-size: 0.72rem; font-weight: 700; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.02em; margin-right: 4px; }
-  .filtro-status label {
-    display: inline-flex; align-items: center; gap: 4px; font-size: 0.76rem; color: var(--ink);
-    background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 3px 10px 3px 8px;
-    cursor: pointer; user-select: none;
-  }
-  .filtro-status label:has(input:checked) { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-bg); }
-  .filtro-status input { margin: 0; }
   .aviso-mini button {
     height: 24px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface);
     color: var(--ink); padding: 0 10px; font-size: 0.72rem; font-weight: 700; cursor: pointer;
@@ -125,49 +53,35 @@
   .aviso-mini button:hover:not(:disabled) { background: var(--surface-2); border-color: var(--accent); color: var(--accent); }
   .aviso-mini button:disabled { opacity: 0.6; cursor: default; }
 
-  /* KPIs */
+  /* KPIs -- grid de 6 colunas é específico desta página; o cartão em si
+     (.kpi-card) já vem do Design System compartilhado. */
   .kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin: 18px 0; }
   @media (max-width: 900px) { .kpis { grid-template-columns: repeat(2, 1fr); } }
-  .kpi-card {
-    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
-    padding: 14px 16px; box-shadow: 0 2px 10px var(--shadow);
-  }
-  .kpi-card .l { font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-muted); margin-bottom: 6px; }
-  .kpi-card .v { font-family: var(--font-mono); font-size: 1.5rem; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
-  .kpi-card .v small { font-size: 0.9rem; color: var(--ink-muted); font-weight: 500; }
 
-  /* Charts */
+  /* Charts -- grid e altura são específicos desta página; o cartão (.card)
+     e o título já vêm do Design System compartilhado. */
   .grid-charts { display: grid; grid-template-columns: 1.3fr 1fr; gap: 14px; margin-bottom: 14px; }
   @media (max-width: 900px) { .grid-charts { grid-template-columns: 1fr; } }
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; box-shadow: 0 2px 10px var(--shadow); }
-  .card h3 { font-family: var(--font-display); font-size: 0.92rem; margin: 0 0 12px; color: var(--ink); }
   .card .chart-wrap { position: relative; height: 260px; }
   .card .chart-wrap.curta { height: 180px; }
 
-  /* Tabelas */
-  .quadro { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow-x: auto; box-shadow: 0 2px 10px var(--shadow); margin-bottom: 18px; }
-  .quadro h3 { font-family: var(--font-display); font-size: 0.92rem; margin: 0; padding: 14px 16px 0; }
-  table { width: 100%; border-collapse: collapse; min-width: 560px; }
-  th { text-align: center; font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.02em; color: var(--ink-muted); padding: 9px 8px; background: var(--surface-2); border-bottom: 1px solid var(--border); white-space: nowrap; }
+  /* Tabelas -- fundo/borda/título (.quadro/.quadro h3) já vêm do Design
+     System; aqui só o que é específico desta página: rolagem horizontal
+     pras tabelas sem wrapper .pedidos-scroll, e o alinhamento centralizado
+     das colunas numéricas (a tabela de operadores tem 13 colunas). */
+  .quadro { overflow-x: auto; }
+  table { min-width: 560px; }
+  th, td { text-align: center; }
   th:first-child, td:first-child { text-align: left; padding-left: 14px; }
-  td { padding: 9px 8px; border-bottom: 1px solid var(--border); text-align: center; font-family: var(--font-mono); font-size: 0.8rem; white-space: nowrap; }
-  tbody tr:hover td { background: var(--surface-2); }
-  tbody tr:last-child td { border-bottom: none; }
-  .c-nome { font-family: var(--font-body) !important; font-weight: 600; color: var(--ink-soft); text-align: left !important; }
-  .c-1 { font-weight: 700; color: var(--accent-ink); background: var(--accent-bg) !important; }
   .c-2 { font-weight: 700; }
   .badge-medalha { display: inline-block; width: 20px; }
-  .zero { color: var(--ink-muted); }
-  .tag-manual { display: inline-block; font-size: 0.68rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
-  .tag-manual.sim { background: var(--warn-bg, #FBF1D9); color: var(--info-tx); }
   .tag-manual.nao { color: var(--ink-muted); }
-  .pedidos-scroll { max-height: 480px; overflow-y: auto; }
-  .pedidos-scroll table thead th { position: sticky; top: 0; z-index: 2; }
+  .pedidos-scroll { max-height: 480px; }
   #fp-busca { width: 130px; }
   #fp-contagem { font-size: 0.76rem; color: var(--ink-muted); white-space: nowrap; }
 </style>
 </head>
-<body>
+<body class="marca-dagua">
 
 <div id="tela-painel">
   <nav class="sidebar">
@@ -289,7 +203,7 @@
 
     <div class="card" style="margin-bottom:14px">
       <h3>Devoluções por operador</h3>
-      <div class="filtro-status" id="filtro-status-devolucao"></div>
+      <div class="filter-chips" id="filtro-status-devolucao"></div>
       <div class="chart-wrap"><canvas id="chartDevolucao"></canvas></div>
       <p class="aviso-mini">
         Quantas devoluções (histórico geral ML/Shopee) cada operador bipou nesse período — a devolução
@@ -343,7 +257,7 @@
         traduzidos pro número do canal de venda (ver "Resolver pendentes" acima). O motivo vem cru da API do
         marketplace: hoje não existe um dicionário pra traduzir os códigos em texto legível.
       </p>
-      <div class="filtro-status" id="filtro-origem-devolucao"></div>
+      <div class="filter-chips" id="filtro-origem-devolucao"></div>
       <div class="filtro-pedidos" style="margin-bottom:10px">
         <select id="fd-motivo"><option value="">Motivo (todos)</option></select>
       </div>
@@ -364,8 +278,12 @@
   $('admin-nome').textContent = sessao.nome;
   window.RicapetAuth.aplicarVisibilidadeMenu();
 
-  const CORES = { teal: '#17a389', yellow: '#f2c94c', gray: '#bdc3c7', blue: '#1d4ed8', red: '#eb5757', muted: '#93A0BC', grid: 'rgba(27,42,74,0.06)' };
-  const PALETA_OPERADORES = [CORES.teal, CORES.blue, CORES.yellow, '#9b59b6', CORES.red, '#2ecc71', CORES.gray];
+  // Cores dos gráficos lidas do Design System (assets/tokens-admin.css) em
+  // vez de hex fixo -- acompanham automaticamente o tema claro/escuro,
+  // mesmo padrão já usado em bipagem-v2.html.
+  const CORES = { muted: '#93A0BC', grid: 'rgba(27,42,74,0.06)' };
+  function cssVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+  const PALETA_OPERADORES = ['--chart-1', '--chart-2', '--chart-3', '--chart-4', '--chart-5'].map(cssVar);
 
   if (typeof Chart !== 'undefined') {
     Chart.defaults.color = CORES.muted;
@@ -433,7 +351,7 @@
       type: 'bar',
       data: {
         labels: entradas.map(([nome]) => nome),
-        datasets: [{ label: 'Devoluções', data: entradas.map(([, qtd]) => qtd), backgroundColor: CORES.red, borderRadius: 4 }],
+        datasets: [{ label: 'Devoluções', data: entradas.map(([, qtd]) => qtd), backgroundColor: cssVar('--danger'), borderRadius: 4 }],
       },
       options: {
         responsive: true, maintainAspectRatio: false,
@@ -780,7 +698,7 @@
     // volume por hora
     montarChart('chartHora', {
       type: 'bar',
-      data: { labels: Array.from({ length: 24 }, (_, i) => i + 'h'), datasets: [{ data: dados.por_hora, backgroundColor: CORES.blue, borderRadius: 4 }] },
+      data: { labels: Array.from({ length: 24 }, (_, i) => i + 'h'), datasets: [{ data: dados.por_hora, backgroundColor: cssVar('--chart-2'), borderRadius: 4 }] },
       options: {
         responsive: true, maintainAspectRatio: false,
         layout: { padding: { top: 18 } },
@@ -794,12 +712,12 @@
       type: 'line',
       data: {
         labels: dados.tendencia.map((t) => t.data.slice(8, 10) + '/' + t.data.slice(5, 7)),
-        datasets: [{ data: dados.tendencia.map((t) => t.total), borderColor: CORES.teal, backgroundColor: 'rgba(23,163,137,0.12)', fill: true, tension: 0.3, pointRadius: 2 }],
+        datasets: [{ data: dados.tendencia.map((t) => t.total), borderColor: cssVar('--chart-1'), backgroundColor: 'rgba(30,142,90,0.12)', fill: true, tension: 0.3, pointRadius: 2 }],
       },
       options: {
         responsive: true, maintainAspectRatio: false,
         layout: { padding: { top: 18 } },
-        plugins: { legend: { display: false }, datalabels: { display: (ctx) => ctx.dataset.data[ctx.dataIndex] > 0, color: CORES.teal, font: { weight: 'bold', size: 9 }, anchor: 'end', align: 'top', clamp: true } },
+        plugins: { legend: { display: false }, datalabels: { display: (ctx) => ctx.dataset.data[ctx.dataIndex] > 0, color: cssVar('--chart-1'), font: { weight: 'bold', size: 9 }, anchor: 'end', align: 'top', clamp: true } },
         scales: { x: { grid: { display: false } }, y: { grid: { color: CORES.grid }, beginAtZero: true } },
       },
     });
