@@ -196,6 +196,16 @@
   }
   .filterbar input[type="date"] { width: 122px; }
   .filterbar input[type="search"] { width: 190px; }
+  /* Largura fixa e um pouco mais estreita que o auto-width nativo do
+     select (que reservava espaço pra caber a opção mais larga de cada
+     lista). Com isso o rótulo padrão de Marketplace/Funcionário ("...
+     (todos)") corta 1-2 letras com reticências no estado ocioso -- troca
+     aceitável por um filtro mais compacto; texto completo aparece ao
+     abrir o dropdown ou ao focar/tocar no campo. */
+  .filterbar select { overflow: hidden; text-overflow: ellipsis; }
+  .filterbar select#fp-tipo { width: 122px; }
+  .filterbar select#fp-plataforma { width: 155px; }
+  .filterbar select#fp-funcionario { width: 148px; }
   .filterbar .btn {
     height: 32px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface);
     color: var(--ink-soft); padding: 0 13px; font-size: 12.5px; font-weight: 700; cursor: pointer;
