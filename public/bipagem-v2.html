@@ -167,10 +167,13 @@
   .brand-text { white-space: nowrap; }
   .brand-text b { font-size: 16.5px; font-weight: 800; color: var(--ink); }
 
+  /* Botões só com ícone (sem o texto "Performance"/"Reclamações") --
+     title/aria-label seguram a acessibilidade/tooltip que o texto visível
+     dava antes. */
   .tabswitch { display: inline-flex; gap: 2px; padding: 3px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--border-soft); }
   .tabswitch button {
-    display: flex; align-items: center; gap: 5px; border: none; background: none; cursor: pointer;
-    padding: 6px 9px; border-radius: 9px; font-size: 12px; font-weight: 700; color: var(--ink-muted);
+    display: flex; align-items: center; justify-content: center; gap: 5px; border: none; background: none; cursor: pointer;
+    padding: 7px 10px; border-radius: 9px; font-size: 12px; font-weight: 700; color: var(--ink-muted);
     white-space: nowrap; transition: background .15s ease, color .15s ease, box-shadow .15s ease;
   }
   .tabswitch button svg { flex-shrink: 0; }
@@ -478,13 +481,11 @@
     </a>
 
     <div class="tabswitch" role="tablist" aria-label="Seções do painel">
-      <button type="button" class="ativo" data-tab="performance" role="tab" aria-selected="true">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M7 16l4-6 3 3 5-7"/></svg>
-        Performance
+      <button type="button" class="ativo" data-tab="performance" role="tab" aria-selected="true" title="Performance" aria-label="Performance">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M7 16l4-6 3 3 5-7"/></svg>
       </button>
-      <button type="button" data-tab="reclamacoes" role="tab" aria-selected="false">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
-        Reclamações
+      <button type="button" data-tab="reclamacoes" role="tab" aria-selected="false" title="Reclamações" aria-label="Reclamações">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
         <span class="badge-count" id="badgeReclamacoes">–</span>
       </button>
     </div>
@@ -1238,7 +1239,7 @@
     const totalPeriodo = ((ultimoDadosBipagem && ultimoDadosBipagem.pedidos) || []).length;
     $('fp-contagem').textContent = dados.total === totalPeriodo
       ? `${totalPeriodo.toLocaleString('pt-BR')} pedido${totalPeriodo === 1 ? '' : 's'} no período.`
-      : `${dados.total.toLocaleString('pt-BR')} de ${totalPeriodo.toLocaleString('pt-BR')} pedidos (filtro aplicado).`;
+      : `${dados.total.toLocaleString('pt-BR')} de ${totalPeriodo.toLocaleString('pt-BR')} pedidos.`;
   }
 
   function montarInsights(dados) {
