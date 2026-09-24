@@ -7,7 +7,7 @@
 <link rel="icon" type="image/png" href="favicon-ricapet.png">
 <meta name="description" content="Dashboard de bipagem — volume, operadores e produtividade. Ricapet/Thapets.">
 <meta name="robots" content="noindex">
-<meta name="theme-color" content="#4FB8B9">
+<meta name="theme-color" content="#00A9C7">
 <script>(function(){try{var t=localStorage.getItem('ricapet_tema2');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
@@ -712,7 +712,7 @@
       type: 'line',
       data: {
         labels: dados.tendencia.map((t) => t.data.slice(8, 10) + '/' + t.data.slice(5, 7)),
-        datasets: [{ data: dados.tendencia.map((t) => t.total), borderColor: cssVar('--chart-1'), backgroundColor: 'rgba(30,142,90,0.12)', fill: true, tension: 0.3, pointRadius: 2 }],
+        datasets: [{ data: dados.tendencia.map((t) => t.total), borderColor: cssVar('--chart-1'), backgroundColor: 'rgba(0,169,199,0.12)', fill: true, tension: 0.3, pointRadius: 2 }],
       },
       options: {
         responsive: true, maintainAspectRatio: false,

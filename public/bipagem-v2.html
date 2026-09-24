@@ -7,7 +7,7 @@
 <link rel="icon" type="image/png" href="favicon-ricapet.png">
 <meta name="description" content="Dashboard de bipagem — volume, operadores e produtividade. Ricapet/Thapets.">
 <meta name="robots" content="noindex">
-<meta name="theme-color" content="#1E8E5A">
+<meta name="theme-color" content="#00A9C7">
 <script>(function(){try{var t=localStorage.getItem('ricapet_tema2');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
@@ -17,50 +17,54 @@
 <style>
   :root {
     color-scheme: light;
-    --accent: #1E8E5A; --accent-ink: #176E46; --accent-soft: #E4F7EC; --accent-soft-2: #F3FCF7; --accent-soft-ink: #176E46;
-    --page-bg: #F8F9FC; --surface: #FFFFFF; --surface-2: #F3F4F6;
-    --border: #E5E7EB; --border-soft: #EEF0F2;
-    --ink: #1F2937; --ink-soft: #374151; --ink-muted: #6B7280;
-    --shadow: rgba(31, 41, 55, 0.08);
-    --good: #1E8E5A; --good-bg: #E4F7EC;
+    /* Identidade turquesa premium (retematizada em set/2026, era verde
+       #1E8E5A) -- --accent/--accent-ink continuam sendo a marca; --good
+       agora é um verde PRÓPRIO, independente da marca (antes coincidia
+       porque a própria marca era verde). */
+    --accent: #00A9C7; --accent-ink: #007F98; --accent-soft: #E6F8FB; --accent-soft-2: #F3FBFD; --accent-soft-ink: #007F98;
+    --page-bg: #F7FAFC; --surface: #FFFFFF; --surface-2: #F1F5F9;
+    --border: #E2E8F0; --border-soft: #EDF2F6;
+    --ink: #0F1720; --ink-soft: #334155; --ink-muted: #64748B;
+    --shadow: rgba(15, 23, 32, 0.08);
+    --good: #16A34A; --good-bg: #DCFCE7;
     --warn: #C2410C; --warn-bg: #FFEDD5;
     --bad: #DC2626;  --bad-bg: #FEE2E2;
     --info: #2563EB; --info-bg: #DBEAFE; --info-ink: #1D4ED8;
-    --cat-1: #1E8E5A; --cat-2: #2F6FE0; --cat-3: #B8791F;
+    --cat-1: #00A9C7; --cat-2: #007F98; --cat-3: #B8791F;
     /* Gradiente da sidebar (nova -- ver comentário na regra .sidebar mais
        abaixo) -- só varia entre claro/escuro, por isso redeclarado nos 3
        blocos de tema como os demais tokens desta página. */
-    --sidebar-gradient: linear-gradient(165deg, #2BA876 0%, #1E8E5A 55%, #176E46 100%);
+    --sidebar-gradient: linear-gradient(180deg, #007F98 0%, #00A9C7 55%, #007F98 100%);
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
       color-scheme: dark;
-      --accent: #22A870; --accent-ink: #6EE7B7; --accent-soft: #123625; --accent-soft-2: #0E2A1C; --accent-soft-ink: #6EE7B7;
-      --page-bg: #12151A; --surface: #1B1F26; --surface-2: #232830;
-      --border: #2B313B; --border-soft: #242A32;
-      --ink: #F3F4F6; --ink-soft: #C7CBD1; --ink-muted: #9CA3AF;
-      --shadow: rgba(0,0,0,0.4);
-      --good: #22A870; --good-bg: #123625;
+      --accent: #22C3E0; --accent-ink: #6EE9F5; --accent-soft: #0B2E36; --accent-soft-2: #081F24; --accent-soft-ink: #6EE9F5;
+      --page-bg: #0F171A; --surface: #19232A; --surface-2: #212E35;
+      --border: #2A3B44; --border-soft: #24343B;
+      --ink: #F1F6F8; --ink-soft: #C3D0D6; --ink-muted: #93A4AD;
+      --shadow: rgba(0,0,0,0.45);
+      --good: #22C55E; --good-bg: #0F2E1B;
       --warn: #FB923C; --warn-bg: #3A1D0A;
       --bad: #F87171;  --bad-bg: #3A1414;
       --info: #60A5FA; --info-bg: #142A4A; --info-ink: #93C5FD;
-      --cat-1: #22A870; --cat-2: #5B7FE0; --cat-3: #B87A26;
-      --sidebar-gradient: linear-gradient(165deg, #1E8E5A 0%, #176E46 55%, #0E4A2E 100%);
+      --cat-1: #19C2D8; --cat-2: #00A9C7; --cat-3: #D4A24C;
+      --sidebar-gradient: linear-gradient(180deg, #005F73 0%, #007F98 55%, #005F73 100%);
     }
   }
   :root[data-theme="dark"] {
     color-scheme: dark;
-    --accent: #22A870; --accent-ink: #6EE7B7; --accent-soft: #123625; --accent-soft-2: #0E2A1C; --accent-soft-ink: #6EE7B7;
-    --page-bg: #12151A; --surface: #1B1F26; --surface-2: #232830;
-    --border: #2B313B; --border-soft: #242A32;
-    --ink: #F3F4F6; --ink-soft: #C7CBD1; --ink-muted: #9CA3AF;
-    --shadow: rgba(0,0,0,0.4);
-    --good: #22A870; --good-bg: #123625;
+    --accent: #22C3E0; --accent-ink: #6EE9F5; --accent-soft: #0B2E36; --accent-soft-2: #081F24; --accent-soft-ink: #6EE9F5;
+    --page-bg: #0F171A; --surface: #19232A; --surface-2: #212E35;
+    --border: #2A3B44; --border-soft: #24343B;
+    --ink: #F1F6F8; --ink-soft: #C3D0D6; --ink-muted: #93A4AD;
+    --shadow: rgba(0,0,0,0.45);
+    --good: #22C55E; --good-bg: #0F2E1B;
     --warn: #FB923C; --warn-bg: #3A1D0A;
     --bad: #F87171;  --bad-bg: #3A1414;
     --info: #60A5FA; --info-bg: #142A4A; --info-ink: #93C5FD;
-    --cat-1: #22A870; --cat-2: #5B7FE0; --cat-3: #B87A26;
-    --sidebar-gradient: linear-gradient(165deg, #1E8E5A 0%, #176E46 55%, #0E4A2E 100%);
+    --cat-1: #19C2D8; --cat-2: #00A9C7; --cat-3: #D4A24C;
+    --sidebar-gradient: linear-gradient(180deg, #005F73 0%, #007F98 55%, #005F73 100%);
   }
 
   * { box-sizing: border-box; }
@@ -134,7 +138,7 @@
      .theme-toggle) pra não colidir com o toggle que já existe no topbar. */
   .tema-toggle { display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.28); margin: 2px 0 10px; }
   .tema-toggle button { display: grid; place-items: center; flex: 1; height: 26px; border-radius: 999px; border: none; background: none; color: rgba(255,255,255,0.75); cursor: pointer; font-size: 13px; }
-  .tema-toggle button.ativo { background: #fff; color: #176E46; }
+  .tema-toggle button.ativo { background: #fff; color: #007F98; }
   @media (max-width: 900px) {
     .sidebar { position: static; width: 100%; height: auto; flex-direction: row; flex-wrap: wrap; border-right: none; border-bottom: 1px solid rgba(255,255,255,0.28); }
     .sidebar-brand, .sidebar-footer, .sidebar-separador, .tema-toggle { display: none; }
@@ -215,7 +219,7 @@
   .page-header .sub { display: flex; align-items: center; gap: 7px; margin-top: 4px; font-size: 12px; color: var(--ink-muted); font-weight: 600; }
   .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--good); flex-shrink: 0; }
   @media (prefers-reduced-motion: no-preference) { .live-dot { animation: pulse 2.2s ease-in-out infinite; } }
-  @keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(30,142,90,.45); } 50% { box-shadow: 0 0 0 5px rgba(30,142,90,0); } }
+  @keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(0,169,199,.45); } 50% { box-shadow: 0 0 0 5px rgba(0,169,199,0); } }
 
   .aviso { text-align: center; padding: 24px; color: var(--ink-muted); font-size: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; }
 
@@ -1161,7 +1165,7 @@
     $('hint-hora').textContent = Math.max(...dados.por_hora) > 0 ? `pico às ${picoIdx}h — ${Math.max(...dados.por_hora)} pedidos` : 'sem dado no período';
     chart('chartHora', {
       type: 'line',
-      data: { labels: Array.from({ length: 24 }, (_, i) => i + 'h'), datasets: [{ data: dados.por_hora, borderColor: cssVar('--cat-1'), backgroundColor: 'rgba(30,142,90,0.12)', fill: true, tension: 0.35, pointRadius: 0, pointHoverRadius: 4, borderWidth: 2.5 }] },
+      data: { labels: Array.from({ length: 24 }, (_, i) => i + 'h'), datasets: [{ data: dados.por_hora, borderColor: cssVar('--cat-1'), backgroundColor: 'rgba(0,169,199,0.12)', fill: true, tension: 0.35, pointRadius: 0, pointHoverRadius: 4, borderWidth: 2.5 }] },
       options: {
         responsive: true, maintainAspectRatio: false,
         plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false, ...tooltipBase() } },
