@@ -148,7 +148,13 @@
   .topbar {
     position: sticky; top: 0; z-index: 20;
     background: var(--surface); border-bottom: 1px solid var(--border);
-    padding: 10px max(16px, calc((100% - 1320px) / 2 + 16px));
+    /* Antes centralizava o conteúdo numa coluna de 1320px (reservava até
+       ~200px de respiro de cada lado em monitor largo) -- fazia sentido
+       com só marca+abas+toggle, mas agora com o filtro inteiro na mesma
+       linha esse respiro sozinho já quebrava a linha em telas largas.
+       Padding fixo, sem centralizar -- a barra de ferramentas ocupa a
+       largura toda (o conteúdo abaixo, em .shell, continua centralizado). */
+    padding: 10px 20px;
   }
   /* Fileira do topbar mais compacta (marca + abas) -- a página agora tem
      sidebar (que já mostra "Ricapet · Painel Administrativo" e o logo), e
@@ -156,12 +162,6 @@
      menos de largura disponível. */
   .topbar-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
   .brand { display: flex; align-items: center; gap: 8px; margin-right: 2px; text-decoration: none; }
-  .brand-mark {
-    width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0;
-    background: linear-gradient(155deg, var(--accent) 0%, var(--accent-ink) 100%);
-    display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 13px;
-    box-shadow: 0 4px 10px var(--shadow);
-  }
   .brand-text { display: flex; flex-direction: column; line-height: 1.15; white-space: nowrap; }
   .brand-text b { font-size: 13.5px; font-weight: 800; color: var(--ink); }
   .brand-text span { font-size: 10.5px; color: var(--ink-muted); font-weight: 500; }
@@ -181,14 +181,22 @@
   }
   .tabswitch button.ativo .badge-count { background: var(--accent-soft); color: var(--accent-ink); }
 
-  .topbar-right { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+  /* Sem margin-left:auto -- agora que o filterbar entrou na mesma linha
+     (bem mais conteúdo antes), o auto empurrava o toggle pra fora, sozinho
+     numa 2ª linha solta no canto direito, mesmo com espaço sobrando. Flui
+     normal, logo depois do filterbar. */
+  .topbar-right { display: flex; align-items: center; gap: 10px; }
   .theme-toggle { display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--border-soft); }
   .theme-toggle button { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 999px; border: none; background: none; cursor: pointer; color: var(--ink-muted); }
   .theme-toggle button.ativo { background: var(--surface); color: var(--accent-ink); box-shadow: 0 1px 4px var(--shadow); }
 
+  /* Antes era uma 2ª linha, separada por borda, embaixo de marca+abas --
+     agora vive dentro do mesmo .topbar-row (flex-wrap), lado a lado com
+     as abas quando cabe, e só quebra pra linha de baixo como grupo quando
+     não cabe -- sem borda/respiro de separação, que não fazem mais sentido
+     nessa posição. */
   .filterbar {
     display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-    margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-soft);
   }
   .filterbar input, .filterbar select {
     height: 32px; border-radius: 8px; border: 1px solid var(--border); background: var(--page-bg);
@@ -465,7 +473,6 @@
 <div class="topbar">
   <div class="topbar-row">
     <a class="brand" href="/">
-      <div class="brand-mark">R</div>
       <div class="brand-text"><b>Expedição</b><span>Ricapet · Painel Administrativo</span></div>
     </a>
 
@@ -481,6 +488,24 @@
       </button>
     </div>
 
+    <div class="filterbar">
+      <input type="date" id="p-de" aria-label="Data inicial">
+      <span class="muted" style="font-size:12px">até</span>
+      <input type="date" id="p-ate" aria-label="Data final">
+      <input type="search" id="fp-busca" placeholder="Cliente ou número do pedido…" aria-label="Buscar cliente ou pedido">
+      <select id="fp-tipo" aria-label="Tipo de envio"><option value="">Tipo (todos)</option></select>
+      <select id="fp-plataforma" aria-label="Marketplace"><option value="">Marketplace (todos)</option></select>
+      <select id="fp-funcionario" aria-label="Funcionário"><option value="">Funcionário (todos)</option></select>
+      <button type="button" class="btn primary" id="p-aplicar">Atualizar</button>
+      <button type="button" id="fp-limpar" class="btn icon" title="Limpar filtros" aria-label="Limpar filtros">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20 4 4M9 4H4v5M15 20h5v-5"/></svg>
+      </button>
+      <button type="button" id="fp-baixar" class="btn icon" title="Baixar relatório (CSV)" aria-label="Baixar CSV">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+      </button>
+      <span class="result-count" id="fp-contagem"></span>
+    </div>
+
     <div class="topbar-right">
       <div class="theme-toggle" data-tema-toggle>
         <button type="button" data-tema="light" title="Tema claro" aria-label="Tema claro">
@@ -491,24 +516,6 @@
         </button>
       </div>
     </div>
-  </div>
-
-  <div class="filterbar">
-    <input type="date" id="p-de" aria-label="Data inicial">
-    <span class="muted" style="font-size:12px">até</span>
-    <input type="date" id="p-ate" aria-label="Data final">
-    <input type="search" id="fp-busca" placeholder="Cliente ou número do pedido…" aria-label="Buscar cliente ou pedido">
-    <select id="fp-tipo" aria-label="Tipo de envio"><option value="">Tipo (todos)</option></select>
-    <select id="fp-plataforma" aria-label="Marketplace"><option value="">Marketplace (todos)</option></select>
-    <select id="fp-funcionario" aria-label="Funcionário"><option value="">Funcionário (todos)</option></select>
-    <button type="button" class="btn primary" id="p-aplicar">Atualizar</button>
-    <button type="button" id="fp-limpar" class="btn icon" title="Limpar filtros" aria-label="Limpar filtros">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20 4 4M9 4H4v5M15 20h5v-5"/></svg>
-    </button>
-    <button type="button" id="fp-baixar" class="btn icon" title="Baixar relatório (CSV)" aria-label="Baixar CSV">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
-    </button>
-    <span class="result-count" id="fp-contagem"></span>
   </div>
 </div>
 
