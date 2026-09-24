@@ -146,23 +146,27 @@
     background: var(--surface); border-bottom: 1px solid var(--border);
     padding: 10px max(16px, calc((100% - 1320px) / 2 + 16px));
   }
-  .topbar-row { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
-  .brand { display: flex; align-items: center; gap: 10px; margin-right: 4px; text-decoration: none; }
+  /* Fileira do topbar mais compacta (marca + abas) -- a página agora tem
+     sidebar (que já mostra "Ricapet · Painel Administrativo" e o logo), e
+     precisa caber tudo numa linha só mesmo com os ~212px da sidebar a
+     menos de largura disponível. */
+  .topbar-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .brand { display: flex; align-items: center; gap: 8px; margin-right: 2px; text-decoration: none; }
   .brand-mark {
-    width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
+    width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0;
     background: linear-gradient(155deg, var(--accent) 0%, var(--accent-ink) 100%);
-    display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 15px;
+    display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 13px;
     box-shadow: 0 4px 10px var(--shadow);
   }
-  .brand-text { display: flex; flex-direction: column; line-height: 1.15; }
-  .brand-text b { font-size: 14.5px; font-weight: 800; color: var(--ink); }
-  .brand-text span { font-size: 11px; color: var(--ink-muted); font-weight: 500; }
+  .brand-text { display: flex; flex-direction: column; line-height: 1.15; white-space: nowrap; }
+  .brand-text b { font-size: 13.5px; font-weight: 800; color: var(--ink); }
+  .brand-text span { font-size: 10.5px; color: var(--ink-muted); font-weight: 500; }
 
   .tabswitch { display: inline-flex; gap: 2px; padding: 3px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--border-soft); }
   .tabswitch button {
-    display: flex; align-items: center; gap: 7px; border: none; background: none; cursor: pointer;
-    padding: 7px 14px; border-radius: 9px; font-size: 13px; font-weight: 700; color: var(--ink-muted);
-    transition: background .15s ease, color .15s ease, box-shadow .15s ease;
+    display: flex; align-items: center; gap: 5px; border: none; background: none; cursor: pointer;
+    padding: 6px 9px; border-radius: 9px; font-size: 12px; font-weight: 700; color: var(--ink-muted);
+    white-space: nowrap; transition: background .15s ease, color .15s ease, box-shadow .15s ease;
   }
   .tabswitch button svg { flex-shrink: 0; }
   .tabswitch button.ativo { background: var(--surface); color: var(--accent-ink); box-shadow: 0 1px 4px var(--shadow); }
@@ -177,7 +181,6 @@
   .theme-toggle { display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--border-soft); }
   .theme-toggle button { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 999px; border: none; background: none; cursor: pointer; color: var(--ink-muted); }
   .theme-toggle button.ativo { background: var(--surface); color: var(--accent-ink); box-shadow: 0 1px 4px var(--shadow); }
-  .avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-ink); display: grid; place-items: center; font-size: 12.5px; font-weight: 800; flex-shrink: 0; }
 
   .filterbar {
     display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
@@ -464,12 +467,12 @@
 
     <div class="tabswitch" role="tablist" aria-label="Seções do painel">
       <button type="button" class="ativo" data-tab="performance" role="tab" aria-selected="true">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M7 16l4-6 3 3 5-7"/></svg>
-        Performance da Expedição
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M7 16l4-6 3 3 5-7"/></svg>
+        Performance
       </button>
       <button type="button" data-tab="reclamacoes" role="tab" aria-selected="false">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
-        Reclamações da Expedição
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+        Reclamações
         <span class="badge-count" id="badgeReclamacoes">–</span>
       </button>
     </div>
@@ -483,7 +486,6 @@
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg>
         </button>
       </div>
-      <div class="avatar" id="admin-avatar">–</div>
     </div>
   </div>
 
@@ -797,7 +799,6 @@
 <script>
   const $ = (id) => document.getElementById(id);
   const sessao = window.RicapetAuth.sessao;
-  $('admin-avatar').textContent = (sessao.nome || '?').slice(0, 2).toUpperCase();
   $('admin-nome').textContent = sessao.nome;
   window.RicapetAuth.aplicarVisibilidadeMenu();
 
