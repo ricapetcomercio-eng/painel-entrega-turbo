@@ -161,9 +161,11 @@
      menos de largura disponível. */
   .topbar-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
   .brand { display: flex; align-items: center; gap: 8px; margin-right: 2px; text-decoration: none; }
-  .brand-text { display: flex; flex-direction: column; line-height: 1.15; white-space: nowrap; }
-  .brand-text b { font-size: 13.5px; font-weight: 800; color: var(--ink); }
-  .brand-text span { font-size: 10.5px; color: var(--ink-muted); font-weight: 500; }
+  /* Sem o subtítulo "Ricapet · Painel Administrativo" (removido -- já
+     redundante com a sidebar), o texto ganha um tamanho maior, já que
+     agora é a única linha do bloco. */
+  .brand-text { white-space: nowrap; }
+  .brand-text b { font-size: 16.5px; font-weight: 800; color: var(--ink); }
 
   .tabswitch { display: inline-flex; gap: 2px; padding: 3px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--border-soft); }
   .tabswitch button {
@@ -389,7 +391,6 @@
   .foot-pad { height: 4px; }
   @media (max-width: 480px) {
     .topbar { padding: 10px 16px; }
-    .brand-text span { display: none; }
   }
 </style>
 </head>
@@ -463,7 +464,7 @@
 <div class="topbar">
   <div class="topbar-row">
     <a class="brand" href="/">
-      <div class="brand-text"><b>Expedição</b><span>Ricapet · Painel Administrativo</span></div>
+      <div class="brand-text"><b>Expedição</b></div>
     </a>
 
     <div class="tabswitch" role="tablist" aria-label="Seções do painel">
