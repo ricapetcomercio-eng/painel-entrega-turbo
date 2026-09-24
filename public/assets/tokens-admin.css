@@ -1,10 +1,22 @@
 /* Ricapet — Design System compartilhado por TODAS as páginas do admin.
    Reescrito em set/2026: era só um arquivo de tokens de cor (identidade
-   "portal" teal/terracota); virou o Design System oficial — tokens da nova
-   identidade verde (#1E8E5A, aprovada primeiro na reconstrução da Expedição
-   em bipagem-v2.html) + biblioteca de componentes reutilizáveis (card, kpi,
-   botão, badge, input/select, barra de filtro, tabela, sidebar, topbar,
-   modal, alerta, paginação, barra de progresso, estado vazio/carregando).
+   "portal" teal/terracota); virou o Design System oficial — tokens da
+   identidade verde (#1E8E5A) + biblioteca de componentes reutilizáveis
+   (card, kpi, botão, badge, input/select, barra de filtro, tabela,
+   sidebar, topbar, modal, alerta, paginação, barra de progresso, estado
+   vazio/carregando).
+
+   Retematizado em set/2026 pra identidade "turquesa premium" (#00A9C7) —
+   pedido explícito do dono do projeto: "não é trocar verde por azul, é
+   uma evolução completa da linguagem visual". Só os VALORES dos tokens
+   de marca/neutro mudaram (mais a adição de --brand-gradient-cta e o
+   componente de botão primário passando a usar gradiente) — os NOMES dos
+   tokens e todas as classes de componente continuam os mesmos, então essa
+   troca não exigiu tocar em nenhuma página individualmente: todas as 9
+   páginas já migradas herdam a nova cor automaticamente. Cores semânticas
+   (success/warning/danger/info) foram mantidas tradicionais (verde/laranja/
+   vermelho/azul) por decisão explícita — não viram turquesa, só tiveram a
+   intensidade harmonizada com a paleta neutra nova (família "slate").
 
    NOMES ANTIGOS DE VARIÁVEL SÃO MANTIDOS COMO ALIAS dos tokens novos (ex.:
    --page-bg aponta pro mesmo valor de --bg-page) — nenhuma página quebra
@@ -21,43 +33,57 @@
    Tema claro/escuro: `data-theme="light"|"dark"` no <html> (ver
    assets/tema.js) — sem atributo, segue prefers-color-scheme do sistema.
 
-   Tipografia: identidade verde usa só Inter (a página de referência,
-   bipagem-v2.html, não usa Space Grotesk/IBM Plex Mono) — --font-display
-   aponta pra Inter também agora; --font-mono fica disponível pra quem
-   ainda quiser números tabulares num monoespaçado, mas deixou de ser
-   usado por padrão.
+   Tipografia: só Inter (a página de referência, bipagem-v2.html, não usa
+   Space Grotesk/IBM Plex Mono) — --font-display aponta pra Inter também;
+   --font-mono fica disponível pra quem ainda quiser números tabulares num
+   monoespaçado, mas deixou de ser usado por padrão.
    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"> */
 
 :root {
   color-scheme: light;
 
-  /* ---- tokens novos (nomenclatura oficial do Design System) ---- */
-  --brand-primary: #1E8E5A;
-  --brand-primary-dark: #176E46;
-  --brand-primary-light: #E4F7EC;
-  --brand-primary-soft: #F3FCF7;
+  /* ---- tokens novos (nomenclatura oficial do Design System) ----
+     Paleta turquesa: Primary #00A9C7, Primary Dark #007F98, Deep Teal
+     #005F73, Primary Light (tom vivo, não é tint de fundo) #19C2D8,
+     Very Light (tint de fundo/ícone) #E6F8FB. */
+  --brand-primary: #00A9C7;
+  --brand-primary-dark: #007F98;
+  --brand-primary-light: #E6F8FB;
+  --brand-primary-soft: #F3FBFD;
+  --brand-primary-bright: #19C2D8;  /* tom vivo do turquesa — hover/destaque pontual, não é tint de fundo */
+  --brand-deep: #005F73;            /* "deep teal" — ponta mais escura de gradientes maiores */
 
-  --bg-page: #F8F9FC;
+  /* gradiente de assinatura visual — reservado pra sidebar e CTAs
+     principais (ver .sidebar / .btn.primary mais abaixo), não usado em
+     todo elemento colorido de propósito ("gradiente como elemento de
+     assinatura", não decoração genérica). */
+  --brand-gradient-cta: linear-gradient(135deg, #00A9C7 0%, #007F98 100%);
+
+  --bg-page: #F7FAFC;
   --bg-card: #FFFFFF;
-  --bg-card-2: #F3F4F6;   /* superfície secundária — cabeçalho de tabela, hover de linha, chip */
+  --bg-card-2: #F1F5F9;   /* superfície secundária — cabeçalho de tabela, hover de linha, chip (slate-100) */
 
-  --border: #E5E7EB;
-  --border-soft: #EEF0F2;
+  --border: #E2E8F0;      /* slate-200 */
+  --border-soft: #EDF2F6;
 
-  --text-primary: #1F2937;
-  --text-soft: #374151;    /* intermediário — usado onde --text-secondary é claro demais */
-  --text-secondary: #6B7280;
+  --text-primary: #0F1720;
+  --text-soft: #334155;      /* slate-700 — intermediário, usado onde --text-secondary é claro demais */
+  --text-secondary: #64748B; /* slate-500 */
 
-  --success: #1E8E5A; --success-bg: #E4F7EC;
+  /* Semânticas tradicionais (não turquesa, por decisão explícita) —
+     intensidade harmonizada com a paleta neutra "slate" nova. */
+  --success: #16A34A; --success-bg: #DCFCE7;
   --warning: #F59E0B; --warning-bg: #FEF3C7;
   --danger: #DC2626;  --danger-bg: #FEE2E2;
   --info: #2563EB;    --info-bg: #DBEAFE;
 
-  --shadow: rgba(31, 41, 55, 0.08);
+  --shadow: rgba(15, 23, 32, 0.08);
   --radius: 16px; --radius-sm: 10px; --radius-pill: 999px;
 
-  /* categórica p/ gráficos — validada (contraste + daltonismo), verde sempre 1ª série */
-  --chart-1: #1E8E5A; --chart-2: #2F6FE0; --chart-3: #B8791F; --chart-4: #D1477A; --chart-5: #6D5BD0;
+  /* categórica p/ gráficos — turquesa sempre 1ª série; --chart-2 é o par
+     "deep" pra comparações de 2 categorias (Ricapet×Thapets, ML×Shopee);
+     3-5 são complementares controladas, não fogem da identidade. */
+  --chart-1: #00A9C7; --chart-2: #007F98; --chart-3: #B8791F; --chart-4: #D1477A; --chart-5: #6D5BD0;
 
   --font-display: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -70,7 +96,7 @@
   --text: var(--text-primary); --ink: var(--text-primary);
   --muted: var(--text-secondary); --ink-soft: var(--text-soft); --ink-muted: var(--text-secondary);
 
-  --sidebar-gradient: linear-gradient(165deg, #2BA876 0%, #1E8E5A 55%, #176E46 100%);
+  --sidebar-gradient: linear-gradient(180deg, #007F98 0%, #00A9C7 55%, #007F98 100%);
   --sidebar-bg: var(--brand-primary);
   --sidebar-active: var(--brand-primary-dark);
   --sidebar-text: #ffffff;
@@ -83,9 +109,10 @@
   --accent-ink: var(--brand-primary-dark);
   --ink-on-accent: #ffffff;
 
-  /* --teal "guardava" o terracota da identidade portal (2º acento) — não existe
-     mais um 2º acento de marca na identidade verde, então isso agora é alias
-     de --warning (era usado pra destaque/atenção secundária nas páginas). */
+  /* --teal "guardava" o terracota da identidade portal (2º acento) — nunca
+     existiu um 2º acento de marca de verdade nas identidades seguintes,
+     então isso continua alias de --warning (destaque/atenção secundária
+     nas páginas) — não confundir com a marca agora ser turquesa de fato. */
   --teal: var(--warning); --teal-light: var(--warning-bg);
   --brand: var(--brand-primary); --brand-light: var(--brand-primary-light);
   --yellow: var(--warning); --gray: var(--text-secondary); --red: var(--danger);
@@ -103,30 +130,32 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --brand-primary: #22A870; --brand-primary-dark: #176E46; --brand-primary-light: #123625; --brand-primary-soft: #0E2A1C;
-    --bg-page: #12151A; --bg-card: #1B1F26; --bg-card-2: #232830;
-    --border: #2B313B; --border-soft: #242A32;
-    --text-primary: #F3F4F6; --text-soft: #C7CBD1; --text-secondary: #9CA3AF;
-    --success: #22A870; --success-bg: #123625;
+    --brand-primary: #22C3E0; --brand-primary-dark: #007F98; --brand-primary-light: #0B2E36; --brand-primary-soft: #081F24;
+    --brand-primary-bright: #4DD8EC; --brand-deep: #003D4A;
+    --brand-gradient-cta: linear-gradient(135deg, #00A9C7 0%, #007F98 100%);
+    --bg-page: #0F171A; --bg-card: #19232A; --bg-card-2: #212E35;
+    --border: #2A3B44; --border-soft: #24343B;
+    --text-primary: #F1F6F8; --text-soft: #C3D0D6; --text-secondary: #93A4AD;
+    --success: #22C55E; --success-bg: #0F2E1B;
     --warning: #FB923C; --warning-bg: #3A1D0A;
     --danger: #F87171; --danger-bg: #3A1414;
     --info: #60A5FA; --info-bg: #142A4A;
-    --shadow: rgba(0,0,0,0.4);
-    --chart-1: #22A870; --chart-2: #5B7FE0; --chart-3: #B87A26; --chart-4: #E0679A; --chart-5: #8B7AE0;
+    --shadow: rgba(0,0,0,0.45);
+    --chart-1: #19C2D8; --chart-2: #00A9C7; --chart-3: #D4A24C; --chart-4: #E0679A; --chart-5: #8B7AE0;
 
     --page-bg: var(--bg-page); --bg: var(--bg-page);
     --card: var(--bg-card); --surface: var(--bg-card); --surface-2: var(--bg-card-2);
     --text: var(--text-primary); --ink: var(--text-primary);
     --muted: var(--text-secondary); --ink-soft: var(--text-soft); --ink-muted: var(--text-secondary);
 
-    --sidebar-gradient: linear-gradient(165deg, #1E8E5A 0%, #176E46 55%, #0E4A2E 100%);
+    --sidebar-gradient: linear-gradient(180deg, #005F73 0%, #007F98 55%, #005F73 100%);
     --sidebar-bg: var(--brand-primary); --sidebar-active: var(--brand-primary-dark);
     --sidebar-text: #ffffff; --sidebar-muted: rgba(255,255,255,0.78);
     --sidebar-hover: rgba(255,255,255,0.16); --sidebar-border: rgba(255,255,255,0.28);
 
     --accent: var(--brand-primary); --blue: var(--brand-primary);
     --accent-bg: var(--brand-primary-light); --accent-light: var(--brand-primary-light); --blue-light: var(--brand-primary-light);
-    --accent-ink: #6EE7B7; --ink-on-accent: #062526;
+    --accent-ink: #6EE9F5; --ink-on-accent: #062A2E;
 
     --teal: var(--warning); --teal-light: var(--warning-bg);
     --brand: var(--brand-primary); --brand-light: var(--brand-primary-light);
@@ -144,30 +173,32 @@
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --brand-primary: #22A870; --brand-primary-dark: #176E46; --brand-primary-light: #123625; --brand-primary-soft: #0E2A1C;
-  --bg-page: #12151A; --bg-card: #1B1F26; --bg-card-2: #232830;
-  --border: #2B313B; --border-soft: #242A32;
-  --text-primary: #F3F4F6; --text-soft: #C7CBD1; --text-secondary: #9CA3AF;
-  --success: #22A870; --success-bg: #123625;
+  --brand-primary: #22C3E0; --brand-primary-dark: #007F98; --brand-primary-light: #0B2E36; --brand-primary-soft: #081F24;
+  --brand-primary-bright: #4DD8EC; --brand-deep: #003D4A;
+  --brand-gradient-cta: linear-gradient(135deg, #00A9C7 0%, #007F98 100%);
+  --bg-page: #0F171A; --bg-card: #19232A; --bg-card-2: #212E35;
+  --border: #2A3B44; --border-soft: #24343B;
+  --text-primary: #F1F6F8; --text-soft: #C3D0D6; --text-secondary: #93A4AD;
+  --success: #22C55E; --success-bg: #0F2E1B;
   --warning: #FB923C; --warning-bg: #3A1D0A;
   --danger: #F87171; --danger-bg: #3A1414;
   --info: #60A5FA; --info-bg: #142A4A;
-  --shadow: rgba(0,0,0,0.4);
-  --chart-1: #22A870; --chart-2: #5B7FE0; --chart-3: #B87A26; --chart-4: #E0679A; --chart-5: #8B7AE0;
+  --shadow: rgba(0,0,0,0.45);
+  --chart-1: #19C2D8; --chart-2: #00A9C7; --chart-3: #D4A24C; --chart-4: #E0679A; --chart-5: #8B7AE0;
 
   --page-bg: var(--bg-page); --bg: var(--bg-page);
   --card: var(--bg-card); --surface: var(--bg-card); --surface-2: var(--bg-card-2);
   --text: var(--text-primary); --ink: var(--text-primary);
   --muted: var(--text-secondary); --ink-soft: var(--text-soft); --ink-muted: var(--text-secondary);
 
-  --sidebar-gradient: linear-gradient(165deg, #1E8E5A 0%, #176E46 55%, #0E4A2E 100%);
+  --sidebar-gradient: linear-gradient(180deg, #005F73 0%, #007F98 55%, #005F73 100%);
   --sidebar-bg: var(--brand-primary); --sidebar-active: var(--brand-primary-dark);
   --sidebar-text: #ffffff; --sidebar-muted: rgba(255,255,255,0.78);
   --sidebar-hover: rgba(255,255,255,0.16); --sidebar-border: rgba(255,255,255,0.28);
 
   --accent: var(--brand-primary); --blue: var(--brand-primary);
   --accent-bg: var(--brand-primary-light); --accent-light: var(--brand-primary-light); --blue-light: var(--brand-primary-light);
-  --accent-ink: #6EE7B7; --ink-on-accent: #062526;
+  --accent-ink: #6EE9F5; --ink-on-accent: #062A2E;
 
   --teal: var(--warning); --teal-light: var(--warning-bg);
   --brand: var(--brand-primary); --brand-light: var(--brand-primary-light);
@@ -290,8 +321,11 @@
 }
 .btn:hover:not(:disabled) { border-color: var(--brand-primary); color: var(--brand-primary-dark); }
 .btn:disabled { opacity: .6; cursor: default; }
+/* CTAs principais usam o gradiente de assinatura da marca (ver
+   --brand-gradient-cta) -- reservado pra estes botões de destaque e pra
+   sidebar, não usado em elementos coloridos genéricos. */
 .btn.primary, .btn-entrar, .btn-salvar, .gravar-btn, .salvar-btn, .refresh-btn {
-  background: var(--brand-primary); border-color: var(--brand-primary); color: #fff;
+  background: var(--brand-gradient-cta); border-color: var(--brand-primary-dark); color: #fff;
 }
 .btn.primary:hover, .btn-entrar:hover, .btn-salvar:hover, .gravar-btn:hover, .salvar-btn:hover, .refresh-btn:hover {
   background: var(--brand-primary-dark); border-color: var(--brand-primary-dark); color: #fff;
@@ -415,7 +449,7 @@ td.muted, .muted, .zero { color: var(--text-secondary); }
 
 /* ---- modal ---- */
 .modal-backdrop, .drawer-backdrop {
-  position: fixed; inset: 0; background: rgba(15, 23, 20, 0.4); z-index: 90; opacity: 0; pointer-events: none; transition: opacity .25s ease;
+  position: fixed; inset: 0; background: rgba(6, 14, 18, 0.45); z-index: 90; opacity: 0; pointer-events: none; transition: opacity .25s ease;
 }
 .modal-backdrop.aberto, .drawer-backdrop.aberto { opacity: 1; pointer-events: auto; }
 .modal, .modal-card {

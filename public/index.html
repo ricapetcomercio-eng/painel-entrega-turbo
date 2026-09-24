@@ -1397,8 +1397,8 @@
       const evolucao = agregarPorDia(pedidosAtual);
       renderizarHeatmap(pedidosAtual);
       const rotulosDias = evolucao.dias.map(d => d.slice(8, 10) + '/' + d.slice(5, 7));
-      criarOuAtualizarChart('chartExecFaturamentoDia', { type: 'line', data: { labels: rotulosDias, datasets: [{ data: evolucao.faturamento, borderColor: CORES.teal, backgroundColor: 'rgba(30,142,90,0.12)', fill: true, tension: 0.3, pointRadius: 2 }] }, options: baseLineOptions() });
-      criarOuAtualizarChart('chartExecPedidosDia', { type: 'line', data: { labels: rotulosDias, datasets: [{ data: evolucao.pedidos, borderColor: CORES.blue, backgroundColor: 'rgba(47,111,224,0.12)', fill: true, tension: 0.3, pointRadius: 2 }] }, options: baseLineOptions() });
+      criarOuAtualizarChart('chartExecFaturamentoDia', { type: 'line', data: { labels: rotulosDias, datasets: [{ data: evolucao.faturamento, borderColor: CORES.teal, backgroundColor: 'rgba(0,169,199,0.12)', fill: true, tension: 0.3, pointRadius: 2 }] }, options: baseLineOptions() });
+      criarOuAtualizarChart('chartExecPedidosDia', { type: 'line', data: { labels: rotulosDias, datasets: [{ data: evolucao.pedidos, borderColor: CORES.blue, backgroundColor: 'rgba(0,127,152,0.12)', fill: true, tension: 0.3, pointRadius: 2 }] }, options: baseLineOptions() });
       criarOuAtualizarChart('chartExecTicketDia', { type: 'line', data: { labels: rotulosDias, datasets: [{ data: evolucao.ticketMedio, borderColor: CORES.yellow, backgroundColor: 'rgba(184,121,31,0.18)', fill: true, tension: 0.3, pointRadius: 2 }] }, options: baseLineOptions('R$ ') });
 
       // Comparativos fixos (hoje/ontem, semana/semana passada, mês/mês
