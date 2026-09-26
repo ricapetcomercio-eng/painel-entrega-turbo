@@ -86,19 +86,22 @@
   // aqui de novo, com o formulário em branco (nome e PIN sempre pedidos
   // de novo, sem mostrar quem logou da última vez).
   //
-  // Mesma duração/checagem de assets/auth.js (DURACAO_SESSAO_ADMIN_MS,
-  // 8h) -- duplicada aqui porque este arquivo não linka auth.js (evita o
-  // próprio auth.js redirecionar login.html pra si mesmo em loop). Sem
-  // isso, uma sessão expirada que por algum motivo chegasse aqui ainda
-  // presente no sessionStorage pularia o formulário de login direto.
+  // Mesma duração/checagem de assets/auth.js e lib/pontoAuth.js
+  // (DURACAO_INATIVIDADE_MS, 5min) -- duplicada aqui porque este arquivo
+  // não linka auth.js (evita o próprio auth.js redirecionar login.html
+  // pra si mesmo em loop). Sem isso, uma sessão já inativa há mais de
+  // 5min que por algum motivo chegasse aqui ainda presente no
+  // sessionStorage pularia o formulário de login direto -- reabrindo
+  // exatamente o buraco de segurança que a expiração por inatividade
+  // existe pra fechar.
   function sessaoValidaEAtiva() {
     try {
       const sessao = JSON.parse(sessionStorage.getItem(CHAVE_SESSAO) || 'null');
       if (!sessao || !sessao.token) return false;
       const payload = String(sessao.token).split('.')[0];
       const emissao = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/'))).emissao;
-      const DURACAO_SESSAO_ADMIN_MS = 8 * 60 * 60 * 1000;
-      return !!emissao && (Date.now() - emissao) <= DURACAO_SESSAO_ADMIN_MS;
+      const DURACAO_INATIVIDADE_MS = 5 * 60 * 1000;
+      return !!emissao && (Date.now() - emissao) <= DURACAO_INATIVIDADE_MS;
     } catch (e) { return false; }
   }
   if (sessaoValidaEAtiva()) irParaDestino();

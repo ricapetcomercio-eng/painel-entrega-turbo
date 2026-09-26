@@ -1374,8 +1374,11 @@ async function debugShopeeReturns(req, res) {
 // -------- Ponto (app nativo "Ricapet", ver PortalRicapetApp) --------
 // Login por nome + PIN de 4 dígitos (mesma ideia do OPERADORES_EXPEDICAO
 // do checkout_bipagem.py, mas com PIN guardado com hash aqui em vez de
-// texto puro). Token simples (payload + HMAC), sem expiração -- é
-// controle interno de presença, não o ponto oficial da folha.
+// texto puro). Token simples (payload + HMAC) -- é controle interno de
+// presença, não o ponto oficial da folha. A sessão de ADMIN do painel
+// (obterAdminSessao, lib/pontoAuth.js) expira por inatividade; o token
+// "cru" batido aqui (usado pelo próprio app de ponto e por
+// debugPontoValidarToken) continua sem expiração própria.
 
 const crypto = require('crypto');
 const {
@@ -1533,6 +1536,20 @@ async function debugPontoValidarToken(req, res) {
   const funcionario = verificarTokenPonto(token);
   if (!funcionario) { res.status(401).json({ ok: false, error: 'Token inválido ou expirado.' }); return; }
   res.status(200).json({ ok: true, tipo: 'ponto-validar-token', id: funcionario.id, nome: funcionario.nome });
+}
+
+// Chamado por assets/auth.js a cada ~1min ENQUANTO detecta atividade real
+// do usuário na página (mousemove/clique/tecla/scroll) -- renova a
+// validade do token (novo `emissao`) sem pedir PIN de novo. Sem atividade,
+// o front para de chamar isso e o token natural mente vira inválido depois
+// de DURACAO_INATIVIDADE_MS (obterAdminSessao recusa em qualquer rota).
+// Passa pelo mesmo obterAdminSessao de qualquer outra rota de admin -- só
+// HMAC (gerarTokenPonto), nenhuma consulta a banco extra além da que
+// obterAdminSessao já faz pra checar a flag admin.
+async function debugPontoRenovarSessao(req, res) {
+  const resultado = await obterAdminSessao((req.body && req.body.sessao) || req.query.sessao, getDb());
+  if (resultado.erro) { res.status(resultado.status).json({ ok: false, error: resultado.erro }); return; }
+  res.status(200).json({ ok: true, token: gerarTokenPonto(resultado.funcionario) });
 }
 
 async function debugPontoBater(req, res) {
@@ -2503,7 +2520,7 @@ const TIPOS_PUBLICOS_ESTOQUE = new Set(['importar-contagem-fisica', 'importar-sa
 // (mesma origem: só a própria tela logada chama essas rotas).
 const TIPOS_SESSAO_ADMIN = new Set([
   'fluxo-caixa-config-get', 'fluxo-caixa-config-set', 'acessos-listar', 'acessos-definir',
-  'bipagem-resolver-pendentes',
+  'bipagem-resolver-pendentes', 'ponto-renovar-sessao',
 ]);
 
 module.exports = async (req, res) => {
@@ -2514,6 +2531,7 @@ module.exports = async (req, res) => {
       if (req.query.tipo === 'acessos-listar') return await debugAcessosListar(req, res);
       if (req.query.tipo === 'acessos-definir') return await debugAcessosDefinir(req, res);
       if (req.query.tipo === 'bipagem-resolver-pendentes') return await debugBipagemResolverPendentes(req, res);
+      if (req.query.tipo === 'ponto-renovar-sessao') return await debugPontoRenovarSessao(req, res);
     } catch (err) {
       res.status(500).json({ error: err.message });
       return;
