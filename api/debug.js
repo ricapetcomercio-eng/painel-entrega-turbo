@@ -1387,7 +1387,7 @@ async function debugShopeeReturns(req, res) {
 const crypto = require('crypto');
 const {
   hashPin, gerarTokenPonto, verificarTokenPonto, funcionarioEhAdmin, obterAdminSessao,
-  funcionarioEhSuperAdmin, paginasPermitidas, PAGINAS_PAINEL,
+  funcionarioEhSuperAdmin, funcionarioTemAcessoPagina, paginasPermitidas, PAGINAS_PAINEL,
   MAX_TENTATIVAS_LOGIN, BLOQUEIO_LOGIN_SEGUNDOS,
 } = require('../lib/pontoAuth');
 
@@ -1677,8 +1677,9 @@ async function debugPortalLogAcesso(req, res) {
 // flag admin (mesma exigência de qualquer login no painel); quem não tem
 // cai no login normal, igual já acontecia antes desta rota existir.
 async function debugPortalTrocarToken(req, res) {
-  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { token }' }); return; }
-  const identificado = verificarTokenPonto((req.body && req.body.token) || '');
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { token, pagina? }' }); return; }
+  const { token, pagina } = req.body || {};
+  const identificado = verificarTokenPonto(token || '');
   if (!identificado) { res.status(401).json({ ok: false, error: 'Sessão do Portal expirada, abra o Portal de novo.' }); return; }
 
   const db = getDb();
@@ -1690,6 +1691,17 @@ async function debugPortalTrocarToken(req, res) {
     return;
   }
   const superAdmin = funcionario.super_admin === 1;
+  // `pagina` (ex.: "estoque") é a página específica que o Portal está
+  // tentando abrir -- sem essa checagem, qualquer admin (mesmo sem a
+  // página liberada na tela Acessos) conseguia abrir a página vinda do
+  // Portal, porque só a flag admin geral era conferida aqui. As chamadas
+  // de dado em si (estoque-contagem-get/set) já bloqueavam certo -- mas a
+  // página abria vazia em vez de mandar pro login, dando a impressão
+  // errada de acesso liberado.
+  if (pagina && !(await funcionarioTemAcessoPagina(db, funcionario.id, pagina, superAdmin))) {
+    res.status(403).json({ ok: false, error: 'Você não tem acesso a esta área. Peça liberação ao Ricardo.' });
+    return;
+  }
   res.status(200).json({
     ok: true, tipo: 'portal-trocar-token',
     token: gerarTokenPonto(funcionario), nome: funcionario.nome, admin: true,

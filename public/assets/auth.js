@@ -98,12 +98,25 @@
     location.href = '/login.html?redirect=' + volta;
   }
 
+  // Arquivo de cada página -> chave de permissão (mesmas chaves de
+  // PAGINAS_PAINEL, lib/pontoAuth.js) -- pra portal-trocar-token conferir a
+  // página CERTA, não só a flag admin geral. Só precisa cobrir páginas que
+  // o Portal realmente linka com ?pt= (hoje só o Estoque); as outras
+  // simplesmente não mandam `pagina` e ficam sem essa checagem extra aqui
+  // (sem problema: as rotas de dado de cada página já conferem sozinhas).
+  const PAGINA_POR_ARQUIVO = {
+    'estoque-atualizar.html': 'estoque', 'estoque.html': 'estoque',
+    'ponto.html': 'ponto', 'bipagem.html': 'bipagem', 'bipagem-v2.html': 'bipagem',
+    'projecao-financeira.html': 'projecao-financeira',
+  };
+
   async function trocarTokenDoPortal(token) {
     try {
+      const arquivo = location.pathname.split('/').pop();
       const resp = await fetch('/api/debug?tipo=portal-trocar-token&secret=' + encodeURIComponent(PONTO_PUBLIC_SECRET), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token }),
+        body: JSON.stringify({ token, pagina: PAGINA_POR_ARQUIVO[arquivo] }),
       });
       const dados = await resp.json().catch(() => ({}));
       if (!resp.ok || dados.ok === false) throw new Error(dados.error || 'Sem acesso.');
