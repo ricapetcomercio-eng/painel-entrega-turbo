@@ -1640,9 +1640,24 @@ async function debugPontoLogin(req, res) {
 // criar a sessão da expedição sem pedir senha de novo).
 async function debugPontoValidarToken(req, res) {
   const token = (req.body && req.body.token) || req.query.token;
-  const funcionario = verificarTokenPonto(token);
-  if (!funcionario) { res.status(401).json({ ok: false, error: 'Token inválido ou expirado.' }); return; }
-  res.status(200).json({ ok: true, tipo: 'ponto-validar-token', id: funcionario.id, nome: funcionario.nome });
+  const identificado = verificarTokenPonto(token);
+  if (!identificado) { res.status(401).json({ ok: false, error: 'Token inválido ou expirado.' }); return; }
+
+  // admin/super_admin/paginas: puramente aditivo -- checkout_bipagem.py
+  // (RobotOmie, fora deste repo) usava só ok/id/nome até aqui; continua
+  // funcionando igual se ignorar os campos novos. Adicionado pra permitir
+  // checar a permissão "bipagem" (mesma da tela Acessos) antes de abrir a
+  // Expedição vinda do Portal, sem duplicar a lógica de permissão lá.
+  const db = getDb();
+  await garantirEsquemaPonto(db);
+  const rs = await db.execute({ sql: 'SELECT admin, super_admin FROM funcionarios WHERE id = ? AND ativo = 1', args: [identificado.id] });
+  const funcionario = rs.rows[0];
+  const superAdmin = !!(funcionario && funcionario.super_admin === 1);
+  const admin = !!(funcionario && funcionario.admin === 1);
+  res.status(200).json({
+    ok: true, tipo: 'ponto-validar-token', id: identificado.id, nome: identificado.nome,
+    admin, super_admin: superAdmin, paginas: admin ? await paginasPermitidas(db, identificado.id, superAdmin) : [],
+  });
 }
 
 // Auditoria do Portal Ricapet (PortalRicapet, PWA -- porta de entrada pra

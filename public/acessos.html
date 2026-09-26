@@ -137,6 +137,11 @@
           (continua batendo ponto normalmente). Super admin (🔒) sempre tem acesso a tudo
           e só é definido manualmente, nunca por esta tela.
         </p>
+        <p>
+          <b>Bipagem</b> e <b>Estoque</b> não são só o painel administrativo — são a MESMA
+          permissão que libera Expedição e Estoque no <b>Portal Ricapet</b> (o app do celular).
+          Desmarcar aqui bloqueia os dois lugares.
+        </p>
       </div>
 
       <div class="quadro">
@@ -145,14 +150,14 @@
             <tr>
               <th>Funcionário</th>
               <th>Cargo</th>
-              <th>Admin</th>
-              <th>Ponto</th>
-              <th>Dashboard</th>
-              <th>Bipagem</th>
-              <th>Estoque</th>
-              <th>Proj. Financeira</th>
-              <th>Concorrência</th>
-              <th>Painel TV</th>
+              <th title="Consegue fazer login no painel administrativo. Sem isso, nem as outras páginas abaixo funcionam.">Admin</th>
+              <th title="Ver o ponto de TODOS os colaboradores (visão de admin). Bater o próprio ponto não depende disso.">Ponto<br><small>(ver de todos)</small></th>
+              <th title="Painel administrativo — visão geral de vendas/entregas.">Dashboard</th>
+              <th title="Análise de desempenho da Expedição no painel admin E acesso à Expedição (bipar pacotes) pelo Portal Ricapet.">Bipagem<br><small>(+ Expedição no Portal)</small></th>
+              <th title="Painel completo de estoque E acesso ao Estoque pelo Portal Ricapet.">Estoque<br><small>(+ Estoque no Portal)</small></th>
+              <th title="Fluxo de caixa / projeção financeira, só no painel admin.">Proj. Financeira</th>
+              <th title="Só esconde o link na barra lateral — a análise em si é outro site (iframe), sem controle de acesso próprio aqui.">Concorrência<br><small>(só esconde o link)</small></th>
+              <th title="Só esconde o link na barra lateral — o Painel TV em si não tem login por design (é kiosk).">Painel TV<br><small>(só esconde o link)</small></th>
               <th>Ação</th>
             </tr>
           </thead>
