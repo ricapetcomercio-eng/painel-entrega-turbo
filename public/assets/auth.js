@@ -79,9 +79,43 @@
     sessionStorage.removeItem(CHAVE_SESSAO);
     sessao = null;
   }
-  if (!sessao || !sessao.token) {
+
+  // Veio de um link do Portal Ricapet (PortalRicapet, PWA) com ?pt=... --
+  // mesma ideia já usada pra abrir a Expedição direto (ver
+  // checkout_bipagem.py): troca esse token "cru" por uma sessão de admin
+  // de verdade, sem pedir PIN de novo. Só funciona pra quem já tem a flag
+  // admin (mesma exigência de sempre); sem ela, cai no login normal
+  // abaixo, igual antes de existir o ?pt=. Sempre tenta trocar quando o
+  // parâmetro está presente, mesmo já tendo uma sessão local -- é a forma
+  // mais simples de honrar um link fresco do Portal sem duplicar lógica
+  // de "já tá bom assim".
+  const tokenPortal = new URLSearchParams(location.search).get('pt');
+  if (tokenPortal) {
+    document.documentElement.style.visibility = 'hidden'; // evita flash de login/erro enquanto troca
+    trocarTokenDoPortal(tokenPortal);
+  } else if (!sessao || !sessao.token) {
     const volta = encodeURIComponent(location.pathname + location.search);
     location.href = '/login.html?redirect=' + volta;
+  }
+
+  async function trocarTokenDoPortal(token) {
+    try {
+      const resp = await fetch('/api/debug?tipo=portal-trocar-token&secret=' + encodeURIComponent(PONTO_PUBLIC_SECRET), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token }),
+      });
+      const dados = await resp.json().catch(() => ({}));
+      if (!resp.ok || dados.ok === false) throw new Error(dados.error || 'Sem acesso.');
+      sessionStorage.setItem(CHAVE_SESSAO, JSON.stringify({
+        token: dados.token, nome: dados.nome, super_admin: !!dados.super_admin, paginas: dados.paginas || [],
+      }));
+      location.replace(location.pathname); // recarrega já sem o ?pt= na barra, com a sessão pronta
+    } catch (e) {
+      // Sem acesso (não é admin) ou token do Portal já vencido -- cai no
+      // login normal, igual quem tentasse essa URL sem vir do Portal.
+      location.replace('/login.html?redirect=' + encodeURIComponent(location.pathname));
+    }
   }
 
   function sair() {

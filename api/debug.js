@@ -1670,6 +1670,33 @@ async function debugPortalLogAcesso(req, res) {
   res.status(200).json({ ok: true, tipo: 'portal-log-acesso' });
 }
 
+// Troca o token "cru" do Portal (PortalRicapet, ?pt=... -- mesmo já usado
+// pra abrir a Expedição direto, ver checkout_bipagem.py) por uma sessão
+// de admin de verdade, sem pedir PIN de novo -- usado por assets/auth.js
+// quando o link do Estoque chega com ?pt=. Só funciona pra quem já tem a
+// flag admin (mesma exigência de qualquer login no painel); quem não tem
+// cai no login normal, igual já acontecia antes desta rota existir.
+async function debugPortalTrocarToken(req, res) {
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { token }' }); return; }
+  const identificado = verificarTokenPonto((req.body && req.body.token) || '');
+  if (!identificado) { res.status(401).json({ ok: false, error: 'Sessão do Portal expirada, abra o Portal de novo.' }); return; }
+
+  const db = getDb();
+  await garantirEsquemaPonto(db);
+  const rs = await db.execute({ sql: 'SELECT id, nome, admin, super_admin FROM funcionarios WHERE id = ? AND ativo = 1', args: [identificado.id] });
+  const funcionario = rs.rows[0];
+  if (!funcionario || funcionario.admin !== 1) {
+    res.status(403).json({ ok: false, error: 'Seu usuário não tem acesso ao painel administrativo.' });
+    return;
+  }
+  const superAdmin = funcionario.super_admin === 1;
+  res.status(200).json({
+    ok: true, tipo: 'portal-trocar-token',
+    token: gerarTokenPonto(funcionario), nome: funcionario.nome, admin: true,
+    super_admin: superAdmin, paginas: await paginasPermitidas(db, funcionario.id, superAdmin),
+  });
+}
+
 // Chamado por assets/auth.js a cada ~1min ENQUANTO detecta atividade real
 // do usuário na página (mousemove/clique/tecla/scroll) -- renova a
 // validade do token (novo `emissao`) sem pedir PIN de novo. Sem atividade,
@@ -2674,7 +2701,7 @@ const TIPOS_PUBLICOS_PONTO = new Set([
   'ponto-editar-proprio', 'ponto-solicitar-correcao', 'ponto-validar-token',
   'ponto-admin-visao', 'ponto-admin-editar', 'ponto-admin-resolver', 'ponto-admin-jornada',
   'ponto-admin-integridade', 'ponto-admin-cpf', 'ponto-admin-afd', 'ponto-admin-abono',
-  'ponto-admin-feriado', 'ponto-admin-empresa', 'log-evento-sessao', 'portal-log-acesso',
+  'ponto-admin-feriado', 'ponto-admin-empresa', 'log-evento-sessao', 'portal-log-acesso', 'portal-trocar-token',
 ]);
 
 // Rotas chamadas direto do navegador (botão/tela em painel-estoque-adesivo,
@@ -3214,6 +3241,7 @@ module.exports = async (req, res) => {
     if (req.query.tipo === 'ponto-validar-token') return await debugPontoValidarToken(req, res);
     if (req.query.tipo === 'log-evento-sessao') return await debugLogEventoSessao(req, res);
     if (req.query.tipo === 'portal-log-acesso') return await debugPortalLogAcesso(req, res);
+    if (req.query.tipo === 'portal-trocar-token') return await debugPortalTrocarToken(req, res);
     if (req.query.tipo === 'ponto-bater') return await debugPontoBater(req, res);
     if (req.query.tipo === 'ponto-historico') return await debugPontoHistorico(req, res);
     if (req.query.tipo === 'ponto-editar-proprio') return await debugPontoEditarProprio(req, res);
