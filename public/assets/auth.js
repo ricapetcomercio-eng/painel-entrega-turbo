@@ -18,7 +18,35 @@
     try { return JSON.parse(sessionStorage.getItem(CHAVE_SESSAO) || 'null'); } catch { return null; }
   }
 
-  const sessao = lerSessao();
+  // Mesma duração de lib/pontoAuth.js (DURACAO_SESSAO_ADMIN_MS) -- duplicada
+  // aqui porque este arquivo é servido cru pro navegador (sem build step
+  // pra compartilhar uma constante com o backend). Se mudar um lado, mudar
+  // o outro. Isso é só uma conferência client-side pra redirecionar na
+  // hora (sem esperar uma chamada de API falhar com 401) -- quem realmente
+  // barra é o backend (obterAdminSessao), mesmo se essa conta aqui divergir.
+  const DURACAO_SESSAO_ADMIN_MS = 8 * 60 * 60 * 1000;
+
+  // Lê só o "miolo" do token (id/nome/emissao) sem checar assinatura --
+  // não precisa: é só pra decidir se vale a pena mandar o navegador pro
+  // login antes mesmo de tentar usar a página. Token de verdade só é
+  // validado no servidor.
+  function emissaoDoToken(token) {
+    try {
+      const payload = String(token || '').split('.')[0];
+      return JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/'))).emissao || null;
+    } catch { return null; }
+  }
+
+  function sessaoExpirada(s) {
+    const emissao = emissaoDoToken(s.token);
+    return !emissao || (Date.now() - emissao) > DURACAO_SESSAO_ADMIN_MS;
+  }
+
+  let sessao = lerSessao();
+  if (sessao && sessao.token && sessaoExpirada(sessao)) {
+    sessionStorage.removeItem(CHAVE_SESSAO);
+    sessao = null;
+  }
   if (!sessao || !sessao.token) {
     const volta = encodeURIComponent(location.pathname + location.search);
     location.href = '/login.html?redirect=' + volta;

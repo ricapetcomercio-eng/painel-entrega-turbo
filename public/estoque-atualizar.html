@@ -202,6 +202,7 @@
         cache: 'no-store',
         headers: { 'Cache-Control': 'no-cache' }
       });
+      if (resp.status === 401) { window.RicapetAuth.sair(); return null; }
       if(!resp.ok) return null;
       const json = await resp.json();
       return (json.ok && json.record) || null;
@@ -215,6 +216,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ record })
       });
+      if (resp.status === 401) { window.RicapetAuth.sair(); return false; }
       const json = await resp.json().catch(() => ({}));
       return !!(resp.ok && json.ok);
     } catch(e){ console.error('Erro ao salvar contagem:', e); return false; }
