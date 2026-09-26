@@ -14,8 +14,9 @@ const { shopeeGet } = require('../lib/shopeeAuth');
 const { getDb } = require('../lib/db');
 const { getRedis } = require('../lib/redis');
 const { kvGet, kvSet, kvDel } = require('../lib/kv');
-const { getOmieConfig } = require('../lib/omieContasPagar');
+const { getOmieConfig, listarTitulosPorDia } = require('../lib/omieContasPagar');
 const { resolverPedidoBipagem } = require('../lib/bipagemResolver');
+const { resumirClaimsPeriodo } = require('../lib/mlClaims');
 const { importarContagemFisica, importarSaldoDaPlanilha, completarCatalogoFaltante, corrigirCorArranhadorAdesivoBege, enviarBalancoAgora } = require('../lib/estoqueSaldo');
 const { dataFusoLoja, isoDeDiaHoraLoja, resolverMarcacoes } = require('../lib/registrosPonto');
 
@@ -93,6 +94,11 @@ const TABELAS_SQL = [
     devolucao_claim_id TEXT,
     devolucao_status TEXT,
     devolucao_reason_id TEXT,
+    reclamado INTEGER,
+    reclamacao_claim_id TEXT,
+    reclamacao_status TEXT,
+    reclamacao_motivo TEXT,
+    reclamacao_tipo TEXT,
     itens TEXT
   )`,
   `CREATE INDEX IF NOT EXISTS idx_historico_todos_data ON historico_todos(date_created_ts)`,
@@ -222,7 +228,8 @@ const TABELAS_SQL = [
     atualizado_em TEXT,
     order_id_resolvido TEXT,
     marketplace_resolvido TEXT,
-    resolvido_em TEXT
+    resolvido_em TEXT,
+    resolver_erro TEXT
   )`,
   `CREATE INDEX IF NOT EXISTS idx_bipagem_diaria_data ON bipagem_diaria(data)`,
   // Controle de acesso por página (tela Acessos, só super_admin) — presença
@@ -244,6 +251,11 @@ const ALTERS_PONTO = [
   "ALTER TABLE funcionarios ADD COLUMN admin INTEGER NOT NULL DEFAULT 0",
   "ALTER TABLE funcionarios ADD COLUMN cpf TEXT",
   "ALTER TABLE funcionarios ADD COLUMN super_admin INTEGER NOT NULL DEFAULT 0",
+  "ALTER TABLE funcionarios ADD COLUMN cargo TEXT",
+  // Bloqueio por tentativas erradas de PIN seguidas (ver MAX_TENTATIVAS_LOGIN
+  // em debugPontoLogin) -- zerado a cada login certo.
+  "ALTER TABLE funcionarios ADD COLUMN tentativas_login_falhas INTEGER NOT NULL DEFAULT 0",
+  "ALTER TABLE funcionarios ADD COLUMN bloqueado_login_ate TEXT",
   "ALTER TABLE registros_ponto ADD COLUMN origem TEXT NOT NULL DEFAULT 'batida'",
   "ALTER TABLE registros_ponto ADD COLUMN motivo TEXT",
   "ALTER TABLE registros_ponto ADD COLUMN editado_por TEXT",
@@ -312,6 +324,12 @@ async function debugAdicionarColunaTipo(req, res) {
     ['bipagem_diaria.order_id_resolvido', 'ALTER TABLE bipagem_diaria ADD COLUMN order_id_resolvido TEXT'],
     ['bipagem_diaria.marketplace_resolvido', 'ALTER TABLE bipagem_diaria ADD COLUMN marketplace_resolvido TEXT'],
     ['bipagem_diaria.resolvido_em', 'ALTER TABLE bipagem_diaria ADD COLUMN resolvido_em TEXT'],
+    ['bipagem_diaria.resolver_erro', 'ALTER TABLE bipagem_diaria ADD COLUMN resolver_erro TEXT'],
+    ['historico_todos.reclamado', 'ALTER TABLE historico_todos ADD COLUMN reclamado INTEGER'],
+    ['historico_todos.reclamacao_claim_id', 'ALTER TABLE historico_todos ADD COLUMN reclamacao_claim_id TEXT'],
+    ['historico_todos.reclamacao_status', 'ALTER TABLE historico_todos ADD COLUMN reclamacao_status TEXT'],
+    ['historico_todos.reclamacao_motivo', 'ALTER TABLE historico_todos ADD COLUMN reclamacao_motivo TEXT'],
+    ['historico_todos.reclamacao_tipo', 'ALTER TABLE historico_todos ADD COLUMN reclamacao_tipo TEXT'],
   ]) {
     try {
       await db.execute(sql);
@@ -670,6 +688,22 @@ async function debugMlClaims(req, res) {
   res.status(200).json({ ok: true, tipo: 'ml-claims', conta, periodo: { desde, ate }, resposta_bruta: dados });
 }
 
+// Diagnóstico do "por que devolução nunca aparece?" — resumo agregado em vez
+// de despejar a resposta bruta inteira (ver comentário em
+// lib/mlClaims.js/resumirClaimsPeriodo). Cobre o mesmo período de 60 dias
+// usado de verdade pelo cron (DIAS_JANELA_DEVOLUCOES, api/collect.js) por
+// padrão, pra refletir o que o painel realmente coletaria.
+async function debugMlClaimsResumo(req, res) {
+  const conta = req.query.conta;
+  const dias = parseInt(req.query.dias, 10) || 60;
+  if (!conta) { res.status(400).json({ error: 'Use ?conta=ricapet ou ?conta=thapets' }); return; }
+
+  const desde = new Date(Date.now() - dias * 24 * 60 * 60 * 1000).toISOString();
+  const ate = new Date().toISOString();
+  const resumo = await resumirClaimsPeriodo(conta, desde, ate);
+  res.status(200).json({ ok: true, tipo: 'ml-claims-resumo', conta, periodo: { desde, ate, dias }, ...resumo });
+}
+
 async function debugMlShipment(req, res) {
   const conta = req.query.conta;
   const orderId = req.query.order_id;
@@ -977,14 +1011,26 @@ async function debugOmiePedidoTeste(req, res) {
   if (!codigoPedido) {
     const db = getDb();
     const filtroTipo = req.query.tipo_envio_contem; // ex: "Shopee" pra pegar uma bipagem Shopee em vez da mais recente qualquer
-    const sql = filtroTipo
-      ? `SELECT n_id_pedido, tipo_envio FROM bipagem_diaria WHERE empresa = ? AND n_id_pedido IS NOT NULL AND tipo_envio LIKE ? ORDER BY bipado_em_ts DESC LIMIT 1`
-      : `SELECT n_id_pedido, tipo_envio FROM bipagem_diaria WHERE empresa = ? AND n_id_pedido IS NOT NULL ORDER BY bipado_em_ts DESC LIMIT 1`;
-    const args = filtroTipo ? [conta === 'ricapet' ? 'Ricapet' : 'Thapets', `%${filtroTipo}%`] : [conta === 'ricapet' ? 'Ricapet' : 'Thapets'];
+    // ex: ?resolver_erro_contem=MZL -- pra investigar uma linha que já falhou
+    // em "Resolver pendentes" com um origem_pedido da Omie desconhecido
+    // (ver lib/bipagemResolver.js), sem precisar descobrir o n_id_pedido na mão.
+    const filtroErro = req.query.resolver_erro_contem;
+    let sql;
+    let filtroValor;
+    if (filtroErro) {
+      sql = `SELECT n_id_pedido, tipo_envio, resolver_erro FROM bipagem_diaria WHERE empresa = ? AND n_id_pedido IS NOT NULL AND resolver_erro LIKE ? ORDER BY bipado_em_ts DESC LIMIT 1`;
+      filtroValor = `%${filtroErro}%`;
+    } else if (filtroTipo) {
+      sql = `SELECT n_id_pedido, tipo_envio, resolver_erro FROM bipagem_diaria WHERE empresa = ? AND n_id_pedido IS NOT NULL AND tipo_envio LIKE ? ORDER BY bipado_em_ts DESC LIMIT 1`;
+      filtroValor = `%${filtroTipo}%`;
+    } else {
+      sql = `SELECT n_id_pedido, tipo_envio, resolver_erro FROM bipagem_diaria WHERE empresa = ? AND n_id_pedido IS NOT NULL ORDER BY bipado_em_ts DESC LIMIT 1`;
+    }
+    const args = filtroValor ? [conta === 'ricapet' ? 'Ricapet' : 'Thapets', filtroValor] : [conta === 'ricapet' ? 'Ricapet' : 'Thapets'];
     const rs = await db.execute({ sql, args });
-    if (!rs.rows.length) { res.status(200).json({ ok: true, aviso: `Nenhum n_id_pedido encontrado em bipagem_diaria pra essa empresa${filtroTipo ? ` com tipo_envio contendo "${filtroTipo}"` : ''} — passe ?codigo_pedido=... manualmente.` }); return; }
+    if (!rs.rows.length) { res.status(200).json({ ok: true, aviso: `Nenhum n_id_pedido encontrado em bipagem_diaria pra essa empresa${filtroTipo ? ` com tipo_envio contendo "${filtroTipo}"` : ''}${filtroErro ? ` com resolver_erro contendo "${filtroErro}"` : ''} — passe ?codigo_pedido=... manualmente.` }); return; }
     codigoPedido = rs.rows[0].n_id_pedido;
-    origem = `auto (n_id_pedido mais recente de bipagem_diaria${filtroTipo ? `, tipo_envio="${rs.rows[0].tipo_envio}"` : ''})`;
+    origem = `auto (n_id_pedido mais recente de bipagem_diaria${filtroTipo ? `, tipo_envio="${rs.rows[0].tipo_envio}"` : ''}${filtroErro ? `, resolver_erro="${rs.rows[0].resolver_erro}"` : ''})`;
   }
 
   const { appKey, appSecret } = getOmieConfig(conta);
@@ -1332,13 +1378,17 @@ async function debugShopeeReturns(req, res) {
 // -------- Ponto (app nativo "Ricapet", ver PortalRicapetApp) --------
 // Login por nome + PIN de 4 dígitos (mesma ideia do OPERADORES_EXPEDICAO
 // do checkout_bipagem.py, mas com PIN guardado com hash aqui em vez de
-// texto puro). Token simples (payload + HMAC), sem expiração -- é
-// controle interno de presença, não o ponto oficial da folha.
+// texto puro). Token simples (payload + HMAC) -- é controle interno de
+// presença, não o ponto oficial da folha. A sessão de ADMIN do painel
+// (obterAdminSessao, lib/pontoAuth.js) expira por inatividade; o token
+// "cru" batido aqui (usado pelo próprio app de ponto e por
+// debugPontoValidarToken) continua sem expiração própria.
 
 const crypto = require('crypto');
 const {
   hashPin, gerarTokenPonto, verificarTokenPonto, funcionarioEhAdmin, obterAdminSessao,
-  funcionarioEhSuperAdmin, paginasPermitidas, PAGINAS_PAINEL,
+  funcionarioEhSuperAdmin, funcionarioTemAcessoPagina, paginasPermitidas, PAGINAS_PAINEL,
+  MAX_TENTATIVAS_LOGIN, BLOQUEIO_LOGIN_SEGUNDOS,
 } = require('../lib/pontoAuth');
 
 // Auto-migração das tabelas de ponto -- roda na primeira chamada que precisar
@@ -1350,7 +1400,7 @@ async function garantirEsquemaPonto(db) {
     await db.execute('SELECT nsr, hash, ref_nsr, cnpj FROM registros_ponto LIMIT 1');
     await db.execute('SELECT 1 FROM abonos_ponto LIMIT 1');
     await db.execute('SELECT 1 FROM config_ponto LIMIT 1');
-    await db.execute('SELECT super_admin FROM funcionarios LIMIT 1');
+    await db.execute('SELECT super_admin, cargo, tentativas_login_falhas, bloqueado_login_ate FROM funcionarios LIMIT 1');
     await db.execute('SELECT 1 FROM funcionarios_paginas LIMIT 1');
     _esquemaPontoOk = true;
     return;
@@ -1461,6 +1511,57 @@ async function debugPontoFuncionarios(req, res) {
   res.status(200).json({ ok: true, tipo: 'ponto-funcionarios', funcionarios: rs.rows });
 }
 
+// ---- Log de segurança do painel administrativo ----
+// Registra login (sucesso/falha), logout e sessão expirada -- pedido do
+// dono do projeto pra saber quem acessou o quê e quando. Tabela própria
+// (não mistura com registros_ponto, que é o controle de presença) --
+// auto-migra na 1ª chamada, mesmo padrão preguiçoso/idempotente de
+// garantirEsquemaPonto, só que num flag/tabela separados pra não
+// complicar aquela função já bem carregada.
+let _esquemaLogAcessosOk = false;
+async function garantirEsquemaLogAcessos(db) {
+  if (_esquemaLogAcessosOk) return;
+  await db.execute(`CREATE TABLE IF NOT EXISTS log_acessos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    funcionario_id INTEGER,
+    nome TEXT,
+    evento TEXT,
+    pagina TEXT,
+    ip TEXT,
+    user_agent TEXT,
+    criado_em TEXT
+  )`);
+  await db.execute('CREATE INDEX IF NOT EXISTS idx_log_acessos_criado_em ON log_acessos(criado_em)');
+  _esquemaLogAcessosOk = true;
+}
+
+// Vercel roda atrás de proxy -- o IP real do visitante vem no primeiro
+// valor de x-forwarded-for (o próprio proxy pode acrescentar outros IPs
+// depois, separados por vírgula). req.socket.remoteAddress sozinho
+// devolveria o IP interno do proxy, não o do usuário.
+function ipDaRequisicao(req) {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (forwarded) return String(forwarded).split(',')[0].trim();
+  return (req.socket && req.socket.remoteAddress) || null;
+}
+
+async function registrarLogAcesso(db, req, { funcionarioId, nome, evento, pagina }) {
+  try {
+    await garantirEsquemaLogAcessos(db);
+    await db.execute({
+      sql: 'INSERT INTO log_acessos (funcionario_id, nome, evento, pagina, ip, user_agent, criado_em) VALUES (?,?,?,?,?,?,?)',
+      args: [
+        funcionarioId || null, nome || null, evento, pagina || null,
+        ipDaRequisicao(req), req.headers['user-agent'] || null, new Date().toISOString(),
+      ],
+    });
+  } catch (e) {
+    // Nunca deixa uma falha de log derrubar login/logout de verdade --
+    // só perde aquela linha do histórico, o de menor mal possível aqui.
+    console.error('Erro ao registrar log_acessos:', e.message);
+  }
+}
+
 async function debugPontoLogin(req, res) {
   if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { funcionario_id | nome, pin }' }); return; }
   const { funcionario_id, nome, pin } = req.body || {};
@@ -1469,14 +1570,65 @@ async function debugPontoLogin(req, res) {
   const db = getDb();
   await garantirEsquemaPonto(db); // garante a coluna super_admin/tabela funcionarios_paginas antes do SELECT abaixo
   const rs = funcionario_id
-    ? await db.execute({ sql: 'SELECT id, nome, pin_hash, admin, super_admin FROM funcionarios WHERE id = ? AND ativo = 1', args: [funcionario_id] })
-    : await db.execute({ sql: 'SELECT id, nome, pin_hash, admin, super_admin FROM funcionarios WHERE lower(nome) = lower(?) AND ativo = 1', args: [String(nome).trim()] });
+    ? await db.execute({ sql: 'SELECT id, nome, pin_hash, admin, super_admin, tentativas_login_falhas, bloqueado_login_ate FROM funcionarios WHERE id = ? AND ativo = 1', args: [funcionario_id] })
+    : await db.execute({ sql: 'SELECT id, nome, pin_hash, admin, super_admin, tentativas_login_falhas, bloqueado_login_ate FROM funcionarios WHERE lower(nome) = lower(?) AND ativo = 1', args: [String(nome).trim()] });
   const funcionario = rs.rows[0];
+
+  // Bloqueio por tentativas erradas seguidas (ver MAX_TENTATIVAS_LOGIN em
+  // lib/pontoAuth.js) -- confere ANTES do PIN, senão uma tentativa CERTA
+  // durante o bloqueio passaria direto.
+  if (funcionario && funcionario.bloqueado_login_ate) {
+    const bloqueadoAte = new Date(funcionario.bloqueado_login_ate).getTime();
+    if (bloqueadoAte > Date.now()) {
+      const restamMin = Math.ceil((bloqueadoAte - Date.now()) / 60000);
+      await registrarLogAcesso(db, req, { funcionarioId: funcionario.id, nome: funcionario.nome, evento: 'login_bloqueado' });
+      res.status(429).json({
+        ok: false,
+        error: `Muitas tentativas erradas. Espera ~${restamMin} min antes de tentar de novo, ou peça ajuda a um administrador.`,
+      });
+      return;
+    }
+  }
+
   if (!funcionario || funcionario.pin_hash !== hashPin(pin)) {
+    // Nome errado (funcionário não encontrado) não tem tentativas pra
+    // incrementar/bloquear -- só PIN errado de um funcionário real conta,
+    // senão testar nomes ao acaso já seria um jeito de bloquear a conta de
+    // qualquer um só de aparecer no autocomplete.
+    if (funcionario) {
+      const tentativas = (funcionario.tentativas_login_falhas || 0) + 1;
+      const bloquear = tentativas >= MAX_TENTATIVAS_LOGIN;
+      await db.execute({
+        sql: 'UPDATE funcionarios SET tentativas_login_falhas = ?, bloqueado_login_ate = ? WHERE id = ?',
+        args: [
+          bloquear ? 0 : tentativas,
+          bloquear ? new Date(Date.now() + BLOQUEIO_LOGIN_SEGUNDOS * 1000).toISOString() : null,
+          funcionario.id,
+        ],
+      });
+      if (bloquear) {
+        await registrarLogAcesso(db, req, { funcionarioId: funcionario.id, nome: funcionario.nome, evento: 'login_bloqueado' });
+        res.status(429).json({
+          ok: false,
+          error: `Muitas tentativas erradas. Espera ~${Math.ceil(BLOQUEIO_LOGIN_SEGUNDOS / 60)} min antes de tentar de novo, ou peça ajuda a um administrador.`,
+        });
+        return;
+      }
+    }
+    await registrarLogAcesso(db, req, {
+      funcionarioId: funcionario ? funcionario.id : null,
+      nome: funcionario ? funcionario.nome : (nome || `#${funcionario_id}`),
+      evento: 'login_falha',
+    });
     res.status(401).json({ ok: false, error: 'Nome ou PIN incorreto, tenta de novo.' });
     return;
   }
+
+  if (funcionario.tentativas_login_falhas || funcionario.bloqueado_login_ate) {
+    await db.execute({ sql: 'UPDATE funcionarios SET tentativas_login_falhas = 0, bloqueado_login_ate = NULL WHERE id = ?', args: [funcionario.id] });
+  }
   const superAdmin = funcionario.super_admin === 1;
+  await registrarLogAcesso(db, req, { funcionarioId: funcionario.id, nome: funcionario.nome, evento: 'login_sucesso' });
   res.status(200).json({
     ok: true, tipo: 'ponto-login',
     token: gerarTokenPonto(funcionario), nome: funcionario.nome, admin: funcionario.admin === 1,
@@ -1488,9 +1640,121 @@ async function debugPontoLogin(req, res) {
 // criar a sessão da expedição sem pedir senha de novo).
 async function debugPontoValidarToken(req, res) {
   const token = (req.body && req.body.token) || req.query.token;
+  const identificado = verificarTokenPonto(token);
+  if (!identificado) { res.status(401).json({ ok: false, error: 'Token inválido ou expirado.' }); return; }
+
+  // admin/super_admin/paginas: puramente aditivo -- checkout_bipagem.py
+  // (RobotOmie, fora deste repo) usava só ok/id/nome até aqui; continua
+  // funcionando igual se ignorar os campos novos. Adicionado pra permitir
+  // checar a permissão "bipagem" (mesma da tela Acessos) antes de abrir a
+  // Expedição vinda do Portal, sem duplicar a lógica de permissão lá.
+  const db = getDb();
+  await garantirEsquemaPonto(db);
+  const rs = await db.execute({ sql: 'SELECT admin, super_admin FROM funcionarios WHERE id = ? AND ativo = 1', args: [identificado.id] });
+  const funcionario = rs.rows[0];
+  const superAdmin = !!(funcionario && funcionario.super_admin === 1);
+  const admin = !!(funcionario && funcionario.admin === 1);
+  res.status(200).json({
+    ok: true, tipo: 'ponto-validar-token', id: identificado.id, nome: identificado.nome,
+    admin, super_admin: superAdmin, paginas: admin ? await paginasPermitidas(db, identificado.id, superAdmin) : [],
+  });
+}
+
+// Auditoria do Portal Ricapet (PortalRicapet, PWA -- porta de entrada pra
+// Expedição/Estoque/Ponto): login certo/errado já fica registrado sozinho
+// em debugPontoLogin (mesmo endpoint que o Portal usa) -- esta rota cobre
+// só o que falta, reportado pelo PRÓPRIO cliente já autenticado (ele sabe
+// o momento exato de abrir cada sistema / a sessão expirar por
+// inatividade / sair), sempre validando o token de novo aqui -- o cliente
+// diz O QUE aconteceu, nunca QUEM (isso vem do token). Reaproveita a
+// MESMA tabela log_acessos/registrarLogAcesso do painel administrativo
+// (evento prefixado "portal_" pra distinguir na mesma tela de histórico),
+// em vez de duplicar schema.
+const EVENTOS_PORTAL_CLIENTE = new Set([
+  'portal_acesso_expedicao', 'portal_acesso_estoque', 'portal_acesso_ponto',
+  'portal_sessao_expirada', 'portal_logout',
+]);
+
+async function debugPortalLogAcesso(req, res) {
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { token, evento }' }); return; }
+  const { token, evento } = req.body || {};
+  if (!EVENTOS_PORTAL_CLIENTE.has(evento)) { res.status(400).json({ error: `evento precisa ser um de: ${[...EVENTOS_PORTAL_CLIENTE].join(', ')}` }); return; }
   const funcionario = verificarTokenPonto(token);
-  if (!funcionario) { res.status(401).json({ ok: false, error: 'Token inválido ou expirado.' }); return; }
-  res.status(200).json({ ok: true, tipo: 'ponto-validar-token', id: funcionario.id, nome: funcionario.nome });
+  if (!funcionario) { res.status(401).json({ ok: false, error: 'Sessão expirada, faça login de novo.' }); return; }
+  await registrarLogAcesso(getDb(), req, { funcionarioId: funcionario.id, nome: funcionario.nome, evento });
+  res.status(200).json({ ok: true, tipo: 'portal-log-acesso' });
+}
+
+// Troca o token "cru" do Portal (PortalRicapet, ?pt=... -- mesmo já usado
+// pra abrir a Expedição direto, ver checkout_bipagem.py) por uma sessão
+// de admin de verdade, sem pedir PIN de novo -- usado por assets/auth.js
+// quando o link do Estoque chega com ?pt=. Só funciona pra quem já tem a
+// flag admin (mesma exigência de qualquer login no painel); quem não tem
+// cai no login normal, igual já acontecia antes desta rota existir.
+async function debugPortalTrocarToken(req, res) {
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { token, pagina? }' }); return; }
+  const { token, pagina } = req.body || {};
+  const identificado = verificarTokenPonto(token || '');
+  if (!identificado) { res.status(401).json({ ok: false, error: 'Sessão do Portal expirada, abra o Portal de novo.' }); return; }
+
+  const db = getDb();
+  await garantirEsquemaPonto(db);
+  const rs = await db.execute({ sql: 'SELECT id, nome, admin, super_admin FROM funcionarios WHERE id = ? AND ativo = 1', args: [identificado.id] });
+  const funcionario = rs.rows[0];
+  if (!funcionario || funcionario.admin !== 1) {
+    res.status(403).json({ ok: false, error: 'Seu usuário não tem acesso ao painel administrativo.' });
+    return;
+  }
+  const superAdmin = funcionario.super_admin === 1;
+  // `pagina` (ex.: "estoque") é a página específica que o Portal está
+  // tentando abrir -- sem essa checagem, qualquer admin (mesmo sem a
+  // página liberada na tela Acessos) conseguia abrir a página vinda do
+  // Portal, porque só a flag admin geral era conferida aqui. As chamadas
+  // de dado em si (estoque-contagem-get/set) já bloqueavam certo -- mas a
+  // página abria vazia em vez de mandar pro login, dando a impressão
+  // errada de acesso liberado.
+  if (pagina && !(await funcionarioTemAcessoPagina(db, funcionario.id, pagina, superAdmin))) {
+    res.status(403).json({ ok: false, error: 'Você não tem acesso a esta área. Peça liberação ao Ricardo.' });
+    return;
+  }
+  res.status(200).json({
+    ok: true, tipo: 'portal-trocar-token',
+    token: gerarTokenPonto(funcionario), nome: funcionario.nome, admin: true,
+    super_admin: superAdmin, paginas: await paginasPermitidas(db, funcionario.id, superAdmin),
+  });
+}
+
+// Chamado por assets/auth.js a cada ~1min ENQUANTO detecta atividade real
+// do usuário na página (mousemove/clique/tecla/scroll) -- renova a
+// validade do token (novo `emissao`) sem pedir PIN de novo. Sem atividade,
+// o front para de chamar isso e o token natural mente vira inválido depois
+// de DURACAO_INATIVIDADE_MS (obterAdminSessao recusa em qualquer rota).
+// Passa pelo mesmo obterAdminSessao de qualquer outra rota de admin -- só
+// HMAC (gerarTokenPonto), nenhuma consulta a banco extra além da que
+// obterAdminSessao já faz pra checar a flag admin.
+async function debugPontoRenovarSessao(req, res) {
+  const resultado = await obterAdminSessao((req.body && req.body.sessao) || req.query.sessao, getDb());
+  if (resultado.erro) { res.status(resultado.status).json({ ok: false, error: resultado.erro }); return; }
+  res.status(200).json({ ok: true, token: gerarTokenPonto(resultado.funcionario) });
+}
+
+// Registra logout/sessão-expirada -- chamado por assets/auth.js em dois
+// momentos onde não há mais um token VÁLIDO pra passar por
+// obterAdminSessao (logout: o usuário já pediu pra sair; sessão expirada:
+// é exatamente o token não valer mais) -- por isso essa rota usa só o
+// gate fraco pré-compartilhado (TIPOS_PUBLICOS_PONTO), igual ponto-login,
+// e recebe funcionario_id/nome já decodificados no cliente a partir do
+// próprio token (sem validar assinatura -- não precisa: é só um registro
+// de auditoria, não uma ação que concede acesso a nada).
+async function debugLogEventoSessao(req, res) {
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { evento, funcionario_id, nome, pagina }' }); return; }
+  const { evento, funcionario_id, nome, pagina } = req.body || {};
+  if (!['logout', 'sessao_expirada'].includes(evento)) {
+    res.status(400).json({ error: "evento precisa ser 'logout' ou 'sessao_expirada'" });
+    return;
+  }
+  await registrarLogAcesso(getDb(), req, { funcionarioId: funcionario_id || null, nome, evento, pagina });
+  res.status(200).json({ ok: true });
 }
 
 async function debugPontoBater(req, res) {
@@ -1759,7 +2023,7 @@ async function debugAcessosListar(req, res) {
   const db = getDb();
   const chamador = await exigirSuperAdmin(req, res, db);
   if (!chamador) return;
-  const funcs = await db.execute('SELECT id, nome, admin, super_admin FROM funcionarios WHERE ativo = 1 ORDER BY nome');
+  const funcs = await db.execute('SELECT id, nome, admin, super_admin, cargo FROM funcionarios WHERE ativo = 1 ORDER BY nome');
   const paginasRs = await db.execute('SELECT funcionario_id, pagina FROM funcionarios_paginas');
   const paginasPorFuncionario = new Map();
   paginasRs.rows.forEach((r) => {
@@ -1771,6 +2035,7 @@ async function debugAcessosListar(req, res) {
     nome: f.nome,
     admin: f.admin === 1,
     super_admin: f.super_admin === 1,
+    cargo: f.cargo || '',
     paginas: f.super_admin === 1 ? [...PAGINAS_PAINEL] : (paginasPorFuncionario.get(f.id) || []),
   }));
   res.status(200).json({ ok: true, tipo: 'acessos-listar', paginas_disponiveis: PAGINAS_PAINEL, usuarios });
@@ -1782,12 +2047,12 @@ async function debugAcessosListar(req, res) {
 // debugPontoDefinirSuperAdmin) nem permite que o próprio super_admin tire
 // o próprio admin por engano.
 async function debugAcessosDefinir(req, res) {
-  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { sessao, funcionario_id, admin, paginas: [...] }' }); return; }
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { sessao, funcionario_id, admin, paginas: [...], cargo? }' }); return; }
   const db = getDb();
   const chamador = await exigirSuperAdmin(req, res, db);
   if (!chamador) return;
 
-  const { funcionario_id, admin, paginas } = req.body || {};
+  const { funcionario_id, admin, paginas, cargo } = req.body || {};
   if (!funcionario_id) { res.status(400).json({ error: 'Informe funcionario_id.' }); return; }
   const paginasValidas = (Array.isArray(paginas) ? paginas : []).filter((p) => PAGINAS_PAINEL.includes(p));
 
@@ -1801,6 +2066,9 @@ async function debugAcessosDefinir(req, res) {
   if (admin !== undefined) {
     await db.execute({ sql: 'UPDATE funcionarios SET admin = ? WHERE id = ?', args: [admin ? 1 : 0, funcionario_id] });
   }
+  if (cargo !== undefined) {
+    await db.execute({ sql: 'UPDATE funcionarios SET cargo = ? WHERE id = ?', args: [String(cargo).trim() || null, funcionario_id] });
+  }
   await db.execute({ sql: 'DELETE FROM funcionarios_paginas WHERE funcionario_id = ?', args: [funcionario_id] });
   const agora = new Date().toISOString();
   for (const pagina of paginasValidas) {
@@ -1810,6 +2078,24 @@ async function debugAcessosDefinir(req, res) {
     });
   }
   res.status(200).json({ ok: true, tipo: 'acessos-definir', funcionario_id, paginas: paginasValidas });
+}
+
+// Tela Acessos, aba "Histórico de acessos": últimas entradas do log de
+// segurança (login/logout/sessão expirada) -- só super_admin, mesmo
+// padrão de debugAcessosListar. Limite fixo (300) evita que a tabela
+// cresça sem controle vire uma consulta pesada -- é histórico recente
+// pra auditoria, não um relatório completo.
+const LIMITE_HISTORICO_ACESSOS = 300;
+async function debugAcessosHistorico(req, res) {
+  const db = getDb();
+  const chamador = await exigirSuperAdmin(req, res, db);
+  if (!chamador) return;
+  await garantirEsquemaLogAcessos(db);
+  const rs = await db.execute({
+    sql: 'SELECT funcionario_id, nome, evento, pagina, ip, user_agent, criado_em FROM log_acessos ORDER BY id DESC LIMIT ?',
+    args: [LIMITE_HISTORICO_ACESSOS],
+  });
+  res.status(200).json({ ok: true, tipo: 'acessos-historico', registros: rs.rows });
 }
 
 // Admin: define razão social / CNPJ / endereço + ajustes (limite de batidas
@@ -1854,7 +2140,7 @@ async function debugPontoAdminVisao(req, res) {
   // admin (Solicitações, Por funcionário, Visão geral, Jornadas), a pedido do dono.
   const NOMES_OCULTOS_VISAO_ADMIN = ['ricardo', 'nivaldo'];
   const primeiroNome = (nome) => String(nome || '').trim().split(/\s+/)[0].toLowerCase();
-  const funcsBrutos = await db.execute('SELECT id, nome, admin, cpf FROM funcionarios WHERE ativo = 1 ORDER BY nome');
+  const funcsBrutos = await db.execute('SELECT id, nome, admin, cpf, cargo FROM funcionarios WHERE ativo = 1 ORDER BY nome');
   const funcs = { rows: funcsBrutos.rows.filter((f) => !NOMES_OCULTOS_VISAO_ADMIN.includes(primeiroNome(f.nome))) };
   const regs = await db.execute({
     sql: `SELECT id, funcionario_id, tipo, registrado_em, metodo_validacao, latitude, longitude,
@@ -1879,7 +2165,7 @@ async function debugPontoAdminVisao(req, res) {
   const nomePorId = new Map(funcsBrutos.rows.map((f) => [f.id, f.nome]));
 
   const porFunc = new Map(funcs.rows.map((f) => [f.id, {
-    id: f.id, nome: f.nome, admin: f.admin === 1, cpf: f.cpf || null,
+    id: f.id, nome: f.nome, admin: f.admin === 1, cpf: f.cpf || null, cargo: f.cargo || null,
     registros: [], marcacoes: [], solicitacoes: [], jornada: null, abonos: [],
   }]));
   const rawPorFunc = new Map();
@@ -2273,9 +2559,13 @@ async function debugBipagemResolverPendentes(req, res) {
 
   const limite = Math.min(parseInt(req.query.limite, 10) || LIMITE_PADRAO_RESOLVER_BIPAGEM, LIMITE_MAXIMO_RESOLVER_BIPAGEM);
 
+  // resolver_erro IS NULL exclui linhas que já falharam numa tentativa
+  // anterior — sem isso, um lote que falha por inteiro (ex: pedido apagado
+  // na Omie) é reprocessado a cada clique pra sempre, o "restantes" nunca
+  // sai do lugar e o botão parece simplesmente não funcionar.
   const rsPendentes = await db.execute({
     sql: `SELECT id_unico, empresa, n_id_pedido FROM bipagem_diaria
-          WHERE order_id_resolvido IS NULL AND n_id_pedido IS NOT NULL
+          WHERE order_id_resolvido IS NULL AND resolver_erro IS NULL AND n_id_pedido IS NOT NULL
           ORDER BY bipado_em_ts DESC LIMIT ?`,
     args: [limite],
   });
@@ -2284,11 +2574,24 @@ async function debugBipagemResolverPendentes(req, res) {
   const erros = [];
   for (const linha of rsPendentes.rows) {
     const conta = EMPRESA_PARA_CONTA[linha.empresa];
-    if (!conta) { erros.push({ id_unico: linha.id_unico, erro: `Empresa desconhecida: ${linha.empresa}` }); continue; }
+    if (!conta) {
+      const erro = `Empresa desconhecida: ${linha.empresa}`;
+      erros.push({ id_unico: linha.id_unico, erro });
+      await db.execute({
+        sql: `UPDATE bipagem_diaria SET resolver_erro = ?, resolvido_em = ? WHERE id_unico = ?`,
+        args: [erro, new Date().toISOString(), linha.id_unico],
+      });
+      continue;
+    }
 
     const resultado = await resolverPedidoBipagem(conta, linha.n_id_pedido);
     if (resultado.erro || !resultado.orderId) {
-      erros.push({ id_unico: linha.id_unico, n_id_pedido: linha.n_id_pedido, erro: resultado.erro || 'Sem orderId.' });
+      const erro = resultado.erro || 'Sem orderId.';
+      erros.push({ id_unico: linha.id_unico, n_id_pedido: linha.n_id_pedido, erro });
+      await db.execute({
+        sql: `UPDATE bipagem_diaria SET resolver_erro = ?, resolvido_em = ? WHERE id_unico = ?`,
+        args: [String(erro).slice(0, 500), new Date().toISOString(), linha.id_unico],
+      });
       continue;
     }
     await db.execute({
@@ -2299,8 +2602,15 @@ async function debugBipagemResolverPendentes(req, res) {
   }
 
   const rsRestantes = await db.execute(
-    `SELECT COUNT(*) AS total FROM bipagem_diaria WHERE order_id_resolvido IS NULL AND n_id_pedido IS NOT NULL`
+    `SELECT COUNT(*) AS total FROM bipagem_diaria WHERE order_id_resolvido IS NULL AND resolver_erro IS NULL AND n_id_pedido IS NOT NULL`
   );
+
+  // Agrupa mensagens de erro pra dar pra ver a causa raiz sem precisar abrir
+  // o console do navegador (ex: "Pedido não encontrado na Omie." x 40).
+  const resumoErros = {};
+  for (const e of erros) {
+    resumoErros[e.erro] = (resumoErros[e.erro] || 0) + 1;
+  }
 
   res.status(200).json({
     ok: true,
@@ -2309,6 +2619,7 @@ async function debugBipagemResolverPendentes(req, res) {
     resolvidos,
     erros: erros.slice(0, 10),
     total_erros: erros.length,
+    resumo_erros: resumoErros,
     restantes: Number(rsRestantes.rows[0].total) || 0,
   });
 }
@@ -2417,7 +2728,7 @@ const TIPOS_PUBLICOS_PONTO = new Set([
   'ponto-editar-proprio', 'ponto-solicitar-correcao', 'ponto-validar-token',
   'ponto-admin-visao', 'ponto-admin-editar', 'ponto-admin-resolver', 'ponto-admin-jornada',
   'ponto-admin-integridade', 'ponto-admin-cpf', 'ponto-admin-afd', 'ponto-admin-abono',
-  'ponto-admin-feriado', 'ponto-admin-empresa',
+  'ponto-admin-feriado', 'ponto-admin-empresa', 'log-evento-sessao', 'portal-log-acesso', 'portal-trocar-token',
 ]);
 
 // Rotas chamadas direto do navegador (botão/tela em painel-estoque-adesivo,
@@ -2432,7 +2743,7 @@ const TIPOS_PUBLICOS_ESTOQUE = new Set(['importar-contagem-fisica', 'importar-sa
 // (mesma origem: só a própria tela logada chama essas rotas).
 const TIPOS_SESSAO_ADMIN = new Set([
   'fluxo-caixa-config-get', 'fluxo-caixa-config-set', 'acessos-listar', 'acessos-definir',
-  'bipagem-resolver-pendentes',
+  'bipagem-resolver-pendentes', 'ponto-renovar-sessao', 'acessos-historico',
 ]);
 
 module.exports = async (req, res) => {
@@ -2442,7 +2753,9 @@ module.exports = async (req, res) => {
       if (req.query.tipo === 'fluxo-caixa-config-set') return await debugFluxoCaixaConfigSet(req, res);
       if (req.query.tipo === 'acessos-listar') return await debugAcessosListar(req, res);
       if (req.query.tipo === 'acessos-definir') return await debugAcessosDefinir(req, res);
+      if (req.query.tipo === 'acessos-historico') return await debugAcessosHistorico(req, res);
       if (req.query.tipo === 'bipagem-resolver-pendentes') return await debugBipagemResolverPendentes(req, res);
+      if (req.query.tipo === 'ponto-renovar-sessao') return await debugPontoRenovarSessao(req, res);
     } catch (err) {
       res.status(500).json({ error: err.message });
       return;
@@ -2672,6 +2985,186 @@ module.exports = async (req, res) => {
       });
       return;
     }
+    if (req.query.tipo === 'omie-cliente-test') {
+      // Teste da API de Clientes/Fornecedores do Omie — usada por
+      // lib/omieContasPagar.js (resolverNomeFornecedor) pra traduzir
+      // codigo_cliente_fornecedor (vindo de Contas a Pagar) num nome
+      // exibível. ?codigo= é obrigatório: pegue um codigo_cliente_fornecedor
+      // real de uma resposta de omie-contas-pagar-test pra testar aqui.
+      const conta = req.query.conta;
+      if (!conta || !['ricapet', 'thapets'].includes(conta)) {
+        res.status(400).json({ error: 'Use ?conta=ricapet ou ?conta=thapets' });
+        return;
+      }
+      const codigo = req.query.codigo;
+      if (!codigo) {
+        res.status(400).json({ error: 'Use &codigo=<codigo_cliente_fornecedor>, pegue um valor real na resposta de omie-contas-pagar-test' });
+        return;
+      }
+      const prefix = `OMIE_${conta.toUpperCase()}`;
+      const appKey = process.env[`${prefix}_APP_KEY`];
+      const appSecret = process.env[`${prefix}_APP_SECRET`];
+      if (!appKey || !appSecret) {
+        res.status(400).json({ error: `Faltam variáveis de ambiente ${prefix}_APP_KEY / ${prefix}_APP_SECRET.` });
+        return;
+      }
+      const resp = await fetch('https://app.omie.com/api/v1/geral/clientes/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          call: 'ConsultarCliente',
+          app_key: appKey,
+          app_secret: appSecret,
+          param: [{ codigo_cliente_omie: Number(codigo) }],
+        }),
+      });
+      const data = await resp.json();
+      res.status(resp.status).json({
+        ok: resp.ok,
+        tipo: 'omie-cliente-test',
+        conta,
+        codigo,
+        status_http: resp.status,
+        resposta: data,
+      });
+      return;
+    }
+    if (req.query.tipo === 'omie-contas-pagar-dia') {
+      // Debug: acha TODO título (qualquer status, inclusive PAGO) cujo
+      // data_vencimento bate com ?dia= (ou caia até ?janela= dias antes/
+      // depois dele) — já com o nome do fornecedor resolvido, pra comparar
+      // direto com o que a Omie mostra como "Vence hoje" na Movimentação
+      // da Conta Corrente e achar títulos que somem da Projeção Financeira
+      // sem motivo óbvio. ?dia=AAAA-MM-DD opcional, default hoje (fuso de
+      // São Paulo). ?janela=N opcional (dias antes/depois, default 0 = só
+      // o dia exato) — use se o título não aparecer nem com ?janela=0,
+      // pra checar se a data_vencimento real está uns dias fora do que a
+      // Omie mostra como "vence hoje".
+      const conta = req.query.conta;
+      if (!conta || !['ricapet', 'thapets'].includes(conta)) {
+        res.status(400).json({ error: 'Use ?conta=ricapet ou ?conta=thapets' });
+        return;
+      }
+      const dia = /^\d{4}-\d{2}-\d{2}$/.test(req.query.dia || '') ? req.query.dia : dataFusoLoja(new Date());
+      const janela = req.query.janela;
+      try {
+        const resultado = await listarTitulosPorDia(conta, dia, janela);
+        res.status(200).json({ ok: true, tipo: 'omie-contas-pagar-dia', conta, ...resultado });
+      } catch (err) {
+        res.status(500).json({ error: err.message });
+      }
+      return;
+    }
+    if (req.query.tipo === 'omie-extrato-test') {
+      // Endpoint exploratório pra descobrir o schema real da API de
+      // Movimentação/Extrato de Conta Corrente do Omie — precisamos dela
+      // pra achar as transferências entre contas (ex. "Transf. ITAÚ
+      // CORRENTE >> CARTÃO DE CRÉDITO - ITAÚ" na Ricapet, "Transf. BRADESCO
+      // C/C >> American Express" na Thapets) que hoje NÃO aparecem em
+      // Contas a Pagar: ListarContasPagar (lib/omieContasPagar.js) só cobre
+      // títulos formais, transferência é lançamento de extrato/movimento
+      // financeiro, API bem diferente. Mesmo padrão empírico já usado pra
+      // Contas a Pagar (ver omie-contas-pagar-test acima): a documentação
+      // pública do Omie não é confiável o bastante sozinha (já mordeu este
+      // projeto antes com filtrar_por_data_de) — confirmar contra uma
+      // resposta real antes de escrever lib/omieExtrato.js definitivo.
+      // `?parte=` escolhe o que testar:
+      //   contas     -> ListarContasCorrentes (geral/contacorrente/), pra
+      //                 descobrir o nCodCC de cada conta bancária
+      //                 cadastrada (precisa dele pra testar `extrato`
+      //                 abaixo).
+      //   movimentos -> ListarMovimentos (financas/mf/) — candidato A:
+      //                 lançamentos/baixas de contas a pagar+receber+conta
+      //                 corrente juntos, num único call.
+      //   extrato    -> ListarExtrato (financas/extrato/) — candidato B:
+      //                 extrato bancário + saldo de UMA conta corrente,
+      //                 mais parecido com a tela "Movimentação da Conta
+      //                 Corrente" que o dono do projeto está olhando
+      //                 (precisa de &conta_corrente=<nCodCC>, pegue um
+      //                 valor real na resposta de ?parte=contas).
+      // Nenhum desses nomes de campo foi confirmado contra a documentação
+      // oficial (inacessível pra pesquisa nesta sessão) — só triangulado
+      // por busca. Devolve a resposta CRUA da Omie pra inspecionar; se um
+      // nome de call/campo estiver errado, a própria Omie devolve o erro
+      // (faultstring) e isso já é dado útil.
+      const conta = req.query.conta;
+      if (!conta || !['ricapet', 'thapets'].includes(conta)) {
+        res.status(400).json({ error: 'Use ?conta=ricapet ou ?conta=thapets' });
+        return;
+      }
+      let appKey, appSecret;
+      try {
+        ({ appKey, appSecret } = getOmieConfig(conta));
+      } catch (err) {
+        res.status(400).json({ error: err.message });
+        return;
+      }
+
+      const parte = req.query.parte || 'contas';
+      const fmtDataOmie = (d) => {
+        const dd = String(d.getDate()).padStart(2, '0');
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        return `${dd}/${mm}/${d.getFullYear()}`;
+      };
+
+      let url, body;
+      if (parte === 'contas') {
+        url = 'https://app.omie.com/api/v1/geral/contacorrente/';
+        body = {
+          call: 'ListarContasCorrentes',
+          app_key: appKey,
+          app_secret: appSecret,
+          param: [{ pagina: Number(req.query.pagina) || 1, registros_por_pagina: 50, apenas_importado_api: 'N' }],
+        };
+      } else if (parte === 'movimentos') {
+        url = 'https://app.omie.com/api/v1/financas/mf/';
+        body = {
+          call: 'ListarMovimentos',
+          app_key: appKey,
+          app_secret: appSecret,
+          param: [{ nPagina: Number(req.query.pagina) || 1, nRegPorPagina: 20 }],
+        };
+      } else if (parte === 'extrato') {
+        const nCodCC = req.query.conta_corrente;
+        if (!nCodCC) {
+          res.status(400).json({ error: 'Use &conta_corrente=<nCodCC>, pegue um valor real na resposta de ?parte=contas' });
+          return;
+        }
+        const hoje = new Date();
+        const passado = new Date(hoje.getTime() - 60 * 24 * 60 * 60 * 1000);
+        url = 'https://app.omie.com/api/v1/financas/extrato/';
+        body = {
+          call: 'ListarExtrato',
+          app_key: appKey,
+          app_secret: appSecret,
+          param: [{
+            nCodCC: Number(nCodCC),
+            dPeriodoInicial: req.query.de || fmtDataOmie(passado),
+            dPeriodoFinal: req.query.ate || fmtDataOmie(hoje),
+          }],
+        };
+      } else {
+        res.status(400).json({ error: 'Use &parte=contas | movimentos | extrato' });
+        return;
+      }
+
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await resp.json();
+      res.status(resp.status).json({
+        ok: resp.ok,
+        tipo: 'omie-extrato-test',
+        conta,
+        parte,
+        status_http: resp.status,
+        requisicao: body.param[0],
+        resposta: data,
+      });
+      return;
+    }
     if (req.query.tipo === 'ml-client-ids') {
       res.status(200).json({
         ok: true, tipo: 'ml-client-ids',
@@ -2738,6 +3231,7 @@ module.exports = async (req, res) => {
       return;
     }
     if (req.query.tipo === 'ml-claims') return await debugMlClaims(req, res);
+    if (req.query.tipo === 'ml-claims-resumo') return await debugMlClaimsResumo(req, res);
     if (req.query.tipo === 'ml-shipment') return await debugMlShipment(req, res);
     if (req.query.tipo === 'flex-status') return await debugFlexStatus(req, res);
     if (req.query.tipo === 'ml-id-teste') return await debugMlIdTeste(req, res);
@@ -2772,6 +3266,9 @@ module.exports = async (req, res) => {
     if (req.query.tipo === 'ponto-funcionarios') return await debugPontoFuncionarios(req, res);
     if (req.query.tipo === 'ponto-login') return await debugPontoLogin(req, res);
     if (req.query.tipo === 'ponto-validar-token') return await debugPontoValidarToken(req, res);
+    if (req.query.tipo === 'log-evento-sessao') return await debugLogEventoSessao(req, res);
+    if (req.query.tipo === 'portal-log-acesso') return await debugPortalLogAcesso(req, res);
+    if (req.query.tipo === 'portal-trocar-token') return await debugPortalTrocarToken(req, res);
     if (req.query.tipo === 'ponto-bater') return await debugPontoBater(req, res);
     if (req.query.tipo === 'ponto-historico') return await debugPontoHistorico(req, res);
     if (req.query.tipo === 'ponto-editar-proprio') return await debugPontoEditarProprio(req, res);
@@ -2794,7 +3291,7 @@ module.exports = async (req, res) => {
     if (req.query.tipo === 'ponto-reindexar-cadeia') return await debugPontoReindexarCadeia(req, res);
     if (req.query.tipo === 'ponto-relatorio') return await debugPontoRelatorio(req, res);
     if (req.query.tipo === 'ponto-cadastrar-funcionario') return await debugPontoCadastrarFuncionario(req, res);
-    res.status(400).json({ error: 'Use ?tipo=ml-claims, ?tipo=ml-shipment, ?tipo=ml-sla, ?tipo=shopee-returns, ?tipo=shopee-channels, ?tipo=criar-tabelas, ?tipo=migrar-redis-turso, ?tipo=corrigir-shipment-id ou ?tipo=adicionar-coluna-tipo' });
+    res.status(400).json({ error: 'Use ?tipo=ml-claims, ?tipo=ml-claims-resumo, ?tipo=ml-shipment, ?tipo=ml-sla, ?tipo=shopee-returns, ?tipo=shopee-channels, ?tipo=criar-tabelas, ?tipo=migrar-redis-turso, ?tipo=corrigir-shipment-id ou ?tipo=adicionar-coluna-tipo' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

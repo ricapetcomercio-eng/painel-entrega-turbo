@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR" data-theme="dark">
+<html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -7,83 +7,25 @@
 <link rel="icon" type="image/png" href="favicon-ricapet.png">
 <meta name="description" content="Painel de administração do ponto — Ricapet/Thapets.">
 <meta name="robots" content="noindex">
-<meta name="theme-color" content="#372F72">
+<meta name="theme-color" content="#00A9C7">
+<script>(function(){try{var t=localStorage.getItem('ricapet_tema2');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Manrope:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="assets/tokens-admin.css">
 <script src="assets/auth.js"></script>
+<script src="assets/tema.js" defer></script>
 <style>
-  :root {
-    --bg: #F6F4FB; --surface: #FFFFFF; --surface-2: #EEF2F9;
-    --ink: #1B2A4A; --ink-soft: #566484; --ink-muted: #93A0BC;
-    --border: #E5E1F0; --shadow: rgba(27,42,74,0.10);
-    --brand: #f5a623; --accent: #f5a623; --accent-bg: #fdecc8; --accent-ink: #272456;
-    --ink-on-accent: #241f4d;
-    --warn: #B8860B; --warn-bg: #FBF1D9;
-    --ok: #2F8F5B; --ok-bg: #E4F3EA; --bad: #C1443D; --bad-bg: #FBE7E5;
-    --info-bg: #E7F0FF; --info-tx: #2657C4;
-    --font-display: 'Sora', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    --font-body: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
-    --radius: 16px; --radius-sm: 10px;
-    --page-bg: #F6F4FB;
-    --sidebar-bg: #5D4FA8;
-    --sidebar-text: #F3F1FB;
-    --sidebar-muted: #C9C0EF;
-    --sidebar-hover: rgba(255,255,255,0.10);
-    --sidebar-border: rgba(255,255,255,0.16);
-  }
+  /* Tokens/componentes de sidebar, kpi, card, tabela, badge, marca d'água e
+     tema-toggle agora vêm de assets/tokens-admin.css (Design System
+     compartilhado) -- aqui fica só o que é específico desta página.
+     Exceção deliberada: o modal (.modal/.modal-card, mais abaixo) continua
+     100% local -- o componente de modal compartilhado abre/fecha via classe
+     .aberto, enquanto o JS desta página sempre usou o atributo [hidden];
+     como é só CSS/markup nesta migração (sem mexer em JS), as regras da
+     página continuam sobrescrevendo por nome de classe de propósito. */
   * { box-sizing: border-box; }
-  body { margin: 0; background: linear-gradient(180deg, #F8F7FC 0%, #F1EEFA 100%); color: var(--ink); font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
-
-  /* ---- Sidebar (mesmo padrão dos outros painéis Ricapet) ---- */
-  .sidebar {
-    width: 212px; height: 100vh; position: fixed; top: 0; left: 0; z-index: 1000;
-    background: var(--sidebar-bg); border-right: 1px solid var(--sidebar-border);
-    padding: 16px 12px; box-sizing: border-box; overflow-y: auto;
-    display: flex; flex-direction: column;
-  }
-  .sidebar-brand { display: flex; align-items: center; gap: 8px; padding: 2px 8px 14px; margin-bottom: 10px; border-bottom: 1px solid var(--sidebar-border); }
-  .sidebar-brand-icon { width: 32px; height: 32px; object-fit: contain; flex-shrink: 0; }
-  .sidebar-brand-name { font-size: 14px; font-weight: 800; color: var(--sidebar-text); line-height: 1.2; }
-  .sidebar-brand-sub { font-size: 11px; color: var(--sidebar-muted); }
-  .sidebar-titulo { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sidebar-muted); padding: 0 10px; margin-bottom: 10px; }
-  .sidebar-titulo-com-editar { display: flex; align-items: center; justify-content: space-between; }
-  .sidebar-editar-btn {
-    background: none; border: none; color: var(--sidebar-muted); cursor: pointer;
-    font-size: 12px; opacity: 0.35; padding: 2px 5px; border-radius: 4px; line-height: 1;
-    transition: opacity 0.15s, background 0.15s;
-  }
-  .sidebar-editar-btn:hover { opacity: 1; background: var(--sidebar-hover); }
-  .sidebar-editar-btn.ativo { opacity: 1; color: var(--accent); }
-  .sidebar-link {
-    display: flex; align-items: center; gap: 8px; padding: 7px 9px; border-radius: 7px;
-    border-left: 1px solid transparent; color: var(--sidebar-text); text-decoration: none; font-size: 13px;
-    font-weight: 600; margin-bottom: 2px; white-space: nowrap; transition: background .15s ease, color .15s ease, border-color .15s ease;
-  }
-  .sidebar-link:hover { background: var(--sidebar-hover); }
-  .sidebar-link.ativo { background: #372F72; color: #F3F1FB; border-left-color: #8B7CF6; }
-  .sidebar-link.ativo svg { stroke: #B9AEFA; }
-  .sidebar-link svg { flex-shrink: 0; }
-  .sidebar.modo-edicao .sidebar-link[data-menu-key] { cursor: grab; }
-  .sidebar.modo-edicao .sidebar-link[data-menu-key]::before { content: '⠿'; opacity: 0.55; }
-  .sidebar-link[data-menu-key].arrastando { opacity: 0.35; }
-  .sidebar-link[data-menu-key].alvo-antes { box-shadow: inset 0 2px 0 var(--accent); }
-  .sidebar-link[data-menu-key].alvo-depois { box-shadow: inset 0 -2px 0 var(--accent); }
-  .sidebar-submenu { margin: 2px 0 8px 14px; padding-left: 10px; border-left: 2px solid var(--sidebar-border); }
-  .sidebar-submenu.oculto { display: none; }
-  .sidebar-separador { border: none; border-top: 1px solid var(--sidebar-border); margin: 14px 0; }
-  .sidebar-footer { display: flex; align-items: center; gap: 10px; padding: 10px; margin-top: auto; border-top: 1px solid var(--sidebar-border); }
-  .sidebar-avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--accent); color: var(--ink-on-accent); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; flex-shrink: 0; }
-  .sidebar-footer-name { font-size: 12px; font-weight: 700; color: var(--sidebar-text); }
-  .sidebar-footer-sub { font-size: 11px; color: var(--sidebar-muted); }
-  .conteudo-principal { margin-left: 212px; }
-  @media (max-width: 900px) {
-    .sidebar { position: static; width: 100%; height: auto; flex-direction: row; flex-wrap: wrap; border-right: none; border-bottom: 1px solid var(--sidebar-border); }
-    .sidebar-brand, .sidebar-footer, .sidebar-separador { display: none; }
-    .conteudo-principal { margin-left: 0; }
-  }
+  body { margin: 0; background: var(--page-bg); color: var(--ink); font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
   button, input, select, textarea { font: inherit; }
-  [hidden] { display: none !important; }
   a { color: var(--accent); }
 
   .shell { max-width: 1000px; margin: 0 auto; padding: 0 16px 60px; }
@@ -106,15 +48,11 @@
   .periodo { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--ink-soft); }
   .periodo input { height: 32px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); padding: 0 8px; font-size: 0.8rem; transition: background .15s ease, border-color .15s ease; }
   .periodo button, .chip-sair { height: 32px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); padding: 0 12px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: background .15s ease, border-color .15s ease, color .15s ease, transform .1s ease; }
-  .periodo button:hover, .chip-sair:hover { background: var(--surface-2); }
-  .chip-usuario {
-    display: inline-flex; align-items: center; gap: 5px; font-size: 0.78rem; color: var(--ink-soft);
-    background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 6px 13px;
-  }
-  .chip-usuario-rotulo { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--ink-muted); font-weight: 700; }
-  .periodo button:hover, .chip-sair:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-1px); }
+  .periodo button:hover, .chip-sair:hover { background: var(--surface-2); border-color: var(--accent); color: var(--accent); transform: translateY(-1px); }
 
-  /* tabs */
+  /* tabs (sub-menu "Controle de Ponto" dentro da sidebar) */
+  .sidebar-submenu { margin: 2px 0 8px 14px; padding-left: 10px; border-left: 2px solid var(--sidebar-border); }
+  .sidebar-submenu.oculto { display: none; }
   .tabs { display: flex; flex-direction: column; gap: 2px; }
   .tabs button {
     display: flex; align-items: center; width: 100%; text-align: left;
@@ -123,7 +61,7 @@
     transition: background .15s ease, color .15s ease;
   }
   .tabs button:hover { background: var(--sidebar-hover); }
-  .tabs button.ativo { background: #372F72; color: #F3F1FB; border-left-color: #8B7CF6; font-weight: 700; }
+  .tabs button.ativo { background: var(--sidebar-active); color: var(--sidebar-text); border-left-color: #fff; font-weight: 700; }
   .tabs .badge { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; margin-left: 8px; border-radius: 999px; background: var(--bad); color: #fff; font-size: 0.7rem; font-weight: 700; }
 
   /* solicitações */
@@ -152,7 +90,7 @@
   .folha-topo select { height: 38px; border-radius: 9px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); padding: 0 12px; font-size: 0.9rem; transition: border-color .15s ease; }
   .folha-topo .espaco { margin-left: auto; }
   .folha-topo button { height: 36px; border-radius: 9px; border: 1px solid var(--border); background: var(--surface-2); color: var(--ink-soft); padding: 0 13px; font-weight: 600; font-size: 0.82rem; cursor: pointer; transition: all .15s ease; }
-  .folha-topo button:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-1px); box-shadow: 0 4px 10px rgba(245,166,35,0.18); }
+  .folha-topo button:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,169,199,0.18); }
 
   .resumo {
     display: grid; grid-template-columns: repeat(4, 1fr); margin-bottom: 18px;
@@ -177,24 +115,34 @@
     .resumo .box:nth-child(3), .resumo .box:nth-child(4) { border-top: 1px solid var(--border); }
   }
 
-  .quadro { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow-x: auto; box-shadow: 0 2px 10px rgba(27,42,74,0.06); }
+  /* tabela diária (Por funcionário/Visão geral) — densa (até 12 colunas),
+     alinhamento central e números tabulares em monoespaçado; cor de fundo,
+     borda, box-shadow e o hover padrão de linha já vêm do Design System
+     compartilhado (.quadro/table/thead th/tbody td). */
+  .quadro { overflow-x: auto; }
   .quadro::-webkit-scrollbar { height: 8px; }
   .quadro::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; }
   .quadro::-webkit-scrollbar-thumb:hover { background: var(--ink-muted); }
-  table { width: 100%; border-collapse: collapse; min-width: 560px; }
-  th { text-align: center; font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.02em; color: var(--ink-muted); padding: 9px 8px; background: var(--surface-2); border-bottom: 1px solid var(--border); white-space: nowrap; }
+  table { min-width: 560px; }
+  th { font-size: 0.66rem; padding: 9px 8px; }
+  td { font-family: var(--font-mono); font-size: 0.8rem; padding: 9px 8px; }
+  th, td { text-align: center; }
   th:first-child, td:first-child { text-align: left; padding-left: 14px; }
-  td { padding: 9px 8px; border-bottom: 1px solid var(--border); text-align: center; font-family: var(--font-mono); font-size: 0.8rem; white-space: nowrap; }
-  tbody tr { transition: background-color .12s ease; }
+  /* células de status (st-ok/atraso/falta/abono) precisam manter a própria
+     cor mesmo com o mouse em cima — sem isso o hover genérico do Design
+     System (var(--surface-2) em qualquer <td>) apagaria a cor. */
   tbody tr:hover td:not(.st-ok):not(.st-atraso):not(.st-falta):not(.st-abono) { background: var(--surface-2); }
-  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover td.st-ok { background: var(--ok-bg); }
+  tbody tr:hover td.st-atraso { background: var(--warn-bg); }
+  tbody tr:hover td.st-falta { background: var(--bad-bg); }
+  tbody tr:hover td.st-abono { background: var(--info-bg); }
   tr.hoje td:first-child { box-shadow: inset 3px 0 0 var(--brand); }
   tr.hoje td.c-dia { color: var(--accent-ink); font-weight: 700; }
   .chip-hoje { display: inline-block; background: var(--brand); color: var(--ink-on-accent); font-size: 0.6rem; font-weight: 800; padding: 1px 7px; border-radius: 999px; margin-left: 6px; text-transform: uppercase; letter-spacing: 0.04em; vertical-align: 1px; }
   .c-dia { font-family: var(--font-body) !important; font-weight: 600; color: var(--ink-soft); text-transform: capitalize; }
   .c-sub { display: block; font-family: var(--font-body); font-weight: 500; font-size: 0.68rem; color: var(--ink-muted); text-transform: none; margin-top: 1px; }
   .c-nenhum { color: var(--ink-muted); font-family: var(--font-body) !important; text-align: left !important; }
-  .extra { color: var(--ok); } .falta { color: var(--bad); } .zero { color: var(--ink-muted); }
+  .extra { color: var(--ok); } .falta { color: var(--bad); }
   .saldo.pos { color: var(--ok); font-weight: 600; } .saldo.neg { color: var(--bad); font-weight: 600; }
   td.st-ok     { background: var(--ok-bg);   color: var(--ok); }
   td.st-atraso { background: var(--warn-bg); color: var(--warn); }
@@ -220,14 +168,30 @@
 
   /* visão geral */
   .vg-linha { cursor: pointer; }
-  .vg-linha:hover td { background: var(--surface-2); }
 
-  /* modal */
-  .modal { position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; padding: 16px; }
-  .modal-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); width: 100%; max-width: 420px; padding: 20px; box-shadow: 0 20px 60px var(--shadow); max-height: 88vh; overflow-y: auto; }
+  /* modal -- mantido 100% local (JS abre/fecha via [hidden], não via classe
+     .aberto como o componente compartilhado). O Design System já define
+     ".modal, .modal-card" com opacity/pointer-events/transform pensados
+     pro toggle por .aberto -- como aqui o nome da classe é o mesmo (de
+     propósito, é o mesmo padrão visual), essas propriedades continuam
+     "vazando" mesmo com [hidden] cuidando de mostrar/esconder, então
+     precisam ser neutralizadas aqui pra não deixar o modal com
+     opacity:0/pointer-events:none por baixo do JS -- sem isso o modal abre
+     ([hidden] some) mas fica invisível e inclicável. */
+  .modal {
+    position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,0.55); display: flex;
+    align-items: center; justify-content: center; padding: 16px;
+    max-width: none; max-height: none; border: none; border-radius: 0; box-shadow: none; overflow: visible;
+    opacity: 1; pointer-events: auto; transform: none;
+  }
+  .modal-card {
+    position: static; top: auto; left: auto; transform: none; opacity: 1; pointer-events: auto;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); width: 100%;
+    max-width: 420px; padding: 20px; box-shadow: 0 20px 60px var(--shadow); max-height: 88vh; overflow-y: auto;
+  }
   .modal-card h3 { font-family: var(--font-display); font-size: 1.1rem; margin: 0 0 14px; }
   .m-linha { display: flex; gap: 8px; margin-bottom: 10px; }
-  .m-linha.sugerido { background: var(--accent-bg, rgba(245,166,35,0.12)); border-radius: 9px; padding: 4px; margin: -4px -4px 10px; }
+  .m-linha.sugerido { background: var(--accent-bg, rgba(0,169,199,0.12)); border-radius: 9px; padding: 4px; margin: -4px -4px 10px; }
   .m-sugestao-hint { font-size: 0.76rem; color: var(--ink-muted); line-height: 1.4; margin: 6px 0 0; }
   .m-linha select, .m-linha input { height: 40px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface-2); color: var(--ink); padding: 0 10px; font-size: 0.9rem; }
   .m-linha select { flex: 1; }
@@ -241,7 +205,7 @@
   .modal-acoes .cancelar { border: 1px solid var(--border); background: none; color: var(--ink-soft); }
   .modal-acoes .cancelar:hover { background: var(--surface-2); }
   .modal-acoes .ok { border: none; background: var(--brand); color: var(--ink-on-accent); }
-  .modal-acoes .ok:hover:not(:disabled) { filter: brightness(1.06); transform: translateY(-1px); box-shadow: 0 8px 18px rgba(245,166,35,0.35); }
+  .modal-acoes .ok:hover:not(:disabled) { filter: brightness(1.06); transform: translateY(-1px); box-shadow: 0 8px 18px rgba(0,169,199,0.35); }
   .modal-acoes .ok:disabled { opacity: 0.5; }
 
   .vazio { color: var(--ink-muted); font-size: 0.95rem; text-align: center; padding: 48px 16px; line-height: 1.6; }
@@ -268,9 +232,37 @@
     #area-impressao th { background: #eee; color: #000; }
     #area-impressao td, #area-impressao th { border: 1px solid #999; }
   }
+
+  /* Cartão de Ponto — layout inspirado no modelo padrão de mercado (Control
+     iD / Portaria MTP 671), com a identidade Ricapet. Só existe dentro de
+     #area-impressao (mesmo mecanismo dos outros exports), por isso não
+     precisa de guarda extra pra ficar escondido fora da impressão. */
+  .cartao-ponto { font-family: var(--font-body); color: #000; font-size: 12px; }
+  .cartao-ponto table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  .cp-topo { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+  .cp-titulo { font-family: var(--font-display); font-weight: 700; font-size: 26px; line-height: 1.15; color: #000; }
+  .cp-titulo span { display: block; }
+  .cp-meta { text-align: right; font-size: 11px; color: #444; }
+  .cp-periodo { margin-top: 6px; font-weight: 700; font-size: 13px; color: var(--accent); }
+  .cp-rule { border: none; border-top: 2px solid #000; margin: 10px 0; }
+  .cp-info { display: flex; justify-content: space-between; gap: 24px; margin-bottom: 14px; flex-wrap: wrap; }
+  .cp-info-esq { font-size: 11px; line-height: 1.9; }
+  .cp-matricula { margin-left: 22px; }
+  .cp-horario-titulo { text-align: center; font-weight: 700; font-size: 10px; letter-spacing: 0.02em; margin-bottom: 3px; }
+  .cp-horario table th, .cp-horario table td { border: 1px solid #999; padding: 2px 6px; text-align: center; }
+  .cp-horario table th { background: #f2f2f2; font-weight: 700; }
+  .cp-tabela th, .cp-tabela td { border: 1px solid #999; padding: 3px 6px; text-align: center; }
+  .cp-tabela th { background: #f2f2f2; font-weight: 700; }
+  .cp-tabela td:first-child { text-align: left; }
+  .cp-tabela tfoot td { font-weight: 700; }
+  .cp-legenda { font-size: 9.5px; color: #444; margin: 6px 0 0; }
+  .cp-alteracoes { font-size: 10.5px; margin-top: 10px; }
+  .cp-alteracoes ul { margin: 4px 0 0; padding-left: 18px; }
+  .cp-assinatura { margin-top: 46px; text-align: center; font-size: 11px; }
+  .cp-linha { width: 260px; margin: 0 auto 4px; border-top: 1px solid #000; }
 </style>
 </head>
-<body>
+<body class="marca-dagua">
 
 <!-- PAINEL (o login em si é a tela compartilhada /login.html — assets/auth.js
      já garantiu, antes desta página carregar, que existe uma sessão válida) -->
@@ -314,9 +306,9 @@
         <button data-tab="jornadas">Jornadas</button>
       </div>
     </div>
-    <a class="sidebar-link" href="/bipagem.html" data-menu-key="bipagem">
+    <a class="sidebar-link" href="/bipagem-v2.html" data-menu-key="bipagem">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/></svg>
-      Performance Expedição
+      Expedição
     </a>
     <a class="sidebar-link" href="/projecao-financeira.html" data-menu-key="projecao-financeira">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l4-5 3 3 5-6"/><path d="M15 6h4v4"/></svg>
@@ -333,6 +325,11 @@
     </a>
 
     <hr class="sidebar-separador">
+
+    <div class="tema-toggle" data-tema-toggle>
+      <button type="button" data-tema="light" title="Tema claro">☀</button>
+      <button type="button" data-tema="dark" title="Tema escuro">☾</button>
+    </div>
 
     <div class="sidebar-footer">
       <div class="sidebar-avatar">R</div>
@@ -365,6 +362,7 @@
         <div class="espaco"></div>
         <button id="b-add">+ batida</button>
         <button id="b-imprimir">Imprimir</button>
+        <button id="b-cartao">Cartão de ponto</button>
         <button id="b-csv">CSV</button>
         <button id="b-afd">AFD do período</button>
         <button id="b-integridade">Integridade</button>
@@ -1236,6 +1234,185 @@
       <tfoot><tr><td colspan="2"><b>Total</b></td><td>${fmtDur(t.ex)}</td><td>${fmtDur(t.fa)}</td><td>${fmtDur(t.saldo, true)}</td></tr></tfoot></table>`;
     window.print();
   });
+
+  // ---------- Cartão de Ponto (layout do modelo padrão de mercado, com
+  // banco de horas ACUMULADO de verdade — diferente do "saldo do período"
+  // usado no resto desta aba, que reseta a cada consulta de propósito). Só
+  // busca o histórico amplo na hora de gerar o cartão, sem mexer no
+  // `estado` normal da tela. A regra por dia (trabalhado − previsto,
+  // tolerância, abono perdoa saldo negativo) é a MESMA de montarFolha(),
+  // duplicada aqui de propósito — não vale a pena arriscar mudar o
+  // comportamento já em uso das outras abas só pra compartilhar 15 linhas. ----------
+  const INICIO_HISTORICO_CARTAO = '2024-01-01';
+  const DIA_ABREV3 = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SAB'];
+
+  function calcularDiaCartao(dd, eventosDoDia, jornada, abono, ehHoje) {
+    const eventos = [...eventosDoDia].sort((a, b) => a.quando - b.quando);
+    let ms = 0, aberto = null;
+    eventos.forEach((e) => { if (e.tipo === 'entrada') { aberto = e.quando; } else if (aberto) { ms += e.quando - aberto; aberto = null; } });
+    const jdia = jornada && jornada[dd.getDay()] ? jornada[dd.getDay()] : null;
+    const totalEsperado = jdia && jdia.intervalo > 0 ? 4 : 2;
+    const ultimoTipo = eventos.length ? eventos[eventos.length - 1].tipo : null;
+    const emAberto = eventos.length > 0 && (ultimoTipo === 'entrada' || (ehHoje && eventos.length < totalEsperado));
+    const trabalhado = Math.round(ms / 60000);
+    const fechado = eventos.length > 0 && !emAberto;
+    const previsto = jornada ? (jdia ? (jdia.minutos || 0) : 0) : null;
+    let delta = (fechado && previsto != null) ? trabalhado - previsto : 0;
+    if (Math.abs(delta) <= tolMin()) delta = 0;
+    if (abono && delta < 0) delta = 0;
+    return { eventos, emAberto, delta };
+  }
+
+  function codigoOrigem(e) {
+    if (!e) return '';
+    if (e.origem === 'ajuste_inclusao') return ' (I)';
+    if (e.editado) return ' (E)';
+    return '';
+  }
+
+  function horarioSemanalCartao(jornada) {
+    return [1, 2, 3, 4, 5, 6, 0].map((dow) => {
+      const j = jornada && jornada[dow];
+      if (!j || !(j.minutos > 0) || !j.entrada || !j.saida) return `<tr><td>${DIA_ABREV3[dow]}</td><td colspan="4"></td></tr>`;
+      // sem intervalo cadastrado = turno único (ex.: sábado só de manhã) —
+      // ENT.1/SAÍ.1 só, sem inventar um 2º turno vazio.
+      if (!j.intervalo) return `<tr><td>${DIA_ABREV3[dow]}</td><td>${j.entrada}</td><td>${j.saida}</td><td></td><td></td></tr>`;
+      const [eh, em] = j.entrada.split(':').map(Number);
+      const sai1Min = eh * 60 + em + Math.round(j.minutos / 2);
+      const ent2Min = sai1Min + j.intervalo;
+      const hhmmMin = (min) => `${pad(Math.floor(min / 60) % 24)}:${pad(min % 60)}`;
+      return `<tr><td>${DIA_ABREV3[dow]}</td><td>${j.entrada}</td><td>${hhmmMin(sai1Min)}</td><td>${hhmmMin(ent2Min)}</td><td>${j.saida}</td></tr>`;
+    }).join('');
+  }
+
+  function linhaDiaCartao(l) {
+    const dataFmt = l.data.toLocaleDateString('pt-BR');
+    const abrev = DIA_ABREV3[l.data.getDay()];
+    const saldoCel = `<td>${fmtDur(l.saldo, true)}</td>`;
+    if (l.abono) {
+      const label = l.abono.tipo === 'feriado'
+        ? `Feriado${l.abono.observacao ? ': ' + escHtml(l.abono.observacao) : ''}`
+        : (ABONO_LABEL[l.abono.tipo] || 'Abono');
+      return `<tr><td>${dataFmt} - ${abrev}</td><td colspan="4">${label}</td><td></td>${saldoCel}</tr>`;
+    }
+    if (l.data.getDay() === 0 && !l.eventos.length) {
+      return `<tr><td>${dataFmt} - ${abrev}</td><td colspan="4">Domingo</td><td></td>${saldoCel}</tr>`;
+    }
+    if (!l.eventos.length) {
+      return `<tr><td>${dataFmt} - ${abrev}</td><td colspan="4"></td><td></td>${saldoCel}</tr>`;
+    }
+    const s = paresCartao(l.eventos);
+    const comCodigo = (quando) => quando ? `${hhmm(quando)}${codigoOrigem(l.eventos.find((e) => e.quando === quando))}` : '';
+    return `<tr><td>${dataFmt} - ${abrev}</td><td>${comCodigo(s.ent1)}</td><td>${comCodigo(s.sai1)}</td><td>${comCodigo(s.ent2)}</td><td>${comCodigo(s.sai2)}</td><td></td>${saldoCel}</tr>`;
+  }
+
+  // Um par de batidas por "turno" (1º par -> ENT.1/SAÍ.1, 2º par -> ENT.2/
+  // SAÍ.2) — igual ao modelo de referência. Diferente de slotsDoDia() (usada
+  // na tabela "Por funcionário", que trata 1 par isolado como manhã+tarde
+  // sem intervalo registrado, ou seja ENT.1/SAÍ.2): aqui um único par é
+  // meio período (ex.: sábado só de manhã), então fica em ENT.1/SAÍ.1.
+  function paresCartao(eventos) {
+    const segs = [];
+    let aberto = null;
+    eventos.forEach((e) => {
+      if (e.tipo === 'entrada') { if (aberto) segs.push([aberto, null]); aberto = e.quando; }
+      else if (aberto) { segs.push([aberto, e.quando]); aberto = null; }
+      else segs.push([null, e.quando]);
+    });
+    if (aberto) segs.push([aberto, null]);
+    return {
+      ent1: segs[0] ? segs[0][0] : null, sai1: segs[0] ? segs[0][1] : null,
+      ent2: segs[1] ? segs[1][0] : null, sai2: segs[1] ? segs[1][1] : null,
+    };
+  }
+
+  async function gerarCartaoPonto() {
+    const func = funcAtual();
+    const deCartao = $('p-de').value, ateCartao = $('p-ate').value;
+    const btn = $('b-cartao');
+    btn.disabled = true;
+    let amplo;
+    try {
+      amplo = await api('ponto-admin-visao', { token: sessao.token, de: INICIO_HISTORICO_CARTAO, ate: ateCartao });
+    } catch (err) {
+      btn.disabled = false;
+      if (!err.handled) alert(err.message);
+      return;
+    }
+    btn.disabled = false;
+    const funcAmplo = amplo.funcionarios.find((f) => f.id === func.id);
+    if (!funcAmplo) { alert('Funcionário não encontrado no histórico.'); return; }
+
+    const eventosPorDia = new Map();
+    (funcAmplo.marcacoes || []).forEach((r) => {
+      const quando = new Date(r.registrado_em);
+      if (isNaN(quando)) return;
+      const k = chaveDia(quando);
+      if (!eventosPorDia.has(k)) eventosPorDia.set(k, []);
+      eventosPorDia.get(k).push({ tipo: r.tipo === 'entrada' ? 'entrada' : 'saida', quando, origem: r.origem, editado: !!r.editado });
+    });
+    const abonoPorDia = new Map((func.abonos || []).map((a) => [a.data, a]));
+
+    const fim = new Date(ateCartao + 'T12:00:00');
+    const deImpressao = new Date(deCartao + 'T12:00:00');
+
+    let saldoAcumulado = 0;
+    const linhasImpressao = [];
+    for (let d = new Date(INICIO_HISTORICO_CARTAO + 'T12:00:00'); d <= fim; d.setDate(d.getDate() + 1)) {
+      const dd = new Date(d);
+      const k = chaveDia(dd);
+      const abono = abonoPorDia.get(k) || null;
+      const { eventos, emAberto, delta } = calcularDiaCartao(dd, eventosPorDia.get(k) || [], func.jornada, abono, k === estado.hoje);
+      saldoAcumulado += delta;
+      if (dd >= deImpressao) linhasImpressao.push({ data: dd, chave: k, eventos, emAberto, abono, saldo: saldoAcumulado });
+    }
+
+    const alteracoes = [];
+    linhasImpressao.forEach((l) => {
+      if (l.abono) {
+        const rotulo = ABONO_LABEL[l.abono.tipo] || 'Abono';
+        alteracoes.push(`${rotulo} habilitad${l.abono.tipo === 'ferias' ? 'as' : 'a'} em ${l.data.toLocaleDateString('pt-BR')}${l.abono.observacao ? ' — ' + escHtml(l.abono.observacao) : ''}`);
+      }
+      l.eventos.filter((e) => e.editado).forEach((e) => {
+        const acao = e.origem === 'ajuste_inclusao' ? 'incluída' : 'editada';
+        alteracoes.push(`Batida de ${e.tipo === 'entrada' ? 'entrada' : 'saída'} ${acao} em ${l.data.toLocaleDateString('pt-BR')} às ${hhmm(e.quando)}`);
+      });
+    });
+
+    const emitido = new Date();
+    $('area-impressao').innerHTML = `
+      <div class="cartao-ponto">
+        <div class="cp-topo">
+          <div class="cp-titulo"><span>Cartão</span><span>de Ponto</span></div>
+          <div class="cp-meta">
+            <div>Emitido em ${emitido.toLocaleDateString('pt-BR')} às ${hhmm(emitido)}</div>
+            <div class="cp-periodo">DE ${new Date(deCartao + 'T12:00:00').toLocaleDateString('pt-BR')} ATÉ ${new Date(ateCartao + 'T12:00:00').toLocaleDateString('pt-BR')}</div>
+          </div>
+        </div>
+        <hr class="cp-rule">
+        <div class="cp-info">
+          <div class="cp-info-esq">
+            <div><b>NOME DO FUNCIONÁRIO:</b> ${escHtml(func.nome).toUpperCase()}<span class="cp-matricula"><b>NÚMERO DE MATRÍCULA:</b> ${escHtml(func.id)}</span></div>
+            <div><b>NOME DO CARGO:</b> ${func.cargo ? escHtml(func.cargo).toUpperCase() : '—'}</div>
+          </div>
+          <div class="cp-horario">
+            <div class="cp-horario-titulo">HORÁRIO DE TRABALHO</div>
+            <table><thead><tr><th></th><th>ENT. 1</th><th>SAÍ. 1</th><th>ENT. 2</th><th>SAÍ. 2</th></tr></thead>
+            <tbody>${horarioSemanalCartao(func.jornada)}</tbody></table>
+          </div>
+        </div>
+        <table class="cp-tabela">
+          <thead><tr><th>DIA</th><th>ENT. 1</th><th>SAÍ. 1</th><th>ENT. 2</th><th>SAÍ. 2</th><th>TOTAL<br>NOTURNO</th><th>BANCO<br>SALDO</th></tr></thead>
+          <tbody>${linhasImpressao.map(linhaDiaCartao).join('')}</tbody>
+          <tfoot><tr><td colspan="5">TOTAIS</td><td></td><td>${fmtDur(saldoAcumulado, true)}</td></tr></tfoot>
+        </table>
+        <p class="cp-legenda">(I)=Incluído, (E)=Editado</p>
+        ${alteracoes.length ? `<div class="cp-alteracoes"><b>Alterações</b><ul>${alteracoes.map((a) => `<li>${a}</li>`).join('')}</ul></div>` : ''}
+        <div class="cp-assinatura"><div class="cp-linha"></div><div>${escHtml(func.nome).toUpperCase()}</div></div>
+      </div>`;
+    window.print();
+  }
+  $('b-cartao').addEventListener('click', gerarCartaoPonto);
 
   $('b-csv').addEventListener('click', () => {
     const func = funcAtual();

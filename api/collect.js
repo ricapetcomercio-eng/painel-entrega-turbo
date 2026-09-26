@@ -35,9 +35,9 @@ const { buscarPedidosPeriodo, verificarFlex, montarPedidoFlex, reverificarStatus
 const { registrarHistoricoFlex, listarRecentes } = require('../lib/historicoFlex');
 const { registrarHistoricoTurboLive, listarRecentesTurbo } = require('../lib/historicoTurboLive');
 const { buscarDetalhesShipment, montarPedidoGenerico } = require('../lib/mlAllOrders');
-const { buscarDevolucoesPeriodo } = require('../lib/mlClaims');
+const { buscarClaimsClassificadosPeriodo } = require('../lib/mlClaims');
 const { buscarDevolucoesPorPedido: buscarDevolucoesShopeePorPedido } = require('../lib/shopeeReturns');
-const { registrarHistoricoTodos, marcarDevolucao, listarShopeeAguardando, listarShopeePendentesParaReverificar } = require('../lib/historicoTodos');
+const { registrarHistoricoTodos, marcarDevolucao, marcarReclamacao, listarShopeeAguardando, listarShopeePendentesParaReverificar } = require('../lib/historicoTodos');
 const { enviarBalancoMensalSeNecessario } = require('../lib/estoqueSaldo');
 const { coletarProjecaoFinanceira } = require('../lib/mpProjecao');
 const { coletarProjecaoFinanceiraShopee } = require('../lib/shopeeProjecao');
@@ -419,19 +419,34 @@ async function reverificarPendentesShopeeTodos(erros) {
   }
 }
 
+// Busca os claims do período UMA vez e já sai classificado em devolução
+// (produto físico voltando) e reclamação (mediação/disputa que nunca virou
+// devolução) — ver lib/mlClaims.js. Uma única rodada de chamadas cobre os
+// dois grupos, sem custo extra de API/CPU em relação à versão antiga que só
+// tratava devolução.
 async function enriquecerDevolucoes(conta, erros) {
   try {
     const desde = new Date(Date.now() - DIAS_JANELA_DEVOLUCOES * 24 * 60 * 60 * 1000).toISOString();
     const ate = new Date().toISOString();
-    const devolucoesPorPedido = await buscarDevolucoesPeriodo(conta, desde, ate);
+    const { devolucoes, reclamacoes } = await buscarClaimsClassificadosPeriodo(conta, desde, ate);
 
     let atualizados = 0;
-    for (const [orderId, info] of Object.entries(devolucoesPorPedido)) {
+    for (const [orderId, info] of Object.entries(devolucoes)) {
       const idUnico = `mercado_livre:${orderId}`;
       const marcou = await marcarDevolucao(idUnico, {
         claimId: info.claim_id,
         status: info.status,
         reasonId: info.reason_id,
+      });
+      if (marcou) atualizados++;
+    }
+    for (const [orderId, info] of Object.entries(reclamacoes)) {
+      const idUnico = `mercado_livre:${orderId}`;
+      const marcou = await marcarReclamacao(idUnico, {
+        claimId: info.claim_id,
+        status: info.status,
+        motivo: info.reason_id,
+        tipo: info.tipo,
       });
       if (marcou) atualizados++;
     }
@@ -481,13 +496,49 @@ async function medirTempo(nome, fn) {
   }
 }
 
-// Projeção Financeira (Mercado Pago + Shopee) NÃO roda automaticamente no
-// cron — é cara demais pra rodar sem controle (Shopee faz 1 chamada extra
-// por pedido em aberto, ver lib/shopeeProjecao.js) e o dado não precisa
-// estar sempre fresco. Em vez disso, é 100% sob demanda: o botão "Atualizar
-// agora" em public/projecao-financeira.html chama esta mesma rota com
-// ?acao=projecao-financeira-manual, autenticado pela sessão de admin do
-// login único (não pelo CRON_SECRET) — decisão do dono do projeto.
+// Projeção Financeira (Mercado Pago + Shopee + Omie) NÃO roda automaticamente
+// no cron — é cara demais pra rodar sem controle (Shopee faz 1 chamada extra
+// por pedido em aberto, Omie pagina boa parte do histórico de títulos, ver
+// lib/shopeeProjecao.js/lib/omieContasPagar.js) e o dado não precisa estar
+// sempre fresco. Em vez disso, é 100% sob demanda: o botão "Atualizar agora"
+// em public/projecao-financeira.html chama esta mesma rota com ?acao=
+// projecao-financeira-manual, autenticado pela sessão de admin do login
+// único (não pelo CRON_SECRET) — decisão do dono do projeto.
+//
+// Buscar as 6 partes (MP x2, Shopee x2, Omie x2) numa função só, sequencial,
+// já causou timeout de verdade em produção: a Shopee Ricapet sozinha pode
+// fazer até 300 chamadas de API (ver MAX_CONSULTAS_ESCROW em
+// lib/shopeeProjecao.js) e já bateu nesse teto — passa fácil do tempo de
+// função da Vercel. Por isso ?fonte= busca só UMA parte por vez (o frontend
+// chama as 6 em sequência, mostrando progresso) — cada chamada fica curta o
+// suficiente pra nunca estourar. Sem ?fonte=, mantém o comportamento antigo
+// (busca tudo numa chamada só) só por compatibilidade — não é mais o que a
+// tela usa.
+const FONTES_PROJECAO = {
+  'mercado-pago': { contas: ['ricapet', 'thapets'], chave: 'mercadoPago', coletar: coletarProjecaoFinanceira },
+  shopee: { contas: LOJAS_SHOPEE, chave: 'shopee', coletar: coletarProjecaoFinanceiraShopee },
+  omie: { contas: ['ricapet', 'thapets'], chave: 'omie', coletar: coletarContasPagar },
+};
+
+async function coletarUmaPecaProjecaoFinanceira(fonte, conta) {
+  const def = FONTES_PROJECAO[fonte];
+  if (!def) throw new Error(`fonte inválida: ${fonte}. Use mercado-pago, shopee ou omie.`);
+  if (!def.contas.includes(conta)) throw new Error(`conta/loja inválida pra ${fonte}: ${conta}`);
+
+  const anterior = (await kvGet('entrega_turbo:ultima_coleta_projecao_financeira')) || { contas: {} };
+  const contas = anterior.contas || {};
+  contas[conta] = contas[conta] || {};
+  try {
+    contas[conta][def.chave] = await def.coletar(conta);
+  } catch (err) {
+    contas[conta][def.chave] = { erro: err.message };
+  }
+
+  const resultadoFinal = { atualizado_em: new Date().toISOString(), contas };
+  await kvSet('entrega_turbo:ultima_coleta_projecao_financeira', resultadoFinal);
+  return resultadoFinal;
+}
+
 async function coletarProjecaoFinanceiraManual(req, res) {
   const sessao = req.query.sessao || (req.body && req.body.sessao);
   const resultado = await obterAdminSessao(sessao, getDb(), 'projecao-financeira');
@@ -496,6 +547,21 @@ async function coletarProjecaoFinanceiraManual(req, res) {
     return;
   }
 
+  const fonte = req.query.fonte;
+  if (fonte) {
+    const conta = req.query.conta || req.query.loja;
+    if (!conta) { res.status(400).json({ error: 'Use ?fonte=mercado-pago|shopee|omie&conta=ricapet|thapets' }); return; }
+    try {
+      const resultadoFinal = await coletarUmaPecaProjecaoFinanceira(fonte, conta);
+      res.status(200).json({ ok: true, ...resultadoFinal });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+    return;
+  }
+
+  // Compatibilidade: sem ?fonte=, busca tudo numa chamada só (arriscado, ver
+  // aviso acima) — o frontend não usa mais este caminho.
   const contas = { ricapet: {}, thapets: {} };
 
   for (const conta of ['ricapet', 'thapets']) {

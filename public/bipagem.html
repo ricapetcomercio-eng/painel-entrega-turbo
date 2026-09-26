@@ -1,94 +1,34 @@
 <!DOCTYPE html>
-<html lang="pt-BR" data-theme="dark">
+<html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Performance Expedição · Dashboard</title>
+<title>Expedição · Dashboard</title>
 <link rel="icon" type="image/png" href="favicon-ricapet.png">
 <meta name="description" content="Dashboard de bipagem — volume, operadores e produtividade. Ricapet/Thapets.">
 <meta name="robots" content="noindex">
-<meta name="theme-color" content="#372F72">
+<meta name="theme-color" content="#00A9C7">
+<script>(function(){try{var t=localStorage.getItem('ricapet_tema2');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Manrope:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="assets/tokens-admin.css">
 <script src="assets/auth.js"></script>
+<script src="assets/tema.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
 <style>
-  :root {
-    --bg: #F6F4FB; --surface: #FFFFFF; --surface-2: #EEF2F9;
-    --ink: #1B2A4A; --ink-soft: #566484; --ink-muted: #93A0BC;
-    --border: #E5E1F0; --shadow: rgba(27,42,74,0.10);
-    --brand: #f5a623; --accent: #f5a623; --accent-bg: #fdecc8; --accent-ink: #272456;
-    --ink-on-accent: #241f4d;
-    --ok: #2F8F5B; --ok-bg: #E4F3EA; --bad: #C1443D; --bad-bg: #FBE7E5;
-    --info-bg: #E7F0FF; --info-tx: #2657C4;
-    --font-display: 'Sora', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    --font-body: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
-    --radius: 16px;
-    --page-bg: #F6F4FB;
-    --sidebar-bg: #5D4FA8;
-    --sidebar-text: #F3F1FB;
-    --sidebar-muted: #C9C0EF;
-    --sidebar-hover: rgba(255,255,255,0.10);
-    --sidebar-border: rgba(255,255,255,0.16);
-  }
+  /* Tokens/componentes de sidebar, topbar, kpi, card, tabela, badge, marca
+     d'água, tema-toggle etc. agora vêm de assets/tokens-admin.css (Design
+     System compartilhado) -- aqui fica só o que é específico desta página. */
   * { box-sizing: border-box; }
-  body { margin: 0; background: linear-gradient(180deg, #F8F7FC 0%, #F1EEFA 100%); color: var(--ink); font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
-
-  /* ---- Sidebar (mesmo padrão dos outros painéis Ricapet) ---- */
-  .sidebar {
-    width: 212px; height: 100vh; position: fixed; top: 0; left: 0; z-index: 1000;
-    background: var(--sidebar-bg); border-right: 1px solid var(--sidebar-border);
-    padding: 16px 12px; box-sizing: border-box; overflow-y: auto;
-    display: flex; flex-direction: column;
-  }
-  .sidebar-brand { display: flex; align-items: center; gap: 8px; padding: 2px 8px 14px; margin-bottom: 10px; border-bottom: 1px solid var(--sidebar-border); }
-  .sidebar-brand-icon { width: 32px; height: 32px; object-fit: contain; flex-shrink: 0; }
-  .sidebar-brand-name { font-size: 14px; font-weight: 800; color: var(--sidebar-text); line-height: 1.2; }
-  .sidebar-brand-sub { font-size: 11px; color: var(--sidebar-muted); }
-  .sidebar-titulo { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sidebar-muted); padding: 0 10px; margin-bottom: 10px; }
-  .sidebar-titulo-com-editar { display: flex; align-items: center; justify-content: space-between; }
-  .sidebar-editar-btn {
-    background: none; border: none; color: var(--sidebar-muted); cursor: pointer;
-    font-size: 12px; opacity: 0.35; padding: 2px 5px; border-radius: 4px; line-height: 1;
-    transition: opacity 0.15s, background 0.15s;
-  }
-  .sidebar-editar-btn:hover { opacity: 1; background: var(--sidebar-hover); }
-  .sidebar-editar-btn.ativo { opacity: 1; color: var(--accent); }
-  .sidebar-link {
-    display: flex; align-items: center; gap: 8px; padding: 7px 9px; border-radius: 7px;
-    border-left: 1px solid transparent; color: var(--sidebar-text); text-decoration: none; font-size: 13px;
-    font-weight: 600; margin-bottom: 2px; white-space: nowrap; transition: background .15s ease, color .15s ease, border-color .15s ease;
-  }
-  .sidebar-link:hover { background: var(--sidebar-hover); }
-  .sidebar-link.ativo { background: #372F72; color: #F3F1FB; border-left-color: #8B7CF6; }
-  .sidebar-link.ativo svg { stroke: #B9AEFA; }
-  .sidebar-link svg { flex-shrink: 0; }
-  .sidebar.modo-edicao .sidebar-link[data-menu-key] { cursor: grab; }
-  .sidebar.modo-edicao .sidebar-link[data-menu-key]::before { content: '⠿'; opacity: 0.55; }
-  .sidebar-link[data-menu-key].arrastando { opacity: 0.35; }
-  .sidebar-link[data-menu-key].alvo-antes { box-shadow: inset 0 2px 0 var(--accent); }
-  .sidebar-link[data-menu-key].alvo-depois { box-shadow: inset 0 -2px 0 var(--accent); }
-  .sidebar-separador { border: none; border-top: 1px solid var(--sidebar-border); margin: 14px 0; }
-  .sidebar-footer { display: flex; align-items: center; gap: 10px; padding: 10px; margin-top: auto; border-top: 1px solid var(--sidebar-border); }
-  .sidebar-avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--accent); color: var(--ink-on-accent); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; flex-shrink: 0; }
-  .sidebar-footer-name { font-size: 12px; font-weight: 700; color: var(--sidebar-text); }
-  .sidebar-footer-sub { font-size: 11px; color: var(--sidebar-muted); }
-  .conteudo-principal { margin-left: 212px; }
-  @media (max-width: 900px) {
-    .sidebar { position: static; width: 100%; height: auto; flex-direction: row; flex-wrap: wrap; border-right: none; border-bottom: 1px solid var(--sidebar-border); }
-    .sidebar-brand, .sidebar-footer, .sidebar-separador { display: none; }
-    .conteudo-principal { margin-left: 0; }
-  }
+  body { margin: 0; background: var(--page-bg); color: var(--ink); font-family: var(--font-body); -webkit-font-smoothing: antialiased; font-variant-numeric: tabular-nums; }
   button, input, select { font: inherit; }
-  [hidden] { display: none !important; }
   a { color: var(--accent); }
 
   .shell { max-width: 1200px; margin: 0 auto; padding: 0 16px 60px; }
 
   header { position: sticky; top: 0; z-index: 5; background: var(--page-bg); border-bottom: 1px solid var(--border); }
-  .hrow { max-width: 1200px; margin: 0 auto; padding: 0 16px; min-height: 64px; box-sizing: border-box; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .hrow { max-width: 1600px; margin: 0 auto; padding: 10px 16px; box-sizing: border-box; display: flex; align-items: center; gap: 12px 20px; flex-wrap: wrap; }
   .hrow h1 { font-family: var(--font-display); font-size: 1.05rem; margin: 0; margin-right: auto; color: var(--ink); display: flex; flex-direction: column; gap: 2px; line-height: 1.25; }
   .h-title-row { display: flex; align-items: center; gap: 9px; }
   .h-sub { font-size: 0.72rem; font-weight: 500; color: var(--ink-muted); letter-spacing: 0.01em; }
@@ -96,24 +36,15 @@
   .live-dot { width: 6px; height: 6px; border-radius: 50%; background: #4ADE80; }
   @media (prefers-reduced-motion: no-preference) { .live-dot { animation: bipPulse 2.2s ease-in-out infinite; } }
   @keyframes bipPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(74,222,128,0.5); } 50% { box-shadow: 0 0 0 5px rgba(74,222,128,0); } }
-  .periodo { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--ink-soft); }
+  .periodo { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--ink-soft); }
   .periodo input, .periodo select { height: 32px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); padding: 0 8px; font-size: 0.8rem; }
-  .periodo button, .chip-sair { height: 32px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); padding: 0 12px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all .15s ease; }
-  .periodo button:hover, .chip-sair:hover { background: var(--surface-2); border-color: var(--accent); color: var(--accent); transform: translateY(-1px); }
-  .chip-usuario { display: inline-flex; align-items: center; gap: 5px; font-size: 0.78rem; color: var(--ink-soft); background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 6px 13px; }
-  .chip-usuario-rotulo { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--ink-muted); font-weight: 700; }
+  .periodo input[type="date"] { width: 118px; }
+  .periodo button { height: 32px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); padding: 0 12px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all .15s ease; }
+  .periodo button:hover { background: var(--surface-2); border-color: var(--accent); color: var(--accent); transform: translateY(-1px); }
+  .periodo button.btn-icon { width: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; font-size: 0.95rem; }
 
-  .aviso { text-align: center; padding: 24px; color: var(--ink-muted); font-size: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin: 18px 0; }
+  #aviso-vazio { margin: 18px 0; }
   .aviso-mini { font-size: 11px; color: var(--ink-muted); line-height: 1.5; margin: 10px 2px 0; }
-  .filtro-status { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 2px 0 10px; }
-  .filtro-status .rotulo { font-size: 0.72rem; font-weight: 700; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.02em; margin-right: 4px; }
-  .filtro-status label {
-    display: inline-flex; align-items: center; gap: 4px; font-size: 0.76rem; color: var(--ink);
-    background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 3px 10px 3px 8px;
-    cursor: pointer; user-select: none;
-  }
-  .filtro-status label:has(input:checked) { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-bg); }
-  .filtro-status input { margin: 0; }
   .aviso-mini button {
     height: 24px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface);
     color: var(--ink); padding: 0 10px; font-size: 0.72rem; font-weight: 700; cursor: pointer;
@@ -122,47 +53,35 @@
   .aviso-mini button:hover:not(:disabled) { background: var(--surface-2); border-color: var(--accent); color: var(--accent); }
   .aviso-mini button:disabled { opacity: 0.6; cursor: default; }
 
-  /* KPIs */
+  /* KPIs -- grid de 6 colunas é específico desta página; o cartão em si
+     (.kpi-card) já vem do Design System compartilhado. */
   .kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin: 18px 0; }
   @media (max-width: 900px) { .kpis { grid-template-columns: repeat(2, 1fr); } }
-  .kpi-card {
-    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
-    padding: 14px 16px; box-shadow: 0 2px 10px var(--shadow);
-  }
-  .kpi-card .l { font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-muted); margin-bottom: 6px; }
-  .kpi-card .v { font-family: var(--font-mono); font-size: 1.5rem; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
-  .kpi-card .v small { font-size: 0.9rem; color: var(--ink-muted); font-weight: 500; }
 
-  /* Charts */
+  /* Charts -- grid e altura são específicos desta página; o cartão (.card)
+     e o título já vêm do Design System compartilhado. */
   .grid-charts { display: grid; grid-template-columns: 1.3fr 1fr; gap: 14px; margin-bottom: 14px; }
   @media (max-width: 900px) { .grid-charts { grid-template-columns: 1fr; } }
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; box-shadow: 0 2px 10px var(--shadow); }
-  .card h3 { font-family: var(--font-display); font-size: 0.92rem; margin: 0 0 12px; color: var(--ink); }
   .card .chart-wrap { position: relative; height: 260px; }
   .card .chart-wrap.curta { height: 180px; }
 
-  /* Tabelas */
-  .quadro { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow-x: auto; box-shadow: 0 2px 10px var(--shadow); margin-bottom: 18px; }
-  .quadro h3 { font-family: var(--font-display); font-size: 0.92rem; margin: 0; padding: 14px 16px 0; }
-  table { width: 100%; border-collapse: collapse; min-width: 560px; }
-  th { text-align: center; font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.02em; color: var(--ink-muted); padding: 9px 8px; background: var(--surface-2); border-bottom: 1px solid var(--border); white-space: nowrap; }
+  /* Tabelas -- fundo/borda/título (.quadro/.quadro h3) já vêm do Design
+     System; aqui só o que é específico desta página: rolagem horizontal
+     pras tabelas sem wrapper .pedidos-scroll, e o alinhamento centralizado
+     das colunas numéricas (a tabela de operadores tem 13 colunas). */
+  .quadro { overflow-x: auto; }
+  table { min-width: 560px; }
+  th, td { text-align: center; }
   th:first-child, td:first-child { text-align: left; padding-left: 14px; }
-  td { padding: 9px 8px; border-bottom: 1px solid var(--border); text-align: center; font-family: var(--font-mono); font-size: 0.8rem; white-space: nowrap; }
-  tbody tr:hover td { background: var(--surface-2); }
-  tbody tr:last-child td { border-bottom: none; }
-  .c-nome { font-family: var(--font-body) !important; font-weight: 600; color: var(--ink-soft); text-align: left !important; }
-  .c-1 { font-weight: 700; color: var(--accent-ink); background: var(--accent-bg) !important; }
   .c-2 { font-weight: 700; }
   .badge-medalha { display: inline-block; width: 20px; }
-  .zero { color: var(--ink-muted); }
-  .tag-manual { display: inline-block; font-size: 0.68rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
-  .tag-manual.sim { background: var(--warn-bg, #FBF1D9); color: var(--info-tx); }
   .tag-manual.nao { color: var(--ink-muted); }
-  .pedidos-scroll { max-height: 480px; overflow-y: auto; }
-  .pedidos-scroll table thead th { position: sticky; top: 0; z-index: 2; }
+  .pedidos-scroll { max-height: 480px; }
+  #fp-busca { width: 130px; }
+  #fp-contagem { font-size: 0.76rem; color: var(--ink-muted); white-space: nowrap; }
 </style>
 </head>
-<body>
+<body class="marca-dagua">
 
 <div id="tela-painel">
   <nav class="sidebar">
@@ -195,9 +114,9 @@
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
       Controle de Ponto
     </a>
-    <a class="sidebar-link ativo" href="/bipagem.html" data-menu-key="bipagem">
+    <a class="sidebar-link ativo" href="/bipagem-v2.html" data-menu-key="bipagem">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/></svg>
-      Performance Expedição
+      Expedição
     </a>
     <a class="sidebar-link" href="/projecao-financeira.html" data-menu-key="projecao-financeira">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l4-5 3 3 5-6"/><path d="M15 6h4v4"/></svg>
@@ -215,6 +134,11 @@
 
     <hr class="sidebar-separador">
 
+    <div class="tema-toggle" data-tema-toggle>
+      <button type="button" data-tema="light" title="Tema claro">☀</button>
+      <button type="button" data-tema="dark" title="Tema escuro">☾</button>
+    </div>
+
     <div class="sidebar-footer">
       <div class="sidebar-avatar">R</div>
       <div>
@@ -227,15 +151,19 @@
   <div class="conteudo-principal">
   <header>
     <div class="hrow">
-      <h1><span class="h-title-row">Performance Expedição · Dashboard <span class="live-badge"><span class="live-dot"></span>1x/dia às 23:30</span></span><span class="h-sub">Volume, operadores e produtividade da expedição</span></h1>
+      <h1><span class="h-title-row">Expedição <span class="live-badge"><span class="live-dot"></span>1x/dia às 23:30</span></span><span class="h-sub">Volume, operadores e produtividade da expedição</span></h1>
       <div class="periodo">
         <input type="date" id="p-de">
         <span>até</span>
         <input type="date" id="p-ate">
+        <input type="text" id="fp-busca" placeholder="Cliente ou número do pedido...">
+        <select id="fp-tipo"><option value="">Tipo (todos)</option></select>
+        <select id="fp-plataforma"><option value="">Plataforma</option></select>
         <button id="p-aplicar">Aplicar</button>
-        <button id="p-historico" type="button">Ver histórico completo</button>
+        <button type="button" id="fp-limpar" class="btn-icon" title="Limpar filtros">🧹</button>
+        <button type="button" id="fp-baixar" class="btn-icon" title="Baixar relatório (CSV) — filtro atual, ou tudo se não tiver filtro">📊</button>
       </div>
-      <button class="chip-sair" id="btn-sair">Sair</button>
+      <span id="fp-contagem"></span>
     </div>
   </header>
 
@@ -275,7 +203,7 @@
 
     <div class="card" style="margin-bottom:14px">
       <h3>Devoluções por operador</h3>
-      <div class="filtro-status" id="filtro-status-devolucao"></div>
+      <div class="filter-chips" id="filtro-status-devolucao"></div>
       <div class="chart-wrap"><canvas id="chartDevolucao"></canvas></div>
       <p class="aviso-mini">
         Quantas devoluções (histórico geral ML/Shopee) cada operador bipou nesse período — a devolução
@@ -291,6 +219,12 @@
         <button id="btn-parar-resolver" type="button" hidden>Parar</button>
         <span id="txt-progresso-resolver"></span>
       </p>
+      <div id="bloco-erros-resolver" class="pedidos-scroll" style="max-height:240px; margin-bottom:10px" hidden>
+        <table>
+          <thead><tr><th>Qtd</th><th>Motivo (não resolvidos — ficam de fora das próximas tentativas)</th></tr></thead>
+          <tbody id="tabela-erros-resolver"></tbody>
+        </table>
+      </div>
     </div>
 
     <div class="quadro">
@@ -309,18 +243,27 @@
       <h3 style="margin-bottom:10px">Todos os pedidos do período</h3>
       <div class="pedidos-scroll">
         <table>
-          <thead><tr><th>Hora</th><th>Empresa</th><th>Pedido</th><th>Cliente</th><th>Tipo</th><th>Bipado por</th><th>Manual</th></tr></thead>
+          <thead><tr><th>Data</th><th>Hora</th><th>Empresa</th><th>Pedido</th><th>Cliente</th><th>Tipo</th><th>Plataforma</th><th>Bipado por</th><th>Manual</th></tr></thead>
           <tbody id="tabela-pedidos"></tbody>
         </table>
       </div>
     </div>
 
     <div class="quadro">
-      <h3 style="margin-bottom:10px">Devoluções localizadas no período</h3>
-      <p class="aviso-mini">Pedidos bipados nesse período que o histórico geral (ML/Shopee) marca como devolvidos — só entram aqui os já traduzidos pro número do canal de venda (ver "Resolver pendentes" acima).</p>
+      <h3 style="margin-bottom:10px">Devoluções e reclamações localizadas no período</h3>
+      <p class="aviso-mini">
+        Pedidos bipados nesse período que o histórico geral (ML/Shopee) marca como devolvidos, ou reclamações
+        do Mercado Livre (mediação/disputa) que ainda não viraram devolução física — só entram aqui os já
+        traduzidos pro número do canal de venda (ver "Resolver pendentes" acima). O motivo vem cru da API do
+        marketplace: hoje não existe um dicionário pra traduzir os códigos em texto legível.
+      </p>
+      <div class="filter-chips" id="filtro-origem-devolucao"></div>
+      <div class="filtro-pedidos" style="margin-bottom:10px">
+        <select id="fd-motivo"><option value="">Motivo (todos)</option></select>
+      </div>
       <div class="pedidos-scroll">
         <table>
-          <thead><tr><th>Data</th><th>Hora</th><th>Empresa</th><th>Pedido</th><th>Cliente</th><th>Tipo</th><th>Bipado por</th><th>Status devolução</th></tr></thead>
+          <thead><tr><th>Data</th><th>Hora</th><th>Empresa</th><th>Pedido</th><th>Cliente</th><th>Coleta</th><th>Origem</th><th>Motivo</th><th>Status</th><th>Bipado por</th></tr></thead>
           <tbody id="tabela-devolucoes"></tbody>
         </table>
       </div>
@@ -334,10 +277,13 @@
   const sessao = window.RicapetAuth.sessao;
   $('admin-nome').textContent = sessao.nome;
   window.RicapetAuth.aplicarVisibilidadeMenu();
-  $('btn-sair').addEventListener('click', () => window.RicapetAuth.sair());
 
-  const CORES = { teal: '#17a389', yellow: '#f2c94c', gray: '#bdc3c7', blue: '#1d4ed8', red: '#eb5757', muted: '#93A0BC', grid: 'rgba(27,42,74,0.06)' };
-  const PALETA_OPERADORES = [CORES.teal, CORES.blue, CORES.yellow, '#9b59b6', CORES.red, '#2ecc71', CORES.gray];
+  // Cores dos gráficos lidas do Design System (assets/tokens-admin.css) em
+  // vez de hex fixo -- acompanham automaticamente o tema claro/escuro,
+  // mesmo padrão já usado em bipagem-v2.html.
+  const CORES = { muted: '#93A0BC', grid: 'rgba(27,42,74,0.06)' };
+  function cssVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+  const PALETA_OPERADORES = ['--chart-1', '--chart-2', '--chart-3', '--chart-4', '--chart-5'].map(cssVar);
 
   if (typeof Chart !== 'undefined') {
     Chart.defaults.color = CORES.muted;
@@ -365,7 +311,8 @@
     return pos === 0 ? '🥇' : pos === 1 ? '🥈' : pos === 2 ? '🥉' : '';
   }
 
-  let ultimoDadosBipagem = null;
+  let ultimoDadosBipagem = null; // resposta crua do servidor pro período (de/ate do topo, sem o filtro de nome/pedido/data/tipo/plataforma aplicado)
+  let dadosFiltrados = null; // mesma forma de `ultimoDadosBipagem`, recalculada em cima do filtro -- o que as funções de render abaixo leem
 
   // Filtro por status de devolução ("tipo de devolução" na prática — vem
   // de historico_todos.devolucao_status: status do claim no ML
@@ -381,7 +328,7 @@
       <label><input type="checkbox" value="${s}" checked> ${s}</label>
     `).join('');
     container.querySelectorAll('input[type="checkbox"]').forEach((el) => {
-      el.addEventListener('change', () => montarChartDevolucaoPorOperador(ultimoDadosBipagem));
+      el.addEventListener('change', () => montarChartDevolucaoPorOperador(dadosFiltrados));
     });
   }
 
@@ -404,7 +351,7 @@
       type: 'bar',
       data: {
         labels: entradas.map(([nome]) => nome),
-        datasets: [{ label: 'Devoluções', data: entradas.map(([, qtd]) => qtd), backgroundColor: CORES.red, borderRadius: 4 }],
+        datasets: [{ label: 'Devoluções', data: entradas.map(([, qtd]) => qtd), backgroundColor: cssVar('--danger'), borderRadius: 4 }],
       },
       options: {
         responsive: true, maintainAspectRatio: false,
@@ -418,26 +365,294 @@
     });
   }
 
-  async function carregar() {
-    const de = $('p-de').value;
-    const ate = $('p-ate').value;
-    const url = `/api/analytics-todos-data?visao=bipagem&sessao=${encodeURIComponent(sessao.token)}&de=${de}&ate=${ate}`;
-    let dados;
-    try {
-      const resp = await fetch(url);
-      dados = await resp.json();
-      if (!resp.ok || dados.ok === false) {
-        // 401 = sessão expirada de verdade (desloga); 403 = sessão válida
-        // mas sem acesso a esta página (overlay, não desloga).
-        if (resp.status === 401) { window.RicapetAuth.sair(); return; }
-        if (resp.status === 403) { window.RicapetAuth.mostrarAcessoNegado(dados.error); return; }
-        throw new Error(dados.error || 'Falha ao carregar.');
+  // Tabela unificada "Devoluções e reclamações localizadas no período" —
+  // junta dados.devolucoes (produto físico voltando) e dados.reclamacoes
+  // (mediação/disputa do ML que nunca virou devolução, ver CLAUDE.md) numa
+  // lista só, cada linha marcada com a origem, filtrável por origem e por
+  // motivo. Motivo/status continuam crus (sem dicionário de tradução, ver
+  // aviso na própria tela).
+  function itensDevolucaoReclamacao(dados) {
+    const devolucoes = (dados.devolucoes || []).map((d) => ({
+      ...d, origem: 'Devolução', motivo: d.devolucao_motivo, status: d.devolucao_status,
+    }));
+    const reclamacoes = (dados.reclamacoes || []).map((r) => ({
+      ...r, origem: 'Reclamação', motivo: r.reclamacao_motivo, status: r.reclamacao_status,
+    }));
+    return [...devolucoes, ...reclamacoes].sort((a, b) => (b.data + b.hora).localeCompare(a.data + a.hora));
+  }
+
+  function montarFiltroOrigemDevolucao(dados) {
+    const itens = itensDevolucaoReclamacao(dados);
+    const origensUnicas = [...new Set(itens.map((i) => i.origem))].sort();
+    const container = $('filtro-origem-devolucao');
+    if (!origensUnicas.length) { container.innerHTML = ''; return; }
+    container.innerHTML = '<span class="rotulo">Origem</span>' + origensUnicas.map((o) => `
+      <label><input type="checkbox" value="${o}" checked> ${o}</label>
+    `).join('');
+    container.querySelectorAll('input[type="checkbox"]').forEach((el) => {
+      el.addEventListener('change', () => renderizarTabelaDevolucoes(dadosFiltrados));
+    });
+  }
+
+  function montarFiltroMotivoDevolucao(dados) {
+    const motivosUnicos = [...new Set(itensDevolucaoReclamacao(dados).map((i) => i.motivo || '(sem motivo)'))].sort();
+    const sel = $('fd-motivo');
+    const atual = sel.value;
+    sel.innerHTML = '<option value="">Motivo (todos)</option>' + motivosUnicos.map((m) => `<option value="${m}">${m}</option>`).join('');
+    if (motivosUnicos.includes(atual)) sel.value = atual;
+  }
+
+  function renderizarTabelaDevolucoes(dados) {
+    if (!dados) return;
+    const checkboxes = [...document.querySelectorAll('#filtro-origem-devolucao input[type="checkbox"]')];
+    const temFiltroOrigem = checkboxes.length > 0;
+    const origensAtivas = new Set(checkboxes.filter((el) => el.checked).map((el) => el.value));
+    const motivoAtivo = $('fd-motivo').value;
+
+    const linhas = itensDevolucaoReclamacao(dados).filter((i) => {
+      if (temFiltroOrigem && !origensAtivas.has(i.origem)) return false;
+      if (motivoAtivo && (i.motivo || '(sem motivo)') !== motivoAtivo) return false;
+      return true;
+    });
+
+    $('tabela-devolucoes').innerHTML = linhas.map((i) => `
+      <tr>
+        <td>${i.data || '—'}</td>
+        <td>${i.hora || '—'}</td>
+        <td>${i.empresa}</td>
+        <td class="c-nome">${i.order_id || i.n_id_pedido}</td>
+        <td class="c-nome">${i.cliente || '—'}</td>
+        <td>${i.tipo_envio || '—'}</td>
+        <td><span class="tag-manual ${i.origem === 'Devolução' ? 'sim' : 'nao'}">${i.origem}</span></td>
+        <td>${i.motivo || '—'}</td>
+        <td>${i.status || '—'}</td>
+        <td class="c-nome">${i.bipado_por}</td>
+      </tr>
+    `).join('') || '<tr><td colspan="10" class="zero">Nenhuma devolução ou reclamação localizada nesse período.</td></tr>';
+  }
+
+  // Filtro do topo (nome, número do pedido, data, tipo de coleta,
+  // plataforma) -- afeta TODO o painel (KPIs, gráficos e tabelas), não só a
+  // tabela de pedidos: em vez de re-buscar do servidor a cada filtro,
+  // `computarAgregados()` refaz no cliente a MESMA agregação que
+  // `responderVisaoBipagem` (api/analytics-todos-data.js) faz no servidor,
+  // em cima só dos pedidos que passam no filtro -- por isso o backend manda
+  // cada pedido já com `localizado`/`devolvido`/`devolucao_status` embutidos
+  // (ver comentário em api/analytics-todos-data.js), senão não daria pra
+  // recalcular "Devolvidos (localizados)" no cliente sem outra chamada.
+  const LABEL_PLATAFORMA = { mercado_livre: 'Mercado Livre', shopee: 'Shopee' };
+  function labelPlataforma(v) { return v ? (LABEL_PLATAFORMA[v] || v) : 'Não resolvido'; }
+
+  // Opções dos selects "Tipo de coleta"/"Plataforma" vêm sempre do período
+  // INTEIRO (não do resultado já filtrado), pra não ir sumindo opção conforme
+  // a pessoa filtra por outra coisa.
+  function montarFiltrosPedidos(dados) {
+    const tipos = [...new Set((dados.pedidos || []).map((p) => p.tipo_envio || 'Outros'))].sort();
+    const selTipo = $('fp-tipo');
+    const tipoAtual = selTipo.value;
+    selTipo.innerHTML = '<option value="">Tipo (todos)</option>' + tipos.map((t) => `<option value="${t}">${t}</option>`).join('');
+    if (tipos.includes(tipoAtual)) selTipo.value = tipoAtual;
+
+    const plataformas = [...new Set((dados.pedidos || []).map((p) => p.marketplace_resolvido || ''))].sort();
+    const selPlataforma = $('fp-plataforma');
+    const plataformaAtual = selPlataforma.value;
+    selPlataforma.innerHTML = '<option value="">Plataforma</option>' + plataformas.map((v) => `<option value="${v}">${labelPlataforma(v)}</option>`).join('');
+    if (plataformas.includes(plataformaAtual)) selPlataforma.value = plataformaAtual;
+  }
+
+  // Sem campo de data próprio aqui -- o período (de/até no topo) já cobre
+  // isso, inclusive um único dia (de = até) -- ter os dois (um período em
+  // cima e uma data avulsa embaixo) só confundia sem cobrir nenhum caso
+  // que o período sozinho já não cobrisse.
+  function obterFiltroAtual() {
+    return {
+      // Um campo só pra cliente OU número do pedido -- bate em qualquer um
+      // dos dois, não precisa escolher em qual campo digitar.
+      busca: $('fp-busca').value.trim().toLowerCase(),
+      tipo: $('fp-tipo').value,
+      plataforma: $('fp-plataforma').value,
+    };
+  }
+
+  function filtrarPedidos(pedidos, f) {
+    return (pedidos || []).filter((p) => {
+      if (f.busca) {
+        const bate = String(p.cliente || '').toLowerCase().includes(f.busca)
+          || String(p.n_id_pedido || '').toLowerCase().includes(f.busca)
+          || String(p.order_id_resolvido || '').toLowerCase().includes(f.busca);
+        if (!bate) return false;
       }
-    } catch (err) {
-      alert(err.message);
-      return;
+      if (f.tipo && (p.tipo_envio || 'Outros') !== f.tipo) return false;
+      if (f.plataforma && (p.marketplace_resolvido || '') !== f.plataforma) return false;
+      return true;
+    });
+  }
+
+  // Reproduz no cliente a mesma agregação de responderVisaoBipagem
+  // (api/analytics-todos-data.js) -- mesma forma de retorno, pra
+  // renderizarPainel() poder ser usada tanto com o dado cru do servidor
+  // (sem filtro) quanto com o resultado filtrado, sem duplicar a
+  // renderização. `operadoresBase` (dados.operadores originais, do servidor)
+  // é de onde vêm minutos_trabalhados/funcionario_id -- horas batidas no
+  // Ponto não mudam com o filtro de pedidos, só de onde vem o numerador de
+  // "bipagens/hora" muda.
+  function computarAgregados(pedidos, operadoresBase) {
+    const porOperadorMapa = new Map();
+    const porEmpresa = {};
+    const porTipo = {};
+    const porHora = Array.from({ length: 24 }, () => 0);
+    const porDia = new Map();
+    let manuais = 0;
+    let localizadosTotal = 0;
+    let devolvidosTotal = 0;
+    const devolucoesDetalhadas = [];
+    const reclamacoesDetalhadas = [];
+
+    pedidos.forEach((p) => {
+      const nome = p.bipado_por || '(não identificado)';
+      if (!porOperadorMapa.has(nome)) {
+        porOperadorMapa.set(nome, { nome, total: 0, ricapet: 0, thapets: 0, flex: 0, turbo: 0, outros: 0, manual: 0, localizados: 0, devolvidos: 0 });
+      }
+      const op = porOperadorMapa.get(nome);
+      op.total++;
+      if (p.empresa === 'Ricapet') op.ricapet++;
+      else if (p.empresa === 'Thapets') op.thapets++;
+
+      const tipo = String(p.tipo_envio || '').toLowerCase();
+      if (tipo === 'flex') op.flex++;
+      else if (tipo === 'turbo') op.turbo++;
+      else op.outros++;
+
+      if (p.marcado_manualmente) { op.manual++; manuais++; }
+
+      if (p.localizado) {
+        op.localizados++;
+        localizadosTotal++;
+        if (p.devolvido) {
+          op.devolvidos++;
+          devolvidosTotal++;
+          devolucoesDetalhadas.push({
+            data: p.data, hora: p.hora, empresa: p.empresa, cliente: p.cliente,
+            n_id_pedido: p.n_id_pedido, order_id: p.order_id_resolvido, tipo_envio: p.tipo_envio,
+            marketplace_resolvido: p.marketplace_resolvido,
+            bipado_por: p.bipado_por || '(não identificado)', marcado_manualmente: !!p.marcado_manualmente,
+            devolucao_status: p.devolucao_status, devolucao_motivo: p.devolucao_motivo,
+          });
+        }
+        if (p.reclamado) {
+          reclamacoesDetalhadas.push({
+            data: p.data, hora: p.hora, empresa: p.empresa, cliente: p.cliente,
+            n_id_pedido: p.n_id_pedido, order_id: p.order_id_resolvido, tipo_envio: p.tipo_envio,
+            marketplace_resolvido: p.marketplace_resolvido,
+            bipado_por: p.bipado_por || '(não identificado)', marcado_manualmente: !!p.marcado_manualmente,
+            reclamacao_status: p.reclamacao_status, reclamacao_motivo: p.reclamacao_motivo, reclamacao_tipo: p.reclamacao_tipo,
+          });
+        }
+      }
+
+      porEmpresa[p.empresa] = (porEmpresa[p.empresa] || 0) + 1;
+      porTipo[p.tipo_envio || 'Outros'] = (porTipo[p.tipo_envio || 'Outros'] || 0) + 1;
+      if (p.hora) {
+        const h = parseInt(String(p.hora).split(':')[0], 10);
+        if (h >= 0 && h < 24) porHora[h]++;
+      }
+      if (p.data) porDia.set(p.data, (porDia.get(p.data) || 0) + 1);
+    });
+
+    const baseMap = new Map((operadoresBase || []).map((o) => [o.nome, o]));
+    const operadores = [...porOperadorMapa.values()].map((op) => {
+      const base = baseMap.get(op.nome);
+      const minutosTrabalhados = base ? base.minutos_trabalhados : null;
+      return {
+        ...op,
+        funcionario_id: base ? base.funcionario_id : null,
+        minutos_trabalhados: minutosTrabalhados,
+        bipagens_por_hora: minutosTrabalhados > 0 ? Number((op.total / (minutosTrabalhados / 60)).toFixed(2)) : null,
+        taxa_devolucao: op.localizados > 0 ? Number(((op.devolvidos / op.localizados) * 100).toFixed(1)) : null,
+      };
+    });
+    operadores.sort((a, b) => b.total - a.total);
+
+    return {
+      total: pedidos.length,
+      manuais,
+      localizados_total: localizadosTotal,
+      devolvidos_total: devolvidosTotal,
+      nao_localizados: pedidos.length - localizadosTotal,
+      nao_resolvidos: pedidos.filter((p) => p.n_id_pedido && !p.order_id_resolvido).length,
+      por_empresa: porEmpresa,
+      por_tipo: porTipo,
+      por_hora: porHora,
+      operadores,
+      pedidos,
+      devolucoes: devolucoesDetalhadas.sort((a, b) => (b.data + b.hora).localeCompare(a.data + a.hora)),
+      reclamacoes: reclamacoesDetalhadas.sort((a, b) => (b.data + b.hora).localeCompare(a.data + a.hora)),
+      tendencia: [...porDia.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([data, total]) => ({ data, total })),
+    };
+  }
+
+  function aplicarFiltroTopo() {
+    if (!ultimoDadosBipagem) return;
+    const pedidos = filtrarPedidos(ultimoDadosBipagem.pedidos, obterFiltroAtual());
+    renderizarPainel(computarAgregados(pedidos, ultimoDadosBipagem.operadores));
+  }
+
+  ['fp-busca', 'fp-tipo', 'fp-plataforma'].forEach((id) => {
+    $(id).addEventListener('input', aplicarFiltroTopo);
+    $(id).addEventListener('change', aplicarFiltroTopo);
+  });
+  $('fp-limpar').addEventListener('click', () => {
+    $('fp-busca').value = '';
+    $('fp-tipo').value = '';
+    $('fp-plataforma').value = '';
+    aplicarFiltroTopo();
+  });
+  // #fd-motivo tem as <option> recriadas a cada render (montarFiltroMotivoDevolucao),
+  // mas o próprio <select> nunca é substituído -- então este listener, preso
+  // uma única vez no elemento, sobrevive aos re-renders.
+  $('fd-motivo').addEventListener('change', () => renderizarTabelaDevolucoes(dadosFiltrados));
+
+  // Baixar relatório em CSV -- mesmo padrão já usado em ponto.html (BOM +
+  // ponto-e-vírgula, convenção do Excel pt-BR), 100% client-side, sem rota
+  // nova no servidor.
+  function baixar(blob, nome) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = nome;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  }
+
+  function baixarRelatorioPedidos(lista, sufixo) {
+    const cab = ['Data', 'Hora', 'Empresa', 'Pedido', 'Cliente', 'Tipo', 'Plataforma', 'Bipado por', 'Manual'];
+    const linhas = [cab].concat(lista.map((p) => [
+      p.data || '', p.hora || '', p.empresa || '', p.n_id_pedido || '', p.cliente || '',
+      p.tipo_envio || '', labelPlataforma(p.marketplace_resolvido), p.bipado_por || '(não identificado)',
+      p.marcado_manualmente ? 'sim' : 'não',
+    ]));
+    const csv = linhas.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\r\n');
+    const de = $('p-de').value, ate = $('p-ate').value;
+    baixar(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }), `bipagem_${de}_a_${ate}_${sufixo}.csv`);
+  }
+  // Botão único: baixa o resultado filtrado se algum filtro estiver
+  // preenchido, senão baixa o período inteiro -- não precisa escolher
+  // entre dois botões, o próprio filtro já diz o que baixar.
+  $('fp-baixar').addEventListener('click', () => {
+    const f = obterFiltroAtual();
+    const temFiltro = !!(f.busca || f.tipo || f.plataforma);
+    if (temFiltro) {
+      baixarRelatorioPedidos((dadosFiltrados && dadosFiltrados.pedidos) || [], 'filtrado');
+    } else {
+      baixarRelatorioPedidos((ultimoDadosBipagem && ultimoDadosBipagem.pedidos) || [], 'completo');
     }
-    ultimoDadosBipagem = dados;
+  });
+
+  // Renderiza KPIs, gráficos e tabelas a partir de um objeto no formato de
+  // resposta de responderVisaoBipagem -- chamado tanto com o dado cru do
+  // servidor (sem filtro) quanto com o resultado de computarAgregados()
+  // (filtrado), via aplicarFiltroTopo().
+  function renderizarPainel(dados) {
+    dadosFiltrados = dados;
 
     $('aviso-vazio').hidden = dados.total > 0;
 
@@ -454,6 +669,7 @@
     $('txt-nao-localizados').textContent = (dados.nao_localizados || 0).toLocaleString('pt-BR');
     $('txt-nao-resolvidos').textContent = (dados.nao_resolvidos || 0).toLocaleString('pt-BR');
     $('bloco-resolver').hidden = !(dados.nao_resolvidos > 0);
+    $('bloco-erros-resolver').hidden = true;
 
     // ranking por operador (bar horizontal)
     const opsOrdenados = [...dados.operadores];
@@ -482,7 +698,7 @@
     // volume por hora
     montarChart('chartHora', {
       type: 'bar',
-      data: { labels: Array.from({ length: 24 }, (_, i) => i + 'h'), datasets: [{ data: dados.por_hora, backgroundColor: CORES.blue, borderRadius: 4 }] },
+      data: { labels: Array.from({ length: 24 }, (_, i) => i + 'h'), datasets: [{ data: dados.por_hora, backgroundColor: cssVar('--chart-2'), borderRadius: 4 }] },
       options: {
         responsive: true, maintainAspectRatio: false,
         layout: { padding: { top: 18 } },
@@ -496,12 +712,12 @@
       type: 'line',
       data: {
         labels: dados.tendencia.map((t) => t.data.slice(8, 10) + '/' + t.data.slice(5, 7)),
-        datasets: [{ data: dados.tendencia.map((t) => t.total), borderColor: CORES.teal, backgroundColor: 'rgba(23,163,137,0.12)', fill: true, tension: 0.3, pointRadius: 2 }],
+        datasets: [{ data: dados.tendencia.map((t) => t.total), borderColor: cssVar('--chart-1'), backgroundColor: 'rgba(0,169,199,0.12)', fill: true, tension: 0.3, pointRadius: 2 }],
       },
       options: {
         responsive: true, maintainAspectRatio: false,
         layout: { padding: { top: 18 } },
-        plugins: { legend: { display: false }, datalabels: { display: (ctx) => ctx.dataset.data[ctx.dataIndex] > 0, color: CORES.teal, font: { weight: 'bold', size: 9 }, anchor: 'end', align: 'top', clamp: true } },
+        plugins: { legend: { display: false }, datalabels: { display: (ctx) => ctx.dataset.data[ctx.dataIndex] > 0, color: cssVar('--chart-1'), font: { weight: 'bold', size: 9 }, anchor: 'end', align: 'top', clamp: true } },
         scales: { x: { grid: { display: false } }, y: { grid: { color: CORES.grid }, beginAtZero: true } },
       },
     });
@@ -529,32 +745,56 @@
       </tr>
     `).join('') || '<tr><td colspan="13" class="zero">Sem bipagens nesse dia.</td></tr>';
 
-    // tabela de pedidos
+    // tabela de pedidos -- `dados.pedidos` já vem filtrado (ver
+    // aplicarFiltroTopo/computarAgregados), não filtra de novo aqui.
     $('tabela-pedidos').innerHTML = dados.pedidos.map((p) => `
       <tr>
+        <td>${p.data || '—'}</td>
         <td>${p.hora || '—'}</td>
         <td>${p.empresa}</td>
         <td class="c-nome">${p.n_id_pedido}</td>
         <td class="c-nome">${p.cliente || '—'}</td>
         <td>${p.tipo_envio || '—'}</td>
+        <td>${labelPlataforma(p.marketplace_resolvido)}</td>
         <td class="c-nome">${p.bipado_por || '(não identificado)'}</td>
         <td>${p.marcado_manualmente ? '<span class="tag-manual sim">Manual</span>' : '<span class="tag-manual nao">Scanner</span>'}</td>
       </tr>
-    `).join('') || '<tr><td colspan="7" class="zero">Sem pedidos nesse dia.</td></tr>';
+    `).join('') || '<tr><td colspan="9" class="zero">Nenhum pedido encontrado com esse filtro.</td></tr>';
 
-    // tabela de devoluções localizadas
-    $('tabela-devolucoes').innerHTML = (dados.devolucoes || []).map((d) => `
-      <tr>
-        <td>${d.data || '—'}</td>
-        <td>${d.hora || '—'}</td>
-        <td>${d.empresa}</td>
-        <td class="c-nome">${d.order_id || d.n_id_pedido}</td>
-        <td class="c-nome">${d.cliente || '—'}</td>
-        <td>${d.tipo_envio || '—'}</td>
-        <td class="c-nome">${d.bipado_por}</td>
-        <td>${d.devolucao_status || '—'}</td>
-      </tr>
-    `).join('') || '<tr><td colspan="8" class="zero">Nenhuma devolução localizada nesse período.</td></tr>';
+    // tabela de devoluções + reclamações localizadas, com filtro por origem/motivo
+    montarFiltroOrigemDevolucao(dados);
+    montarFiltroMotivoDevolucao(dados);
+    renderizarTabelaDevolucoes(dados);
+
+    // contagem "n de m pedidos" na barra de filtro do topo
+    const totalPeriodo = ((ultimoDadosBipagem && ultimoDadosBipagem.pedidos) || []).length;
+    $('fp-contagem').textContent = dados.total === totalPeriodo
+      ? `${totalPeriodo.toLocaleString('pt-BR')} pedido${totalPeriodo === 1 ? '' : 's'} no período.`
+      : `${dados.total.toLocaleString('pt-BR')} de ${totalPeriodo.toLocaleString('pt-BR')} pedidos (filtro aplicado).`;
+  }
+
+  async function carregar() {
+    const de = $('p-de').value;
+    const ate = $('p-ate').value;
+    const url = `/api/analytics-todos-data?visao=bipagem&sessao=${encodeURIComponent(sessao.token)}&de=${de}&ate=${ate}`;
+    let dados;
+    try {
+      const resp = await fetch(url);
+      dados = await resp.json();
+      if (!resp.ok || dados.ok === false) {
+        // 401 = sessão expirada de verdade (desloga); 403 = sessão válida
+        // mas sem acesso a esta página (overlay, não desloga).
+        if (resp.status === 401) { window.RicapetAuth.sair(); return; }
+        if (resp.status === 403) { window.RicapetAuth.mostrarAcessoNegado(dados.error); return; }
+        throw new Error(dados.error || 'Falha ao carregar.');
+      }
+    } catch (err) {
+      alert(err.message);
+      return;
+    }
+    ultimoDadosBipagem = dados;
+    montarFiltrosPedidos(dados);
+    aplicarFiltroTopo();
   }
 
   $('p-aplicar').addEventListener('click', carregar);
@@ -582,14 +822,23 @@
     btnParar.hidden = false;
     let totalResolvidos = 0;
     let totalErros = 0;
+    const resumoErrosTotal = {};
     try {
       while (resolverEmAndamento) {
         const json = await resolverUmLote();
         totalResolvidos += json.resolvidos;
         totalErros += json.total_erros;
-        if (json.total_erros > 0) console.warn('Erros ao resolver bipagem:', json.erros);
-        txtProgresso.textContent = ` Resolvidos até agora: ${totalResolvidos}. Restam: ${json.restantes.toLocaleString('pt-BR')}.`;
+        if (json.total_erros > 0) {
+          console.warn('Erros ao resolver bipagem:', json.erros);
+          for (const [msg, qtd] of Object.entries(json.resumo_erros || {})) {
+            resumoErrosTotal[msg] = (resumoErrosTotal[msg] || 0) + qtd;
+          }
+        }
+        txtProgresso.textContent = ` Resolvidos até agora: ${totalResolvidos}. Restam (com chance de sucesso): ${json.restantes.toLocaleString('pt-BR')}.`;
         await carregar();
+        // processados === 0 acontece quando só sobram linhas que já falharam
+        // numa tentativa anterior (excluídas da próxima busca) — não é erro,
+        // é o loop terminando de verdade.
         if (json.restantes <= 0 || json.processados === 0) break;
       }
     } catch (err) {
@@ -598,16 +847,21 @@
       resolverEmAndamento = false;
       btn.hidden = false;
       btnParar.hidden = true;
-      if (totalErros) txtProgresso.textContent += ` (${totalErros} com erro — ver console)`;
+      const blocoErros = $('bloco-erros-resolver');
+      if (totalErros) {
+        txtProgresso.textContent += ` — ${totalErros} não resolvidos (lista abaixo).`;
+        const linhas = Object.entries(resumoErrosTotal).sort((a, b) => b[1] - a[1]);
+        $('tabela-erros-resolver').innerHTML = linhas.map(([msg, qtd]) => `
+          <tr><td>${qtd}x</td><td class="c-nome">${msg}</td></tr>
+        `).join('');
+        blocoErros.hidden = false;
+      } else {
+        blocoErros.hidden = true;
+      }
     }
   }
   $('btn-resolver-pendentes').addEventListener('click', resolverTodosPendentes);
   $('btn-parar-resolver').addEventListener('click', () => { resolverEmAndamento = false; });
-  $('p-historico').addEventListener('click', () => {
-    $('p-de').value = '2025-01-01'; // bem antes de bipagem_diaria existir, pra trazer tudo
-    $('p-ate').value = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
-    carregar();
-  });
   const HOJE_LOJA = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
   const INICIO_MES_LOJA = HOJE_LOJA.slice(0, 8) + '01'; // dia 1 do mês atual, mesmo fuso
   $('p-de').value = INICIO_MES_LOJA;

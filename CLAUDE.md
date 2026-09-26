@@ -97,6 +97,20 @@ Também importante não confundir os dois ao mexer nesse código:
   bem menor que se fosse automático — mas se a cota apertar mesmo assim,
   este é um
   candidato claro pra revisar/reduzir primeiro.
+- **"Atualizar agora" busca 1 peça por vez (`?fonte=mercado-pago|shopee|
+  omie&conta=ricapet|thapets`), nunca as 6 numa chamada só.** Aconteceu de
+  verdade em produção: a versão antiga (`coletarProjecaoFinanceiraManual`
+  fazia MP×2 + Shopee×2 + Omie×2 sequencial numa função só) travava sem
+  terminar — a Shopee Ricapet sozinha já bateu no teto de 300 chamadas
+  (`truncado: true`), o que passa fácil do tempo de função da Vercel; o
+  botão ficava "Atualizando…" e nunca voltava, sem erro visível nenhum.
+  `coletarUmaPecaProjecaoFinanceira` (`api/collect.js`) faz merge (read-
+  modify-write) no mesmo objeto salvo em `entrega_turbo:ultima_coleta_
+  projecao_financeira`, então as 6 chamadas do frontend (`public/
+  projecao-financeira.html`, loop `PECAS_PROJECAO`) podem terminar em
+  qualquer ordem sem se sobrescrever. O caminho antigo (sem `?fonte=`, tudo
+  numa chamada) continua existindo só por compatibilidade — a tela não usa
+  mais.
 - ✅ Thapets no Mercado Pago **voltou a funcionar** (confirmado em
   16/set/2026 via `/api/debug?tipo=mp-payments-test&conta=thapets`, dado
   real de produção: 82 pagamentos, 74 aprovados) — `coletarProjecaoFinanceiraManual`
@@ -121,14 +135,93 @@ categorias nas linhas, saldo acumulado embaixo). Peças do modelo:
   cada, não por dia) — ponto de partida do saldo acumulado projetado.
   Guardado em `entrega_turbo:fluxo_caixa_saldo_manual`
   (kv). Editado via `/api/debug?tipo=fluxo-caixa-config-set`.
-- **Saídas**: **pendente de integração com o Omie** ("contas a pagar",
-  categoria por categoria — Aluguel, Fornecedores, FGTS/INSS, etc.). Até
-  isso existir, a tela mostra uma linha zerada e um aviso. Vai precisar de
-  `lib/omieContasPagar.js` (novo) + credenciais `OMIE_RICAPET_APP_KEY`/
-  `_APP_SECRET` e `OMIE_THAPETS_APP_KEY`/`_APP_SECRET` (Omie trata as duas
-  empresas como contas separadas) — seguir o mesmo padrão empírico já usado
-  pro Mercado Pago/Shopee: endpoint de debug primeiro, confirmar o formato
-  real da resposta com dado de produção, só depois escrever o código final.
+- **Saídas**: Contas a Pagar do Omie (`lib/omieContasPagar.js`), credenciais
+  `OMIE_RICAPET_APP_KEY`/`_APP_SECRET` e `OMIE_THAPETS_APP_KEY`/`_APP_SECRET`
+  (Omie trata as duas empresas como contas separadas). Soma, por dia de
+  vencimento, todo título não-`PAGO` (`A VENCER`/`VENCIDO`) — sem
+  discriminar por categoria (Aluguel/Fornecedores/FGTS etc., ainda não
+  implementado). O filtro de data da própria API do Omie não é confiável
+  pra isso (ver comentário no topo do arquivo), então a busca pagina um
+  histórico bem mais largo e filtra `data_vencimento` no nosso lado.
+  - **⚠️ "Hoje" tem que ser calculado no fuso de São Paulo, não no relógio
+    do servidor**: o corte usado pra decidir se um título "já venceu"
+    (`hojeChave` em `coletarContasPagar`) usa `dataFusoLoja` (mesmo helper
+    já usado em `lib/registrosPonto.js`/Mercado Pago), nunca
+    `new Date().getDate()` cru — o Vercel roda em UTC, então entre ~21h e
+    23h59 em Brasília (já é madrugada em UTC) um cálculo ingênuo faz
+    `hojeChave` ficar 1 dia à frente do calendário real do Brasil e
+    descarta títulos que vencem HOJE de verdade. Bug real que já aconteceu
+    em produção (títulos do dia sumindo da tela) — corrigido, mas é o tipo
+    de erro fácil de reintroduzir se alguém trocar `dataFusoLoja` por
+    `new Date()` direto num ajuste futuro nesse arquivo.
+  - **✅ Só título vencido no fim de semana dobra pra "hoje" — set/2026**:
+    causa raiz do "sumiço" confirmada com dado real (`omie-contas-pagar-
+    dia`) — um título (INYLBRA, R$ 5.387,90) tinha `data_vencimento` de
+    **domingo**, mas `status_titulo` já vinha da própria Omie como
+    `"VENCE HOJE"` (status real da API, não só rótulo de UI). A Omie
+    mostra atrasado-e-não-pago junto com "vence hoje" na Movimentação da
+    Conta Corrente; nosso código agrupava estritamente por
+    `data_vencimento`, então um título vencido no fim de semana caía num
+    dia que já tinha passado do filtro (`diaStr < hojeChave`) e sumia da
+    tela por completo. Não era só a INYLBRA: confirmado com o mesmo dado
+    real que **todo título `"ATRASADO"` estava assim** (SABESP, CBC FLEX,
+    COMPENSADOS, ENEL, ITAÚ, LEBIANCO, CAIXA/FGTS, RECEITA FEDERAL/INSS,
+    todos faltando).
+    - Primeira tentativa de fix dobrava QUALQUER título vencido no passado
+      pra "hoje", sem olhar pra quantos dias fazia — **decisão explícita
+      do dono do projeto reverteu isso**: só o vencimento que caiu em
+      sábado/domingo (sem expediente bancário pra pagar) é absorvido pelo
+      próximo dia útil; título vencido num dia útil de verdade (ex.: uma
+      quarta-feira) e ainda não pago **volta a sumir da tela** — o
+      controle desse tipo de atraso "de verdade" fica fora desta
+      ferramenta, não empurrado indefinidamente pro "hoje".
+    - `atrasoEhSoDeFimDeSemana(diaVencimento, diaHoje)`
+      (`lib/omieContasPagar.js`): só retorna `true` se `diaVencimento` cai
+      num sábado/domingo E não existe nenhum dia útil entre ele e
+      `diaHoje` (ex.: sábado→domingo, sábado→segunda, domingo→segunda —
+      mas NÃO sexta→segunda, mesmo passando pelo fim de semana no meio,
+      porque sexta em si já era dia útil pra pagar). Testado com os casos
+      reais do incidente.
+    - `titulo.venceu_fim_de_semana` + `titulo.data_vencimento_original`
+      marcam a origem só nesses casos; o popup de detalhe
+      (`projecao-financeira.html`) mostra um badge neutro "FIM DE SEMANA"
+      (não "ATRASADO" — não é um atraso de verdade, é só a ausência de
+      expediente bancário) + "venceu DD/MM/AAAA".
+    - Título com `status_titulo` "PAGO" continua excluído; título fora do
+      horizonte futuro (`diaStr > futuroChave`) continua ignorado.
+    - `status_titulo` da Omie tem pelo menos 4 valores reais confirmados
+      (não só "PAGO"/"A VENCER" como o comentário original supunha):
+      `"PAGO"`, `"A VENCER"`, `"VENCE HOJE"`, `"ATRASADO"` — o filtro
+      nunca discriminou por esses três últimos além do critério de data
+      acima, então não precisou de ajuste específico por status;
+      documentando aqui só pra não assumir de novo que só existem dois
+      valores.
+    - `omie-contas-pagar-dia` (endpoint de debug, ver acima) continua útil
+      pra investigações futuras — resolve nome do fornecedor e aceita
+      `&janela=N` pra checar títulos com `data_vencimento` alguns dias
+      antes/depois do dia pedido.
+  - **Clique no valor abre um popup com o detalhe** ("Contas a pagar
+    Ricapet/Thapets (Omie)" em `projecao-financeira.html`): cada dia
+    guarda a lista de títulos que compõem o total (`por_dia[].titulos`),
+    não só a soma — célula fica com `.clicavel` quando tem título (gate em
+    `titulos.length > 0`, não em `qtd`, pra dado coletado num formato mais
+    antigo — sem `titulos` — não virar clicável mostrando popup vazio), o
+    clique lê de `omiePorDiaAtual` (montado a cada `carregar()`) e abre o
+    modal `#modal-omie` com fornecedor/documento/valor de cada título.
+  - **Nome do fornecedor**: a API de Contas a Pagar só devolve o código
+    (`codigo_cliente_fornecedor`), não o nome — `resolverNomesFornecedores`
+    (`lib/omieContasPagar.js`) resolve via API de Clientes/Fornecedores do
+    Omie (`ConsultarCliente`, `geral/clientes/`), **1 chamada por
+    fornecedor ÚNICO no período** (não por título — cacheado num `Map`
+    dentro da própria coleta), trava de segurança
+    `MAX_FORNECEDORES_RESOLVIDOS` (150). Testável isoladamente via
+    `/api/debug?tipo=omie-cliente-test&conta=ricapet&codigo=...`. Falha
+    silenciosa por fornecedor (não derruba a coleta): sem nome resolvido,
+    a tela cai pro fallback `Fornecedor #<código>`. Ainda sob demanda (só
+    no clique de "Atualizar agora"), mas é custo extra real por cima da
+    paginação de títulos que já existia — se a cota do Omie apertar, esse
+    é candidato a rever primeiro (ex.: cachear nomes já resolvidos entre
+    coletas em vez de resolver tudo de novo a cada clique).
 - **Saldo acumulado**: calculado no frontend (não vem pronto do backend) —
   `saldo do dia anterior + total de entradas do dia − total a pagar do
   dia`, começando do saldo bancário manual somado (Ricapet + Thapets).
@@ -170,10 +263,92 @@ n_id_pedido (codigo_pedido da Omie)
   `order_id_resolvido`, não mais `n_id_pedido` — pedidos ainda não
   resolvidos ficam de fora do cruzamento (contam em `nao_resolvidos` no
   retorno) até alguém clicar em "Resolver pendentes".
-- Colunas `order_id_resolvido`/`marketplace_resolvido`/`resolvido_em` em
-  `bipagem_diaria` — migração idempotente já embutida em
+- Colunas `order_id_resolvido`/`marketplace_resolvido`/`resolvido_em`/
+  `resolver_erro` em `bipagem_diaria` — migração idempotente já embutida em
   `?tipo=adicionar-coluna-tipo` (`api/debug.js`), não precisa de passo
   manual separado.
+- **`resolver_erro`**: quando uma linha falha em resolver (pedido apagado
+  na Omie, `numero_pedido_cliente` vazio, etc.), fica marcada aqui em vez
+  de ficar só com `order_id_resolvido IS NULL` — sem isso o botão "Resolver
+  todos os pendentes" reprocessava pra sempre o mesmo lote de 50 que falha
+  por inteiro (ordenado por `bipado_em_ts DESC`, então é sempre o mesmo
+  topo), o "restantes" nunca saía do lugar e parecia que o botão não fazia
+  nada (aconteceu de verdade em produção — 1.741 pendentes praticamente
+  parados após rodar o loop). A busca de pendentes (`bipagem-resolver-
+  pendentes`) exclui `resolver_erro IS NOT NULL`; o resumo de erros
+  agrupados (`resumo_erros` na resposta) aparece direto na tela de bipagem
+  ao final do loop, sem precisar abrir o console do navegador. `nao_resolvidos`
+  no dashboard continua contando essas linhas normalmente (ainda não
+  entraram no cruzamento) — só param de ser retentadas automaticamente.
+
+### Devoluções e reclamações na tela de Bipagem (set/2026)
+
+`bipagem.html` tem uma tabela unificada no rodapé ("Devoluções e
+reclamações localizadas no período") com filtro por Origem
+(Devolução/Reclamação) e por Motivo — antes só existia devolução, sem
+coluna de motivo nem filtro nenhum.
+
+- **Devolução** = produto físico voltando (ML ou Shopee). **Reclamação** =
+  claim do Mercado Livre de mediação/disputa que o cliente abriu mas que
+  **nunca** envolveu devolução física — antes desse recurso, esses claims
+  eram simplesmente descartados (nunca persistidos em lugar nenhum). Shopee
+  não tem essa distinção nesta integração: `lib/shopeeReturns.js` só expõe
+  devolução (não existe endpoint de "disputa sem devolução" sendo usado
+  aqui), então reclamação hoje é exclusiva do Mercado Livre.
+- **Zero custo extra de API**: `lib/mlClaims.js` já buscava todos os claims
+  do período pra filtrar devolução (`claimEhDevolucao`, heurística baseada
+  em `available_actions` tipo `return_review_*` — ver comentário no topo do
+  arquivo, inferida empiricamente, não documentada pelo ML). Antes,
+  qualquer claim que não batesse essa heurística era jogado fora;
+  - **✅ Bug real corrigido — devolução fechada nunca era detectada (set/2026)**:
+    confirmado com dado real de produção (`?tipo=ml-claims-resumo`, conta
+    Thapets: 5 claims no período, todos `status: "closed"`,
+    `available_actions` vazio nos 5) que o critério original
+    (`return_review_*` em `available_actions`) só funciona enquanto o claim
+    do Mercado Livre está ABERTO — assim que o ML fecha o claim,
+    `available_actions` esvazia pra todo mundo, e toda devolução já
+    concluída virava "reclamação" na marra, mesmo sendo produto físico que
+    voltou de verdade. `claimEhDevolucao` ganhou um 2º critério que
+    sobrevive ao fechamento: `claim.type === 'returns'` (constante
+    `TIPOS_DEVOLUCAO`) — o próprio ML já categoriza o claim como devolução
+    formal desde a criação, campo que não é limpo quando o claim fecha.
+    Qualquer um dos dois critérios basta. `type: "returns"` não garante que
+    o produto voltou fisicamente (o vendedor pode ter vencido a disputa,
+    `return_review_fail`) — é "cliente abriu devolução formal", não
+    "confirmado que voltou"; conferir `devolucao_status`/`devolucao_motivo`
+    na tela pro desfecho real. `?tipo=ml-claims-resumo` agora também expõe
+    `tipos_esperados_devolucao` no diagnóstico, junto do
+    `acoes_esperadas_devolucao` que já existia.
+  `buscarClaimsClassificadosPeriodo` (mesmo arquivo) reaproveita a MESMA
+  busca (2 chamadas por conta: `opened` + `closed`) e só separa em dois
+  mapas (`devolucoes`/`reclamacoes`) em vez de descartar um deles — não
+  aumenta a frequência nem o número de chamadas do throttle de 30 min
+  (`INTERVALO_MINIMO_DEVOLUCOES_MS`, `api/collect.js`).
+- **Sem dicionário de motivo**: nem devolução nem reclamação têm hoje uma
+  tradução de `reason_id`/`reason` pra texto legível — a coluna "Motivo"
+  mostra o código cru que vem da API do marketplace (ML: código numérico
+  tipo `reason_id`; Shopee: string tipo `reason`, só pra devolução). Se
+  precisar de texto amigável no futuro, esse mapeamento ainda não existe em
+  lugar nenhum do repo e precisaria ser construído (idealmente confirmado
+  com dado real de produção antes, como o resto das heurísticas deste
+  arquivo).
+- **Persistência**: novas colunas em `historico_todos` — `reclamado`,
+  `reclamacao_claim_id`, `reclamacao_status`, `reclamacao_motivo`,
+  `reclamacao_tipo` (espelham as 4 colunas de devolução que já existiam).
+  Migração **manual**, não roda sozinha: precisa de
+  `POST /api/debug?tipo=adicionar-coluna-tipo&secret=CRON_SECRET` uma vez
+  depois do deploy — sem isso `marcarReclamacao`/o cruzamento em
+  `responderVisaoBipagem` falham (coluna inexistente).
+- **Mutuamente exclusivas no mesmo pedido**: um claim é classificado como
+  devolução OU reclamação a cada ciclo, nunca os dois. Se uma reclamação
+  "gradua" pra devolução física depois (claim muda de estágio e passa a ter
+  ação de devolução), `marcarDevolucao` (`lib/historicoTodos.js`) zera os
+  4 campos de reclamação daquele pedido — evita ficar mostrando como
+  "reclamação em aberto" um pedido que já virou devolução resolvida.
+- `registrarHistoricoTodos` preserva os campos de reclamação entre
+  re-sincronizações normais de pedido, do mesmo jeito que já fazia com
+  devolução (o fluxo normal de coleta de pedidos não sabe nada sobre
+  devolução/reclamação — só quem grava isso é `enriquecerDevolucoes`).
 
 ## Banco de dados
 
@@ -188,6 +363,46 @@ apenas em `api/debug.js`. Não usar para código novo.
 
 ⚠️ O README na raiz ainda descreve o Redis como armazenamento principal —
 está desatualizado nesse ponto; confie neste arquivo e em `lib/db.js`/`lib/kv.js`.
+
+## Cargo do funcionário
+
+Coluna `cargo` (texto livre, ex. "Auxiliar de Expedição") na tabela
+`funcionarios` — usada só para exibição (Cartão de Ponto, ver abaixo) e
+editável na tela Acessos (`public/acessos.html`, campo por linha). Sem
+`cargo` preenchido, aparece "—" no cartão. Migra sozinha: faz parte de
+`ALTERS_PONTO`/`garantirEsquemaPonto()` em `api/debug.js` — não precisa
+rodar nada manualmente, a próxima chamada a qualquer rota de Ponto já
+adiciona a coluna se ela não existir.
+
+## Cartão de Ponto (impressão, aba "Por funcionário" do Ponto)
+
+Botão "Cartão de Ponto" em `public/ponto.html` gera uma folha de impressão
+no layout do cartão mensal usado pela empresa (cabeçalho, dados do
+funcionário/cargo, horário semanal, tabela diária com 4 batidas + saldo
+acumulado, legenda de origem da marcação, alterações administrativas e
+linha de assinatura) — reaproveita a mesma chamada `ponto-admin-visao` já
+usada pelas outras abas, só que com um `de` bem largo, para ter o
+histórico completo de marcações do funcionário disponível no cliente
+(cálculo de banco de horas acumulado é sempre client-side, feito sob
+demanda só quando o botão é clicado — nunca em `dashboard-data.js` nem em
+background).
+
+BANCO SALDO (coluna de saldo acumulado de horas) é calculado do zero a
+partir de `INICIO_HISTORICO_CARTAO = '2024-01-01'` (constante em
+`ponto.html`), somando dia a dia até o fim do período impresso, usando a
+MESMA fórmula de saldo diário já usada em `montarFolha()` (trabalhado vs.
+previsto pela jornada, zerado dentro da tolerância de `tolerancia_min`,
+zerado se negativo e abonado) — só que acumulando em vez de resetar a
+cada filtro de período, e só exibindo as linhas a partir do início do
+período impresso (dias antes disso entram só para compor o saldo inicial
+arrastado). É uma fórmula própria, não uma tentativa de bater número por
+número com nenhum sistema de ponto eletrônico de terceiros — o objetivo é
+o layout do cartão ser fiel ao modelo, não os valores serem idênticos aos
+de outro software (que costuma ter regras de arredondamento por marcação
+não documentadas).
+
+TOTAL NOTURNO fica sempre em branco por decisão do dono do produto — não
+há cálculo de adicional noturno implementado.
 
 ## Controle de acesso por página (tela Acessos, só super_admin)
 
@@ -306,7 +521,61 @@ public/
                    (INTERVALO_BUSCA_MS), relógio/contadores a cada 1s.
   index.html       painel operacional (tabela), uso normal no navegador
   backfill-runner.html   UI manual para disparar os backfills
+  assets/
+    auth.js              sessão de login único (sessionStorage), redireciona
+                         pra login.html se não tiver sessão válida
+    tema.js              alternador de tema claro/escuro — salva escolha em
+                         localStorage['ricapet_tema2'], aplica data-theme no
+                         <html>. Cada página também tem um <script> INLINE no
+                         <head> (antes de qualquer CSS/imagem) que lê a mesma
+                         chave e aplica data-theme antes de pintar, pra não
+                         piscar — tema.js só cuida do botão depois que a
+                         página carregou. Sem escolha salva, segue
+                         prefers-color-scheme do sistema (não seta o atributo).
+    tokens-admin.css     identidade visual compartilhada de todas as páginas
+                         do admin. Migrada em set/2026 da identidade "Console
+                         Ricapet" (roxo #5D4FA8/laranja #f5a623, Sora/Manrope)
+                         pra identidade "portal" (teal #4FB8B9/terracota
+                         #B5651D, Space Grotesk/Inter/IBM Plex Mono, claro+
+                         escuro) — pacote de identidade visual fornecido pelo
+                         dono do projeto, aplicado a pedido dele mesmo depois
+                         de confirmado (a 1ª tentativa trocou a sidebar por um
+                         cabeçalho horizontal, como o portal originalmente não
+                         tem sidebar — revertido pra sidebar vertical de novo,
+                         só recolorida, porque era isso que ele queria manter).
+                         Os NOMES das variáveis (--page-bg, --ink, --sidebar-
+                         bg, --accent...) continuam os mesmos de antes da
+                         migração — só o VALOR mudou — pra não precisar
+                         reescrever cada regra CSS espalhada pelas páginas;
+                         por isso alguns nomes ficam "torcidos" (--teal agora
+                         guarda o terracota, não um teal de verdade — é só o
+                         2º acento da paleta). Linkar no <head> de toda página
+                         admin, ANTES do próprio <style> da página. Cada
+                         página continua livre pra ter tokens só dela no
+                         próprio :root (cores de estado tipo --ok/--bad/
+                         --danger-*, --radius, --surface-2, etc.) — este
+                         arquivo cobre só o que é da marca (cor, sidebar,
+                         fonte). `tv.html` e `backfill-runner.html` ficam de
+                         fora de propósito (não são "admin" — TV é kiosk sem
+                         menu, backfill é ferramenta interna avulsa).
+                         `estoque-atualizar.html` (mobile, sem sidebar por
+                         design) recebe só cor/fonte/tema, sem os tokens de
+                         sidebar.
+    logo-ricapet-teal.png  logo em teal sobre fundo TRANSPARENTE (a arte
+                         BRANCA em `logo-ricapet.png` só funciona sobre fundo
+                         escuro/roxo — invisível numa marca d'água sobre fundo
+                         claro). Usada só como marca d'água (ver abaixo);
+                         a sidebar/topo continua usando a versão branca,
+                         porque ali o fundo é sempre o degradê teal escuro.
 
+  **Marca d'água**: todas as páginas do admin (as 9 com sidebar + `estoque-
+  atualizar.html`) têm `body::before` — logo grande, `min(72vmin, 760px)`,
+  `opacity: 0.06`, `position: fixed` atrás do conteúdo — mesmo padrão já
+  usado em `tv.html`. O wrapper de conteúdo de cada página (`.conteudo-
+  principal` ou `main`) precisa de `position: relative; z-index: 1` pra
+  ficar acima da marca d'água (sidebar/header já são positioned com z-index
+  próprio, não precisam). `login.html` fica de fora (card centralizado
+  pequeno, sem "fundo" de verdade pra mostrar a marca d'água).
 scripts/
   gerar_tabela_produtos.py   regenera lib/tabelaProdutos.json a partir do
                              Excel local — rodar sempre que TABELA_AUXILIAR mudar

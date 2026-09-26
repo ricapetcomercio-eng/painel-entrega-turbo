@@ -213,7 +213,7 @@ async function responderVisaoBipagem(req, res) {
   const fimTs = Math.floor(new Date(fimIso).getTime() / 1000) + 59;
 
   const rsPeriodo = await db.execute({
-    sql: `SELECT empresa, data, hora, cliente, n_id_pedido, order_id_resolvido, tipo_envio, bipado_por, marcado_manualmente, bipado_em_ts
+    sql: `SELECT empresa, data, hora, cliente, n_id_pedido, order_id_resolvido, marketplace_resolvido, tipo_envio, bipado_por, marcado_manualmente, bipado_em_ts
           FROM bipagem_diaria WHERE bipado_em_ts BETWEEN ? AND ? ORDER BY bipado_em_ts`,
     args: [inicioTs, fimTs],
   });
@@ -221,31 +221,46 @@ async function responderVisaoBipagem(req, res) {
   const pedidos = rsPeriodo.rows;
 
   // Cruza com historico_todos pra saber quais desses pedidos bipados
-  // acabaram devolvidos (campo `devolvido`, atualizado por um processo
-  // separado em api/collect.js quando a devolução é detectada no ML/Shopee
-  // — pode acontecer bem depois da bipagem, por isso a busca aqui NÃO filtra
-  // por data, só pelo order_id). Junção por order_id_resolvido = order_id —
-  // n_id_pedido (código interno da Omie) NUNCA bate com order_id de nenhum
-  // marketplace, confirmado empiricamente (ver CLAUDE.md e
-  // lib/bipagemResolver.js pra cadeia completa de tradução via Omie/ML).
-  // order_id_resolvido só existe depois que alguém clica "Resolver
-  // pendentes" em bipagem.html — até lá, esses pedidos ficam de fora do
-  // cruzamento (contam em `nao_localizados`, não é bug).
+  // acabaram devolvidos OU reclamados (campos `devolvido`/`reclamado`,
+  // atualizados por um processo separado em api/collect.js quando a
+  // devolução/reclamação é detectada no ML/Shopee — pode acontecer bem
+  // depois da bipagem, por isso a busca aqui NÃO filtra por data, só pelo
+  // order_id). Junção por order_id_resolvido = order_id — n_id_pedido
+  // (código interno da Omie) NUNCA bate com order_id de nenhum marketplace,
+  // confirmado empiricamente (ver CLAUDE.md e lib/bipagemResolver.js pra
+  // cadeia completa de tradução via Omie/ML). order_id_resolvido só existe
+  // depois que alguém clica "Resolver pendentes" em bipagem.html — até lá,
+  // esses pedidos ficam de fora do cruzamento (contam em `nao_localizados`,
+  // não é bug). Reclamação (claim de mediação/disputa que NUNCA virou
+  // devolução física, ver lib/mlClaims.js) é exclusiva de devolução no mesmo
+  // pedido — marcarDevolucao (lib/historicoTodos.js) zera os campos de
+  // reclamação assim que o claim "gradua" pra devolução de verdade.
   const idsPedidosUnicos = [...new Set(pedidos.map((p) => String(p.order_id_resolvido || '').trim()).filter(Boolean))];
   const devolucaoPorPedido = new Map(); // order_id -> { devolvido, status, motivo }
+  const reclamacaoPorPedido = new Map(); // order_id -> { reclamado, status, motivo, tipo }
   const TAMANHO_LOTE = 300;
   for (let i = 0; i < idsPedidosUnicos.length; i += TAMANHO_LOTE) {
     const lote = idsPedidosUnicos.slice(i, i + TAMANHO_LOTE);
     const placeholders = lote.map(() => '?').join(',');
-    const rsDevolucao = await db.execute({
-      sql: `SELECT order_id, devolvido, devolucao_status, devolucao_reason_id FROM historico_todos WHERE order_id IN (${placeholders})`,
+    const rsCruzamento = await db.execute({
+      sql: `SELECT order_id, devolvido, devolucao_status, devolucao_reason_id,
+                   reclamado, reclamacao_status, reclamacao_motivo, reclamacao_tipo
+            FROM historico_todos WHERE order_id IN (${placeholders})`,
       args: lote,
     });
-    rsDevolucao.rows.forEach((r) => devolucaoPorPedido.set(String(r.order_id), {
-      devolvido: r.devolvido === 1,
-      status: r.devolucao_status || null,
-      motivo: r.devolucao_reason_id || null,
-    }));
+    rsCruzamento.rows.forEach((r) => {
+      devolucaoPorPedido.set(String(r.order_id), {
+        devolvido: r.devolvido === 1,
+        status: r.devolucao_status || null,
+        motivo: r.devolucao_reason_id || null,
+      });
+      reclamacaoPorPedido.set(String(r.order_id), {
+        reclamado: r.reclamado === 1,
+        status: r.reclamacao_status || null,
+        motivo: r.reclamacao_motivo || null,
+        tipo: r.reclamacao_tipo || null,
+      });
+    });
   }
 
   // Tendência diária vem do mesmo resultado acima (agrupado por dia), sem
@@ -266,6 +281,7 @@ async function responderVisaoBipagem(req, res) {
   let localizadosTotal = 0;
   let devolvidosTotal = 0;
   const devolucoesDetalhadas = [];
+  const reclamacoesDetalhadas = [];
 
   pedidos.forEach((p) => {
     const nome = p.bipado_por || '(não identificado)';
@@ -284,7 +300,8 @@ async function responderVisaoBipagem(req, res) {
 
     if (p.marcado_manualmente) { op.manual++; manuais++; }
 
-    const devolucao = devolucaoPorPedido.get(String(p.order_id_resolvido || '').trim());
+    const idResolvido = String(p.order_id_resolvido || '').trim();
+    const devolucao = devolucaoPorPedido.get(idResolvido);
     if (devolucao !== undefined) {
       op.localizados++;
       localizadosTotal++;
@@ -298,6 +315,16 @@ async function responderVisaoBipagem(req, res) {
           devolucao_status: devolucao.status, devolucao_motivo: devolucao.motivo,
         });
       }
+    }
+
+    const reclamacao = reclamacaoPorPedido.get(idResolvido);
+    if (reclamacao !== undefined && reclamacao.reclamado) {
+      reclamacoesDetalhadas.push({
+        data: p.data, hora: p.hora, empresa: p.empresa, cliente: p.cliente,
+        n_id_pedido: p.n_id_pedido, order_id: p.order_id_resolvido, tipo_envio: p.tipo_envio,
+        bipado_por: p.bipado_por || '(não identificado)', marcado_manualmente: !!p.marcado_manualmente,
+        reclamacao_status: reclamacao.status, reclamacao_motivo: reclamacao.motivo, reclamacao_tipo: reclamacao.tipo,
+      });
     }
 
     porEmpresa[p.empresa] = (porEmpresa[p.empresa] || 0) + 1;
@@ -349,6 +376,33 @@ async function responderVisaoBipagem(req, res) {
   }
   operadores.sort((a, b) => b.total - a.total);
 
+  // Pedidos enviados ao frontend levam junto o resultado do cruzamento com
+  // historico_todos (localizado/devolvido/status/motivo) que já foi
+  // calculado acima -- é o que permite ao filtro por nome/pedido/data/tipo/
+  // plataforma (bipagem.html) recalcular TODO o painel (KPIs, gráficos,
+  // tabelas) no cliente sem precisar de uma chamada nova ao servidor a cada
+  // filtro (mesmo espírito "CPU quase zero" do resto do arquivo).
+  const pedidosParaFrontend = pedidos.map((p) => {
+    const idResolvido = String(p.order_id_resolvido || '').trim();
+    const devolucao = devolucaoPorPedido.get(idResolvido);
+    const reclamacao = reclamacaoPorPedido.get(idResolvido);
+    return {
+      empresa: p.empresa, data: p.data, hora: p.hora, cliente: p.cliente,
+      n_id_pedido: p.n_id_pedido, order_id_resolvido: p.order_id_resolvido,
+      marketplace_resolvido: p.marketplace_resolvido, tipo_envio: p.tipo_envio,
+      bipado_por: p.bipado_por, marcado_manualmente: !!p.marcado_manualmente,
+      bipado_em_ts: p.bipado_em_ts,
+      localizado: devolucao !== undefined,
+      devolvido: !!(devolucao && devolucao.devolvido),
+      devolucao_status: devolucao ? devolucao.status : null,
+      devolucao_motivo: devolucao ? devolucao.motivo : null,
+      reclamado: !!(reclamacao && reclamacao.reclamado),
+      reclamacao_status: reclamacao ? reclamacao.status : null,
+      reclamacao_motivo: reclamacao ? reclamacao.motivo : null,
+      reclamacao_tipo: reclamacao ? reclamacao.tipo : null,
+    };
+  });
+
   res.status(200).json({
     ok: true,
     tipo: 'bipagem-dashboard',
@@ -364,8 +418,9 @@ async function responderVisaoBipagem(req, res) {
     por_tipo: porTipo,
     por_hora: porHora,
     operadores,
-    pedidos,
+    pedidos: pedidosParaFrontend,
     devolucoes: devolucoesDetalhadas.sort((a, b) => (b.data + b.hora).localeCompare(a.data + a.hora)),
+    reclamacoes: reclamacoesDetalhadas.sort((a, b) => (b.data + b.hora).localeCompare(a.data + a.hora)),
     tendencia: [...porDia.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([data, total]) => ({ data, total })),
   });
 }
