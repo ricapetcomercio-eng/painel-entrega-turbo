@@ -1506,6 +1506,57 @@ async function debugPontoFuncionarios(req, res) {
   res.status(200).json({ ok: true, tipo: 'ponto-funcionarios', funcionarios: rs.rows });
 }
 
+// ---- Log de segurança do painel administrativo ----
+// Registra login (sucesso/falha), logout e sessão expirada -- pedido do
+// dono do projeto pra saber quem acessou o quê e quando. Tabela própria
+// (não mistura com registros_ponto, que é o controle de presença) --
+// auto-migra na 1ª chamada, mesmo padrão preguiçoso/idempotente de
+// garantirEsquemaPonto, só que num flag/tabela separados pra não
+// complicar aquela função já bem carregada.
+let _esquemaLogAcessosOk = false;
+async function garantirEsquemaLogAcessos(db) {
+  if (_esquemaLogAcessosOk) return;
+  await db.execute(`CREATE TABLE IF NOT EXISTS log_acessos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    funcionario_id INTEGER,
+    nome TEXT,
+    evento TEXT,
+    pagina TEXT,
+    ip TEXT,
+    user_agent TEXT,
+    criado_em TEXT
+  )`);
+  await db.execute('CREATE INDEX IF NOT EXISTS idx_log_acessos_criado_em ON log_acessos(criado_em)');
+  _esquemaLogAcessosOk = true;
+}
+
+// Vercel roda atrás de proxy -- o IP real do visitante vem no primeiro
+// valor de x-forwarded-for (o próprio proxy pode acrescentar outros IPs
+// depois, separados por vírgula). req.socket.remoteAddress sozinho
+// devolveria o IP interno do proxy, não o do usuário.
+function ipDaRequisicao(req) {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (forwarded) return String(forwarded).split(',')[0].trim();
+  return (req.socket && req.socket.remoteAddress) || null;
+}
+
+async function registrarLogAcesso(db, req, { funcionarioId, nome, evento, pagina }) {
+  try {
+    await garantirEsquemaLogAcessos(db);
+    await db.execute({
+      sql: 'INSERT INTO log_acessos (funcionario_id, nome, evento, pagina, ip, user_agent, criado_em) VALUES (?,?,?,?,?,?,?)',
+      args: [
+        funcionarioId || null, nome || null, evento, pagina || null,
+        ipDaRequisicao(req), req.headers['user-agent'] || null, new Date().toISOString(),
+      ],
+    });
+  } catch (e) {
+    // Nunca deixa uma falha de log derrubar login/logout de verdade --
+    // só perde aquela linha do histórico, o de menor mal possível aqui.
+    console.error('Erro ao registrar log_acessos:', e.message);
+  }
+}
+
 async function debugPontoLogin(req, res) {
   if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { funcionario_id | nome, pin }' }); return; }
   const { funcionario_id, nome, pin } = req.body || {};
@@ -1518,10 +1569,16 @@ async function debugPontoLogin(req, res) {
     : await db.execute({ sql: 'SELECT id, nome, pin_hash, admin, super_admin FROM funcionarios WHERE lower(nome) = lower(?) AND ativo = 1', args: [String(nome).trim()] });
   const funcionario = rs.rows[0];
   if (!funcionario || funcionario.pin_hash !== hashPin(pin)) {
+    await registrarLogAcesso(db, req, {
+      funcionarioId: funcionario ? funcionario.id : null,
+      nome: funcionario ? funcionario.nome : (nome || `#${funcionario_id}`),
+      evento: 'login_falha',
+    });
     res.status(401).json({ ok: false, error: 'Nome ou PIN incorreto, tenta de novo.' });
     return;
   }
   const superAdmin = funcionario.super_admin === 1;
+  await registrarLogAcesso(db, req, { funcionarioId: funcionario.id, nome: funcionario.nome, evento: 'login_sucesso' });
   res.status(200).json({
     ok: true, tipo: 'ponto-login',
     token: gerarTokenPonto(funcionario), nome: funcionario.nome, admin: funcionario.admin === 1,
@@ -1550,6 +1607,25 @@ async function debugPontoRenovarSessao(req, res) {
   const resultado = await obterAdminSessao((req.body && req.body.sessao) || req.query.sessao, getDb());
   if (resultado.erro) { res.status(resultado.status).json({ ok: false, error: resultado.erro }); return; }
   res.status(200).json({ ok: true, token: gerarTokenPonto(resultado.funcionario) });
+}
+
+// Registra logout/sessão-expirada -- chamado por assets/auth.js em dois
+// momentos onde não há mais um token VÁLIDO pra passar por
+// obterAdminSessao (logout: o usuário já pediu pra sair; sessão expirada:
+// é exatamente o token não valer mais) -- por isso essa rota usa só o
+// gate fraco pré-compartilhado (TIPOS_PUBLICOS_PONTO), igual ponto-login,
+// e recebe funcionario_id/nome já decodificados no cliente a partir do
+// próprio token (sem validar assinatura -- não precisa: é só um registro
+// de auditoria, não uma ação que concede acesso a nada).
+async function debugLogEventoSessao(req, res) {
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { evento, funcionario_id, nome, pagina }' }); return; }
+  const { evento, funcionario_id, nome, pagina } = req.body || {};
+  if (!['logout', 'sessao_expirada'].includes(evento)) {
+    res.status(400).json({ error: "evento precisa ser 'logout' ou 'sessao_expirada'" });
+    return;
+  }
+  await registrarLogAcesso(getDb(), req, { funcionarioId: funcionario_id || null, nome, evento, pagina });
+  res.status(200).json({ ok: true });
 }
 
 async function debugPontoBater(req, res) {
@@ -1873,6 +1949,24 @@ async function debugAcessosDefinir(req, res) {
     });
   }
   res.status(200).json({ ok: true, tipo: 'acessos-definir', funcionario_id, paginas: paginasValidas });
+}
+
+// Tela Acessos, aba "Histórico de acessos": últimas entradas do log de
+// segurança (login/logout/sessão expirada) -- só super_admin, mesmo
+// padrão de debugAcessosListar. Limite fixo (300) evita que a tabela
+// cresça sem controle vire uma consulta pesada -- é histórico recente
+// pra auditoria, não um relatório completo.
+const LIMITE_HISTORICO_ACESSOS = 300;
+async function debugAcessosHistorico(req, res) {
+  const db = getDb();
+  const chamador = await exigirSuperAdmin(req, res, db);
+  if (!chamador) return;
+  await garantirEsquemaLogAcessos(db);
+  const rs = await db.execute({
+    sql: 'SELECT funcionario_id, nome, evento, pagina, ip, user_agent, criado_em FROM log_acessos ORDER BY id DESC LIMIT ?',
+    args: [LIMITE_HISTORICO_ACESSOS],
+  });
+  res.status(200).json({ ok: true, tipo: 'acessos-historico', registros: rs.rows });
 }
 
 // Admin: define razão social / CNPJ / endereço + ajustes (limite de batidas
@@ -2505,7 +2599,7 @@ const TIPOS_PUBLICOS_PONTO = new Set([
   'ponto-editar-proprio', 'ponto-solicitar-correcao', 'ponto-validar-token',
   'ponto-admin-visao', 'ponto-admin-editar', 'ponto-admin-resolver', 'ponto-admin-jornada',
   'ponto-admin-integridade', 'ponto-admin-cpf', 'ponto-admin-afd', 'ponto-admin-abono',
-  'ponto-admin-feriado', 'ponto-admin-empresa',
+  'ponto-admin-feriado', 'ponto-admin-empresa', 'log-evento-sessao',
 ]);
 
 // Rotas chamadas direto do navegador (botão/tela em painel-estoque-adesivo,
@@ -2520,7 +2614,7 @@ const TIPOS_PUBLICOS_ESTOQUE = new Set(['importar-contagem-fisica', 'importar-sa
 // (mesma origem: só a própria tela logada chama essas rotas).
 const TIPOS_SESSAO_ADMIN = new Set([
   'fluxo-caixa-config-get', 'fluxo-caixa-config-set', 'acessos-listar', 'acessos-definir',
-  'bipagem-resolver-pendentes', 'ponto-renovar-sessao',
+  'bipagem-resolver-pendentes', 'ponto-renovar-sessao', 'acessos-historico',
 ]);
 
 module.exports = async (req, res) => {
@@ -2530,6 +2624,7 @@ module.exports = async (req, res) => {
       if (req.query.tipo === 'fluxo-caixa-config-set') return await debugFluxoCaixaConfigSet(req, res);
       if (req.query.tipo === 'acessos-listar') return await debugAcessosListar(req, res);
       if (req.query.tipo === 'acessos-definir') return await debugAcessosDefinir(req, res);
+      if (req.query.tipo === 'acessos-historico') return await debugAcessosHistorico(req, res);
       if (req.query.tipo === 'bipagem-resolver-pendentes') return await debugBipagemResolverPendentes(req, res);
       if (req.query.tipo === 'ponto-renovar-sessao') return await debugPontoRenovarSessao(req, res);
     } catch (err) {
@@ -3042,6 +3137,7 @@ module.exports = async (req, res) => {
     if (req.query.tipo === 'ponto-funcionarios') return await debugPontoFuncionarios(req, res);
     if (req.query.tipo === 'ponto-login') return await debugPontoLogin(req, res);
     if (req.query.tipo === 'ponto-validar-token') return await debugPontoValidarToken(req, res);
+    if (req.query.tipo === 'log-evento-sessao') return await debugLogEventoSessao(req, res);
     if (req.query.tipo === 'ponto-bater') return await debugPontoBater(req, res);
     if (req.query.tipo === 'ponto-historico') return await debugPontoHistorico(req, res);
     if (req.query.tipo === 'ponto-editar-proprio') return await debugPontoEditarProprio(req, res);

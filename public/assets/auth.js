@@ -51,6 +51,29 @@
     return !dados || !dados.emissao || (Date.now() - dados.emissao) > DURACAO_INATIVIDADE_MS;
   }
 
+  // Log de segurança (logout/sessão expirada) -- fire-and-forget, nunca
+  // trava nem atrasa a ação real (sair/expirar). sendBeacon é feito
+  // exatamente pra isso: sobrevive à navegação que acontece logo em
+  // seguida (um fetch comum, sem keepalive, pode ser cancelado pelo
+  // navegador assim que a página começa a descarregar).
+  function registrarEventoSessao(evento, tokenParaLog) {
+    try {
+      const dados = decodificarToken(tokenParaLog);
+      const corpo = JSON.stringify({
+        evento,
+        funcionario_id: dados && dados.id,
+        nome: dados && dados.nome,
+        pagina: location.pathname,
+      });
+      const url = '/api/debug?tipo=log-evento-sessao&secret=' + encodeURIComponent(PONTO_PUBLIC_SECRET);
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon(url, new Blob([corpo], { type: 'application/json' }));
+      } else {
+        fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: corpo, keepalive: true }).catch(() => {});
+      }
+    } catch (e) { /* log de auditoria nunca deve travar nada */ }
+  }
+
   let sessao = lerSessao();
   if (sessao && sessao.token && tokenExpirado(sessao.token)) {
     sessionStorage.removeItem(CHAVE_SESSAO);
@@ -62,6 +85,7 @@
   }
 
   function sair() {
+    if (sessao && sessao.token) registrarEventoSessao('logout', sessao.token);
     sessionStorage.removeItem(CHAVE_SESSAO);
     location.href = '/login.html';
   }
@@ -194,6 +218,7 @@
   function mostrarReautenticacao() {
     if (overlayAtivo) return;
     overlayAtivo = true;
+    registrarEventoSessao('sessao_expirada', sessao.token);
     const dadosToken = decodificarToken(sessao.token);
     const overlay = document.createElement('div');
     overlay.id = 'overlaySessaoExpirada';

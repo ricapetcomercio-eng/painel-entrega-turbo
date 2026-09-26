@@ -45,6 +45,10 @@
   .status-linha.ok { color: var(--ok); }
   .status-linha.erro { color: var(--bad); }
   input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; }
+
+  .titulo-historico { font-family: var(--font-display); font-size: 1rem; color: var(--ink); margin: 32px 0 4px; }
+  #tabela-historico td { white-space: nowrap; max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
+  #tabela-historico .c-dispositivo { text-align: left; }
 </style>
 </head>
 <body class="marca-dagua">
@@ -155,6 +159,26 @@
           <tbody id="tabela-acessos"></tbody>
         </table>
       </div>
+
+      <h2 class="titulo-historico">Histórico de acessos</h2>
+      <div class="alert">
+        <p>Login realizado, falha de login, logout e sessão expirada por inatividade — últimos 300 registros, mais recente primeiro.</p>
+      </div>
+      <div class="quadro">
+        <table>
+          <thead>
+            <tr>
+              <th>Quando</th>
+              <th>Usuário</th>
+              <th>Evento</th>
+              <th>Página</th>
+              <th>IP</th>
+              <th>Dispositivo/navegador</th>
+            </tr>
+          </thead>
+          <tbody id="tabela-historico"></tbody>
+        </table>
+      </div>
     </div>
   </div>
   </div>
@@ -255,7 +279,44 @@
     }
   }
 
+  const ROTULO_EVENTO = {
+    login_sucesso: '<span class="badge badge-success">Login</span>',
+    login_falha: '<span class="badge badge-danger">Falha de login</span>',
+    logout: '<span class="badge badge-neutral">Logout</span>',
+    sessao_expirada: '<span class="badge badge-warning">Sessão expirada</span>',
+  };
+
+  function escaparHtml(texto) {
+    return String(texto == null ? '' : texto).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  function linhaHistorico(r) {
+    const quando = new Date(r.criado_em).toLocaleString('pt-BR');
+    return `
+      <tr>
+        <td>${escaparHtml(quando)}</td>
+        <td>${escaparHtml(r.nome) || '—'}</td>
+        <td>${ROTULO_EVENTO[r.evento] || escaparHtml(r.evento)}</td>
+        <td>${escaparHtml(r.pagina) || '—'}</td>
+        <td>${escaparHtml(r.ip) || '—'}</td>
+        <td class="c-dispositivo" title="${escaparHtml(r.user_agent)}">${escaparHtml(r.user_agent) || '—'}</td>
+      </tr>`;
+  }
+
+  // Histórico é só leitura, sem risco de travar a tela principal (Acessos)
+  // se falhar por algum motivo -- carrega em paralelo, silenciosamente.
+  async function carregarHistorico() {
+    try {
+      const resp = await fetch('/api/debug?tipo=acessos-historico&sessao=' + encodeURIComponent(sessao.token));
+      if (resp.status === 401) { window.RicapetAuth.sair(); return; }
+      const dados = await resp.json().catch(() => ({}));
+      if (!resp.ok || dados.ok === false) return;
+      $('tabela-historico').innerHTML = dados.registros.map(linhaHistorico).join('') || '<tr><td colspan="6">Nenhum registro ainda.</td></tr>';
+    } catch (err) { /* histórico é complementar -- falha aqui não impede o resto da tela */ }
+  }
+
   carregar();
+  carregarHistorico();
 
   // Reordenar o menu da sidebar (lápis ao lado de "Painéis Ricapet") --
   // mesma lógica/chave de localStorage usada em todas as outras páginas.
