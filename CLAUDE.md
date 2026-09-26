@@ -411,6 +411,32 @@ do painel — quem não tem `admin = 1` nem consegue entrar, só bate ponto),
 existe agora uma camada mais fina: **quais páginas** cada admin pode ver
 depois de logado.
 
+**✅ Login não cai mais direto no Dashboard pra quem não tem essa página
+liberada (set/2026)**: bug real em produção — a Geisyanne tinha
+Ponto/Bipagem/Estoque liberados, mas não Dashboard; `login.html` sempre
+redirecionava pra `/` (Dashboard) depois do login, então ela batia na tela
+"Acesso restrito" na primeira tela, sem nunca chegar a ver as páginas que
+de fato tinha acesso. `login.html` (`irParaDestino`/`destinoPadrao`) agora
+usa o `paginas`/`super_admin` que `debugPontoLogin` já devolve no login pra
+escolher o destino: super_admin ou quem tem `dashboard` continua caindo em
+`/` como antes; quem não tem, cai na primeira página que tiver, na ordem
+`bipagem` → `estoque` → `ponto` → `projecao-financeira` → `tv`. Sem
+nenhuma página liberada, continua caindo no Dashboard (mesmo resultado de
+antes — a tela de "Acesso restrito" com a instrução de pedir liberação ao
+Ricardo). `?redirect=` explícito (deep link) continua tendo prioridade
+sobre essa escolha automática.
+
+⚠️ **Limitação conhecida, não corrigida ainda**: `concorrencia` é
+renderizado dentro do próprio `index.html` (`?painel=concorrencia`,
+iframe), que sempre chama `/api/dashboard-data` (gate `dashboard`)
+incondicionalmente ao carregar — então alguém com **só** `concorrencia`
+liberado (sem `dashboard`) ainda bateria em "Acesso restrito" ao tentar
+usá-lo, mesmo que o link apareça na barra lateral. Por isso `concorrencia`
+foi deixado FORA da lista de fallback do login acima — de propósito, pra
+não mandar esse usuário pra uma página que sabidamente ainda não funciona
+pra ele. Não é uma combinação usada hoje (quem tem `concorrencia` também
+tem outras páginas), mas fica registrado caso vire problema.
+
 - `funcionarios.super_admin` (0/1) — nível acima do admin comum, ignora
   todo o controle abaixo (acesso total sempre). Só o Ricardo tem essa
   flag, por decisão do dono do projeto. Setado via
