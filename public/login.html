@@ -122,6 +122,16 @@
     tv: '/tv.html',
   };
   const ORDEM_FALLBACK = ['bipagem', 'estoque', 'ponto', 'projecao-financeira', 'tv'];
+  // Caminho de arquivo -> chave de permissão, pra decidir se um ?redirect=
+  // aponta pra algo que a pessoa realmente pode abrir (ver irParaDestino).
+  // Mesmas chaves de PAGINA_POR_ARQUIVO em assets/auth.js.
+  const ARQUIVO_PARA_PAGINA = {
+    '': 'dashboard', 'index.html': 'dashboard',
+    'bipagem.html': 'bipagem', 'bipagem-v2.html': 'bipagem',
+    'estoque.html': 'estoque', 'estoque-atualizar.html': 'estoque',
+    'ponto.html': 'ponto', 'projecao-financeira.html': 'projecao-financeira',
+    'tv.html': 'tv',
+  };
 
   function destinoPadrao(sessao) {
     const paginas = sessao.paginas || [];
@@ -134,10 +144,34 @@
     return primeira ? PAGINA_PARA_URL[primeira] : '/';
   }
 
+  // Página que a pessoa tentou abrir sem sessão (ex.: bookmark direto pra
+  // "/") -- funcionarioTemAcessoPagina/permissão desconhecida (arquivo fora
+  // do mapa, ex. acessos.html) devolve null e o redirect é honrado do
+  // mesmo jeito, sem checagem (o próprio backend dessas páginas confere
+  // sozinho, ex. exigirSuperAdmin).
+  function paginaDoCaminho(caminho) {
+    const arquivo = caminho.split('?')[0].split('/').pop();
+    return Object.prototype.hasOwnProperty.call(ARQUIVO_PARA_PAGINA, arquivo) ? ARQUIVO_PARA_PAGINA[arquivo] : null;
+  }
+
   function irParaDestino() {
-    const redirect = new URLSearchParams(location.search).get('redirect');
-    if (redirect) { location.href = decodeURIComponent(redirect); return; }
     const sessao = JSON.parse(sessionStorage.getItem(CHAVE_SESSAO) || 'null') || {};
+    const redirect = new URLSearchParams(location.search).get('redirect');
+    if (redirect) {
+      const destino = decodeURIComponent(redirect);
+      const pagina = paginaDoCaminho(destino);
+      // Só segue o ?redirect= se apontar pra uma página que a pessoa tem
+      // liberada (ou uma página sem controle por aqui). Sem essa checagem,
+      // abrir "/" sem sessão gera redirect=/ automaticamente (ver
+      // assets/auth.js) e devolve todo mundo pro Dashboard de novo depois
+      // do login -- exatamente o problema que este arquivo existe pra
+      // evitar (bug real: aconteceu de novo em produção com a Geisyanne
+      // mesmo depois da 1ª correção, porque ela abre direto pela URL raiz).
+      if (!pagina || sessao.super_admin || (sessao.paginas || []).includes(pagina)) {
+        location.href = destino;
+        return;
+      }
+    }
     location.href = destinoPadrao(sessao);
   }
 
