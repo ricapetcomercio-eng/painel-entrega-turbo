@@ -107,9 +107,38 @@
   if (sessaoValidaEAtiva()) irParaDestino();
   else sessionStorage.removeItem(CHAVE_SESSAO);
 
+  // Antes disso, todo login caía direto no Dashboard ('/') -- quem não
+  // tinha essa página liberada (ex.: Geisyanne, com Ponto/Bipagem/Estoque
+  // mas sem Dashboard) batia na tela "Acesso restrito" logo de cara, mesmo
+  // tendo acesso de verdade a outras páginas que nunca chegava a ver. Agora
+  // o destino padrão é a primeira página da lista abaixo que a pessoa
+  // realmente tem liberada -- só super_admin ou quem tem 'dashboard'
+  // continua caindo no Dashboard como antes.
+  const PAGINA_PARA_URL = {
+    bipagem: '/bipagem-v2.html',
+    estoque: '/estoque.html',
+    ponto: '/ponto.html',
+    'projecao-financeira': '/projecao-financeira.html',
+    tv: '/tv.html',
+  };
+  const ORDEM_FALLBACK = ['bipagem', 'estoque', 'ponto', 'projecao-financeira', 'tv'];
+
+  function destinoPadrao(sessao) {
+    const paginas = sessao.paginas || [];
+    if (sessao.super_admin || paginas.includes('dashboard')) return '/';
+    const primeira = ORDEM_FALLBACK.find((p) => paginas.includes(p));
+    // Sem nenhuma página liberada (admin novo, ainda não configurado em
+    // Acessos): cai no Dashboard mesmo, que já mostra a tela "Acesso
+    // restrito" com a instrução de pedir liberação ao Ricardo -- mesmo
+    // comportamento de antes, não piora nada.
+    return primeira ? PAGINA_PARA_URL[primeira] : '/';
+  }
+
   function irParaDestino() {
     const redirect = new URLSearchParams(location.search).get('redirect');
-    location.href = redirect ? decodeURIComponent(redirect) : '/';
+    if (redirect) { location.href = decodeURIComponent(redirect); return; }
+    const sessao = JSON.parse(sessionStorage.getItem(CHAVE_SESSAO) || 'null') || {};
+    location.href = destinoPadrao(sessao);
   }
 
   const form = document.getElementById('formLogin');
