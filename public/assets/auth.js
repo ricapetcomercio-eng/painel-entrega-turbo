@@ -80,55 +80,70 @@
     sessao = null;
   }
 
-  // Veio de um link do Portal Ricapet (PortalRicapet, PWA) com ?pt=... --
-  // mesma ideia já usada pra abrir a Expedição direto (ver
-  // checkout_bipagem.py): troca esse token "cru" por uma sessão de admin
-  // de verdade, sem pedir PIN de novo. Só funciona pra quem já tem a flag
-  // admin (mesma exigência de sempre); sem ela, cai no login normal
-  // abaixo, igual antes de existir o ?pt=. Sempre tenta trocar quando o
-  // parâmetro está presente, mesmo já tendo uma sessão local -- é a forma
-  // mais simples de honrar um link fresco do Portal sem duplicar lógica
-  // de "já tá bom assim".
-  const tokenPortal = new URLSearchParams(location.search).get('pt');
-  if (tokenPortal) {
-    document.documentElement.style.visibility = 'hidden'; // evita flash de login/erro enquanto troca
-    trocarTokenDoPortal(tokenPortal);
-  } else if (!sessao || !sessao.token) {
-    const volta = encodeURIComponent(location.pathname + location.search);
-    location.href = '/login.html?redirect=' + volta;
-  }
-
   // Arquivo de cada página -> chave de permissão (mesmas chaves de
   // PAGINAS_PAINEL, lib/pontoAuth.js) -- pra portal-trocar-token conferir a
   // página CERTA, não só a flag admin geral. Só precisa cobrir páginas que
   // o Portal realmente linka com ?pt= (hoje só o Estoque); as outras
   // simplesmente não mandam `pagina` e ficam sem essa checagem extra aqui
   // (sem problema: as rotas de dado de cada página já conferem sozinhas).
+  // Declarado ANTES de qualquer uso -- é lido de dentro do bloco ?pt= logo
+  // abaixo, que roda imediatamente (não dentro de uma função só chamada
+  // depois), então precisa já existir nesse ponto do arquivo.
   const PAGINA_POR_ARQUIVO = {
     'estoque-atualizar.html': 'estoque', 'estoque.html': 'estoque',
     'ponto.html': 'ponto', 'bipagem.html': 'bipagem', 'bipagem-v2.html': 'bipagem',
     'projecao-financeira.html': 'projecao-financeira',
   };
 
-  async function trocarTokenDoPortal(token) {
+  // Veio de um link do Portal Ricapet (PortalRicapet, PWA) com ?pt=... --
+  // mesma ideia já usada pra abrir a Expedição direto (ver
+  // checkout_bipagem.py): troca esse token "cru" por uma sessão de admin
+  // de verdade, sem pedir PIN de novo. Só funciona pra quem já tem a flag
+  // admin E a página específica liberada (mesma exigência de sempre); sem
+  // isso, cai no login normal abaixo, igual antes de existir o ?pt=.
+  // Sempre tenta trocar quando o parâmetro está presente, mesmo já tendo
+  // uma sessão local -- é a forma mais simples de honrar um link fresco do
+  // Portal sem duplicar lógica de "já tá bom assim".
+  //
+  // SÍNCRONO de propósito (XMLHttpRequest, não fetch): sem isso, o resto
+  // da PRÓPRIA PÁGINA (ex: estoque-atualizar.html chamando jsonbinGet() no
+  // carregamento) continuava executando em paralelo enquanto a troca ainda
+  // estava em andamento, com `window.RicapetAuth.sessao` ainda vazio -- a
+  // própria página batia um 401 numa chamada de dado, e o tratamento de
+  // 401 dela (RicapetAuth.sair()) mandava pro /login.html puro ANTES da
+  // troca terminar, mesmo pra quem tinha acesso de sobra (bug real, achado
+  // ao vivo: Ricardo, super_admin, caindo no login ao abrir o Estoque pelo
+  // Portal). Chamada única, rápida (mesma origem), só nesse 1
+  // recarregamento inicial vindo do Portal -- bloquear aqui é o
+  // comportamento CERTO (a página não pode seguir sem saber se deu certo).
+  const tokenPortal = new URLSearchParams(location.search).get('pt');
+  if (tokenPortal) {
+    document.documentElement.style.visibility = 'hidden'; // evita flash de login/erro enquanto troca
+    const arquivo = location.pathname.split('/').pop();
     try {
-      const arquivo = location.pathname.split('/').pop();
-      const resp = await fetch('/api/debug?tipo=portal-trocar-token&secret=' + encodeURIComponent(PONTO_PUBLIC_SECRET), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, pagina: PAGINA_POR_ARQUIVO[arquivo] }),
-      });
-      const dados = await resp.json().catch(() => ({}));
-      if (!resp.ok || dados.ok === false) throw new Error(dados.error || 'Sem acesso.');
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/api/debug?tipo=portal-trocar-token&secret=' + encodeURIComponent(PONTO_PUBLIC_SECRET), false);
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      xhr.send(JSON.stringify({ token: tokenPortal, pagina: PAGINA_POR_ARQUIVO[arquivo] }));
+      const dados = JSON.parse(xhr.responseText || '{}');
+      if (xhr.status < 200 || xhr.status >= 300 || dados.ok === false) throw new Error(dados.error || 'Sem acesso.');
       sessionStorage.setItem(CHAVE_SESSAO, JSON.stringify({
         token: dados.token, nome: dados.nome, super_admin: !!dados.super_admin, paginas: dados.paginas || [],
       }));
       location.replace(location.pathname); // recarrega já sem o ?pt= na barra, com a sessão pronta
     } catch (e) {
-      // Sem acesso (não é admin) ou token do Portal já vencido -- cai no
-      // login normal, igual quem tentasse essa URL sem vir do Portal.
+      // Sem acesso (não é admin/página liberada) ou token do Portal já
+      // vencido -- cai no login normal, igual quem tentasse essa URL sem
+      // vir do Portal.
       location.replace('/login.html?redirect=' + encodeURIComponent(location.pathname));
     }
+    // `sessao` (variável local) fica null de propósito daqui pra baixo --
+    // nunca é populada neste ramo, então `window.RicapetAuth.sessao` logo
+    // abaixo também fica null, e o `if (!sessao) return;` já cuida de não
+    // montar timers/listeners numa página que está de saída mesmo.
+  } else if (!sessao || !sessao.token) {
+    const volta = encodeURIComponent(location.pathname + location.search);
+    location.href = '/login.html?redirect=' + volta;
   }
 
   function sair() {
