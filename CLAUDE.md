@@ -423,8 +423,23 @@ escolher o destino: super_admin ou quem tem `dashboard` continua caindo em
 `bipagem` → `estoque` → `ponto` → `projecao-financeira` → `tv`. Sem
 nenhuma página liberada, continua caindo no Dashboard (mesmo resultado de
 antes — a tela de "Acesso restrito" com a instrução de pedir liberação ao
-Ricardo). `?redirect=` explícito (deep link) continua tendo prioridade
-sobre essa escolha automática.
+Ricardo). `?redirect=` explícito só tem prioridade quando aponta pra uma
+página que a pessoa realmente tem liberada (`paginaDoCaminho` confere
+contra `sessao.paginas`) — página fora do mapa (ex. `acessos.html`, sem
+controle por `funcionarios_paginas`) é sempre honrada, sem checagem.
+
+**✅ 2ª rodada do mesmo bug, corrigida no mesmo dia**: a 1ª correção acima
+não bastava — `assets/auth.js` (linha ~96-98) gera `redirect=<página
+atual>` automaticamente sempre que alguém abre QUALQUER página sem sessão
+(inclusive `/`, se a pessoa entra direto pela URL raiz/bookmark, em vez de
+por `/login.html`). Reaconteceu de verdade com a Geisyanne: ela abre
+direto `ricapetadministrativo.vercel.app` (não `/login.html`), cai sem
+sessão, `auth.js` manda `redirect=/`, e o login (sem a checagem de
+permissão do redirect) devolvia ela pro Dashboard de novo, ignorando por
+completo a escolha automática — o `?redirect=` "vencia" justamente na
+situação mais comum (bookmark da raiz), não só em deep links de verdade.
+Por isso o `redirect` agora só é seguido cego quando a página de destino
+não está no mapa de permissão conhecido.
 
 ⚠️ **Limitação conhecida, não corrigida ainda**: `concorrencia` é
 renderizado dentro do próprio `index.html` (`?painel=concorrencia`,
