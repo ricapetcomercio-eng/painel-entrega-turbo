@@ -162,7 +162,7 @@
 
       <h2 class="titulo-historico">Histórico de acessos</h2>
       <div class="alert">
-        <p>Login realizado, falha de login, logout e sessão expirada por inatividade — últimos 300 registros, mais recente primeiro.</p>
+        <p>Login realizado, falha de login, bloqueio por tentativas, logout e sessão expirada por inatividade — últimos 300 registros, mais recente primeiro.</p>
       </div>
       <div class="quadro">
         <table>
@@ -284,6 +284,12 @@
     login_falha: '<span class="badge badge-danger">Falha de login</span>',
     logout: '<span class="badge badge-neutral">Logout</span>',
     sessao_expirada: '<span class="badge badge-warning">Sessão expirada</span>',
+    login_bloqueado: '<span class="badge badge-danger">Bloqueado (tentativas)</span>',
+    portal_acesso_expedicao: '<span class="badge badge-info">Portal → Expedição</span>',
+    portal_acesso_estoque: '<span class="badge badge-info">Portal → Estoque</span>',
+    portal_acesso_ponto: '<span class="badge badge-info">Portal → Ponto</span>',
+    portal_sessao_expirada: '<span class="badge badge-warning">Portal: sessão expirada</span>',
+    portal_logout: '<span class="badge badge-neutral">Portal: saiu</span>',
   };
 
   function escaparHtml(texto) {

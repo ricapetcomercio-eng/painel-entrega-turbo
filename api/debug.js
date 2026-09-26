@@ -252,6 +252,10 @@ const ALTERS_PONTO = [
   "ALTER TABLE funcionarios ADD COLUMN cpf TEXT",
   "ALTER TABLE funcionarios ADD COLUMN super_admin INTEGER NOT NULL DEFAULT 0",
   "ALTER TABLE funcionarios ADD COLUMN cargo TEXT",
+  // Bloqueio por tentativas erradas de PIN seguidas (ver MAX_TENTATIVAS_LOGIN
+  // em debugPontoLogin) -- zerado a cada login certo.
+  "ALTER TABLE funcionarios ADD COLUMN tentativas_login_falhas INTEGER NOT NULL DEFAULT 0",
+  "ALTER TABLE funcionarios ADD COLUMN bloqueado_login_ate TEXT",
   "ALTER TABLE registros_ponto ADD COLUMN origem TEXT NOT NULL DEFAULT 'batida'",
   "ALTER TABLE registros_ponto ADD COLUMN motivo TEXT",
   "ALTER TABLE registros_ponto ADD COLUMN editado_por TEXT",
@@ -1384,6 +1388,7 @@ const crypto = require('crypto');
 const {
   hashPin, gerarTokenPonto, verificarTokenPonto, funcionarioEhAdmin, obterAdminSessao,
   funcionarioEhSuperAdmin, paginasPermitidas, PAGINAS_PAINEL,
+  MAX_TENTATIVAS_LOGIN, BLOQUEIO_LOGIN_SEGUNDOS,
 } = require('../lib/pontoAuth');
 
 // Auto-migração das tabelas de ponto -- roda na primeira chamada que precisar
@@ -1395,7 +1400,7 @@ async function garantirEsquemaPonto(db) {
     await db.execute('SELECT nsr, hash, ref_nsr, cnpj FROM registros_ponto LIMIT 1');
     await db.execute('SELECT 1 FROM abonos_ponto LIMIT 1');
     await db.execute('SELECT 1 FROM config_ponto LIMIT 1');
-    await db.execute('SELECT super_admin, cargo FROM funcionarios LIMIT 1');
+    await db.execute('SELECT super_admin, cargo, tentativas_login_falhas, bloqueado_login_ate FROM funcionarios LIMIT 1');
     await db.execute('SELECT 1 FROM funcionarios_paginas LIMIT 1');
     _esquemaPontoOk = true;
     return;
@@ -1565,10 +1570,51 @@ async function debugPontoLogin(req, res) {
   const db = getDb();
   await garantirEsquemaPonto(db); // garante a coluna super_admin/tabela funcionarios_paginas antes do SELECT abaixo
   const rs = funcionario_id
-    ? await db.execute({ sql: 'SELECT id, nome, pin_hash, admin, super_admin FROM funcionarios WHERE id = ? AND ativo = 1', args: [funcionario_id] })
-    : await db.execute({ sql: 'SELECT id, nome, pin_hash, admin, super_admin FROM funcionarios WHERE lower(nome) = lower(?) AND ativo = 1', args: [String(nome).trim()] });
+    ? await db.execute({ sql: 'SELECT id, nome, pin_hash, admin, super_admin, tentativas_login_falhas, bloqueado_login_ate FROM funcionarios WHERE id = ? AND ativo = 1', args: [funcionario_id] })
+    : await db.execute({ sql: 'SELECT id, nome, pin_hash, admin, super_admin, tentativas_login_falhas, bloqueado_login_ate FROM funcionarios WHERE lower(nome) = lower(?) AND ativo = 1', args: [String(nome).trim()] });
   const funcionario = rs.rows[0];
+
+  // Bloqueio por tentativas erradas seguidas (ver MAX_TENTATIVAS_LOGIN em
+  // lib/pontoAuth.js) -- confere ANTES do PIN, senão uma tentativa CERTA
+  // durante o bloqueio passaria direto.
+  if (funcionario && funcionario.bloqueado_login_ate) {
+    const bloqueadoAte = new Date(funcionario.bloqueado_login_ate).getTime();
+    if (bloqueadoAte > Date.now()) {
+      const restamMin = Math.ceil((bloqueadoAte - Date.now()) / 60000);
+      await registrarLogAcesso(db, req, { funcionarioId: funcionario.id, nome: funcionario.nome, evento: 'login_bloqueado' });
+      res.status(429).json({
+        ok: false,
+        error: `Muitas tentativas erradas. Espera ~${restamMin} min antes de tentar de novo, ou peça ajuda a um administrador.`,
+      });
+      return;
+    }
+  }
+
   if (!funcionario || funcionario.pin_hash !== hashPin(pin)) {
+    // Nome errado (funcionário não encontrado) não tem tentativas pra
+    // incrementar/bloquear -- só PIN errado de um funcionário real conta,
+    // senão testar nomes ao acaso já seria um jeito de bloquear a conta de
+    // qualquer um só de aparecer no autocomplete.
+    if (funcionario) {
+      const tentativas = (funcionario.tentativas_login_falhas || 0) + 1;
+      const bloquear = tentativas >= MAX_TENTATIVAS_LOGIN;
+      await db.execute({
+        sql: 'UPDATE funcionarios SET tentativas_login_falhas = ?, bloqueado_login_ate = ? WHERE id = ?',
+        args: [
+          bloquear ? 0 : tentativas,
+          bloquear ? new Date(Date.now() + BLOQUEIO_LOGIN_SEGUNDOS * 1000).toISOString() : null,
+          funcionario.id,
+        ],
+      });
+      if (bloquear) {
+        await registrarLogAcesso(db, req, { funcionarioId: funcionario.id, nome: funcionario.nome, evento: 'login_bloqueado' });
+        res.status(429).json({
+          ok: false,
+          error: `Muitas tentativas erradas. Espera ~${Math.ceil(BLOQUEIO_LOGIN_SEGUNDOS / 60)} min antes de tentar de novo, ou peça ajuda a um administrador.`,
+        });
+        return;
+      }
+    }
     await registrarLogAcesso(db, req, {
       funcionarioId: funcionario ? funcionario.id : null,
       nome: funcionario ? funcionario.nome : (nome || `#${funcionario_id}`),
@@ -1576,6 +1622,10 @@ async function debugPontoLogin(req, res) {
     });
     res.status(401).json({ ok: false, error: 'Nome ou PIN incorreto, tenta de novo.' });
     return;
+  }
+
+  if (funcionario.tentativas_login_falhas || funcionario.bloqueado_login_ate) {
+    await db.execute({ sql: 'UPDATE funcionarios SET tentativas_login_falhas = 0, bloqueado_login_ate = NULL WHERE id = ?', args: [funcionario.id] });
   }
   const superAdmin = funcionario.super_admin === 1;
   await registrarLogAcesso(db, req, { funcionarioId: funcionario.id, nome: funcionario.nome, evento: 'login_sucesso' });
@@ -1593,6 +1643,31 @@ async function debugPontoValidarToken(req, res) {
   const funcionario = verificarTokenPonto(token);
   if (!funcionario) { res.status(401).json({ ok: false, error: 'Token inválido ou expirado.' }); return; }
   res.status(200).json({ ok: true, tipo: 'ponto-validar-token', id: funcionario.id, nome: funcionario.nome });
+}
+
+// Auditoria do Portal Ricapet (PortalRicapet, PWA -- porta de entrada pra
+// Expedição/Estoque/Ponto): login certo/errado já fica registrado sozinho
+// em debugPontoLogin (mesmo endpoint que o Portal usa) -- esta rota cobre
+// só o que falta, reportado pelo PRÓPRIO cliente já autenticado (ele sabe
+// o momento exato de abrir cada sistema / a sessão expirar por
+// inatividade / sair), sempre validando o token de novo aqui -- o cliente
+// diz O QUE aconteceu, nunca QUEM (isso vem do token). Reaproveita a
+// MESMA tabela log_acessos/registrarLogAcesso do painel administrativo
+// (evento prefixado "portal_" pra distinguir na mesma tela de histórico),
+// em vez de duplicar schema.
+const EVENTOS_PORTAL_CLIENTE = new Set([
+  'portal_acesso_expedicao', 'portal_acesso_estoque', 'portal_acesso_ponto',
+  'portal_sessao_expirada', 'portal_logout',
+]);
+
+async function debugPortalLogAcesso(req, res) {
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { token, evento }' }); return; }
+  const { token, evento } = req.body || {};
+  if (!EVENTOS_PORTAL_CLIENTE.has(evento)) { res.status(400).json({ error: `evento precisa ser um de: ${[...EVENTOS_PORTAL_CLIENTE].join(', ')}` }); return; }
+  const funcionario = verificarTokenPonto(token);
+  if (!funcionario) { res.status(401).json({ ok: false, error: 'Sessão expirada, faça login de novo.' }); return; }
+  await registrarLogAcesso(getDb(), req, { funcionarioId: funcionario.id, nome: funcionario.nome, evento });
+  res.status(200).json({ ok: true, tipo: 'portal-log-acesso' });
 }
 
 // Chamado por assets/auth.js a cada ~1min ENQUANTO detecta atividade real
@@ -2599,7 +2674,7 @@ const TIPOS_PUBLICOS_PONTO = new Set([
   'ponto-editar-proprio', 'ponto-solicitar-correcao', 'ponto-validar-token',
   'ponto-admin-visao', 'ponto-admin-editar', 'ponto-admin-resolver', 'ponto-admin-jornada',
   'ponto-admin-integridade', 'ponto-admin-cpf', 'ponto-admin-afd', 'ponto-admin-abono',
-  'ponto-admin-feriado', 'ponto-admin-empresa', 'log-evento-sessao',
+  'ponto-admin-feriado', 'ponto-admin-empresa', 'log-evento-sessao', 'portal-log-acesso',
 ]);
 
 // Rotas chamadas direto do navegador (botão/tela em painel-estoque-adesivo,
@@ -3138,6 +3213,7 @@ module.exports = async (req, res) => {
     if (req.query.tipo === 'ponto-login') return await debugPontoLogin(req, res);
     if (req.query.tipo === 'ponto-validar-token') return await debugPontoValidarToken(req, res);
     if (req.query.tipo === 'log-evento-sessao') return await debugLogEventoSessao(req, res);
+    if (req.query.tipo === 'portal-log-acesso') return await debugPortalLogAcesso(req, res);
     if (req.query.tipo === 'ponto-bater') return await debugPontoBater(req, res);
     if (req.query.tipo === 'ponto-historico') return await debugPontoHistorico(req, res);
     if (req.query.tipo === 'ponto-editar-proprio') return await debugPontoEditarProprio(req, res);
