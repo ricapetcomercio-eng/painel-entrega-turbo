@@ -53,6 +53,14 @@
     border-radius: 7px; width: 150px; background: var(--surface); text-align: right;
   }
   .saldo-info { font-size: 12px; color: var(--ink-muted); margin-left: auto; }
+  .saldo-campo-auto .saldo-auto-badge {
+    font-weight: 400; text-transform: none; letter-spacing: normal; color: var(--ok, #1a7f4e);
+    background: var(--info-bg); border-radius: 4px; padding: 1px 5px; margin-left: 4px; font-size: 10px;
+  }
+  .saldo-auto-valor {
+    font-family: var(--font-mono); font-size: 14px; padding: 7px 10px; border: 1.5px solid var(--border);
+    border-radius: 7px; width: 150px; text-align: right; background: var(--surface-2, var(--surface)); color: var(--ink-muted);
+  }
 
   .avisos-lista { margin: 14px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 3px; }
   .avisos-lista li { font-size: 11px; color: var(--ink-muted); line-height: 1.5; }
@@ -237,6 +245,35 @@
         <span class="saldo-prefixo">R$</span>
         <input type="text" inputmode="decimal" id="input-saldo-thapets" placeholder="0,00">
       </div>
+    </div>
+    <div class="saldo-campo">
+      <label for="input-saldo-mp-ricapet">Saldo Mercado Pago Ricapet</label>
+      <div class="saldo-input-wrap">
+        <span class="saldo-prefixo">R$</span>
+        <input type="text" inputmode="decimal" id="input-saldo-mp-ricapet" placeholder="0,00">
+      </div>
+    </div>
+    <div class="saldo-campo">
+      <label for="input-saldo-mp-thapets">Saldo Mercado Pago Thapets</label>
+      <div class="saldo-input-wrap">
+        <span class="saldo-prefixo">R$</span>
+        <input type="text" inputmode="decimal" id="input-saldo-mp-thapets" placeholder="0,00">
+      </div>
+    </div>
+    <div class="saldo-campo">
+      <label for="input-saldo-site">Saldo Site</label>
+      <div class="saldo-input-wrap">
+        <span class="saldo-prefixo">R$</span>
+        <input type="text" inputmode="decimal" id="input-saldo-site" placeholder="0,00">
+      </div>
+    </div>
+    <div class="saldo-campo saldo-campo-auto">
+      <label>Saldo Shopee Ricapet<span class="saldo-auto-badge" title="Automático via API da Shopee, atualizado ao clicar em &quot;Atualizar agora&quot;">automático</span></label>
+      <div class="saldo-auto-valor" id="saldo-shopee-ricapet">—</div>
+    </div>
+    <div class="saldo-campo saldo-campo-auto">
+      <label>Saldo Shopee Thapets<span class="saldo-auto-badge" title="Automático via API da Shopee, atualizado ao clicar em &quot;Atualizar agora&quot;">automático</span></label>
+      <div class="saldo-auto-valor" id="saldo-shopee-thapets">—</div>
     </div>
     <button class="btn salvar-btn" id="btn-salvar-saldo">Salvar saldo</button>
     <span class="saldo-info" id="saldo-info"></span>
@@ -493,9 +530,12 @@
       if (!dashResp.ok) throw new Error(dashJson.error || ('HTTP ' + dashResp.status));
       if (!configResp.ok) throw new Error(configJson.error || ('HTTP ' + configResp.status));
 
-      const saldoManual = configJson.saldoManual || { ricapet: 0, thapets: 0 };
+      const saldoManual = configJson.saldoManual || { ricapet: 0, thapets: 0, mpRicapet: 0, mpThapets: 0, site: 0 };
       document.getElementById('input-saldo-ricapet').value = fmtValorInput(saldoManual.ricapet);
       document.getElementById('input-saldo-thapets').value = fmtValorInput(saldoManual.thapets);
+      document.getElementById('input-saldo-mp-ricapet').value = fmtValorInput(saldoManual.mpRicapet);
+      document.getElementById('input-saldo-mp-thapets').value = fmtValorInput(saldoManual.mpThapets);
+      document.getElementById('input-saldo-site').value = fmtValorInput(saldoManual.site);
       document.getElementById('saldo-info').textContent = saldoManual.atualizado_em
         ? `Atualizado em ${fmtDataHora(saldoManual.atualizado_em)} por ${saldoManual.atualizado_por || '—'}`
         : '';
@@ -525,6 +565,20 @@
       }
 
       const contas = (projecao && projecao.contas) || {};
+
+      // Saldo Shopee (automático, ver lib/shopeeProjecao.js): vem junto com a
+      // mesma peça já buscada em "Atualizar agora" -> Shopee, não é uma
+      // chamada extra. mp-balance-test (ver api/debug.js) confirmou que o
+      // Mercado Pago não libera o endpoint de saldo pra este app (403
+      // ForbiddenApiError) -- por isso só Shopee tem versão automática, MP e
+      // Site continuam manuais (ver saldoManual acima).
+      const saldoShopeeRicapet = contas.ricapet && contas.ricapet.shopee && contas.ricapet.shopee.saldo;
+      const saldoShopeeThapets = contas.thapets && contas.thapets.shopee && contas.thapets.shopee.saldo;
+      document.getElementById('saldo-shopee-ricapet').textContent = (saldoShopeeRicapet && saldoShopeeRicapet.valor != null)
+        ? fmtMoeda(saldoShopeeRicapet.valor) : '—';
+      document.getElementById('saldo-shopee-thapets').textContent = (saldoShopeeThapets && saldoShopeeThapets.valor != null)
+        ? fmtMoeda(saldoShopeeThapets.valor) : '—';
+
       const mpRicapet = linhaConta(contas.ricapet && contas.ricapet.mercadoPago, 'Mercado Pago Ricapet');
       const mpThapets = linhaConta(contas.thapets && contas.thapets.mercadoPago, 'Mercado Pago Thapets');
       const shopeeRicapet = linhaConta(contas.ricapet && contas.ricapet.shopee, 'Shopee Ricapet');
@@ -545,7 +599,9 @@
       const totalEntradas = somaLinhas([mpRicapet.valores, mpThapets.valores, shopeeRicapet.valores, shopeeThapets.valores, siteValores], datas);
       const totalAPagar = somaLinhas([omieRicapet.valores, omieThapets.valores, avulsoValores], datas);
 
-      const saldoInicial = (Number(saldoManual.ricapet) || 0) + (Number(saldoManual.thapets) || 0);
+      const saldoInicial = (Number(saldoManual.ricapet) || 0) + (Number(saldoManual.thapets) || 0)
+        + (Number(saldoManual.mpRicapet) || 0) + (Number(saldoManual.mpThapets) || 0) + (Number(saldoManual.site) || 0)
+        + (Number(saldoShopeeRicapet && saldoShopeeRicapet.valor) || 0) + (Number(saldoShopeeThapets && saldoShopeeThapets.valor) || 0);
       const saldo = [];
       let acumulado = saldoInicial;
       for (let i = 0; i < datas.length; i++) {
@@ -660,12 +716,15 @@
     try {
       const ricapet = parseValorInput(document.getElementById('input-saldo-ricapet').value);
       const thapets = parseValorInput(document.getElementById('input-saldo-thapets').value);
+      const mpRicapet = parseValorInput(document.getElementById('input-saldo-mp-ricapet').value);
+      const mpThapets = parseValorInput(document.getElementById('input-saldo-mp-thapets').value);
+      const site = parseValorInput(document.getElementById('input-saldo-site').value);
       const params = new URLSearchParams({ tipo: 'fluxo-caixa-config-set' });
       if (sessaoAtual) params.set('token', sessaoAtual.token);
       const resp = await fetch('/api/debug?' + params.toString(), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ saldoRicapet: ricapet, saldoThapets: thapets }),
+        body: JSON.stringify({ saldoRicapet: ricapet, saldoThapets: thapets, saldoMpRicapet: mpRicapet, saldoMpThapets: mpThapets, saldoSite: site }),
       });
       const json = await resp.json();
       if (!resp.ok) throw new Error(json.error || ('HTTP ' + resp.status));

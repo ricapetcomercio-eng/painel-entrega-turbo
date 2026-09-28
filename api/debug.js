@@ -2659,7 +2659,7 @@ async function debugFluxoCaixaConfigGet(req, res) {
   const db = getDb();
   const admin = await exigirAdmin(req, res, db, 'projecao-financeira');
   if (!admin) return;
-  const saldoManual = (await kvGet('entrega_turbo:fluxo_caixa_saldo_manual')) || { ricapet: 0, thapets: 0, atualizado_em: null };
+  const saldoManual = (await kvGet('entrega_turbo:fluxo_caixa_saldo_manual')) || { ricapet: 0, thapets: 0, mpRicapet: 0, mpThapets: 0, site: 0, atualizado_em: null };
   const siteManual = (await kvGet('entrega_turbo:fluxo_caixa_site_manual')) || { por_dia: {} };
   const avulsoManual = (await kvGet('entrega_turbo:fluxo_caixa_avulso_manual')) || { por_dia: {} };
   res.status(200).json({ ok: true, tipo: 'fluxo-caixa-config', saldoManual, siteManual, avulsoManual });
@@ -2747,17 +2747,25 @@ async function debugBipagemResolverPendentes(req, res) {
 }
 
 async function debugFluxoCaixaConfigSet(req, res) {
-  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { token, saldoRicapet?, saldoThapets?, siteData?, siteValor?, avulsoData?, avulsoValor? }' }); return; }
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { token, saldoRicapet?, saldoThapets?, saldoMpRicapet?, saldoMpThapets?, saldoSite?, siteData?, siteValor?, avulsoData?, avulsoValor? }' }); return; }
   const db = getDb();
   const admin = await exigirAdmin(req, res, db, 'projecao-financeira');
   if (!admin) return;
 
-  const { saldoRicapet, saldoThapets, siteData, siteValor, avulsoData, avulsoValor } = req.body || {};
+  const { saldoRicapet, saldoThapets, saldoMpRicapet, saldoMpThapets, saldoSite, siteData, siteValor, avulsoData, avulsoValor } = req.body || {};
 
-  if (saldoRicapet !== undefined || saldoThapets !== undefined) {
-    const atual = (await kvGet('entrega_turbo:fluxo_caixa_saldo_manual')) || { ricapet: 0, thapets: 0 };
+  // Saldo Mercado Pago/Site continuam manuais (mercado_pago_account/balance
+  // devolve 403 ForbiddenApiError pra este app -- ver ?tipo=mp-balance-test
+  // -- e a Appmax não expõe nenhum endpoint de saldo/carteira). Só Shopee
+  // tem versão automática (lib/shopeeProjecao.js), por isso não tem campo
+  // aqui pra ela.
+  if (saldoRicapet !== undefined || saldoThapets !== undefined || saldoMpRicapet !== undefined || saldoMpThapets !== undefined || saldoSite !== undefined) {
+    const atual = (await kvGet('entrega_turbo:fluxo_caixa_saldo_manual')) || { ricapet: 0, thapets: 0, mpRicapet: 0, mpThapets: 0, site: 0 };
     if (saldoRicapet !== undefined) atual.ricapet = Number(saldoRicapet) || 0;
     if (saldoThapets !== undefined) atual.thapets = Number(saldoThapets) || 0;
+    if (saldoMpRicapet !== undefined) atual.mpRicapet = Number(saldoMpRicapet) || 0;
+    if (saldoMpThapets !== undefined) atual.mpThapets = Number(saldoMpThapets) || 0;
+    if (saldoSite !== undefined) atual.site = Number(saldoSite) || 0;
     atual.atualizado_em = new Date().toISOString();
     atual.atualizado_por = admin.nome;
     await kvSet('entrega_turbo:fluxo_caixa_saldo_manual', atual);
