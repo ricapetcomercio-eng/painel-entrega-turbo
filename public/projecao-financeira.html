@@ -105,6 +105,10 @@
   td.clicavel { cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
   td.clicavel:hover { background: var(--brand-light); color: var(--brand); }
 
+  /* Site: dia com dado automático da Appmax (sem input, só exibição) --
+     fundo leve pra diferenciar visualmente do dia ainda manual ao lado. */
+  td.automatico { background: var(--brand-primary-soft, var(--brand-light)); }
+
   /* Modal de detalhe do Omie: o Design System já tem um componente .modal/
      .modal-card, mas ele é mostrado/escondido via classe "aberto" (opacity),
      e este popup é mostrado/escondido via atributo `hidden` no JS (ver
@@ -383,12 +387,21 @@
     return `<tr class="linha-saldo"><td class="rotulo">${rotulo}</td>${celulas}</tr>`;
   }
 
-  function renderLinhaSite(valoresPorDia, datas){
+  // Híbrida: dia com dado automático da Appmax (webhook, ver
+  // lib/appmaxCaixa.js) mostra o valor pronto, sem edição -- dia sem
+  // (antes do webhook existir, ou loja que ainda não gerou pedido nesse
+  // dia) continua com o campo manual de sempre. `automaticoPorDia` é um
+  // Map(dia -> total em reais); dia ausente do Map = sem dado automático.
+  function renderLinhaSite(valoresPorDia, automaticoPorDia, datas){
     const celulas = datas.map((d) => {
+      if (automaticoPorDia.has(d)) {
+        const classes = ['automatico', ehFimDeSemana(d) ? 'fds' : ''].filter(Boolean).join(' ');
+        return `<td class="${classes}" title="Automático via Appmax (Loja Ricapet)">${fmtMoedaCompacta(automaticoPorDia.get(d))}</td>`;
+      }
       const valor = fmtValorInput(valoresPorDia[d]);
       return `<td class="editavel${ehFimDeSemana(d) ? ' fds' : ''}"><span class="valor-input-wrap"><span class="valor-prefixo">R$</span><input type="text" inputmode="decimal" data-dia="${d}" class="site-input" value="${valor}"></span></td>`;
     }).join('');
-    return `<tr><td class="rotulo">Site (manual)</td>${celulas}</tr>`;
+    return `<tr><td class="rotulo">Site</td>${celulas}</tr>`;
   }
 
   // Igual a renderLinhaValores, mas cada dia com título(s) da Omie vira uma
@@ -494,7 +507,8 @@
       const mpThapets = linhaConta(contas.thapets && contas.thapets.mercadoPago, 'Mercado Pago Thapets');
       const shopeeRicapet = linhaConta(contas.ricapet && contas.ricapet.shopee, 'Shopee Ricapet');
       const shopeeThapets = linhaConta(contas.thapets && contas.thapets.shopee, 'Shopee Thapets');
-      const siteValores = datas.map((d) => siteManual[d] || 0);
+      const siteAutomaticoMapa = mapaPorDia(projecao && projecao.siteAutomatico && projecao.siteAutomatico.por_dia);
+      const siteValores = datas.map((d) => (siteAutomaticoMapa.has(d) ? siteAutomaticoMapa.get(d) : (siteManual[d] || 0)));
 
       const omieRicapetDado = contas.ricapet && contas.ricapet.omie;
       const omieThapetsDado = contas.thapets && contas.thapets.omie;
@@ -524,7 +538,7 @@
         renderLinhaValores('Shopee Thapets', shopeeThapets.valores, datas),
         renderLinhaValores('Mercado Pago Ricapet', mpRicapet.valores, datas),
         renderLinhaValores('Mercado Pago Thapets', mpThapets.valores, datas),
-        renderLinhaSite(siteManual, datas),
+        renderLinhaSite(siteManual, siteAutomaticoMapa, datas),
         renderLinhaValores('TOTAL ENTRADAS', totalEntradas, datas, { classeLinha: 'linha-total' }),
         renderLinhaEspaco(datas.length),
         renderLinhaSecao('SAÍDAS', datas.length, 'saida'),
@@ -543,7 +557,7 @@
             <tbody>${linhasHtml}</tbody>
           </table>
         </div>
-        <p class="updated-note">Última coleta Mercado Pago/Shopee: ${projecao ? fmtDataHora(projecao.atualizado_em) : 'nunca — clique em "Atualizar agora"'}. Saldo inicial usado: ${fmtMoeda(saldoInicial)}.</p>
+        <p class="updated-note">Última coleta Mercado Pago/Shopee: ${projecao ? fmtDataHora(projecao.atualizado_em) : 'nunca — clique em "Atualizar agora"'}. Saldo inicial usado: ${fmtMoeda(saldoInicial)}.${siteAutomaticoMapa.size ? ' Site com fundo colorido: automático via Appmax (Loja Ricapet); sem fundo: valor manual.' : ''}</p>
         ${avisos.length ? `<ul class="avisos-lista">${avisos.map((a) => `<li>⚠ ${a}</li>`).join('')}</ul>` : ''}
       `;
 

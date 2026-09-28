@@ -1511,6 +1511,85 @@ async function debugPontoFuncionarios(req, res) {
   res.status(200).json({ ok: true, tipo: 'ponto-funcionarios', funcionarios: rs.rows });
 }
 
+// ---- Webhook da Appmax (Loja Ricapet) ----
+// Alimenta a linha "Site" do Fluxo de Caixa em tempo real. A Appmax não
+// tem endpoint de listar/buscar pedidos por período (só consultar 1 por
+// vez, GET /v1/orders/{id}) -- confirmado direto na documentação oficial
+// (docs.appmax.com.br) antes de escrever isso, então o padrão "sob
+// demanda" usado por Mercado Pago/Shopee/Omie (botão "Atualizar agora")
+// não é possível aqui. Em vez disso, cadastramos um 2º webhook em
+// Integrações > Webhooks no painel da Appmax (ao lado do que já existe
+// pro Yampi, sem mexer nele -- a Appmax aceita múltiplos por loja) e
+// guardamos cada evento de pedido assim que chega; lib/appmaxCaixa.js só
+// soma o que já está no banco (CPU quase zero, lido direto em
+// dashboard-data.js sem precisar de coleta manual).
+//
+// Escopo: "Webhooks do Painel" (configurado pelo lojista direto na conta,
+// sem app/OAuth -- diferente e bem mais simples que "Webhooks da
+// Appstore", que exige homologação). A Loja Ricapet é a única cadastrada
+// na Appmax hoje -- não há separação Ricapet/Thapets aqui, igual o "Site"
+// manual que isso substitui.
+let _esquemaAppmaxOk = false;
+async function garantirEsquemaAppmax(db) {
+  if (_esquemaAppmaxOk) return;
+  await db.execute(`CREATE TABLE IF NOT EXISTS appmax_pedidos (
+    order_id INTEGER PRIMARY KEY,
+    status TEXT,
+    total INTEGER,
+    merchant_total INTEGER,
+    paid_at TEXT,
+    refund_at TEXT,
+    created_at TEXT,
+    ultimo_evento TEXT,
+    atualizado_em TEXT
+  )`);
+  _esquemaAppmaxOk = true;
+}
+
+// A Appmax não assina os webhooks (sem HMAC -- confirmado na doc oficial,
+// seção Webhooks); a validação é só o secret na própria URL cadastrada no
+// painel deles, mesmo padrão de CRON_SECRET já usado no resto do projeto
+// (ver TIPOS_PUBLICOS_APPMAX/APPMAX_WEBHOOK_SECRET abaixo). Timeout deles
+// é 5s com até 4 tentativas (+30min/+2h/+4h) se não vier 200 -- por isso
+// erro NOSSO (ex.: Turso fora do ar) responde 5xx de propósito, pra
+// aproveitar esse retry deles em vez de perder o evento silenciosamente;
+// só evento fora do nosso interesse (customer/payment/subscription) ou
+// sem order_id responde 200 (não é erro, só não interessa).
+async function debugAppmaxWebhook(req, res) {
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST' }); return; }
+  const secret = process.env.APPMAX_WEBHOOK_SECRET;
+  if (!secret || req.query.secret !== secret) { res.status(401).json({ error: 'Não autorizado' }); return; }
+
+  const body = req.body || {};
+  if (body.event_type !== 'order' || !body.data || !body.data.order_id) {
+    res.status(200).json({ ok: true, ignorado: true });
+    return;
+  }
+
+  try {
+    const db = getDb();
+    await garantirEsquemaAppmax(db);
+    const d = body.data;
+    await db.execute({
+      sql: `INSERT INTO appmax_pedidos (order_id, status, total, merchant_total, paid_at, refund_at, created_at, ultimo_evento, atualizado_em)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(order_id) DO UPDATE SET
+              status = excluded.status, total = excluded.total, merchant_total = excluded.merchant_total,
+              paid_at = excluded.paid_at, refund_at = excluded.refund_at, ultimo_evento = excluded.ultimo_evento,
+              atualizado_em = excluded.atualizado_em`,
+      args: [
+        d.order_id, d.status || null, d.total || null, d.merchant_total || null,
+        d.paid_at || null, d.refund_at || null, d.created_at || null,
+        body.event || null, new Date().toISOString(),
+      ],
+    });
+    res.status(200).json({ ok: true });
+  } catch (err) {
+    console.error('Erro ao gravar webhook Appmax:', err.message);
+    res.status(500).json({ error: 'Erro ao processar' });
+  }
+}
+
 // ---- Log de segurança do painel administrativo ----
 // Registra login (sucesso/falha), logout e sessão expirada -- pedido do
 // dono do projeto pra saber quem acessou o quê e quando. Tabela própria
@@ -2737,6 +2816,11 @@ const TIPOS_PUBLICOS_PONTO = new Set([
 // OAuth), pra não expor esse último num arquivo client-side.
 const TIPOS_PUBLICOS_ESTOQUE = new Set(['importar-contagem-fisica', 'importar-saldo-da-planilha', 'estoque-saldo', 'completar-catalogo-faltante', 'corrigir-cor-arranhador-adesivo-bege', 'estoque-contagem-get', 'estoque-contagem-set', 'estoque-sheets-log']);
 
+// Rota chamada pela Appmax (servidor deles, não navegador) -- secret
+// próprio (APPMAX_WEBHOOK_SECRET), isolado dos outros pra poder trocar
+// sem afetar Ponto/Estoque se um dia vazar. Ver debugAppmaxWebhook.
+const TIPOS_PUBLICOS_APPMAX = new Set(['appmax-webhook']);
+
 // Rotas protegidas só pela sessão de admin do login único (exigirAdmin),
 // sem nenhum secret de app — mesmo padrão usado em
 // api/collect.js?acao=projecao-financeira-manual. Não precisam de CORS
@@ -2765,6 +2849,7 @@ module.exports = async (req, res) => {
   const cronSecret = process.env.CRON_SECRET;
   const isRotaPublicaEstoque = TIPOS_PUBLICOS_ESTOQUE.has(req.query.tipo);
   const isRotaPublicaPonto = TIPOS_PUBLICOS_PONTO.has(req.query.tipo);
+  const isRotaPublicaAppmax = TIPOS_PUBLICOS_APPMAX.has(req.query.tipo);
   if (isRotaPublicaEstoque || isRotaPublicaPonto) {
     // ponto-login/ponto-bater são POST com Content-Type: application/json,
     // o que faz o navegador mandar um preflight OPTIONS antes -- precisa
@@ -2777,10 +2862,12 @@ module.exports = async (req, res) => {
   }
   const estoquePublicSecret = process.env.ESTOQUE_PUBLIC_SECRET;
   const pontoPublicSecret = process.env.PONTO_PUBLIC_SECRET;
+  const appmaxWebhookSecret = process.env.APPMAX_WEBHOOK_SECRET;
   const secretAutorizado =
     (cronSecret && req.query.secret === cronSecret) ||
     (isRotaPublicaEstoque && estoquePublicSecret && req.query.secret === estoquePublicSecret) ||
-    (isRotaPublicaPonto && pontoPublicSecret && req.query.secret === pontoPublicSecret);
+    (isRotaPublicaPonto && pontoPublicSecret && req.query.secret === pontoPublicSecret) ||
+    (isRotaPublicaAppmax && appmaxWebhookSecret && req.query.secret === appmaxWebhookSecret);
   if (!secretAutorizado) {
     res.status(401).json({ error: 'Não autorizado' });
     return;
@@ -3264,6 +3351,7 @@ module.exports = async (req, res) => {
     if (req.query.tipo === 'corrigir-cor-arranhador-adesivo-bege') return await debugCorrigirCorArranhadorAdesivoBege(req, res);
     if (req.query.tipo === 'balanco-mensal') return await debugBalancoMensal(req, res);
     if (req.query.tipo === 'ponto-funcionarios') return await debugPontoFuncionarios(req, res);
+    if (req.query.tipo === 'appmax-webhook') return await debugAppmaxWebhook(req, res);
     if (req.query.tipo === 'ponto-login') return await debugPontoLogin(req, res);
     if (req.query.tipo === 'ponto-validar-token') return await debugPontoValidarToken(req, res);
     if (req.query.tipo === 'log-evento-sessao') return await debugLogEventoSessao(req, res);
