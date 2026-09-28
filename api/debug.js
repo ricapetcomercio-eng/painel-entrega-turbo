@@ -1348,6 +1348,36 @@ async function debugShopeeEscrowDetailTest(req, res) {
   });
 }
 
+// Investigação pontual (Fluxo de Caixa / campo "Saldo"): a doc pública não
+// deixa claro o formato de resposta de get_wallet_transaction_list, nem se
+// cada item traz um saldo corrente (current_balance) após a transação — só
+// dá pra confirmar rodando contra a conta real e olhando a resposta bruta.
+// Pede a página mais recente (sort implícito da API costuma ser do mais
+// novo pro mais antigo) pra, se existir um campo de saldo corrente, o
+// primeiro item já ser o saldo mais atual. Remover depois que a decisão
+// for tomada (ver lib/shopeeSaldo.js quando/se for criado).
+async function debugShopeeWalletTest(req, res) {
+  const loja = (req.query.loja || '').toLowerCase();
+  if (!['ricapet', 'thapets'].includes(loja)) { res.status(400).json({ error: 'Use ?loja=ricapet ou ?loja=thapets' }); return; }
+
+  const agora = Math.floor(Date.now() / 1000);
+  const passado = agora - 7 * 24 * 60 * 60;
+
+  const data = await shopeeGet(loja, '/api/v2/payment/get_wallet_transaction_list', {
+    page_no: 1,
+    page_size: 10,
+    create_time_from: passado,
+    create_time_to: agora,
+  });
+
+  res.status(200).json({
+    ok: true,
+    tipo: 'shopee-wallet-test',
+    loja,
+    resposta_bruta: data,
+  });
+}
+
 async function debugShopeeReturns(req, res) {
   const loja = (req.query.loja || '').toLowerCase();
   if (!['ricapet', 'thapets'].includes(loja)) { res.status(400).json({ error: 'Use ?loja=ricapet ou ?loja=thapets' }); return; }
@@ -3018,6 +3048,44 @@ module.exports = async (req, res) => {
       });
       return;
     }
+    if (req.query.tipo === 'mp-balance-test') {
+      // Investigação pontual (Fluxo de Caixa / campo "Saldo"): a doc pública
+      // do Mercado Pago não confirma o formato de resposta de
+      // /users/:user_id/mercadopago_account/balance -- só dá pra confirmar
+      // rodando contra a conta real. `users/me` primeiro pra descobrir o
+      // user_id (não fica salvo em lugar acessível daqui sem reexportar
+      // funções internas de lib/mpAuth.js). Remover depois que a decisão
+      // for tomada (ver lib/mpSaldo.js quando/se for criado).
+      const conta = req.query.conta;
+      if (!conta) { res.status(400).json({ error: 'Use ?conta=ricapet ou ?conta=thapets' }); return; }
+      const { getMPAccessToken } = require('../lib/mpAuth');
+      const accessToken = await getMPAccessToken(conta);
+
+      const respMe = await fetch('https://api.mercadopago.com/users/me', {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const dataMe = await respMe.json();
+      if (!respMe.ok) {
+        res.status(respMe.status).json({ ok: false, tipo: 'mp-balance-test', conta, etapa: 'users/me', status_mp: respMe.status, resposta: dataMe });
+        return;
+      }
+
+      const userId = dataMe.id;
+      const respSaldo = await fetch(`https://api.mercadopago.com/users/${userId}/mercadopago_account/balance`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const dataSaldo = await respSaldo.json();
+
+      res.status(200).json({
+        ok: respSaldo.ok,
+        tipo: 'mp-balance-test',
+        conta,
+        user_id: userId,
+        status_mp: respSaldo.status,
+        resposta: dataSaldo,
+      });
+      return;
+    }
     if (req.query.tipo === 'omie-contas-pagar-test') {
       // Primeiro teste da API de Contas a Pagar do Omie — endpoint
       // exploratório, seguindo o mesmo padrão empírico usado pro Mercado
@@ -3347,6 +3415,7 @@ module.exports = async (req, res) => {
     if (req.query.tipo === 'shopee-orders-recentes') return await debugShopeeOrdersRecentes(req, res);
     if (req.query.tipo === 'shopee-escrow-test') return await debugShopeeEscrowTest(req, res);
     if (req.query.tipo === 'shopee-escrow-detail-test') return await debugShopeeEscrowDetailTest(req, res);
+    if (req.query.tipo === 'shopee-wallet-test') return await debugShopeeWalletTest(req, res);
     if (req.query.tipo === 'shopee-todos-status') return await debugShopeeTodosStatus(req, res);
     if (req.query.tipo === 'turbo-live-status') return await debugTurboLiveStatus(req, res);
     if (req.query.tipo === 'shopee-order-detail') return await debugShopeeOrderDetail(req, res);
