@@ -1561,6 +1561,19 @@ async function debugAppmaxWebhook(req, res) {
   if (!secret || req.query.secret !== secret) { res.status(401).json({ error: 'Não autorizado' }); return; }
 
   const body = req.body || {};
+
+  // Registra recebimento de QUALQUER evento, mesmo os que a gente ignora
+  // de propósito (customer/payment/subscription) -- só pra diagnóstico
+  // ("chegou alguma coisa da Appmax ou não?"), mostrado na tela de Fluxo
+  // de Caixa. Sem isso não dá pra distinguir "webhook nunca disparou" de
+  // "só dispararam eventos que não interessam pro Fluxo de Caixa ainda"
+  // -- confusão real que aconteceu tentando validar a configuração.
+  await kvSet('entrega_turbo:appmax_ultimo_evento', {
+    event: body.event || null,
+    event_type: body.event_type || null,
+    recebido_em: new Date().toISOString(),
+  }).catch(() => {});
+
   if (body.event_type !== 'order' || !body.data || !body.data.order_id) {
     res.status(200).json({ ok: true, ignorado: true });
     return;
