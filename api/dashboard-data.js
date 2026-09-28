@@ -48,14 +48,20 @@ module.exports = async (req, res) => {
   // projecao-financeira.html) -- hoje calculado no fuso de São Paulo, não
   // no relógio do servidor (mesmo cuidado já documentado pro Omie).
   let siteAutomatico = null;
+  let appmaxUltimoEvento = null;
   if (pagina === 'projecao-financeira') {
     const hojeLoja = dataFusoLoja(new Date());
     const ateLoja = dataFusoLoja(new Date(Date.now() + 29 * 86400000));
     siteAutomatico = await somarAppmaxPorDia(getDb(), hojeLoja, ateLoja);
+    // Diagnóstico simples pra tela: último evento recebido no webhook da
+    // Appmax, mesmo que tenha sido um tipo que a gente ignora (ver
+    // debugAppmaxWebhook) -- ajuda a distinguir "webhook nunca chamou" de
+    // "só chegaram eventos que não entram no Fluxo de Caixa ainda".
+    appmaxUltimoEvento = await kvGet('entrega_turbo:appmax_ultimo_evento');
   }
   const projecaoFinanceiraComSite = dadosProjecaoFinanceira
-    ? { ...dadosProjecaoFinanceira, siteAutomatico }
-    : (siteAutomatico ? { siteAutomatico } : null);
+    ? { ...dadosProjecaoFinanceira, siteAutomatico, appmaxUltimoEvento }
+    : (siteAutomatico ? { siteAutomatico, appmaxUltimoEvento } : null);
 
   if (!dados) {
     res.status(200).json({

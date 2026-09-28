@@ -321,6 +321,28 @@
     try { return new Date(iso).toLocaleString('pt-BR'); } catch(e){ return iso; }
   }
 
+  // Rótulos amigáveis só pros eventos mais comuns -- qualquer outro
+  // aparece com o nome cru mesmo (ver Tabela de Eventos na doc da Appmax
+  // pra lista completa, não vale a pena manter um mapa exaustivo aqui).
+  const ROTULOS_EVENTO_APPMAX = {
+    order_approved: 'Pedido aprovado', order_paid: 'Pedido pago', order_paid_by_pix: 'Pix pago',
+    order_refund: 'Pedido estornado', order_partial_refund: 'Estorno parcial',
+    customer_created: 'Cliente criado', customer_interested: 'Cliente interessado', customer_contacted: 'Cliente contatado',
+  };
+
+  // Diagnóstico simples: distingue "webhook nunca chamou nosso endpoint"
+  // de "já chamou, mas só com eventos que não entram no Fluxo de Caixa
+  // ainda (ex.: Cliente Criado)" -- sem isso não dava pra saber se a
+  // configuração no painel da Appmax tinha funcionado antes da primeira
+  // venda de verdade acontecer.
+  function descreverAppmaxDiagnostico(ultimoEvento){
+    if (!ultimoEvento || !ultimoEvento.recebido_em) {
+      return 'Appmax: nenhum evento recebido ainda no webhook (ver Integrações → Webhooks no painel da Appmax).';
+    }
+    const rotulo = ROTULOS_EVENTO_APPMAX[ultimoEvento.event] || ultimoEvento.event || '—';
+    return `Appmax: último evento recebido em ${fmtDataHora(ultimoEvento.recebido_em)} (${rotulo}).`;
+  }
+
   function fmtDataCurta(d){
     const [ano, mes, dia] = d.split('-');
     return `${dia}/${mes}/${ano}`;
@@ -558,6 +580,7 @@
           </table>
         </div>
         <p class="updated-note">Última coleta Mercado Pago/Shopee: ${projecao ? fmtDataHora(projecao.atualizado_em) : 'nunca — clique em "Atualizar agora"'}. Saldo inicial usado: ${fmtMoeda(saldoInicial)}.${siteAutomaticoMapa.size ? ' Site com fundo colorido: automático via Appmax (Loja Ricapet); sem fundo: valor manual.' : ''}</p>
+        <p class="updated-note">${descreverAppmaxDiagnostico(projecao && projecao.appmaxUltimoEvento)}</p>
         ${avisos.length ? `<ul class="avisos-lista">${avisos.map((a) => `<li>⚠ ${a}</li>`).join('')}</ul>` : ''}
       `;
 
