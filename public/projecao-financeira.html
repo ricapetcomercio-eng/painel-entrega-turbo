@@ -53,14 +53,6 @@
     border-radius: 7px; width: 150px; background: var(--surface); text-align: right;
   }
   .saldo-info { font-size: 12px; color: var(--ink-muted); margin-left: auto; }
-  .saldo-campo-auto .saldo-auto-badge {
-    font-weight: 400; text-transform: none; letter-spacing: normal; color: var(--ok, #1a7f4e);
-    background: var(--info-bg); border-radius: 4px; padding: 1px 5px; margin-left: 4px; font-size: 10px;
-  }
-  .saldo-auto-valor {
-    font-family: var(--font-mono); font-size: 14px; padding: 7px 10px; border: 1.5px solid var(--border);
-    border-radius: 7px; width: 150px; text-align: right; background: var(--surface-2, var(--surface)); color: var(--ink-muted);
-  }
 
   .avisos-lista { margin: 14px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 3px; }
   .avisos-lista li { font-size: 11px; color: var(--ink-muted); line-height: 1.5; }
@@ -106,6 +98,20 @@
     padding: 4px 5px 4px 24px; border: 1px solid var(--border); border-radius: 5px; background: var(--surface);
   }
   td.editavel input:focus { border-color: var(--accent); outline: none; }
+
+  /* Coluna "Saldo": um valor só por conta (não por dia, como o resto da
+     matriz) -- fica fixa ao rolar horizontalmente, logo depois da coluna
+     "Categoria" (mesma técnica sticky, left = largura fixa de .rotulo, ver
+     acima), pra continuar visível junto do nome da conta. Largura própria
+     fixa (min/max-width) pra o `left: 190px` da coluna nunca desalinhar. */
+  table.matriz th.col-saldo, table.matriz td.col-saldo {
+    position: sticky; left: 190px; min-width: 110px; max-width: 110px;
+    border-left: 2px solid var(--border); background: var(--surface); z-index: 2;
+  }
+  table.matriz thead th.col-saldo { z-index: 3; }
+  table.matriz td.col-saldo.fds { background: var(--surface); }
+  td.col-saldo:not(.editavel):not(.saldo-auto) { color: var(--ink-muted); }
+  td.saldo-auto { background: var(--brand-primary-soft, var(--brand-light)); font-family: var(--font-mono); font-size: 12px; text-align: right; padding: 3px 8px; }
 
   .updated-note { font-size: 12px; color: var(--ink-muted); margin: 10px 0 0; }
   footer.foot { text-align: center; font-size: 12px; color: var(--ink-muted); margin-top: 24px; }
@@ -246,40 +252,13 @@
         <input type="text" inputmode="decimal" id="input-saldo-thapets" placeholder="0,00">
       </div>
     </div>
-    <div class="saldo-campo">
-      <label for="input-saldo-mp-ricapet">Saldo Mercado Pago Ricapet</label>
-      <div class="saldo-input-wrap">
-        <span class="saldo-prefixo">R$</span>
-        <input type="text" inputmode="decimal" id="input-saldo-mp-ricapet" placeholder="0,00">
-      </div>
-    </div>
-    <div class="saldo-campo">
-      <label for="input-saldo-mp-thapets">Saldo Mercado Pago Thapets</label>
-      <div class="saldo-input-wrap">
-        <span class="saldo-prefixo">R$</span>
-        <input type="text" inputmode="decimal" id="input-saldo-mp-thapets" placeholder="0,00">
-      </div>
-    </div>
-    <div class="saldo-campo">
-      <label for="input-saldo-site">Saldo Site</label>
-      <div class="saldo-input-wrap">
-        <span class="saldo-prefixo">R$</span>
-        <input type="text" inputmode="decimal" id="input-saldo-site" placeholder="0,00">
-      </div>
-    </div>
-    <div class="saldo-campo saldo-campo-auto">
-      <label>Saldo Shopee Ricapet<span class="saldo-auto-badge" title="Automático via API da Shopee, atualizado ao clicar em &quot;Atualizar agora&quot;">automático</span></label>
-      <div class="saldo-auto-valor" id="saldo-shopee-ricapet">—</div>
-    </div>
-    <div class="saldo-campo saldo-campo-auto">
-      <label>Saldo Shopee Thapets<span class="saldo-auto-badge" title="Automático via API da Shopee, atualizado ao clicar em &quot;Atualizar agora&quot;">automático</span></label>
-      <div class="saldo-auto-valor" id="saldo-shopee-thapets">—</div>
-    </div>
     <button class="btn salvar-btn" id="btn-salvar-saldo">Salvar saldo</button>
     <span class="saldo-info" id="saldo-info"></span>
   </div>
 
   <div id="conteudo"><div class="loading-note">Carregando…</div></div>
+
+  <p class="updated-note">Coluna "Saldo" na tabela: automático (Shopee, via API) ou editável direto na linha da conta (Mercado Pago, Site) — salva sozinho ao sair do campo, sem precisar do botão acima.</p>
 
   <footer class="foot">Ver pedidos em andamento no <a href="/?painel=dashboard">Dashboard</a></footer>
 </div>
@@ -426,16 +405,38 @@
       const classe = ehFimDeSemana(d) ? ' class="fds"' : '';
       return `<th${classe}>${DIAS_SEMANA_ABREV[dt.getDay()]}<br>${dia}/${mes}</th>`;
     }).join('');
-    return `<tr><th class="rotulo">Categoria</th>${celulas}</tr>`;
+    return `<tr><th class="rotulo">Categoria</th><th class="col-saldo">Saldo</th>${celulas}</tr>`;
   }
 
+  // `opcoes.saldoHtml`: célula pronta (com <td>) pra coluna "Saldo" (um valor
+  // só por conta, não por dia -- ver celulaSaldoAutomatico/celulaSaldoManual).
+  // Linhas sem conta associada (TOTAL, Omie, Avulso) ficam com a célula vazia.
   function renderLinhaValores(rotulo, valores, datas, opcoes){
     opcoes = opcoes || {};
     const celulas = valores.map((v, i) => {
       const classe = ehFimDeSemana(datas[i]) ? ' class="fds"' : '';
       return `<td${classe}>${fmtMoedaCompacta(v)}</td>`;
     }).join('');
-    return `<tr class="${opcoes.classeLinha || ''}"><td class="rotulo${ehFimDeSemana(datas[0]) ? ' fds' : ''}">${rotulo}</td>${celulas}</tr>`;
+    const celulaSaldo = opcoes.saldoHtml || '<td class="col-saldo"></td>';
+    return `<tr class="${opcoes.classeLinha || ''}"><td class="rotulo${ehFimDeSemana(datas[0]) ? ' fds' : ''}">${rotulo}</td>${celulaSaldo}${celulas}</tr>`;
+  }
+
+  // Saldo atual da carteira Shopee (lib/shopeeProjecao.js) -- automático,
+  // sem edição. `saldo` é `{ valor, em }` ou null (sem transação encontrada
+  // na janela de busca) ou `{ erro }` (falha na chamada à API).
+  function celulaSaldoAutomatico(saldo){
+    if (!saldo || saldo.erro || saldo.valor == null) {
+      return '<td class="col-saldo saldo-auto" title="Automático via API da Shopee — ainda sem dado, clique em &quot;Atualizar agora&quot;">—</td>';
+    }
+    return `<td class="col-saldo saldo-auto" title="Automático via API da Shopee, atualizado em ${fmtDataHora(saldo.em)}">${fmtMoedaCompacta(saldo.valor)}</td>`;
+  }
+
+  // Saldo manual por conta (Mercado Pago, Site -- ver debugFluxoCaixaConfigSet
+  // em api/debug.js): salva sozinho ao sair do campo (ver listener de
+  // .saldo-conta-input em carregar()), mesmo padrão dos campos de Site/Avulso
+  // por dia. `campo` é a chave dentro de saldoManual (ex.: "mpRicapet").
+  function celulaSaldoManual(valor, campo){
+    return `<td class="col-saldo editavel"><span class="valor-input-wrap"><span class="valor-prefixo">R$</span><input type="text" inputmode="decimal" data-campo-saldo="${campo}" class="saldo-conta-input" value="${fmtValorInput(valor)}"></span></td>`;
   }
 
   function renderLinhaSaldo(rotulo, valores, datas){
@@ -443,7 +444,7 @@
       const classes = [ehFimDeSemana(datas[i]) ? 'fds' : '', v < 0 ? 'negativo' : ''].filter(Boolean).join(' ');
       return `<td${classes ? ' class="' + classes + '"' : ''}>${fmtMoedaCompacta(v)}</td>`;
     }).join('');
-    return `<tr class="linha-saldo"><td class="rotulo">${rotulo}</td>${celulas}</tr>`;
+    return `<tr class="linha-saldo"><td class="rotulo">${rotulo}</td><td class="col-saldo"></td>${celulas}</tr>`;
   }
 
   // Híbrida: dia com dado automático da Appmax (webhook, ver
@@ -451,7 +452,8 @@
   // (antes do webhook existir, ou loja que ainda não gerou pedido nesse
   // dia) continua com o campo manual de sempre. `automaticoPorDia` é um
   // Map(dia -> total em reais); dia ausente do Map = sem dado automático.
-  function renderLinhaSite(valoresPorDia, automaticoPorDia, datas){
+  // `saldoHtml`: célula pronta pra coluna "Saldo" (ver celulaSaldoManual).
+  function renderLinhaSite(valoresPorDia, automaticoPorDia, datas, saldoHtml){
     const celulas = datas.map((d) => {
       if (automaticoPorDia.has(d)) {
         const classes = ['automatico', ehFimDeSemana(d) ? 'fds' : ''].filter(Boolean).join(' ');
@@ -460,7 +462,7 @@
       const valor = fmtValorInput(valoresPorDia[d]);
       return `<td class="editavel${ehFimDeSemana(d) ? ' fds' : ''}"><span class="valor-input-wrap"><span class="valor-prefixo">R$</span><input type="text" inputmode="decimal" data-dia="${d}" class="site-input" value="${valor}"></span></td>`;
     }).join('');
-    return `<tr><td class="rotulo">Site</td>${celulas}</tr>`;
+    return `<tr><td class="rotulo">Site</td>${saldoHtml || '<td class="col-saldo"></td>'}${celulas}</tr>`;
   }
 
   // Igual a renderLinhaValores, mas cada dia com título(s) da Omie vira uma
@@ -486,7 +488,7 @@
       const classeAttr = classes.filter(Boolean).join(' ');
       return `<td${classeAttr ? ' class="' + classeAttr + '"' : ''}>${fmtMoedaCompacta(valor)}</td>`;
     }).join('');
-    return `<tr><td class="rotulo${ehFimDeSemana(datas[0]) ? ' fds' : ''}">${rotulo}</td>${celulas}</tr>`;
+    return `<tr><td class="rotulo${ehFimDeSemana(datas[0]) ? ' fds' : ''}">${rotulo}</td><td class="col-saldo"></td>${celulas}</tr>`;
   }
 
   function renderLinhaAvulso(valoresPorDia, datas){
@@ -494,16 +496,16 @@
       const valor = fmtValorInput(valoresPorDia[d]);
       return `<td class="editavel${ehFimDeSemana(d) ? ' fds' : ''}"><span class="valor-input-wrap"><span class="valor-prefixo">R$</span><input type="text" inputmode="decimal" data-dia="${d}" class="avulso-input" value="${valor}"></span></td>`;
     }).join('');
-    return `<tr><td class="rotulo">A Pagar Avulso (Total)</td>${celulas}</tr>`;
+    return `<tr><td class="rotulo">A Pagar Avulso (Total)</td><td class="col-saldo"></td>${celulas}</tr>`;
   }
 
   function renderLinhaSecao(titulo, qtdDias, tipo){
     const classe = tipo ? `linha-secao secao-${tipo}` : 'linha-secao';
-    return `<tr class="${classe}"><td colspan="${qtdDias + 1}" style="text-align:left;">${titulo}</td></tr>`;
+    return `<tr class="${classe}"><td colspan="${qtdDias + 2}" style="text-align:left;">${titulo}</td></tr>`;
   }
 
   function renderLinhaEspaco(qtdDias){
-    return `<tr class="linha-espaco"><td class="rotulo"></td><td colspan="${qtdDias}"></td></tr>`;
+    return `<tr class="linha-espaco"><td class="rotulo"></td><td class="col-saldo"></td><td colspan="${qtdDias}"></td></tr>`;
   }
 
   async function carregar(){
@@ -533,9 +535,6 @@
       const saldoManual = configJson.saldoManual || { ricapet: 0, thapets: 0, mpRicapet: 0, mpThapets: 0, site: 0 };
       document.getElementById('input-saldo-ricapet').value = fmtValorInput(saldoManual.ricapet);
       document.getElementById('input-saldo-thapets').value = fmtValorInput(saldoManual.thapets);
-      document.getElementById('input-saldo-mp-ricapet').value = fmtValorInput(saldoManual.mpRicapet);
-      document.getElementById('input-saldo-mp-thapets').value = fmtValorInput(saldoManual.mpThapets);
-      document.getElementById('input-saldo-site').value = fmtValorInput(saldoManual.site);
       document.getElementById('saldo-info').textContent = saldoManual.atualizado_em
         ? `Atualizado em ${fmtDataHora(saldoManual.atualizado_em)} por ${saldoManual.atualizado_por || '—'}`
         : '';
@@ -574,10 +573,6 @@
       // Site continuam manuais (ver saldoManual acima).
       const saldoShopeeRicapet = contas.ricapet && contas.ricapet.shopee && contas.ricapet.shopee.saldo;
       const saldoShopeeThapets = contas.thapets && contas.thapets.shopee && contas.thapets.shopee.saldo;
-      document.getElementById('saldo-shopee-ricapet').textContent = (saldoShopeeRicapet && saldoShopeeRicapet.valor != null)
-        ? fmtMoeda(saldoShopeeRicapet.valor) : '—';
-      document.getElementById('saldo-shopee-thapets').textContent = (saldoShopeeThapets && saldoShopeeThapets.valor != null)
-        ? fmtMoeda(saldoShopeeThapets.valor) : '—';
 
       const mpRicapet = linhaConta(contas.ricapet && contas.ricapet.mercadoPago, 'Mercado Pago Ricapet');
       const mpThapets = linhaConta(contas.thapets && contas.thapets.mercadoPago, 'Mercado Pago Thapets');
@@ -612,11 +607,11 @@
       const linhasHtml = [
         renderLinhaCabecalho(datas),
         renderLinhaSecao('ENTRADAS', datas.length, 'entrada'),
-        renderLinhaValores('Shopee Ricapet', shopeeRicapet.valores, datas),
-        renderLinhaValores('Shopee Thapets', shopeeThapets.valores, datas),
-        renderLinhaValores('Mercado Pago Ricapet', mpRicapet.valores, datas),
-        renderLinhaValores('Mercado Pago Thapets', mpThapets.valores, datas),
-        renderLinhaSite(siteManual, siteAutomaticoMapa, datas),
+        renderLinhaValores('Shopee Ricapet', shopeeRicapet.valores, datas, { saldoHtml: celulaSaldoAutomatico(saldoShopeeRicapet) }),
+        renderLinhaValores('Shopee Thapets', shopeeThapets.valores, datas, { saldoHtml: celulaSaldoAutomatico(saldoShopeeThapets) }),
+        renderLinhaValores('Mercado Pago Ricapet', mpRicapet.valores, datas, { saldoHtml: celulaSaldoManual(saldoManual.mpRicapet, 'mpRicapet') }),
+        renderLinhaValores('Mercado Pago Thapets', mpThapets.valores, datas, { saldoHtml: celulaSaldoManual(saldoManual.mpThapets, 'mpThapets') }),
+        renderLinhaSite(siteManual, siteAutomaticoMapa, datas, celulaSaldoManual(saldoManual.site, 'site')),
         renderLinhaValores('TOTAL ENTRADAS', totalEntradas, datas, { classeLinha: 'linha-total' }),
         renderLinhaEspaco(datas.length),
         renderLinhaSecao('SAÍDAS', datas.length, 'saida'),
@@ -650,6 +645,9 @@
       });
       document.querySelectorAll('.avulso-input').forEach((input) => {
         input.addEventListener('change', () => salvarAvulso(input.dataset.dia, parseValorInput(input.value)));
+      });
+      document.querySelectorAll('.saldo-conta-input').forEach((input) => {
+        input.addEventListener('change', () => salvarSaldoConta(input.dataset.campoSaldo, parseValorInput(input.value)));
       });
     } catch(e){
       console.error('Erro ao carregar fluxo de caixa:', e);
@@ -716,15 +714,12 @@
     try {
       const ricapet = parseValorInput(document.getElementById('input-saldo-ricapet').value);
       const thapets = parseValorInput(document.getElementById('input-saldo-thapets').value);
-      const mpRicapet = parseValorInput(document.getElementById('input-saldo-mp-ricapet').value);
-      const mpThapets = parseValorInput(document.getElementById('input-saldo-mp-thapets').value);
-      const site = parseValorInput(document.getElementById('input-saldo-site').value);
       const params = new URLSearchParams({ tipo: 'fluxo-caixa-config-set' });
       if (sessaoAtual) params.set('token', sessaoAtual.token);
       const resp = await fetch('/api/debug?' + params.toString(), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ saldoRicapet: ricapet, saldoThapets: thapets, saldoMpRicapet: mpRicapet, saldoMpThapets: mpThapets, saldoSite: site }),
+        body: JSON.stringify({ saldoRicapet: ricapet, saldoThapets: thapets }),
       });
       const json = await resp.json();
       if (!resp.ok) throw new Error(json.error || ('HTTP ' + resp.status));
@@ -737,6 +732,32 @@
     }
   }
   document.getElementById('btn-salvar-saldo').addEventListener('click', salvarSaldo);
+
+  // Saldo por conta (coluna "Saldo" da tabela, campos manuais -- Mercado
+  // Pago, Site): salva sozinho ao sair do campo, mesmo padrão de
+  // salvarSite/salvarAvulso, em vez de depender do botão "Salvar saldo"
+  // (que só cobre os 2 campos de Saldo Bancário no topo). `campo` é
+  // "mpRicapet"/"mpThapets"/"site" (ver celulaSaldoManual) -- vira
+  // "saldoMpRicapet" etc. no corpo, mesma chave que
+  // debugFluxoCaixaConfigSet (api/debug.js) espera.
+  async function salvarSaldoConta(campo, valor){
+    try {
+      const chave = 'saldo' + campo.charAt(0).toUpperCase() + campo.slice(1);
+      const params = new URLSearchParams({ tipo: 'fluxo-caixa-config-set' });
+      if (sessaoAtual) params.set('token', sessaoAtual.token);
+      const resp = await fetch('/api/debug?' + params.toString(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [chave]: valor }),
+      });
+      const json = await resp.json();
+      if (!resp.ok) throw new Error(json.error || ('HTTP ' + resp.status));
+      await carregar();
+    } catch(e){
+      console.error('Erro ao salvar saldo da conta:', e);
+      alert('Erro ao salvar: ' + (e.message || e));
+    }
+  }
 
   async function salvarSite(dia, valor){
     try {
