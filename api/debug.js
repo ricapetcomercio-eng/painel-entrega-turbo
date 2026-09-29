@@ -1378,6 +1378,27 @@ async function debugShopeeWalletTest(req, res) {
   });
 }
 
+// Diagnóstico do bug real em produção (set/2026): coluna "Saldo" ficava com
+// "-" pra Shopee mesmo com saldo de verdade na conta, e nenhum aviso de erro
+// aparecia na tela -- ou seja, buscarSaldoWallet devolvia `null` (lista
+// vazia), não uma exceção, então o aviso adicionado em debugFluxoCaixaConfigSet
+// (ver PR #160) nunca disparava. Chama a MESMA função usada em produção
+// (lib/shopeeProjecao.js) diretamente, sem passar pelo resto da peça Shopee,
+// pra confirmar exatamente o que ela devolve. Remover depois que a causa
+// raiz for corrigida.
+async function debugShopeeSaldoDebug(req, res) {
+  const loja = (req.query.loja || '').toLowerCase();
+  if (!['ricapet', 'thapets'].includes(loja)) { res.status(400).json({ error: 'Use ?loja=ricapet ou ?loja=thapets' }); return; }
+
+  const { buscarSaldoWallet } = require('../lib/shopeeProjecao');
+  try {
+    const saldo = await buscarSaldoWallet(loja);
+    res.status(200).json({ ok: true, tipo: 'shopee-saldo-debug', loja, saldo });
+  } catch (err) {
+    res.status(200).json({ ok: false, tipo: 'shopee-saldo-debug', loja, erro: err.message });
+  }
+}
+
 async function debugShopeeReturns(req, res) {
   const loja = (req.query.loja || '').toLowerCase();
   if (!['ricapet', 'thapets'].includes(loja)) { res.status(400).json({ error: 'Use ?loja=ricapet ou ?loja=thapets' }); return; }
@@ -3424,6 +3445,7 @@ module.exports = async (req, res) => {
     if (req.query.tipo === 'shopee-escrow-test') return await debugShopeeEscrowTest(req, res);
     if (req.query.tipo === 'shopee-escrow-detail-test') return await debugShopeeEscrowDetailTest(req, res);
     if (req.query.tipo === 'shopee-wallet-test') return await debugShopeeWalletTest(req, res);
+    if (req.query.tipo === 'shopee-saldo-debug') return await debugShopeeSaldoDebug(req, res);
     if (req.query.tipo === 'shopee-todos-status') return await debugShopeeTodosStatus(req, res);
     if (req.query.tipo === 'turbo-live-status') return await debugTurboLiveStatus(req, res);
     if (req.query.tipo === 'shopee-order-detail') return await debugShopeeOrderDetail(req, res);
