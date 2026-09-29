@@ -573,6 +573,12 @@
       // Site continuam manuais (ver saldoManual acima).
       const saldoShopeeRicapet = contas.ricapet && contas.ricapet.shopee && contas.ricapet.shopee.saldo;
       const saldoShopeeThapets = contas.thapets && contas.thapets.shopee && contas.thapets.shopee.saldo;
+      // Erro na busca do saldo (lib/shopeeProjecao.js: buscarSaldoWallet) não
+      // impedia o resto da peça Shopee de funcionar (por isso a coluna
+      // Saldo ficava só com "-", sem explicação nenhuma na tela) -- expõe
+      // aqui igual aos outros avisos, pra não precisar abrir o console.
+      if (saldoShopeeRicapet && saldoShopeeRicapet.erro) avisos.push(`Saldo Shopee Ricapet: ${saldoShopeeRicapet.erro}`);
+      if (saldoShopeeThapets && saldoShopeeThapets.erro) avisos.push(`Saldo Shopee Thapets: ${saldoShopeeThapets.erro}`);
 
       const mpRicapet = linhaConta(contas.ricapet && contas.ricapet.mercadoPago, 'Mercado Pago Ricapet');
       const mpThapets = linhaConta(contas.thapets && contas.thapets.mercadoPago, 'Mercado Pago Thapets');
