@@ -21,6 +21,7 @@
     --turbo: #b968f2;
     --agora: #ff4d4f;
     --shopee: #ee4d2d;
+    --ml-geral: #2dd4bf;
   }
   * { box-sizing: border-box; }
   html, body {
@@ -64,7 +65,7 @@
   .heatmap-60 { background: var(--amarelo); color: #2a2200; }
 
   /* ---- KPI strip ---- */
-  .kpis { display: grid; grid-template-columns: repeat(9, 1fr); gap: 1px; background: var(--border); }
+  .kpis { display: grid; grid-template-columns: repeat(10, 1fr); gap: 1px; background: var(--border); }
   .kpi { background: var(--card); padding: 10px 8px; text-align: center; }
   .kpi .v { font-size: 24px; font-weight: 800; }
   .kpi .l { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
@@ -137,6 +138,7 @@
   .selo-turbo { background: rgba(185,104,242,0.18); color: var(--turbo); }
   .selo-agora { background: rgba(255,77,79,0.18); color: var(--agora); }
   .selo-shopee { background: rgba(238,77,45,0.18); color: var(--shopee); }
+  .selo-ml-geral { background: rgba(45,212,191,0.18); color: var(--ml-geral); }
   .status-nao-entregue-txt { color: var(--vermelho); }
   .selo-coleta {
     display: block; margin-top: 6px; font-size: 13px; font-weight: 800;
@@ -217,6 +219,7 @@
       <div class="kpi"><div class="v" style="color:var(--flex);" id="kpiFlex">-</div><div class="l">Flex</div></div>
       <div class="kpi"><div class="v" style="color:var(--turbo);" id="kpiTurbo">-</div><div class="l">Turbo</div></div>
       <div class="kpi"><div class="v" style="color:var(--shopee);" id="kpiShopeeGeral">-</div><div class="l">Shopee (geral)</div></div>
+      <div class="kpi"><div class="v" style="color:var(--ml-geral);" id="kpiMlGeral">-</div><div class="l">ML (geral)</div></div>
       <div class="kpi"><div class="v" style="color:var(--vermelho);" id="kpiCriticos">-</div><div class="l">Críticos</div></div>
       <div class="kpi"><div class="v" style="color:#ff8080;" id="kpiAtrasados">-</div><div class="l">Atrasados</div></div>
       <div class="kpi"><div class="v" style="color:var(--verde);" id="kpiColetadosHoje">-</div><div class="l">Coletados hoje</div></div>
@@ -235,6 +238,7 @@
       <button class="btn-icone ativo" id="btnSom" onclick="alternarSom()">🔔 Som: ligado</button>
       <button class="btn-icone ativo" id="btnVoz" onclick="alternarVoz()">🗣 Voz: ligada</button>
       <button class="btn-icone ativo" id="btnShopeeTodos" onclick="alternarShopeeTodos()">🛍️ Shopee geral: exibindo</button>
+      <button class="btn-icone ativo" id="btnMlTodos" onclick="alternarMlTodos()">📦 ML geral: exibindo</button>
     </div>
   </div>
 
@@ -353,6 +357,29 @@
     mostrarShopeeTodos = !mostrarShopeeTodos;
     try { localStorage.setItem('tv_mostrar_shopee_todos', mostrarShopeeTodos ? '1' : '0'); } catch (e) {}
     aplicarVisibilidadeShopeeTodos();
+  }
+
+  // Mesma ideia de mostrarShopeeTodos, só que pro Mercado Livre: pedidos ML
+  // de qualquer forma de entrega (não só Flex), vindos de
+  // entrega_turbo:ultima_coleta_ml_todos (ver listarMlAguardando,
+  // lib/historicoTodos.js).
+  let mostrarMlTodos = true;
+  try {
+    const salvoMl = localStorage.getItem('tv_mostrar_ml_todos');
+    if (salvoMl !== null) mostrarMlTodos = salvoMl === '1';
+  } catch (e) { /* localStorage indisponível — mantém o padrão (exibindo) */ }
+
+  function aplicarVisibilidadeMlTodos() {
+    const btn = document.getElementById('btnMlTodos');
+    btn.textContent = mostrarMlTodos ? '📦 ML geral: exibindo' : '📦 ML geral: oculto';
+    btn.className = 'btn-icone' + (mostrarMlTodos ? ' ativo' : '');
+    renderizarCards();
+  }
+
+  function alternarMlTodos() {
+    mostrarMlTodos = !mostrarMlTodos;
+    try { localStorage.setItem('tv_mostrar_ml_todos', mostrarMlTodos ? '1' : '0'); } catch (e) {}
+    aplicarVisibilidadeMlTodos();
   }
 
   // ================= FORMATAÇÃO =================
@@ -479,6 +506,31 @@
       });
     });
 
+    // MERCADO LIVRE (geral) — qualquer forma de entrega, não só Flex.
+    // Mesmo tratamento do Shopee geral acima: usa prazo_entrega quando
+    // existe (Flex sempre tem; outras formas de entrega do ML às vezes
+    // trazem estimated_delivery_limit/final também, ver mlAllOrders.js),
+    // senão cai no modo "sem prazo" (só tempo decorrido).
+    (dados.pedidosMlTodos || []).forEach((p) => {
+      const createdMs = new Date(p.date_created).getTime();
+      const temPrazoReal = !!p.prazo_entrega;
+      const deadlineMs = temPrazoReal
+        ? new Date(p.prazo_entrega).getTime()
+        : createdMs + 30 * 24 * 60 * 60 * 1000;
+      cards.push({
+        id: 'ml-geral:' + p.order_id,
+        tipo: 'ML',
+        conta: p.conta,
+        order_id: p.order_id,
+        itens: p.itens || [],
+        createdMs,
+        resolvidoMs: createdMs,
+        deadlineMs,
+        status: 'aguardando',
+        semPrazo: !temPrazoReal,
+      });
+    });
+
     cards.forEach((c) => {
       const total = c.deadlineMs - c.createdMs;
       const restante = c.deadlineMs - agora;
@@ -505,7 +557,7 @@
         // pedido novo (não existia na leitura anterior)
         if (Object.keys(estadoAnterior).length > 0) { // evita disparar tudo no primeiro load
           somNovoPedido();
-          falar(`Novo pedido ${c.tipo === 'FLEX' ? 'Flex' : c.tipo === 'SHOPEE' ? 'Shopee' : 'Turbo'}.`);
+          falar(`Novo pedido ${c.tipo === 'FLEX' ? 'Flex' : c.tipo === 'SHOPEE' ? 'Shopee' : c.tipo === 'ML' ? 'Mercado Livre' : 'Turbo'}.`);
           c._flashNovo = true;
         }
         return;
@@ -526,6 +578,7 @@
   // ================= RENDERIZAÇÃO =================
   function passaNoFiltro(c) {
     if (c.tipo === 'SHOPEE' && !mostrarShopeeTodos) return false;
+    if (c.tipo === 'ML' && !mostrarMlTodos) return false;
     const busca = document.getElementById('buscaInput').value.trim().toLowerCase();
     if (busca) {
       const alvo = [
@@ -570,7 +623,7 @@
       ? `<div class="card-contador" style="font-size:20px;color:var(--muted);">${tempoDecorridoTxt(c.createdMs)}</div>`
       : `<div class="card-contador" data-deadline="${c.deadlineMs}">${formatarContador(c.msRestante)}</div>`;
 
-    const seloClasse = c.tipo === 'AGORA' ? 'selo-agora' : c.tipo === 'TURBO' ? 'selo-turbo' : c.tipo === 'SHOPEE' ? 'selo-shopee' : 'selo-flex';
+    const seloClasse = c.tipo === 'AGORA' ? 'selo-agora' : c.tipo === 'TURBO' ? 'selo-turbo' : c.tipo === 'SHOPEE' ? 'selo-shopee' : c.tipo === 'ML' ? 'selo-ml-geral' : 'selo-flex';
     const prontoParaColeta = !concluido && c.horaColetaMs && Date.now() >= c.horaColetaMs;
     const seloColetaHtml = prontoParaColeta ? '<span class="selo-coleta">🚚 Hora de coletar</span>' : '';
 
@@ -630,11 +683,13 @@
     const flexCount = cardsAtuais.filter((c) => c.tipo === 'FLEX' && naoConcluido(c)).length;
     const turboCount = cardsAtuais.filter((c) => (c.tipo === 'TURBO' || c.tipo === 'AGORA') && naoConcluido(c)).length;
     const shopeeGeralCount = cardsAtuais.filter((c) => c.tipo === 'SHOPEE' && naoConcluido(c)).length;
+    const mlGeralCount = cardsAtuais.filter((c) => c.tipo === 'ML' && naoConcluido(c)).length;
 
     document.getElementById('kpiAguardando').textContent = pendentes.length;
     document.getElementById('kpiFlex').textContent = flexCount;
     document.getElementById('kpiTurbo').textContent = turboCount;
     document.getElementById('kpiShopeeGeral').textContent = shopeeGeralCount;
+    document.getElementById('kpiMlGeral').textContent = mlGeralCount;
     document.getElementById('kpiCriticos').textContent = criticos;
     document.getElementById('kpiAtrasados').textContent = atrasados;
     document.getElementById('kpiColetadosHoje').textContent = coletadosHoje.length;
@@ -708,6 +763,7 @@
   setInterval(buscarDados, INTERVALO_BUSCA_MS);
   atualizarRelogio();
   aplicarVisibilidadeShopeeTodos();
+  aplicarVisibilidadeMlTodos();
 
   // Sem overlay de "toque pra ativar" — carrega os dados direto. O
   // AudioContext pode nascer suspenso por política de autoplay (sem
