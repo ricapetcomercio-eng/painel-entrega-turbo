@@ -276,6 +276,18 @@
       $('tabela-acessos').innerHTML = dados.usuarios.map(linhaUsuario).join('');
       $('tabela-acessos').querySelectorAll('tr[data-funcionario-id]').forEach((tr) => {
         tr.querySelector('.btn-salvar').addEventListener('click', () => salvarLinha(tr));
+        // Página sem Admin marcado nunca funciona (obterAdminSessao/
+        // debugPortalTrocarToken exigem admin=1 ANTES de olhar pra página) --
+        // aconteceu de verdade em produção: Admin ficou desmarcado em 4
+        // funcionários que já tinham Bipagem/Estoque liberados, e o Portal
+        // continuava recusando sem nenhum aviso claro aqui na tela. Marcar
+        // qualquer página aqui já marca Admin junto, pra não dar mais pra
+        // configurar essa combinação quebrada sem querer.
+        tr.querySelectorAll('[data-pagina]').forEach((chk) => {
+          chk.addEventListener('change', () => {
+            if (chk.checked) tr.querySelector('[data-admin]').checked = true;
+          });
+        });
       });
       $('aviso-carregando').hidden = true;
       $('conteudo').hidden = false;

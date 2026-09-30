@@ -2164,6 +2164,32 @@ async function debugAcessosConcederPortalPadrao(req, res) {
   res.status(200).json({ ok: true, tipo: 'acessos-conceder-portal-padrao', paginas_concedidas: ['bipagem', 'estoque'], funcionarios_ajustados: ajustados });
 }
 
+// Só pra gestão (CRON_SECRET) -- conserta a combinação "página liberada,
+// admin desmarcado" quando ela já foi salva no banco por engano em
+// /acessos.html. Achado com dado real de produção: 4 funcionários (Natan
+// incluso) tinham Bipagem/Estoque marcados e Admin desmarcado -- como
+// obterAdminSessao/debugPortalTrocarToken exigem admin=1 ANTES de olhar
+// pra página, essas páginas nunca funcionavam, mesmo aparecendo marcadas
+// na tela (a UI deixava salvar essa combinação sem nenhum aviso). A tela
+// e debugAcessosDefinir já foram corrigidos pra nunca mais criar essa
+// combinação de novo (marcar qualquer página força admin=true) -- este
+// endpoint só limpa quem já ficou preso nela antes da correção. Idempotente:
+// rodar de novo não faz nada em quem já está correto.
+async function debugAcessosSincronizarAdminPaginas(req, res) {
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST (sem corpo)' }); return; }
+  const db = getDb();
+  await garantirEsquemaPonto(db);
+  const rs = await db.execute(`
+    SELECT DISTINCT f.id, f.nome FROM funcionarios f
+    JOIN funcionarios_paginas fp ON fp.funcionario_id = f.id
+    WHERE f.ativo = 1 AND f.admin = 0
+  `);
+  for (const f of rs.rows) {
+    await db.execute({ sql: 'UPDATE funcionarios SET admin = 1 WHERE id = ?', args: [f.id] });
+  }
+  res.status(200).json({ ok: true, tipo: 'acessos-sincronizar-admin-paginas', funcionarios_ajustados: rs.rows.map((r) => r.nome) });
+}
+
 // ===== Painel de administração do ponto =====
 // Chamado pelo site do admin (outro domínio) com o PONTO_PUBLIC_SECRET na porta
 // + um token de login (ponto-login) de alguém com admin = 1, que é o gate real.
@@ -2237,16 +2263,27 @@ async function debugAcessosDefinir(req, res) {
   const { funcionario_id, admin, paginas, cargo } = req.body || {};
   if (!funcionario_id) { res.status(400).json({ error: 'Informe funcionario_id.' }); return; }
   const paginasValidas = (Array.isArray(paginas) ? paginas : []).filter((p) => PAGINAS_PAINEL.includes(p));
+  // Página liberada sem admin=1 nunca funciona de verdade -- obterAdminSessao
+  // e debugPortalTrocarToken conferem admin ANTES de olhar pra página, então
+  // é sempre 403 mesmo com a página marcada. Aconteceu de verdade em
+  // produção: 4 funcionários (Natan incluso) ficaram com Bipagem/Estoque
+  // marcados e Admin desmarcado -- a tela deixava salvar essa combinação
+  // sem nenhum aviso. Salvar qualquer página força admin=true, nunca o
+  // contrário da UI (que agora também já marca Admin sozinha ao marcar uma
+  // página, ver acessos.html) -- isso aqui é só o reforço do lado do
+  // servidor, pra essa combinação quebrada não voltar a existir mesmo que
+  // a chamada venha de outro lugar.
+  const adminFinal = paginasValidas.length > 0 ? true : admin;
 
   const alvo = await db.execute({ sql: 'SELECT id, super_admin FROM funcionarios WHERE id = ? AND ativo = 1', args: [funcionario_id] });
   if (!alvo.rows[0]) { res.status(404).json({ error: 'Funcionário não encontrado.' }); return; }
-  if (alvo.rows[0].super_admin === 1 && admin === false) {
+  if (alvo.rows[0].super_admin === 1 && adminFinal === false) {
     res.status(400).json({ error: 'Não dá pra remover o admin de um super_admin por aqui.' });
     return;
   }
 
-  if (admin !== undefined) {
-    await db.execute({ sql: 'UPDATE funcionarios SET admin = ? WHERE id = ?', args: [admin ? 1 : 0, funcionario_id] });
+  if (adminFinal !== undefined) {
+    await db.execute({ sql: 'UPDATE funcionarios SET admin = ? WHERE id = ?', args: [adminFinal ? 1 : 0, funcionario_id] });
   }
   if (cargo !== undefined) {
     await db.execute({ sql: 'UPDATE funcionarios SET cargo = ? WHERE id = ?', args: [String(cargo).trim() || null, funcionario_id] });
@@ -3515,6 +3552,7 @@ module.exports = async (req, res) => {
     if (req.query.tipo === 'ponto-definir-admins') return await debugPontoDefinirAdmins(req, res);
     if (req.query.tipo === 'ponto-definir-super-admin') return await debugPontoDefinirSuperAdmin(req, res);
     if (req.query.tipo === 'acessos-conceder-portal-padrao') return await debugAcessosConcederPortalPadrao(req, res);
+    if (req.query.tipo === 'acessos-sincronizar-admin-paginas') return await debugAcessosSincronizarAdminPaginas(req, res);
     if (req.query.tipo === 'ponto-admin-visao') return await debugPontoAdminVisao(req, res);
     if (req.query.tipo === 'ponto-admin-editar') return await debugPontoAdminEditar(req, res);
     if (req.query.tipo === 'ponto-admin-resolver') return await debugPontoAdminResolver(req, res);
