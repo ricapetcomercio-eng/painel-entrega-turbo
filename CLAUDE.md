@@ -93,12 +93,32 @@ comentário no próprio código) se esses 3 valores cobrem todo "aguardando"
 sem deixar escapar pedido pago nem mostrar pedido ainda não confirmado.
 
 Cada bloco aparece nos cards da TV com seu próprio selo (🛍️ SHOPEE laranja,
-📦 ML teal) e, quando o pedido não tem prazo real (`prazo_entrega` vazio —
-comum fora de Flex/Turbo), mostra só "há Xh" em vez de contagem regressiva
-(não tem promessa expressa pra contar regressivamente). Um mesmo pedido
-Shopee Entrega Turbo pode aparecer tanto no card TURBO quanto no "Shopee
-geral" (comportamento já existente antes do ML geral existir, não uma
-regressão nova) — decisão aceita de não deduplicar entre os dois blocos.
+📦 ML teal). Um mesmo pedido Shopee Entrega Turbo pode aparecer tanto no
+card TURBO quanto no "Shopee geral" (comportamento já existente antes do
+ML geral existir, não uma regressão nova) — decisão aceita de não
+deduplicar entre os dois blocos.
+
+**✅ Todo card sempre com contagem regressiva, nunca "há Xh" (set/2026)**:
+decisão explícita do dono do projeto — quis o MESMO padrão visual pra
+qualquer pedido na TV, mesmo os sem prazo real (Shopee/ML geral, quando
+`prazo_entrega` vem vazio). Antes desses dois blocos "geral" existirem, um
+pedido sem prazo mostrava só "há Xh" (tempo decorrido, sem contagem); isso
+foi removido — `montarCards` já calculava um `deadlineMs` sintético de 30
+dias pra esses pedidos só pra efeito de ORDENAÇÃO (ficarem sempre por
+último), e agora esse mesmo deadline também vira a contagem regressiva
+exibida, sem tratamento especial nenhum no card. `formatarContador` ganhou
+um prefixo de dias (`"29d 23:59:59"`) só pra isso não virar um número de
+horas de 3 dígitos ilegível (`"715:23:10"`) — Flex/Turbo/Agora, sempre
+abaixo de 24h, continuam exatamente iguais (sem prefixo). A barra de
+prazo (`barra-prazo`) também passou a aparecer pra esses cards (antes
+ficava oculta) — com um deadline de 30 dias, fica quase sempre no começo
+(pouco preenchida), o que é esperado, não um bug. O único tratamento
+especial que continua existindo pra pedido sem prazo real é NÃO entrar no
+"dia seguinte" (`diaSeguinte` em `montarCards`, que apagaria visualmente o
+card) — com deadline sintético de 30 dias, `ehHojeBrasil(deadlineMs)`
+praticamente nunca é verdadeiro, e sem essa exceção o card ficaria opaco
+(quase invisível) pelos 30 dias inteiros, o oposto do que "geral" existe
+pra fazer (dar visibilidade de volume).
 
 ### Projeção Financeira: sob demanda, não automática (Mercado Pago + Shopee)
 
