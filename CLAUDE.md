@@ -519,6 +519,30 @@ Ricardo) — e, como o padrão é negar por página, todo admin que não seja
 super_admin perde acesso a todas as páginas até o Ricardo entrar em
 Acessos e liberar manualmente.
 
+**✅ "Pede a senha duas vezes" no Portal Ricapet — causa raiz confirmada e
+corrigida (set/2026)**: o commit que fez `debugPortalTrocarToken` exigir a
+MESMA permissão de página da tela Acessos (`e4ca7dc`, depois da Geisyanne
+conseguir abrir Expedição/Estoque pelo Portal sem ter a página liberada)
+teve um efeito colateral não percebido na hora: como `funcionarios_paginas`
+é default-deny (ver acima) e, até então, **nenhum admin além do Ricardo
+tinha qualquer página liberada**, a troca de token do Portal (`?pt=`) passou
+a falhar (403) pra todo mundo, exceto o Ricardo (super_admin, ignora esse
+controle por completo) — quem já tinha digitado o PIN dentro do Portal
+Ricapet caía de volta em `/login.html` e precisava digitar o PIN de novo
+aqui, sem nenhuma mudança visível que explicasse o motivo. Só afetava quem
+NÃO é super_admin — daí a impressão de "só o meu perfil foi ajustado".
+Corrigido concedendo `bipagem` + `estoque` (as duas páginas que também
+liberam Expedição/Estoque no Portal, ver `debugPortalTrocarToken` acima)
+pra todo admin ativo que ainda não tinha nenhuma das duas —
+`POST /api/debug?tipo=acessos-conceder-portal-padrao&secret=CRON_SECRET`
+(sem corpo), aditivo (`INSERT OR IGNORE`, nunca remove página já concedida).
+Rodar 1x depois do deploy desta correção, mesmo padrão do
+`ponto-definir-super-admin` acima. Um admin cadastrado **depois** dessa
+rodada volta a cair no default-deny normal — se alguém novo reclamar do
+mesmo sintoma, é a tela Acessos mesmo que resolve (Ricardo libera
+Bipagem/Estoque manualmente), não este endpoint (que é só o destrava
+pontual de quem ficou preso no buraco já fechado).
+
 ## Estrutura de arquivos
 
 ```

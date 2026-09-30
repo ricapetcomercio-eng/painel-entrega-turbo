@@ -2125,6 +2125,45 @@ async function debugPontoDefinirSuperAdmin(req, res) {
   res.status(200).json({ ok: true, tipo: 'ponto-definir-super-admin', super_admins: rs.rows.map((r) => r.nome) });
 }
 
+// Só pra gestão (CRON_SECRET) -- conserta o "pede a senha duas vezes" no
+// Portal Ricapet pra quem já é admin no painel mas nunca teve nenhuma
+// página liberada em /acessos.html: desde que debugPortalTrocarToken passou
+// a exigir a MESMA permissão de página da tela Acessos (commit "Portal:
+// Expedicao e Estoque passam a exigir a mesma permissao da tela Acessos"),
+// qualquer admin sem 'bipagem'/'estoque' liberados falha a troca de token
+// vinda do Portal (?pt=) e cai de volta no /login.html pedindo o PIN de
+// novo -- mesmo já tendo acabado de digitar o PIN dentro do próprio Portal
+// segundos antes. super_admin (só o Ricardo) nunca sofre isso, porque
+// ignora esse controle por completo -- daí a impressão de "só o meu perfil
+// foi ajustado".
+// Concede só 'bipagem' e 'estoque' (as duas páginas que também controlam o
+// Portal, ver debugPortalTrocarToken) pra todo admin ativo que ainda não
+// tem a página -- ADITIVO (INSERT OR IGNORE: não mexe em quem já tem essas
+// páginas nem remove nenhuma outra já liberada). Rodar 1x via CRON_SECRET,
+// mesmo padrão de ponto-definir-super-admin; um admin cadastrado DEPOIS
+// continua caindo no default-deny normal (só ganha página quando o Ricardo
+// liberar manualmente em Acessos) -- este endpoint só destrava quem já
+// ficou preso no buraco aberto por aquele commit.
+async function debugAcessosConcederPortalPadrao(req, res) {
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST (sem corpo)' }); return; }
+  const db = getDb();
+  await garantirEsquemaPonto(db);
+  const funcs = await db.execute('SELECT id, nome, super_admin FROM funcionarios WHERE admin = 1 AND ativo = 1');
+  const agora = new Date().toISOString();
+  const ajustados = [];
+  for (const f of funcs.rows) {
+    if (f.super_admin === 1) continue; // já ignora o controle por página, nada a fazer
+    for (const pagina of ['bipagem', 'estoque']) {
+      await db.execute({
+        sql: 'INSERT OR IGNORE INTO funcionarios_paginas (funcionario_id, pagina, concedida_em, concedida_por) VALUES (?, ?, ?, ?)',
+        args: [f.id, pagina, agora, 'ajuste-automatico-portal'],
+      });
+    }
+    ajustados.push(f.nome);
+  }
+  res.status(200).json({ ok: true, tipo: 'acessos-conceder-portal-padrao', paginas_concedidas: ['bipagem', 'estoque'], funcionarios_ajustados: ajustados });
+}
+
 // ===== Painel de administração do ponto =====
 // Chamado pelo site do admin (outro domínio) com o PONTO_PUBLIC_SECRET na porta
 // + um token de login (ponto-login) de alguém com admin = 1, que é o gate real.
@@ -3475,6 +3514,7 @@ module.exports = async (req, res) => {
     if (req.query.tipo === 'ponto-solicitar-correcao') return await debugPontoSolicitarCorrecao(req, res);
     if (req.query.tipo === 'ponto-definir-admins') return await debugPontoDefinirAdmins(req, res);
     if (req.query.tipo === 'ponto-definir-super-admin') return await debugPontoDefinirSuperAdmin(req, res);
+    if (req.query.tipo === 'acessos-conceder-portal-padrao') return await debugAcessosConcederPortalPadrao(req, res);
     if (req.query.tipo === 'ponto-admin-visao') return await debugPontoAdminVisao(req, res);
     if (req.query.tipo === 'ponto-admin-editar') return await debugPontoAdminEditar(req, res);
     if (req.query.tipo === 'ponto-admin-resolver') return await debugPontoAdminResolver(req, res);
