@@ -14,6 +14,7 @@
 <script src="assets/auth.js"></script>
 <script src="assets/tema.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
 <style>
   :root {
     color-scheme: light;
@@ -209,16 +210,20 @@
   .filterbar select#fp-tipo { width: 122px; }
   .filterbar select#fp-plataforma { width: 155px; }
   .filterbar select#fp-funcionario { width: 148px; }
-  .filterbar .btn {
+  /* Não fica só dentro de .filterbar de propósito -- reaproveitado no
+     botão "Baixar resumo (CSV)" do card "Total de pedidos x Total
+     bipado", fora da barra de filtros. .inline-note .btn (mais específico)
+     continua vencendo pros botões de "Resolver pendentes". */
+  .btn {
     height: 32px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface);
     color: var(--ink-soft); padding: 0 13px; font-size: 12.5px; font-weight: 700; cursor: pointer;
     display: inline-flex; align-items: center; gap: 6px; transition: all .15s ease;
   }
-  .filterbar .btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent-ink); }
-  .filterbar .btn:disabled { opacity: .6; cursor: default; }
-  .filterbar .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-  .filterbar .btn.primary:hover { background: var(--accent-ink); border-color: var(--accent-ink); color: #fff; }
-  .filterbar .btn.icon { width: 32px; padding: 0; justify-content: center; }
+  .btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent-ink); }
+  .btn:disabled { opacity: .6; cursor: default; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover { background: var(--accent-ink); border-color: var(--accent-ink); color: #fff; }
+  .btn.icon { width: 32px; padding: 0; justify-content: center; }
   .filterbar .result-count { margin-left: auto; font-size: 12px; color: var(--ink-muted); font-weight: 600; white-space: nowrap; }
 
   .shell { max-width: 1320px; margin: 0 auto; padding: 22px 16px 70px; }
@@ -591,6 +596,24 @@
       <div class="chart-wrap short"><canvas id="chartCobertura"></canvas></div>
     </div>
 
+    <div class="card">
+      <div class="card-head">
+        <h3>Total de pedidos x Total bipado</h3>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span class="hint" id="txt-colunas-cobertura">–</span>
+          <button type="button" class="btn icon" id="btn-baixar-resumo" title="Baixar resumo (CSV)" aria-label="Baixar resumo em CSV">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="chart-wrap short"><canvas id="chartColunasCobertura"></canvas></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h3>Total bipado por quem bipou</h3><span class="hint">clique numa coluna pra ver o detalhe do operador</span></div>
+      <div class="chart-wrap"><canvas id="chartColunasOperador"></canvas></div>
+    </div>
+
     <div class="table-card">
       <div class="table-card-head">
         <h3>Ranking dos funcionários</h3>
@@ -817,6 +840,15 @@
   if (typeof Chart !== 'undefined') {
     Chart.defaults.font.family = "'Inter', system-ui, sans-serif";
     Chart.defaults.font.size = 11;
+    // Registrado globalmente, mas OFF por padrão -- só os 2 gráficos "de
+    // apresentação" (chartColunasCobertura/chartColunasOperador) ligam de
+    // volta (datalabels: { display: true, ... }) explicitamente. Sem isso
+    // todo gráfico já existente no arquivo passaria a mostrar número em
+    // cima de cada barra/fatia sem ter sido pedido.
+    if (typeof ChartDataLabels !== 'undefined') {
+      Chart.register(ChartDataLabels);
+      Chart.defaults.plugins.datalabels = { display: false };
+    }
   }
 
   let charts = {};
@@ -852,6 +884,10 @@
 
   let ultimoDadosBipagem = null;
   let dadosFiltrados = null;
+  // Guardados só pra alimentar baixarRelatorioResumo() sem precisar
+  // recalcular -- os mesmos números já usados nos dois gráficos de
+  // cobertura (doughnut + colunas), ver comentário logo abaixo.
+  let ultimoResumoCobertura = { bipado: 0, totalPedidos: 0 };
 
   // Cobertura da expedição (Bipado vs Total de pedidos do período): usa
   // sempre os totais CRUS do período (sem os filtros de nome/tipo/
@@ -864,11 +900,14 @@
   // renderizarPainel (que trabalham com a lista já filtrada) e é montado
   // direto em carregar(), uma vez por período.
   function montarChartCobertura(bipado, totalPedidos) {
+    ultimoResumoCobertura = { bipado, totalPedidos };
     const naoBipado = Math.max(totalPedidos - bipado, 0);
     const pct = totalPedidos ? (bipado / totalPedidos) * 100 : 0;
-    $('txt-cobertura').textContent = totalPedidos
+    const legenda = totalPedidos
       ? `${bipado.toLocaleString('pt-BR')} de ${totalPedidos.toLocaleString('pt-BR')} pedidos bipados (${pct.toFixed(1)}%)`
       : 'Sem pedidos no período.';
+    $('txt-cobertura').textContent = legenda;
+    $('txt-colunas-cobertura').textContent = legenda;
     chart('chartCobertura', {
       type: 'doughnut',
       data: {
@@ -880,6 +919,35 @@
         plugins: {
           legend: { position: 'bottom', labels: { color: cssVar('--ink-muted'), boxWidth: 10 } },
           tooltip: tooltipBase(),
+        },
+      },
+    });
+
+    // Mesma comparação em colunas, com o número grande em cima de cada
+    // barra (datalabels) -- pedido explicitamente "para apresentação"
+    // (projetar numa reunião etc.), onde um doughnut sozinho exige passar
+    // o mouse pra ver o valor exato.
+    chart('chartColunasCobertura', {
+      type: 'bar',
+      data: {
+        labels: ['Total de pedidos', 'Total bipado'],
+        datasets: [{ data: [totalPedidos, bipado], backgroundColor: [cssVar('--cat-1'), cssVar('--good')], borderRadius: 8, maxBarThickness: 110 }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        layout: { padding: { top: 28 } },
+        plugins: {
+          legend: { display: false },
+          tooltip: tooltipBase(),
+          datalabels: {
+            display: true, anchor: 'end', align: 'end', clamp: true,
+            color: cssVar('--ink'), font: { weight: 800, size: 18 },
+            formatter: (v) => v.toLocaleString('pt-BR'),
+          },
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: cssVar('--ink'), font: { weight: 700, size: 12 } } },
+          y: { grid: { color: cssVar('--border-soft') }, ticks: { color: cssVar('--ink-muted') }, beginAtZero: true },
         },
       },
     });
@@ -1084,6 +1152,32 @@
     else baixarRelatorioPedidos((ultimoDadosBipagem && ultimoDadosBipagem.pedidos) || [], 'completo');
   });
 
+  // Resumo dos 2 gráficos "de apresentação" (Total de pedidos x Total
+  // bipado + por operador) -- diferente de fp-baixar (lista crua de
+  // pedidos bipados), esse CSV é só os números já agregados que aparecem
+  // nas colunas, prontos pra colar numa planilha/apresentação.
+  function baixarRelatorioResumo() {
+    const { bipado, totalPedidos } = ultimoResumoCobertura;
+    const naoBipado = Math.max(totalPedidos - bipado, 0);
+    const pct = totalPedidos ? (bipado / totalPedidos) * 100 : 0;
+    const operadores = (dadosFiltrados && dadosFiltrados.operadores) || [];
+
+    const linhas = [
+      ['Categoria', 'Valor'],
+      ['Total de pedidos (período)', totalPedidos],
+      ['Total bipado (período)', bipado],
+      ['Não bipado (período)', naoBipado],
+      ['Cobertura (%)', pct.toFixed(1).replace('.', ',')],
+      [],
+      ['Operador', 'Total bipado'],
+      ...operadores.map((o) => [o.nome, o.total]),
+    ];
+    const csv = linhas.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\r\n');
+    const de = $('p-de').value, ate = $('p-ate').value;
+    baixar(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }), `resumo_expedicao_${de}_a_${ate}.csv`);
+  }
+  $('btn-baixar-resumo').addEventListener('click', baixarRelatorioResumo);
+
   // ---- heatmap real (dados.tendencia) ----
   function corHeatmap(v, max) {
     if (!v) return cssVar('--surface-2');
@@ -1192,6 +1286,36 @@
         layout: { padding: { right: 36 } },
         plugins: { legend: { display: false }, tooltip: tooltipBase() },
         scales: { x: { grid: { color: cssVar('--border-soft') }, ticks: { color: cssVar('--ink-muted') } }, y: { grid: { display: false }, ticks: { color: cssVar('--ink'), font: { weight: 600 } } } },
+        onClick: (evt, els) => { if (els.length) abrirDrawer(opsOrdenados[els[0].index].nome); },
+        onHover: (evt, els) => { evt.native.target.style.cursor = els.length ? 'pointer' : 'default'; },
+      },
+    });
+
+    // mesmo ranking, em colunas verticais com o número em cima de cada
+    // barra (datalabels) -- versão "de apresentação" do ranking acima,
+    // que já existia mas só mostra o valor passando o mouse. Respeita os
+    // mesmos filtros já aplicados na tela (nome/tipo/plataforma/
+    // funcionário), diferente do gráfico de Cobertura (que usa sempre o
+    // total bruto do período).
+    chart('chartColunasOperador', {
+      type: 'bar',
+      data: { labels: opsOrdenados.map((o) => o.nome), datasets: [{ data: opsOrdenados.map((o) => o.total), backgroundColor: cssVar('--cat-2'), borderRadius: 6, maxBarThickness: 64 }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        layout: { padding: { top: 24 } },
+        plugins: {
+          legend: { display: false },
+          tooltip: tooltipBase(),
+          datalabels: {
+            display: (ctx) => ctx.dataset.data[ctx.dataIndex] > 0, anchor: 'end', align: 'end', clamp: true,
+            color: cssVar('--ink'), font: { weight: 700, size: 12 },
+            formatter: (v) => v.toLocaleString('pt-BR'),
+          },
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: cssVar('--ink'), font: { weight: 600 } } },
+          y: { grid: { color: cssVar('--border-soft') }, ticks: { color: cssVar('--ink-muted') }, beginAtZero: true },
+        },
         onClick: (evt, els) => { if (els.length) abrirDrawer(opsOrdenados[els[0].index].nome); },
         onHover: (evt, els) => { evt.native.target.style.cursor = els.length ? 'pointer' : 'default'; },
       },
