@@ -37,7 +37,7 @@ const { registrarHistoricoTurboLive, listarRecentesTurbo } = require('../lib/his
 const { buscarDetalhesShipment, montarPedidoGenerico } = require('../lib/mlAllOrders');
 const { buscarClaimsClassificadosPeriodo } = require('../lib/mlClaims');
 const { buscarDevolucoesPorPedido: buscarDevolucoesShopeePorPedido } = require('../lib/shopeeReturns');
-const { registrarHistoricoTodos, marcarDevolucao, marcarReclamacao, listarShopeeAguardando, listarShopeePendentesParaReverificar } = require('../lib/historicoTodos');
+const { registrarHistoricoTodos, marcarDevolucao, marcarReclamacao, listarShopeeAguardando, listarShopeePendentesParaReverificar, listarMlAguardando } = require('../lib/historicoTodos');
 const { enviarBalancoMensalSeNecessario } = require('../lib/estoqueSaldo');
 const { coletarProjecaoFinanceira } = require('../lib/mpProjecao');
 const { coletarProjecaoFinanceiraShopee } = require('../lib/shopeeProjecao');
@@ -737,6 +737,23 @@ module.exports = async (req, res) => {
       await kvSet('entrega_turbo:ultima_execucao_todos_ml_ts', agora);
       for (const conta of Object.keys(SELLER_IDS)) {
         await coletarNovosParaHistoricoTodos(conta, erros);
+      }
+
+      // Snapshot de TODOS os pedidos ML ainda aguardando despacho (qualquer
+      // forma de entrega, não só Flex) — equivalente ao
+      // entrega_turbo:ultima_coleta_shopee_todos acima, pro painel de
+      // expedição (tv.html) ter o mesmo "geral" nas duas plataformas.
+      // Reaproveita o histórico que o loop acima acabou de atualizar, sem
+      // nenhuma chamada de API nova.
+      try {
+        const pedidosMlAguardando = await listarMlAguardando(HORAS_JANELA_SHOPEE_TODOS);
+        await kvSet('entrega_turbo:ultima_coleta_ml_todos', {
+          atualizado_em: new Date().toISOString(),
+          pedidos: pedidosMlAguardando,
+          total: pedidosMlAguardando.length,
+        });
+      } catch (err) {
+        erros.push({ fonte: 'ml_todos_snapshot', mensagem: err.message });
       }
     });
   }

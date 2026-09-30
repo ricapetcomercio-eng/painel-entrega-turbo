@@ -37,6 +37,7 @@ module.exports = async (req, res) => {
   const dados = await kvGet('entrega_turbo:ultima_coleta');
   const dadosFlex = await kvGet('entrega_turbo:ultima_coleta_flex');
   const dadosShopeeTodos = await kvGet('entrega_turbo:ultima_coleta_shopee_todos');
+  const dadosMlTodos = await kvGet('entrega_turbo:ultima_coleta_ml_todos');
   const dadosProjecaoFinanceira = await kvGet('entrega_turbo:ultima_coleta_projecao_financeira');
 
   // Site automático via Appmax (webhook, ver api/debug.js?tipo=appmax-
@@ -70,6 +71,7 @@ module.exports = async (req, res) => {
       total: 0,
       pedidosFlex: (dadosFlex && dadosFlex.pedidos) || [],
       pedidosShopeeTodos: (dadosShopeeTodos && dadosShopeeTodos.pedidos) || [],
+      pedidosMlTodos: (dadosMlTodos && dadosMlTodos.pedidos) || [],
       projecaoFinanceira: projecaoFinanceiraComSite,
       aviso: 'Ainda não há dados coletados. Aguarde a primeira execução do cron.',
     });
@@ -82,6 +84,8 @@ module.exports = async (req, res) => {
     atualizado_em_flex: (dadosFlex && dadosFlex.atualizado_em) || null,
     pedidosShopeeTodos: (dadosShopeeTodos && dadosShopeeTodos.pedidos) || [],
     atualizado_em_shopee_todos: (dadosShopeeTodos && dadosShopeeTodos.atualizado_em) || null,
+    pedidosMlTodos: (dadosMlTodos && dadosMlTodos.pedidos) || [],
+    atualizado_em_ml_todos: (dadosMlTodos && dadosMlTodos.atualizado_em) || null,
     projecaoFinanceira: projecaoFinanceiraComSite,
   });
 };

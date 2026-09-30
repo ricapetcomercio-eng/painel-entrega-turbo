@@ -63,6 +63,43 @@ Throttles internos em `api/collect.js` (constantes no topo do arquivo):
 | Shopee | 15 min | cota limitada do proxy Fixie (IP fixo) |
 | Devoluções | 30 min | mudam devagar |
 
+### Painel TV (`tv.html`) também mostra "geral" — não só pedidos com promessa expressa
+
+Além de Flex/Turbo/Agora (que têm mesmo a promessa expressa que dá nome ao
+projeto), a TV tem dois blocos "geral" — **todo pedido ainda aguardando
+despacho, qualquer forma de entrega** — cada um com seu próprio botão de
+mostrar/ocultar (🛍️ Shopee geral / 📦 ML geral, estado salvo em
+`localStorage` por tela) e sua própria fatia no KPI strip:
+
+- **Shopee (geral)**: `entrega_turbo:ultima_coleta_shopee_todos`, gravado
+  dentro do throttle da Shopee (15 min) — `listarShopeeAguardando`
+  (`lib/historicoTodos.js`) só LÊ o histórico que a própria coleta de
+  "Todos os pedidos Shopee" já tinha acabado de gravar no Turso, **zero
+  chamada de API nova** (respeita a Restrição de design nº 1 acima).
+- **ML (geral)**: mesma ideia, espelhada — `entrega_turbo:
+  ultima_coleta_ml_todos`, gravado dentro do throttle de "Todos os
+  pedidos" ML (5 min) — `listarMlAguardando` (mesmo arquivo) só lê o que
+  `coletarNovosParaHistoricoTodos` já gravou, também zero chamada de API
+  nova.
+
+Os dois filtram por "ainda aguardando despacho" (exclui Full/fulfillment,
+cancelado, já coletado/entregue) mas usam campos diferentes pra isso — a
+Shopee tem um único `status_pedido` que cobre pagamento+despacho
+(`READY_TO_SHIP`/`PROCESSED`); o Mercado Livre separa `status_pedido`
+(status do pedido) de `status_envio` (status do shipment,
+`pending`/`handling`/`ready_to_ship` = ainda no galpão) — `listarMlAguardando`
+usa só o segundo, **ainda não validado com pedido real de produção** (ver
+comentário no próprio código) se esses 3 valores cobrem todo "aguardando"
+sem deixar escapar pedido pago nem mostrar pedido ainda não confirmado.
+
+Cada bloco aparece nos cards da TV com seu próprio selo (🛍️ SHOPEE laranja,
+📦 ML teal) e, quando o pedido não tem prazo real (`prazo_entrega` vazio —
+comum fora de Flex/Turbo), mostra só "há Xh" em vez de contagem regressiva
+(não tem promessa expressa pra contar regressivamente). Um mesmo pedido
+Shopee Entrega Turbo pode aparecer tanto no card TURBO quanto no "Shopee
+geral" (comportamento já existente antes do ML geral existir, não uma
+regressão nova) — decisão aceita de não deduplicar entre os dois blocos.
+
 ### Projeção Financeira: sob demanda, não automática (Mercado Pago + Shopee)
 
 `lib/mpProjecao.js` e `lib/shopeeProjecao.js` alimentam a mesma tela
