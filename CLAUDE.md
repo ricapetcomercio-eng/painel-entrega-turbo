@@ -120,6 +120,44 @@ praticamente nunca é verdadeiro, e sem essa exceção o card ficaria opaco
 (quase invisível) pelos 30 dias inteiros, o oposto do que "geral" existe
 pra fazer (dar visibilidade de volume).
 
+**✅ "ML geral" nunca atualizava o status depois da 1ª coleta — pedido
+entregue continuava aparecendo como "aguardando" (set/2026)**: bug real em
+produção — um pedido Flex já ENTREGUE (confirmado no próprio Mercado Livre)
+continuava no bloco "ML geral" da TV como "aguardando coleta", com a
+contagem sintética de 28+ dias. Causa raiz: `coletarNovosParaHistoricoTodos`
+("Todos os pedidos" ML) só anda PRA FRENTE no tempo (busca por
+`date_created` desde o último checkpoint) — um pedido é buscado e gravado
+em `historico_todos` **uma única vez**; nada revisitava esse mesmo pedido
+depois pra atualizar `status_envio` quando ele progride
+pending→handling→shipped→delivered. Exatamente o mesmo problema que
+`reverificarPendentesShopeeTodos` já resolve pro lado Shopee (ver comentário
+no próprio código) — só que nunca existiu o equivalente pro ML.
+Corrigido:
+- `historico_todos` ganhou a coluna `shipment_id` (não existia — sem ela
+  não dá pra rebuscar o shipment de um pedido ML depois, a API do ML exige
+  o id do shipment, não o do pedido). Nova entrada em
+  `?tipo=adicionar-coluna-tipo`, mesmo padrão das colunas de
+  reclamação/devolução já existentes.
+- `registrarHistoricoTodos`/`linhaParaPedido` (`lib/historicoTodos.js`)
+  passam a gravar/ler esse campo — `montarPedidoGenerico`
+  (`lib/mlAllOrders.js`) já devolvia `shipment_id` no objeto, só não estava
+  sendo persistido.
+- Nova `reverificarPendentesMlTodos` (`api/collect.js`), rodando dentro do
+  mesmo throttle de "Todos os pedidos" ML (5 min) — mesmo espírito de
+  `reverificarPendentesFlex`/`reverificarPendentesShopeeTodos`: rebusca o
+  shipment (`buscarDetalhesShipment`) de todo pedido que `listarMlAguardando`
+  ainda lista como aguardando E que já tem `shipment_id` gravado, com o
+  mesmo orçamento de tempo (4s) e mesma concorrência em lotes já usados pro
+  recheck do Flex — não é custo novo por ordem de grandeza, só estende um
+  padrão de custo já aceito pra mais um bucket.
+- **Pedido já gravado ANTES desta correção não tem `shipment_id` e por
+  isso fica de fora da reverificação** até algo tocar nele de novo — rodar
+  `api/backfill-todos-api.js` (`?conta=ricapet|thapets&dias=N`, já existe,
+  ver Estrutura de arquivos) pra uma janela curta (poucos dias, cobrindo o
+  que a TV ainda mostra) depois do deploy resolve isso de uma vez: o
+  backfill já grava `shipment_id` junto (usa o mesmo `montarPedidoGenerico`)
+  e atualiza o status na mesma passada.
+
 ### Projeção Financeira: sob demanda, não automática (Mercado Pago + Shopee)
 
 `lib/mpProjecao.js` e `lib/shopeeProjecao.js` alimentam a mesma tela

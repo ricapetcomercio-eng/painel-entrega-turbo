@@ -201,6 +201,65 @@ async function coletarNovosParaHistoricoTodos(conta, erros) {
   }
 }
 
+// Mesmo espírito do reverificarPendentesFlex/reverificarPendentesShopeeTodos
+// acima, agora pro ML "geral" (historico_todos, marketplace mercado_livre) —
+// sem isso, um pedido só era buscado UMA VEZ (quando a coleta incremental de
+// "Todos os pedidos" passava por ele) e nunca mais revisitado, porque aquela
+// coleta só anda pra frente no tempo (desde/ate sempre avançam). Bug real
+// encontrado em produção: pedido ML já ENTREGUE continuava aparecendo como
+// "aguardando despacho" no bloco "ML geral" da TV, com contagem de 28+ dias
+// (o deadline sintético de listarMlAguardando/montarCards) — o status
+// gravado na 1ª (e única) coleta nunca foi atualizado.
+// Só re-busca pedido que já tem `shipment_id` gravado (coluna nova em
+// historico_todos, ver `?tipo=adicionar-coluna-tipo`) — pedido salvo ANTES
+// dela existir fica de fora até um `api/backfill-todos-api.js` tocar nele de
+// novo (que já grava shipment_id, via montarPedidoGenerico).
+const TEMPO_MAXIMO_ML_TODOS_RECHECK_MS = 4000;
+
+async function reverificarPendentesMlTodos(erros) {
+  try {
+    const pendentes = (await listarMlAguardando(HORAS_JANELA_SHOPEE_TODOS)).filter((p) => p.shipment_id);
+
+    const { resultados } = await processarEmLotes(pendentes, TEMPO_MAXIMO_ML_TODOS_RECHECK_MS, async (pedido) => {
+      try {
+        const detalhes = await buscarDetalhesShipment(pedido.conta, pedido.shipment_id);
+        const dataVenda = new Date(pedido.date_created).getTime();
+        const horasAteEntrega = detalhes.entregue_em
+          ? (new Date(detalhes.entregue_em).getTime() - dataVenda) / (60 * 60 * 1000)
+          : null;
+        let atrasado = null;
+        const prazoAtual = detalhes.prazo_entrega || pedido.prazo_entrega;
+        if (prazoAtual) {
+          const prazoMs = new Date(prazoAtual).getTime();
+          atrasado = detalhes.entregue_em
+            ? new Date(detalhes.entregue_em).getTime() > prazoMs
+            : (detalhes.status !== 'cancelled' ? Date.now() > prazoMs : null);
+        }
+        return {
+          ...pedido,
+          status_envio: detalhes.status,
+          estado: detalhes.estado || pedido.estado,
+          cidade: detalhes.cidade || pedido.cidade,
+          coletado_em: detalhes.coletado_em || pedido.coletado_em || null,
+          entregue_em: detalhes.entregue_em || pedido.entregue_em || null,
+          horas_ate_entrega: horasAteEntrega,
+          prazo_entrega: prazoAtual || null,
+          atrasado,
+        };
+      } catch (err) {
+        erros.push({ fonte: `ml_todos_recheck:${pedido.order_id}`, mensagem: err.message });
+        return null;
+      }
+    });
+
+    if (resultados.length > 0) {
+      await registrarHistoricoTodos(resultados);
+    }
+  } catch (err) {
+    erros.push({ fonte: 'ml_todos_recheck_geral', mensagem: err.message });
+  }
+}
+
 // -------- Histórico geral ("Todos os pedidos") — Shopee, incremental, em lotes --------
 // Mesmo espírito do coletor acima (Mercado Livre), mas adaptado à paginação
 // da Shopee, que usa CURSOR opaco em vez de offset numérico.
@@ -738,6 +797,7 @@ module.exports = async (req, res) => {
       for (const conta of Object.keys(SELLER_IDS)) {
         await coletarNovosParaHistoricoTodos(conta, erros);
       }
+      await reverificarPendentesMlTodos(erros);
 
       // Snapshot de TODOS os pedidos ML ainda aguardando despacho (qualquer
       // forma de entrega, não só Flex) — equivalente ao
