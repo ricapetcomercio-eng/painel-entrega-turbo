@@ -383,15 +383,20 @@
   }
 
   // ================= FORMATAÇÃO =================
+  // Pedidos sem prazo real (Shopee/ML geral, ver montarCards) contam
+  // regressivo pra um deadline sintético de 30 dias, igual todo o resto —
+  // sem o prefixo de dias, isso viraria um número de horas de 3 dígitos
+  // tipo "715:23:10", ilegível na TV.
   function formatarContador(ms) {
     const negativo = ms < 0;
     const abs = Math.abs(ms);
     const totalSeg = Math.floor(abs / 1000);
-    const h = Math.floor(totalSeg / 3600);
+    const dias = Math.floor(totalSeg / 86400);
+    const h = Math.floor((totalSeg % 86400) / 3600);
     const m = Math.floor((totalSeg % 3600) / 60);
     const s = totalSeg % 60;
     const pad = (n) => String(n).padStart(2, '0');
-    const txt = `${pad(h)}:${pad(m)}:${pad(s)}`;
+    const txt = (dias > 0 ? `${dias}d ` : '') + `${pad(h)}:${pad(m)}:${pad(s)}`;
     return negativo ? '-' + txt : txt;
   }
 
@@ -619,8 +624,6 @@
 
     const contadorHtml = concluido
       ? `<div class="card-contador" style="color:${(naoEntregue || cancelado) ? 'var(--vermelho)' : 'var(--verde)'};">${cancelado ? '🚫' : naoEntregue ? '!' : '✓'}</div>`
-      : c.semPrazo
-      ? `<div class="card-contador" style="font-size:20px;color:var(--muted);">${tempoDecorridoTxt(c.createdMs)}</div>`
       : `<div class="card-contador" data-deadline="${c.deadlineMs}">${formatarContador(c.msRestante)}</div>`;
 
     const seloClasse = c.tipo === 'AGORA' ? 'selo-agora' : c.tipo === 'TURBO' ? 'selo-turbo' : c.tipo === 'SHOPEE' ? 'selo-shopee' : c.tipo === 'ML' ? 'selo-ml-geral' : 'selo-flex';
@@ -639,18 +642,8 @@
         ${contadorHtml}
         <div class="card-status">${statusHtml}</div>
         ${seloColetaHtml}
-        ${concluido || c.semPrazo ? '' : `<div class="barra-prazo"><div class="barra-prazo-fill" style="width:${pctBarra}%;"></div></div>`}
+        ${concluido ? '' : `<div class="barra-prazo"><div class="barra-prazo-fill" style="width:${pctBarra}%;"></div></div>`}
       </div>`;
-  }
-
-  // Shopee "geral" (qualquer forma de entrega, não só Entrega Turbo) não
-  // tem promessa expressa nem deadline real — em vez do countdown normal,
-  // mostra só há quanto tempo o pedido está parado.
-  function tempoDecorridoTxt(createdMs) {
-    const totalMin = Math.max(0, Math.floor((Date.now() - createdMs) / 60000));
-    const h = Math.floor(totalMin / 60);
-    const m = totalMin % 60;
-    return h > 0 ? `há ${h}h${String(m).padStart(2, '0')}` : `há ${m}min`;
   }
 
   function renderizarCards() {
