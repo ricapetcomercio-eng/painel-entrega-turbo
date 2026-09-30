@@ -543,6 +543,30 @@ mesmo sintoma, é a tela Acessos mesmo que resolve (Ricardo libera
 Bipagem/Estoque manualmente), não este endpoint (que é só o destrava
 pontual de quem ficou preso no buraco já fechado).
 
+**✅ 2ª rodada: quem nem tem a flag `admin` também "pedia a senha duas
+vezes" (set/2026)**: o endpoint acima só ajuda quem JÁ é admin — testado
+em produção com o Natan (funcionário de Expedição que bipa pacotes, ver
+gráfico "Total bipado por quem bipou" em `bipagem-v2.html`) e o PIN dele
+batia certo, mas `admin` era 0 na tabela `funcionarios`. Fluxo real: ele
+digita o PIN no Portal Ricapet (1ª vez), a troca de token (`?pt=`) falha
+(`debugPortalTrocarToken` exige `admin === 1`, sempre exigiu, não é algo
+que a correção acima mudou), `assets/auth.js` mandava pro `/login.html`, e
+ele digitava o PIN de novo ali (2ª vez) só pra ver "Seu usuário não tem
+acesso a este painel" — o mesmo PIN, recusado duas vezes por dois motivos
+diferentes. Decisão explícita do dono do projeto: **a regra de acesso não
+muda** (continua exigindo `admin` + página liberada pra usar Portal/painel)
+— o que muda é só a UX: como o PIN já foi pedido dentro do Portal segundos
+antes, a troca de token falhando **não deve mais cair no formulário de
+login de novo**. `assets/auth.js` (bloco do `?pt=`) agora mostra o overlay
+"Acesso restrito" (`mostrarAcessoNegado`, com o motivo real vindo do
+servidor — sem admin, sem página, token vencido etc.) direto nesta mesma
+tela em vez de redirecionar pro `/login.html?redirect=...`. Continua sem
+acesso quem não tiver o cadastro liberado — só não é mais convidado a
+digitar a senha de novo pra descobrir isso; Ricardo que decide, caso a
+caso em `/acessos.html`, quem realmente precisa de `admin`+`bipagem`/
+`estoque` pra usar o Portal (ex.: o Natan, se ele de fato precisa bipar
+por lá).
+
 ## Estrutura de arquivos
 
 ```

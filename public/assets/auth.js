@@ -133,9 +133,23 @@
       location.replace(location.pathname); // recarrega já sem o ?pt= na barra, com a sessão pronta
     } catch (e) {
       // Sem acesso (não é admin/página liberada) ou token do Portal já
-      // vencido -- cai no login normal, igual quem tentasse essa URL sem
-      // vir do Portal.
-      location.replace('/login.html?redirect=' + encodeURIComponent(location.pathname));
+      // vencido -- NÃO manda pro /login.html pedir nome+PIN de novo aqui:
+      // decisão explícita do dono do projeto, é exatamente o "pede a senha
+      // duas vezes" que ele pediu pra eliminar (a pessoa já provou quem é
+      // lá no Portal segundos atrás). Mostra a mensagem de acesso negado
+      // (com o motivo real vindo do servidor -- sem permissão, sem admin,
+      // token vencido etc.) direto nesta tela, sem formulário nenhum. A
+      // regra de acesso em si não muda: quem não tem admin/página liberada
+      // continua sem entrar, só não é mais convidado a tentar de novo com
+      // a senha -- Ricardo que libera em /acessos.html se for o caso.
+      // `mostrarAcessoNegado` é uma function declaration (hoisted), por
+      // isso pode ser chamada aqui mesmo definida mais abaixo no arquivo;
+      // só precisa esperar existir <body> pra anexar o overlay (este
+      // trecho roda ainda em <head>, antes do parser chegar no <body>).
+      document.documentElement.style.visibility = 'visible';
+      const mensagemNegado = e.message || 'Sem acesso. Peça liberação ao Ricardo.';
+      if (document.body) mostrarAcessoNegado(mensagemNegado);
+      else document.addEventListener('DOMContentLoaded', () => mostrarAcessoNegado(mensagemNegado), { once: true });
     }
     // `sessao` (variável local) fica null de propósito daqui pra baixo --
     // nunca é populada neste ramo, então `window.RicapetAuth.sessao` logo
