@@ -767,6 +767,7 @@
       </label>
       <div id="chipsFiltroContainer" style="display:inline-flex; gap:8px; flex-wrap:wrap;"></div>
       <button class="periodo-btn" onclick="limparTodosFiltrosDrill()" style="margin-left:auto;">🧹 Limpar filtros</button>
+      <button class="periodo-btn" id="btnExportarRelatorioPedidos" onclick="exportarRelatorioPedidos()">⬇️ Exportar relatório</button>
     </div>
 
     <div class="grid-stats">
@@ -2320,6 +2321,114 @@
   function limparFiltroEstado() {
     filtroEstado = null;
     carregarTodos();
+  }
+
+  function baixarArquivo(blob, nome) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = nome;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  }
+
+  // Relatório completo (1 linha por item do pedido, já que Produto/SKU
+  // variam dentro do mesmo pedido) -- usa o mesmo período/filtros já
+  // aplicados na aba "Todos os pedidos" (periodoAtual, forma de entrega,
+  // drill-downs de estado/cidade/loja/hora/produto), então exporta
+  // exatamente o que está sendo visto na tela, não uma amostra à parte.
+  // 100% client-side (mesmo padrão de bipagem.html/ponto.html), sem rota
+  // nova no servidor -- só usa os campos que /api/analytics-todos-data já
+  // devolve (itens vêm enriquecidos com produto/custo, ver
+  // api/analytics-todos-data.js).
+  //
+  // "Taxa" (comissão do marketplace) fica em branco de propósito -- não é
+  // armazenada em nenhum pedido hoje (nem ML nem Shopee), decisão explícita
+  // do dono do projeto até decidir de onde puxar esse dado (ver PR que
+  // introduziu este botão). "Lucro" = Faturamento - Custo (sem descontar
+  // Taxa, que é 0 enquanto não existir); fica em branco quando falta
+  // preço do item OU custo do produto (SKU não mapeado na TABELA_AUXILIAR)
+  // -- nunca adivinha um valor.
+  async function exportarRelatorioPedidos() {
+    const btn = document.getElementById('btnExportarRelatorioPedidos');
+    const textoOriginal = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '⏳ Gerando...';
+    try {
+      const params = new URLSearchParams();
+      if (periodoAtual.de) params.set('de', periodoAtual.de);
+      if (periodoAtual.ate) params.set('ate', periodoAtual.ate);
+      const formaAtual = document.getElementById('filtroFormaEntrega').value;
+      if (formaAtual) params.set('forma_entrega', formaAtual);
+
+      const resp = await fetch('/api/analytics-todos-data?' + params.toString());
+      const dados = await resp.json();
+      if (!resp.ok) throw new Error(dados.error || ('HTTP ' + resp.status));
+
+      let pedidos = dados.pedidos || [];
+      if (filtroEstado) pedidos = pedidos.filter(p => p.estado === filtroEstado);
+      if (filtroCidade) pedidos = pedidos.filter(p => p.cidade === filtroCidade);
+      if (filtroLoja) pedidos = pedidos.filter(p => {
+        const rotulo = `${p.conta || '-'} · ${p.marketplace === 'mercado_livre' ? 'Mercado Livre' : p.marketplace === 'shopee' ? 'Shopee' : '-'}`;
+        return rotulo === filtroLoja;
+      });
+      if (filtroHoraDia) pedidos = pedidos.filter(p => {
+        const d = new Date(p.date_created);
+        return d.getDay() === filtroHoraDia.dia && d.getHours() === filtroHoraDia.hora;
+      });
+      if (filtroProdutoDrill) pedidos = pedidos.filter(p => (p.itens || []).some(i => i.titulo === filtroProdutoDrill));
+
+      const ROTULO_MARKETPLACE = { mercado_livre: 'Mercado Livre', shopee: 'Shopee' };
+      const ROTULO_EMPRESA = { ricapet: 'Ricapet', thapets: 'Thapets' };
+      const fmtNum = (v) => (typeof v === 'number' && Number.isFinite(v)) ? v.toFixed(2).replace('.', ',') : '';
+
+      const cab = ['Produto', 'SKU', 'Canal', 'ID do pedido', 'Status', 'Valor Pg.', 'Empresa', 'Unidades', 'Faturamento', 'Taxa', 'Lucro', 'Margem', 'Data Pedido'];
+      const linhas = [cab];
+
+      for (const p of pedidos) {
+        const canal = ROTULO_MARKETPLACE[p.marketplace] || p.marketplace || '-';
+        const empresa = ROTULO_EMPRESA[p.conta] || p.conta || '-';
+        const status = p.cancelado ? 'Cancelado' : (p.status_pedido || p.status_envio || '-');
+        const dataPedido = p.date_created ? new Date(p.date_created).toLocaleString('pt-BR') : '-';
+        const valorPg = fmtNum(typeof p.total_amount === 'number' ? p.total_amount : null);
+        const itens = (Array.isArray(p.itens) && p.itens.length) ? p.itens : [{ titulo: '-', sku: '', quantidade: 0, valor_unitario: null, produto: 'Não mapeado', custo: null }];
+
+        for (const item of itens) {
+          const quantidade = Number(item.quantidade) || 0;
+          const temPreco = typeof item.valor_unitario === 'number';
+          const faturamento = temPreco ? item.valor_unitario * quantidade : null;
+          const temCusto = typeof item.custo === 'number';
+          const custoTotal = temCusto ? item.custo * quantidade : null;
+          const lucro = (faturamento != null && custoTotal != null) ? faturamento - custoTotal : null;
+          const margem = (lucro != null && faturamento) ? (lucro / faturamento) * 100 : null;
+
+          linhas.push([
+            item.produto || 'Não mapeado',
+            item.sku || '-',
+            canal,
+            p.order_id,
+            status,
+            valorPg,
+            empresa,
+            quantidade,
+            fmtNum(faturamento),
+            '', // Taxa -- ver comentário acima da função
+            fmtNum(lucro),
+            margem != null ? fmtNum(margem) + '%' : '',
+            dataPedido,
+          ]);
+        }
+      }
+
+      const csv = linhas.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\r\n');
+      const de = periodoAtual.de ? periodoAtual.de.slice(0, 10) : 'inicio';
+      const ate = periodoAtual.ate ? periodoAtual.ate.slice(0, 10) : 'hoje';
+      baixarArquivo(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }), `relatorio_pedidos_${de}_a_${ate}.csv`);
+    } catch (e) {
+      alert('Erro ao gerar relatório: ' + (e.message || e));
+    } finally {
+      btn.disabled = false;
+      btn.textContent = textoOriginal;
+    }
   }
 
   async function carregarAnalytics() {
