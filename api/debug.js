@@ -747,6 +747,35 @@ async function debugMlShipment(req, res) {
   });
 }
 
+// Diagnóstico: devolve o pedido CRU da API do ML (GET /orders/{id}), sem
+// nenhum processamento — pra confirmar o valor real de status/status_detail/
+// tags num pedido cancelado, antes de confiar cegamente em
+// `pedido.status === 'cancelled'` (coletarNovosParaHistoricoTodos,
+// api/collect.js — já tinha um TODO admitindo que isso nunca foi validado
+// com um pedido real). Achado em produção: pedido marcado "Cancelada. Não
+// envie." na própria tela do Mercado Livre (comprador cancelou por falta de
+// estoque) continuou aparecendo como "aguardando" no bloco "ML geral" da TV
+// — sinal de que o `cancelado` gravado pra esse pedido não bateu com o
+// critério usado na coleta.
+async function debugMlOrderRaw(req, res) {
+  const conta = req.query.conta;
+  const orderId = req.query.order_id;
+  if (!conta || !orderId) { res.status(400).json({ error: 'Use ?conta=ricapet&order_id=...' }); return; }
+  const accessToken = await getMLAccessToken(conta);
+  const pedido = await mlFetch(`/orders/${orderId}`, accessToken);
+  res.status(200).json({
+    ok: true,
+    tipo: 'ml-order-raw',
+    conta,
+    order_id: orderId,
+    status: pedido.status,
+    status_detail: pedido.status_detail,
+    tags: pedido.tags,
+    cancel_detail: pedido.cancel_detail || null,
+    pedido_bruto: pedido,
+  });
+}
+
 // Testa o endpoint oficial GET /shipments/{id}/sla — a doc do ML só confirma
 // esse endpoint pra Envios Agora, mas o path não parece exclusivo. Antes de
 // confiar nele pra Flex/Turbo (e trocar nosso cálculo manual de prazo por
@@ -3507,6 +3536,7 @@ module.exports = async (req, res) => {
     if (req.query.tipo === 'ml-claims') return await debugMlClaims(req, res);
     if (req.query.tipo === 'ml-claims-resumo') return await debugMlClaimsResumo(req, res);
     if (req.query.tipo === 'ml-shipment') return await debugMlShipment(req, res);
+    if (req.query.tipo === 'ml-order-raw') return await debugMlOrderRaw(req, res);
     if (req.query.tipo === 'flex-status') return await debugFlexStatus(req, res);
     if (req.query.tipo === 'ml-id-teste') return await debugMlIdTeste(req, res);
     if (req.query.tipo === 'historico-todos-row') return await debugHistoricoTodosRow(req, res);
