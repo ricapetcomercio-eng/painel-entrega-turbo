@@ -586,6 +586,11 @@
       <div class="chart-wrap short"><canvas id="chartMarketplace"></canvas></div>
     </div>
 
+    <div class="card">
+      <div class="card-head"><h3>Cobertura da expedição</h3><span class="hint" id="txt-cobertura">–</span></div>
+      <div class="chart-wrap short"><canvas id="chartCobertura"></canvas></div>
+    </div>
+
     <div class="table-card">
       <div class="table-card-head">
         <h3>Ranking dos funcionários</h3>
@@ -847,6 +852,38 @@
 
   let ultimoDadosBipagem = null;
   let dadosFiltrados = null;
+
+  // Cobertura da expedição (Bipado vs Total de pedidos do período): usa
+  // sempre os totais CRUS do período (sem os filtros de nome/tipo/
+  // plataforma da tabela de pedidos bipados) -- o denominador
+  // (total_pedidos_periodo, ver api/analytics-todos-data.js) vem de
+  // historico_todos, uma fonte totalmente diferente de bipagem_diaria, e
+  // não faz sentido variar com um filtro que só existe do lado da bipagem
+  // (ex.: filtrar por funcionário não deveria mudar "quantos pedidos
+  // existiam no período"). Por isso fica de fora de computarAgregados/
+  // renderizarPainel (que trabalham com a lista já filtrada) e é montado
+  // direto em carregar(), uma vez por período.
+  function montarChartCobertura(bipado, totalPedidos) {
+    const naoBipado = Math.max(totalPedidos - bipado, 0);
+    const pct = totalPedidos ? (bipado / totalPedidos) * 100 : 0;
+    $('txt-cobertura').textContent = totalPedidos
+      ? `${bipado.toLocaleString('pt-BR')} de ${totalPedidos.toLocaleString('pt-BR')} pedidos bipados (${pct.toFixed(1)}%)`
+      : 'Sem pedidos no período.';
+    chart('chartCobertura', {
+      type: 'doughnut',
+      data: {
+        labels: ['Bipado', 'Não bipado'],
+        datasets: [{ data: [bipado, naoBipado], backgroundColor: [cssVar('--good'), cssVar('--border-soft')], borderWidth: 0 }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, cutout: '68%',
+        plugins: {
+          legend: { position: 'bottom', labels: { color: cssVar('--ink-muted'), boxWidth: 10 } },
+          tooltip: tooltipBase(),
+        },
+      },
+    });
+  }
 
   // Dono/admin do painel — bipa esporadicamente (teste, cobertura de pico),
   // mas não é da equipe de expedição. Some da lista/ranking/gráficos por
@@ -1444,6 +1481,7 @@
       return;
     }
     ultimoDadosBipagem = dados;
+    montarChartCobertura(dados.total, dados.total_pedidos_periodo || 0);
     montarFiltrosPedidos(dados);
     aplicarFiltroTopo();
     $('txt-atualizado').textContent = 'Atualizado às ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
