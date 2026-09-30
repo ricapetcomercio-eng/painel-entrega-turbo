@@ -593,7 +593,7 @@
 
     <div class="card">
       <div class="card-head"><h3>Cobertura da expedição</h3><span class="hint" id="txt-cobertura">–</span></div>
-      <div class="chart-wrap short"><canvas id="chartCobertura"></canvas></div>
+      <div class="chart-wrap" style="height:280px;"><canvas id="chartCobertura"></canvas></div>
     </div>
 
     <div class="card">
@@ -888,37 +888,51 @@
   // recalcular -- os mesmos números já usados nos dois gráficos de
   // cobertura (doughnut + colunas), ver comentário logo abaixo.
   let ultimoResumoCobertura = { bipado: 0, totalPedidos: 0 };
+  let totalPedidosPeriodoAtual = 0;
 
-  // Cobertura da expedição (Bipado vs Total de pedidos do período): usa
-  // sempre os totais CRUS do período (sem os filtros de nome/tipo/
-  // plataforma da tabela de pedidos bipados) -- o denominador
-  // (total_pedidos_periodo, ver api/analytics-todos-data.js) vem de
+  // Cobertura da expedição (Bipado vs Total de pedidos do período).
+  // "Total de pedidos" (denominador) vem sempre do total BRUTO do período
+  // (total_pedidos_periodo, ver api/analytics-todos-data.js) -- vem de
   // historico_todos, uma fonte totalmente diferente de bipagem_diaria, e
-  // não faz sentido variar com um filtro que só existe do lado da bipagem
-  // (ex.: filtrar por funcionário não deveria mudar "quantos pedidos
-  // existiam no período"). Por isso fica de fora de computarAgregados/
-  // renderizarPainel (que trabalham com a lista já filtrada) e é montado
-  // direto em carregar(), uma vez por período.
+  // "quantos pedidos existiam no período" não muda com nenhum filtro que
+  // só existe do lado da bipagem. Já "Total bipado" (numerador) É filtrado
+  // -- chamada a partir de renderizarPainel() com dados.total (já passou
+  // pelos filtros de busca/tipo/plataforma/funcionário do topo), pra poder
+  // isolar "quantos pedidos ESSE funcionário bipou" quando o filtro
+  // "Funcionário" estiver marcado (pedido explícito: "mostrar somente os
+  // números dele").
   function montarChartCobertura(bipado, totalPedidos) {
     ultimoResumoCobertura = { bipado, totalPedidos };
     const naoBipado = Math.max(totalPedidos - bipado, 0);
     const pct = totalPedidos ? (bipado / totalPedidos) * 100 : 0;
+    const funcionarioAtual = $('fp-funcionario').value;
+    const quemBipouTxt = funcionarioAtual ? `${funcionarioAtual} bipou` : 'Bipados';
     const legenda = totalPedidos
-      ? `${bipado.toLocaleString('pt-BR')} de ${totalPedidos.toLocaleString('pt-BR')} pedidos bipados (${pct.toFixed(1)}%)`
+      ? `${quemBipouTxt} ${bipado.toLocaleString('pt-BR')} de ${totalPedidos.toLocaleString('pt-BR')} pedidos (${pct.toFixed(1)}%)`
       : 'Sem pedidos no período.';
     $('txt-cobertura').textContent = legenda;
     $('txt-colunas-cobertura').textContent = legenda;
+
+    // Pizza cheia (não rosca) e com o percentual escrito em cada fatia --
+    // pedido explicitamente "mais visível... para apresentação", onde
+    // antes só dava pra ver o valor exato passando o mouse.
     chart('chartCobertura', {
-      type: 'doughnut',
+      type: 'pie',
       data: {
         labels: ['Bipado', 'Não bipado'],
         datasets: [{ data: [bipado, naoBipado], backgroundColor: [cssVar('--good'), cssVar('--border-soft')], borderWidth: 0 }],
       },
       options: {
-        responsive: true, maintainAspectRatio: false, cutout: '68%',
+        responsive: true, maintainAspectRatio: false,
         plugins: {
-          legend: { position: 'bottom', labels: { color: cssVar('--ink-muted'), boxWidth: 10 } },
+          legend: { position: 'bottom', labels: { color: cssVar('--ink-muted'), boxWidth: 12, font: { size: 13, weight: 600 } } },
           tooltip: tooltipBase(),
+          datalabels: {
+            display: (ctx) => ctx.dataset.data[ctx.dataIndex] > 0,
+            color: (ctx) => (ctx.dataIndex === 0 ? '#fff' : cssVar('--ink')),
+            font: { weight: 800, size: 20 },
+            formatter: (v) => (totalPedidos ? `${((v / totalPedidos) * 100).toFixed(1).replace('.', ',')}%` : ''),
+          },
         },
       },
     });
@@ -930,7 +944,7 @@
     chart('chartColunasCobertura', {
       type: 'bar',
       data: {
-        labels: ['Total de pedidos', 'Total bipado'],
+        labels: ['Total de pedidos', quemBipouTxt === 'Bipados' ? 'Total bipado' : `Bipado por ${funcionarioAtual}`],
         datasets: [{ data: [totalPedidos, bipado], backgroundColor: [cssVar('--cat-1'), cssVar('--good')], borderRadius: 8, maxBarThickness: 110 }],
       },
       options: {
@@ -1261,6 +1275,7 @@
   function renderizarPainel(dados) {
     dadosFiltrados = dados;
     $('aviso-vazio').hidden = dados.total > 0;
+    montarChartCobertura(dados.total, totalPedidosPeriodoAtual);
 
     $('kpi-total').textContent = dados.total.toLocaleString('pt-BR');
     $('kpi-ricapet').innerHTML = `${(dados.por_empresa.Ricapet || 0).toLocaleString('pt-BR')} <small>${dados.total ? (((dados.por_empresa.Ricapet || 0) / dados.total) * 100).toFixed(0) : 0}%</small>`;
@@ -1605,7 +1620,11 @@
       return;
     }
     ultimoDadosBipagem = dados;
-    montarChartCobertura(dados.total, dados.total_pedidos_periodo || 0);
+    // "Total de pedidos" (denominador) é fixo por período -- guardado aqui
+    // pra montarChartCobertura (chamada de dentro de renderizarPainel, com
+    // o numerador já filtrado) poder montar os 2 gráficos de cobertura a
+    // cada vez que um filtro do topo mudar, sem precisar buscar de novo.
+    totalPedidosPeriodoAtual = dados.total_pedidos_periodo || 0;
     montarFiltrosPedidos(dados);
     aplicarFiltroTopo();
     $('txt-atualizado').textContent = 'Atualizado às ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
