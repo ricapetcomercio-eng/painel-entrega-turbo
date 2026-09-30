@@ -454,6 +454,20 @@ module.exports = async (req, res) => {
       pedidos = pedidos.filter((p) => p.estado === estadoFiltro);
     }
 
+    // Enriquece cada item com produto/custo (mesmo lookup em memória já
+    // usado em responderVisaoProdutos, sem I/O nenhum) -- usado pelo
+    // "Exportar relatório" da aba "Todos os pedidos" (public/index.html)
+    // pra montar o CSV 100% no navegador, sem precisar de uma rota nova só
+    // pra isso. Campo adicional, não quebra nenhum consumidor existente
+    // desta rota (tabela/gráficos só leem os campos que já usavam).
+    pedidos = pedidos.map((p) => ({
+      ...p,
+      itens: (p.itens || []).map((item) => {
+        const info = buscarProdutoPorSku(item.sku);
+        return { ...item, produto: info.produto, custo: info.custo };
+      }),
+    }));
+
     res.status(200).json({
       periodo: { de: de.toISOString(), ate: ate.toISOString() },
       total: pedidos.length,
