@@ -353,6 +353,19 @@
   .tag-manual.sim { background: var(--warn-bg); color: var(--warn); }
   .tag-manual.nao { color: var(--ink-muted); }
 
+  /* Chips pra escolher quais operadores comparar no gráfico "Total
+     bipado por quem bipou" -- nenhum marcado = mostra todos (mesmo
+     comportamento de antes). */
+  .chips-row { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 0 12px; }
+  .chip-toggle {
+    display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 700;
+    padding: 5px 12px; border-radius: 999px; white-space: nowrap; cursor: pointer;
+    border: 1.5px solid var(--border); background: var(--surface); color: var(--ink-soft);
+    transition: all .15s ease;
+  }
+  .chip-toggle:hover { border-color: var(--accent); color: var(--accent-ink); }
+  .chip-toggle.ativo { background: var(--accent); border-color: var(--accent); color: #fff; }
+
   .emp-chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
   .emp-chip {
     display: inline-flex; align-items: center; gap: 8px; padding: 5px 13px 5px 5px; border-radius: 999px;
@@ -610,7 +623,8 @@
     </div>
 
     <div class="card">
-      <div class="card-head"><h3>Total bipado por quem bipou</h3><span class="hint">clique numa coluna pra ver o detalhe do operador</span></div>
+      <div class="card-head"><h3>Total bipado por quem bipou</h3><span class="hint">clique num nome abaixo pra comparar só quem te interessa; clique numa coluna pra ver o detalhe do operador</span></div>
+      <div class="chips-row" id="chips-operadores-comparar"></div>
       <div class="chart-wrap"><canvas id="chartColunasOperador"></canvas></div>
     </div>
 
@@ -889,6 +903,10 @@
   // cobertura (doughnut + colunas), ver comentário logo abaixo.
   let ultimoResumoCobertura = { bipado: 0, totalPedidos: 0 };
   let totalPedidosPeriodoAtual = 0;
+  // Nomes marcados pra comparar no gráfico "Total bipado por quem bipou"
+  // (chips, ver montarChartOperadoresComparar) -- vazio = mostra todos,
+  // igual ao comportamento de antes desse filtro existir.
+  let operadoresComparar = new Set();
 
   // Cobertura da expedição (Bipado vs Total de pedidos do período).
   // "Total de pedidos" (denominador) vem sempre do total BRUTO do período
@@ -1125,12 +1143,72 @@
     renderizarPainel(computarAgregados(pedidos, ultimoDadosBipagem.operadores));
   }
 
+  // "Total bipado por quem bipou": comparação independente do filtro único
+  // "Funcionário" da barra de filtros (que restringe a TELA INTEIRA a uma
+  // só pessoa) -- aqui dá pra marcar vários nomes ao mesmo tempo (chips,
+  // clique liga/desliga) e comparar só entre eles, sem afetar KPIs/
+  // ranking/tabela/Cobertura. Ainda respeita busca/tipo/plataforma (o que
+  // não é "quem"), só ignora de propósito o filtro de Funcionário -- senão
+  // selecionar 1 funcionário ali já reduziria este gráfico a uma coluna só,
+  // impossibilitando comparar 2+ pessoas.
+  function obterPedidosSemFiltroFuncionario() {
+    if (!ultimoDadosBipagem) return [];
+    const f = obterFiltroAtual();
+    return filtrarPedidos(ultimoDadosBipagem.pedidos, { busca: f.busca, tipo: f.tipo, plataforma: f.plataforma, funcionario: '' });
+  }
+
+  function montarChartOperadoresComparar() {
+    const pedidos = obterPedidosSemFiltroFuncionario();
+    const agregados = computarAgregados(pedidos, (ultimoDadosBipagem && ultimoDadosBipagem.operadores) || []);
+    const todos = agregados.operadores;
+
+    const wrap = $('chips-operadores-comparar');
+    wrap.innerHTML = todos.length
+      ? todos.map((o) => `<button type="button" class="chip-toggle${operadoresComparar.has(o.nome) ? ' ativo' : ''}" data-nome="${o.nome}">${o.nome}</button>`).join('')
+      : '<span class="hint">Sem bipagens no período/filtro.</span>';
+    wrap.querySelectorAll('.chip-toggle').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const nome = btn.dataset.nome;
+        if (operadoresComparar.has(nome)) operadoresComparar.delete(nome);
+        else operadoresComparar.add(nome);
+        montarChartOperadoresComparar();
+      });
+    });
+
+    const selecionados = operadoresComparar.size > 0 ? todos.filter((o) => operadoresComparar.has(o.nome)) : todos;
+
+    chart('chartColunasOperador', {
+      type: 'bar',
+      data: { labels: selecionados.map((o) => o.nome), datasets: [{ data: selecionados.map((o) => o.total), backgroundColor: cssVar('--cat-2'), borderRadius: 6, maxBarThickness: 64 }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        layout: { padding: { top: 24 } },
+        plugins: {
+          legend: { display: false },
+          tooltip: tooltipBase(),
+          datalabels: {
+            display: (ctx) => ctx.dataset.data[ctx.dataIndex] > 0, anchor: 'end', align: 'end', clamp: true,
+            color: cssVar('--ink'), font: { weight: 700, size: 12 },
+            formatter: (v) => v.toLocaleString('pt-BR'),
+          },
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: cssVar('--ink'), font: { weight: 600 } } },
+          y: { grid: { color: cssVar('--border-soft') }, ticks: { color: cssVar('--ink-muted') }, beginAtZero: true },
+        },
+        onClick: (evt, els) => { if (els.length) abrirDrawer(selecionados[els[0].index].nome); },
+        onHover: (evt, els) => { evt.native.target.style.cursor = els.length ? 'pointer' : 'default'; },
+      },
+    });
+  }
+
   ['fp-busca', 'fp-tipo', 'fp-plataforma', 'fp-funcionario'].forEach((id) => {
     $(id).addEventListener('input', aplicarFiltroTopo);
     $(id).addEventListener('change', aplicarFiltroTopo);
   });
   $('fp-limpar').addEventListener('click', () => {
     $('fp-busca').value = ''; $('fp-tipo').value = ''; $('fp-plataforma').value = ''; $('fp-funcionario').value = '';
+    operadoresComparar.clear();
     aplicarFiltroTopo();
   });
   $('busca-funcionario').addEventListener('input', () => {
@@ -1306,35 +1384,11 @@
       },
     });
 
-    // mesmo ranking, em colunas verticais com o número em cima de cada
-    // barra (datalabels) -- versão "de apresentação" do ranking acima,
-    // que já existia mas só mostra o valor passando o mouse. Respeita os
-    // mesmos filtros já aplicados na tela (nome/tipo/plataforma/
-    // funcionário), diferente do gráfico de Cobertura (que usa sempre o
-    // total bruto do período).
-    chart('chartColunasOperador', {
-      type: 'bar',
-      data: { labels: opsOrdenados.map((o) => o.nome), datasets: [{ data: opsOrdenados.map((o) => o.total), backgroundColor: cssVar('--cat-2'), borderRadius: 6, maxBarThickness: 64 }] },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        layout: { padding: { top: 24 } },
-        plugins: {
-          legend: { display: false },
-          tooltip: tooltipBase(),
-          datalabels: {
-            display: (ctx) => ctx.dataset.data[ctx.dataIndex] > 0, anchor: 'end', align: 'end', clamp: true,
-            color: cssVar('--ink'), font: { weight: 700, size: 12 },
-            formatter: (v) => v.toLocaleString('pt-BR'),
-          },
-        },
-        scales: {
-          x: { grid: { display: false }, ticks: { color: cssVar('--ink'), font: { weight: 600 } } },
-          y: { grid: { color: cssVar('--border-soft') }, ticks: { color: cssVar('--ink-muted') }, beginAtZero: true },
-        },
-        onClick: (evt, els) => { if (els.length) abrirDrawer(opsOrdenados[els[0].index].nome); },
-        onHover: (evt, els) => { evt.native.target.style.cursor = els.length ? 'pointer' : 'default'; },
-      },
-    });
+    // "Total bipado por quem bipou": ver montarChartOperadoresComparar()
+    // -- fica de fora daqui de propósito, não usa opsOrdenados (que já vem
+    // filtrado pelo Funcionário da barra de filtros, o que inviabilizaria
+    // comparar 2+ pessoas ao mesmo tempo).
+    montarChartOperadoresComparar();
 
     // produtividade por hora do dia
     const picoIdx = dados.por_hora.indexOf(Math.max(...dados.por_hora));
