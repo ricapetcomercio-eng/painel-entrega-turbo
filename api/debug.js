@@ -330,6 +330,7 @@ async function debugAdicionarColunaTipo(req, res) {
     ['historico_todos.reclamacao_status', 'ALTER TABLE historico_todos ADD COLUMN reclamacao_status TEXT'],
     ['historico_todos.reclamacao_motivo', 'ALTER TABLE historico_todos ADD COLUMN reclamacao_motivo TEXT'],
     ['historico_todos.reclamacao_tipo', 'ALTER TABLE historico_todos ADD COLUMN reclamacao_tipo TEXT'],
+    ['historico_todos.shipment_id', 'ALTER TABLE historico_todos ADD COLUMN shipment_id TEXT'],
   ]) {
     try {
       await db.execute(sql);
