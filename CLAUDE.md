@@ -567,6 +567,29 @@ caso em `/acessos.html`, quem realmente precisa de `admin`+`bipagem`/
 `estoque` pra usar o Portal (ex.: o Natan, se ele de fato precisa bipar
 por lá).
 
+**✅ 3ª rodada: a própria tela Acessos deixava salvar "página liberada,
+Admin desmarcado" sem nenhum aviso (set/2026)**: voltando em
+`/acessos.html` pra marcar o Natan (2ª rodada acima), o Ricardo já tinha
+marcado Bipagem/Estoque pra ele — mas **Admin continuava desmarcado**, e o
+mesmo padrão apareceu em mais 3 funcionários (Rafael, Matheus, Vitor).
+Como `obterAdminSessao`/`debugPortalTrocarToken` conferem `admin` ANTES de
+olhar pra página (ver acima), essa combinação nunca funciona — mas nada na
+tela avisava disso além de um `title` (tooltip) fácil de não notar no
+cabeçalho "Admin". Três correções, não uma:
+- `public/acessos.html`: marcar qualquer checkbox de página agora já marca
+  "Admin" sozinho na mesma linha (`change` listener por checkbox de
+  página) — não dá mais pra configurar essa combinação pela tela.
+- `debugAcessosDefinir` (`api/debug.js`): reforço do lado do servidor —
+  salvar qualquer página força `admin = true`, mesmo que a chamada venha
+  de outro lugar que não seja esta tela.
+- `POST /api/debug?tipo=acessos-sincronizar-admin-paginas&secret=CRON_SECRET`
+  (sem corpo): conserta quem já ficou salvo nessa combinação quebrada ANTES
+  desta correção — marca `admin = 1` pra todo funcionário ativo que já tem
+  alguma linha em `funcionarios_paginas` mas `admin = 0`. Idempotente,
+  rodar 1x depois do deploy (mesmo padrão dos outros endpoints de ajuste
+  acima); resolve o Natan/Rafael/Matheus/Vitor de uma vez sem precisar
+  reabrir a tela linha por linha.
+
 ## Estrutura de arquivos
 
 ```
