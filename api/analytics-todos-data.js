@@ -220,6 +220,20 @@ async function responderVisaoBipagem(req, res) {
 
   const pedidos = rsPeriodo.rows;
 
+  // Total de pedidos do período (qualquer marketplace/empresa, todo pedido
+  // que efetivamente precisa ser despachado -- exclui só cancelado), pra
+  // comparar contra o total já bipado (gráfico "Cobertura da expedição" em
+  // bipagem-v2.html). date_created_ts em historico_todos é epoch em
+  // MILISSEGUNDOS (ver lib/historicoTodos.js), diferente de bipado_em_ts
+  // em bipagem_diaria (SEGUNDOS, usado no SELECT acima) -- por isso usa
+  // inicioIso/fimIso direto em vez de inicioTs/fimTs.
+  const rsTotalPedidos = await db.execute({
+    sql: `SELECT COUNT(*) AS total FROM historico_todos
+          WHERE date_created_ts BETWEEN ? AND ? AND (cancelado IS NULL OR cancelado = 0)`,
+    args: [new Date(inicioIso).getTime(), new Date(fimIso).getTime()],
+  });
+  const totalPedidosPeriodo = Number(rsTotalPedidos.rows[0].total) || 0;
+
   // Cruza com historico_todos pra saber quais desses pedidos bipados
   // acabaram devolvidos OU reclamados (campos `devolvido`/`reclamado`,
   // atualizados por um processo separado em api/collect.js quando a
@@ -409,6 +423,7 @@ async function responderVisaoBipagem(req, res) {
     de,
     ate,
     total: pedidos.length,
+    total_pedidos_periodo: totalPedidosPeriodo,
     manuais,
     localizados_total: localizadosTotal,
     devolvidos_total: devolvidosTotal,
