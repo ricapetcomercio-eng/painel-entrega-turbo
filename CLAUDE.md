@@ -158,6 +158,26 @@ Corrigido:
   backfill já grava `shipment_id` junto (usa o mesmo `montarPedidoGenerico`)
   e atualiza o status na mesma passada.
 
+**✅ 2ª rodada do mesmo bug: pedido CANCELADO depois de coletado também
+ficava preso em "aguardando" (set/2026)**: a correção acima só reconferia o
+status do SHIPMENT (`buscarDetalhesShipment`) — não cobria um pedido que é
+cancelado DEPOIS de já coletado (ex.: mediação de disputa aberta pelo
+comprador que só termina em cancelamento no dia seguinte). Confirmado com
+dado real de produção via `?tipo=ml-order-raw` (nova rota de diagnóstico,
+`GET /orders/{id}` cru): pedido criado 28/set 20:24, fechado quase na hora
+(20:25), mas só CANCELADO 29/set 09:37 via mediação do comprador
+(`cancel_detail.group: "buyer"`, `code: "buyer_cancel_express"`) —
+`pedido.status` da própria API já vinha `"cancelled"` (o critério de
+`coletarNovosParaHistoricoTodos` estava certo, só nunca era reconferido
+depois da coleta inicial). `reverificarPendentesMlTodos` agora rebusca o
+PEDIDO em si primeiro (nova `buscarPedidoPorId`, `lib/mlAllOrders.js`) —
+se já `status === 'cancelled'`, marca `cancelado = true` e nem chega a
+reconferir o shipment (não faz sentido pra um pedido cancelado); senão,
+segue pro recheck de shipment normal. Custa até 2 chamadas de API por
+pedido agora (pedido + shipment, quando ainda não cancelado) em vez de 1 —
+mesmo orçamento de tempo (4s), só processa menos pedidos por ciclo se a
+fila for grande, não é custo sem limite.
+
 ### Projeção Financeira: sob demanda, não automática (Mercado Pago + Shopee)
 
 `lib/mpProjecao.js` e `lib/shopeeProjecao.js` alimentam a mesma tela

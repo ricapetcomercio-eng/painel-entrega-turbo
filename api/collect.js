@@ -34,7 +34,7 @@ const { LOJAS: LOJAS_SHOPEE } = require('../lib/shopeeAuth');
 const { buscarPedidosPeriodo, verificarFlex, montarPedidoFlex, reverificarStatusPedido } = require('../lib/mlFlexOrders');
 const { registrarHistoricoFlex, listarRecentes } = require('../lib/historicoFlex');
 const { registrarHistoricoTurboLive, listarRecentesTurbo } = require('../lib/historicoTurboLive');
-const { buscarDetalhesShipment, montarPedidoGenerico } = require('../lib/mlAllOrders');
+const { buscarDetalhesShipment, buscarPedidoPorId, montarPedidoGenerico } = require('../lib/mlAllOrders');
 const { buscarClaimsClassificadosPeriodo } = require('../lib/mlClaims');
 const { buscarDevolucoesPorPedido: buscarDevolucoesShopeePorPedido } = require('../lib/shopeeReturns');
 const { registrarHistoricoTodos, marcarDevolucao, marcarReclamacao, listarShopeeAguardando, listarShopeePendentesParaReverificar, listarMlAguardando } = require('../lib/historicoTodos');
@@ -214,6 +214,17 @@ async function coletarNovosParaHistoricoTodos(conta, erros) {
 // historico_todos, ver `?tipo=adicionar-coluna-tipo`) — pedido salvo ANTES
 // dela existir fica de fora até um `api/backfill-todos-api.js` tocar nele de
 // novo (que já grava shipment_id, via montarPedidoGenerico).
+// ⚠️ Reconfere o PEDIDO (buscarPedidoPorId) ANTES do shipment, não só o
+// shipment — achado real em produção: um pedido pode ser cancelado DEPOIS
+// de já coletado (ex.: mediação de disputa que só termina em cancelamento
+// no dia seguinte), e isso só aparece no status do PEDIDO
+// (`pedido.status === 'cancelled'`, confirmado via `?tipo=ml-order-raw`) —
+// o shipment desse mesmo pedido pode nem mudar de status. Sem essa 2ª
+// checagem, o pedido cancelado continuava "aguardando" pra sempre, mesmo
+// com a reverificação de shipment já funcionando certo pros outros casos
+// (entregue/coletado). Custa até 2 chamadas de API por pedido agora (pedido
+// + shipment, quando ainda não cancelado) — mesmo orçamento de tempo (4s),
+// só processa menos pedidos por ciclo se a fila for grande.
 const TEMPO_MAXIMO_ML_TODOS_RECHECK_MS = 4000;
 
 async function reverificarPendentesMlTodos(erros) {
@@ -222,6 +233,17 @@ async function reverificarPendentesMlTodos(erros) {
 
     const { resultados } = await processarEmLotes(pendentes, TEMPO_MAXIMO_ML_TODOS_RECHECK_MS, async (pedido) => {
       try {
+        // Reconfere o PEDIDO em si primeiro (não só o shipment) — um pedido
+        // pode ser cancelado DEPOIS de já coletado (ex.: mediação de disputa
+        // que termina em cancelamento só no dia seguinte), e só o status do
+        // pedido reflete isso; o shipment de um pedido cancelado às vezes
+        // nem chega a mudar de status. Caso real confirmado em produção via
+        // ?tipo=ml-order-raw.
+        const pedidoAtual = await buscarPedidoPorId(pedido.conta, pedido.order_id);
+        if (pedidoAtual.status === 'cancelled') {
+          return { ...pedido, status_pedido: pedidoAtual.status, cancelado: true };
+        }
+
         const detalhes = await buscarDetalhesShipment(pedido.conta, pedido.shipment_id);
         const dataVenda = new Date(pedido.date_created).getTime();
         const horasAteEntrega = detalhes.entregue_em
@@ -237,6 +259,7 @@ async function reverificarPendentesMlTodos(erros) {
         }
         return {
           ...pedido,
+          status_pedido: pedidoAtual.status,
           status_envio: detalhes.status,
           estado: detalhes.estado || pedido.estado,
           cidade: detalhes.cidade || pedido.cidade,
