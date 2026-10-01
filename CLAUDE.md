@@ -274,15 +274,20 @@ há tempos: "ainda não validado... se esses 3 valores cobrem todo 'aguardando'"
   `verificarFlex`, `lib/mlFlexOrders.js` — o pacote só sai fisicamente
   depois que o motoboy retira). `in_packing_list`/`in_hub` são os únicos
   substatus confirmados como "já despachado de verdade" nessa amostra.
-- `STATUS_SUBSTATUS_JA_DESPACHADO = ['in_packing_list', 'in_hub']`
-  (`lib/historicoTodos.js`) — lista **deliberadamente conservadora**, só
-  com os 2 valores confirmados com dado real; `listarMlAguardando` agora
-  também exclui quem tem `status_substatus` nessa lista.
-  `authorized_by_carrier` (1 ocorrência na amostra) ficou de fora de
-  propósito — ainda não confirmado se é antes ou depois do despacho físico
-  (nome ambíguo: pode ser "transportadora autorizada a buscar" = ainda
-  aguardando, ou "transportadora já autorizou o recebimento" = já saiu).
-  Revisar se aparecer de novo com mais dado real antes de incluir na lista.
+- `STATUS_SUBSTATUS_JA_DESPACHADO = ['in_packing_list', 'in_hub',
+  'authorized_by_carrier']` (`lib/historicoTodos.js`) — lista
+  **deliberadamente conservadora**, só com valores confirmados com dado
+  real; `listarMlAguardando` exclui quem tem `status_substatus` nessa
+  lista. `authorized_by_carrier` (1 ocorrência na amostra original) tinha
+  ficado de fora por falta de confirmação (nome ambíguo: podia ser
+  "transportadora autorizada a buscar" = ainda aguardando, ou
+  "transportadora já autorizou o recebimento" = já saiu) — **confirmado
+  horas depois**: pedido #2000018705030292, reportado pelo dono do projeto
+  ainda preso em "ML geral" (agora com contador negativo/atrasado, já que
+  o prazo sintético caiu pra 24h — ver abaixo), tinha `status_substatus =
+  authorized_by_carrier` gravado E a tela do próprio Mercado Livre
+  mostrando "A caminho, chegará hoje" — ou seja, já despachado de verdade.
+  Adicionado à lista.
 - `buscarDetalhesShipment` (`lib/mlAllOrders.js`) já buscava o shipment
   inteiro — `substatus` vem de graça na mesma resposta, **zero chamada de
   API nova** (mesmo espírito de custo zero já documentado nos blocos
