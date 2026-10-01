@@ -99,6 +99,7 @@
     border-radius: 8px; padding: 7px 10px; font-size: 13px; cursor: pointer; margin-left: auto;
   }
   .btn-icone.ativo { color: var(--verde); border-color: var(--verde); }
+  .btn-icone:disabled { opacity: 0.45; cursor: not-allowed; }
 
   /* ---- grid de cards ---- */
   .area-cards { padding: 18px 24px; display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; }
@@ -363,20 +364,42 @@
   // de qualquer forma de entrega (não só Flex), vindos de
   // entrega_turbo:ultima_coleta_ml_todos (ver listarMlAguardando,
   // lib/historicoTodos.js).
-  let mostrarMlTodos = true;
-  try {
-    const salvoMl = localStorage.getItem('tv_mostrar_ml_todos');
-    if (salvoMl !== null) mostrarMlTodos = salvoMl === '1';
-  } catch (e) { /* localStorage indisponível — mantém o padrão (exibindo) */ }
+  //
+  // ⚠️ DESATIVADO TEMPORARIAMENTE A PEDIDO DO DONO DO PROJETO (out/2026) —
+  // rollback do recurso, não remoção: depois de 4 rodadas de bug
+  // (status_envio null, cancelamento tardio, shipment_id corrompido,
+  // status_substatus incompleto — ver CLAUDE.md), pedido ML ainda estava
+  // aparecendo "aguardando" já despachado de verdade com frequência maior
+  // do que o aceitável pra uma tela de operação ao vivo. Em vez de confiar
+  // cegamente na heurística de status/substatus do shipment (que já
+  // provou ter mais variações do que o confirmado até agora), a seção
+  // fica OCULTA incondicionalmente — ignora até o toggle salvo em
+  // localStorage de cada tela, pra garantir que nenhuma TV já configurada
+  // como "exibindo" continue mostrando. Shopee geral, Flex, Turbo e Agora
+  // NÃO são afetados — o problema é específico do lado ML "geral".
+  // Pra reativar: trocar a constante abaixo pra false (isso volta a
+  // respeitar o toggle/localStorage de cada tela, igual era antes).
+  const ML_TODOS_DESATIVADO = true;
+  let mostrarMlTodos = !ML_TODOS_DESATIVADO;
+  if (!ML_TODOS_DESATIVADO) {
+    try {
+      const salvoMl = localStorage.getItem('tv_mostrar_ml_todos');
+      if (salvoMl !== null) mostrarMlTodos = salvoMl === '1';
+    } catch (e) { /* localStorage indisponível — mantém o padrão (exibindo) */ }
+  }
 
   function aplicarVisibilidadeMlTodos() {
     const btn = document.getElementById('btnMlTodos');
-    btn.textContent = mostrarMlTodos ? '📦 ML geral: exibindo' : '📦 ML geral: oculto';
+    btn.textContent = ML_TODOS_DESATIVADO
+      ? '📦 ML geral: desativado'
+      : (mostrarMlTodos ? '📦 ML geral: exibindo' : '📦 ML geral: oculto');
     btn.className = 'btn-icone' + (mostrarMlTodos ? ' ativo' : '');
+    btn.disabled = ML_TODOS_DESATIVADO;
     renderizarCards();
   }
 
   function alternarMlTodos() {
+    if (ML_TODOS_DESATIVADO) return;
     mostrarMlTodos = !mostrarMlTodos;
     try { localStorage.setItem('tv_mostrar_ml_todos', mostrarMlTodos ? '1' : '0'); } catch (e) {}
     aplicarVisibilidadeMlTodos();
