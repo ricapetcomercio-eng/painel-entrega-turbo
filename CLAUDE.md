@@ -236,6 +236,55 @@ em duas etapas via `?tipo=ml-shipment`:
    a reverificação automática que lê do banco) — mesmo padrão de
    `?conta=ricapet|thapets&dias=N` já usado nas rodadas anteriores.
 
+**✅ 4ª rodada: `status_envio IN (pending, handling, ready_to_ship)` sozinho
+não bastava pra "ainda aguardando despacho" (out/2026)**: depois da 3ª
+rodada corrigir o apagamento de `status_envio`, o "ML geral" foi de 8 pra
+~33-37 pedidos — esperado (muitos estavam escondidos pelo bug anterior).
+Mas o dono do projeto reportou vários pedidos **já despachados de verdade**
+(confirmado na própria tela do Mercado Livre — "A caminho") continuando
+como "Aguardando coleta". Nova rota de diagnóstico, `?tipo=ml-aguardando-
+substatus` (busca o shipment AO VIVO de todo pedido que `listarMlAguardando`
+considera pendente agora, sem custo extra de API além do que a reconferência
+já faz), confirmou com dado real (pedido #2000018704052230, `logistic_type:
+xd_drop_off` — Correios/pontos de envio): o `status` top-level do shipment
+fica parado em `"ready_to_ship"` mesmo depois do pacote já ter sido
+fisicamente despachado — só o `substatus` revela isso
+(`substatus_history`: `invoice_pending` → `waiting_for_carrier_authorization`
+→ `ready_to_print` → `dropped_off` → `picked_up` → `in_hub` →
+`in_packing_list`, nessa ordem). Isso confirma (não refuta, como a 2ª rodada
+fez pro critério de cancelamento) um TODO que já existia no próprio código
+há tempos: "ainda não validado... se esses 3 valores cobrem todo 'aguardando'".
+- Amostra real de 33 pedidos "aguardando" (`?tipo=ml-aguardando-substatus`):
+  `printed` (19), `in_packing_list` (8), `invoice_pending` (2),
+  `authorized_by_carrier` (1), `in_hub` (1), `buffered` (1, Flex/
+  self_service, ainda realmente pendente) — `printed`/`invoice_pending`/
+  `buffered` continuam sendo legitimamente "ainda aguardando" (inclusive
+  pra Flex, onde `printed` já é o comportamento aceito hoje em
+  `verificarFlex`, `lib/mlFlexOrders.js` — o pacote só sai fisicamente
+  depois que o motoboy retira). `in_packing_list`/`in_hub` são os únicos
+  substatus confirmados como "já despachado de verdade" nessa amostra.
+- `STATUS_SUBSTATUS_JA_DESPACHADO = ['in_packing_list', 'in_hub']`
+  (`lib/historicoTodos.js`) — lista **deliberadamente conservadora**, só
+  com os 2 valores confirmados com dado real; `listarMlAguardando` agora
+  também exclui quem tem `status_substatus` nessa lista.
+  `authorized_by_carrier` (1 ocorrência na amostra) ficou de fora de
+  propósito — ainda não confirmado se é antes ou depois do despacho físico
+  (nome ambíguo: pode ser "transportadora autorizada a buscar" = ainda
+  aguardando, ou "transportadora já autorizou o recebimento" = já saiu).
+  Revisar se aparecer de novo com mais dado real antes de incluir na lista.
+- `buscarDetalhesShipment` (`lib/mlAllOrders.js`) já buscava o shipment
+  inteiro — `substatus` vem de graça na mesma resposta, **zero chamada de
+  API nova** (mesmo espírito de custo zero já documentado nos blocos
+  "geral" acima). Nova coluna `historico_todos.status_substatus` (mesma
+  migração `?tipo=adicionar-coluna-tipo`), gravada/atualizada no mesmo
+  fluxo que já grava `status_envio` (incluindo o mesmo fallback — uma falha
+  de reconferência preserva o substatus antigo, não apaga).
+- **Rodar depois do deploy**: migração (`?tipo=adicionar-coluna-tipo`) e
+  depois backfill (`api/backfill-todos-api.js?conta=ricapet|thapets&dias=N`)
+  pra popular `status_substatus` nos pedidos já gravados — sem isso eles
+  ficam com a coluna `NULL` (que a query trata como "ainda aguardando",
+  lado seguro) até a próxima reconferência/backfill tocar neles.
+
 ### Projeção Financeira: sob demanda, não automática (Mercado Pago + Shopee)
 
 `lib/mpProjecao.js` e `lib/shopeeProjecao.js` alimentam a mesma tela

@@ -275,6 +275,7 @@ async function reverificarPendentesMlTodos(erros) {
           // os demais campos abaixo (estado/cidade/coletado_em/entregue_em)
           // já tinham essa proteção, só status_envio não tinha.
           status_envio: detalhes.status || pedido.status_envio,
+          status_substatus: detalhes.substatus || pedido.status_substatus,
           estado: detalhes.estado || pedido.estado,
           cidade: detalhes.cidade || pedido.cidade,
           coletado_em: detalhes.coletado_em || pedido.coletado_em || null,
