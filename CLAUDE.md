@@ -178,6 +178,64 @@ pedido agora (pedido + shipment, quando ainda não cancelado) em vez de 1 —
 mesmo orçamento de tempo (4s), só processa menos pedidos por ciclo se a
 fila for grande, não é custo sem limite.
 
+**✅ 3ª rodada: `reverificarPendentesMlTodos` estava APAGANDO o status de
+pedidos que já estavam certos, por causa de um `shipment_id` corrompido no
+banco (out/2026)**: achado a partir de 5 pedidos ML reportados como
+sumidos da TV mesmo sem nenhum dos dois bugs acima — confirmado com dado
+real de produção (`?tipo=historico-todos-row`) que os 5 tinham
+`status_envio: null` mas `shipment_id` preenchido. Causa raiz, confirmada
+em duas etapas via `?tipo=ml-shipment`:
+1. `montarPedidoGenerico` (`lib/mlAllOrders.js`) gravava `shipment_id:
+   shipmentId` com o **number** cru vindo de `pedido.shipping.id` (um JSON
+   number), em vez de string. Gravar um number numa coluna `TEXT` faz o
+   SQLite tratar o valor como REAL e aplicar a conversão REAL→TEXT na hora
+   de persistir — que sempre inclui `.0` (`48130926168` vira
+   `"48130926168.0"`). Mesmíssimo bug que já tinha acontecido antes em
+   `historico_flex` (ver `debugCorrigirShipmentId`/`?tipo=corrigir-
+   shipment-id` em `api/debug.js`) — só que aquela correção, na época, só
+   limpou o banco uma vez e nunca corrigiu a origem (`montarPedidoFlex`
+   continuava com o mesmo `shipment_id: shipmentId` sem `String(...)`),
+   então o mesmo problema podia voltar a qualquer momento pra pedido novo
+   — e voltou, só que numa tabela diferente (`historico_todos`, criada
+   depois).
+2. `"48130926168.0"` não é um shipment_id válido pra API do ML — testado
+   direto (`?tipo=ml-shipment&shipment_id=48130926168.0`): `404 resource
+   not found`. `reverificarPendentesMlTodos` lê `shipment_id` **do banco**
+   (via `listarMlAguardando`) pra reconferir, então toda vez que tentava
+   reconferir um desses pedidos, `buscarDetalhesShipment` falhava (erro
+   engolido internamente, devolve tudo `null`) — e o código **não tinha
+   proteção nenhuma** pra isso: `status_envio: detalhes.status` sobrescrevia
+   incondicionalmente o valor antigo (que podia estar certo, ex.
+   `"handling"`) com `null`. Diferente dos outros campos do mesmo objeto
+   (`estado`, `cidade`, `coletado_em`, `entregue_em`), que já tinham
+   fallback `|| pedido.<campo>` — só `status_envio` não tinha, inconsistência
+   que passou despercebida ao escrever a função na 1ª rodada. E
+   `status_envio = null` cai fora de `listarMlAguardando` (não bate em
+   `pending`/`handling`/`ready_to_ship`) — a mesma consulta que decide quem
+   aparece na TV **e** quem é reconferido, então o pedido some e nunca mais
+   é revisitado: órfão permanente, criado pela própria reverificação que
+   devia estar corrigindo o pedido.
+   Corrigido em três pontos:
+   - `montarPedidoGenerico` (`lib/mlAllOrders.js`) e `montarPedidoFlex`
+     (`lib/mlFlexOrders.js`, mesma falta, corrigida de uma vez por tabela)
+     agora gravam `shipment_id: shipmentId != null ? String(shipmentId) :
+     null` — nunca mais deve corromper um `shipment_id` novo.
+   - `reverificarPendentesMlTodos` (`api/collect.js`) agora usa
+     `status_envio: detalhes.status || pedido.status_envio` — uma falha de
+     reconferência (seja por `shipment_id` ruim, rate limit, qualquer
+     coisa) deixa o pedido como estava, nunca mais apaga um status bom.
+   - `debugCorrigirShipmentId` (`?tipo=corrigir-shipment-id`, `api/debug.js`)
+     agora limpa `shipment_id` corrompido (`LIKE '%.0'`) nas **duas**
+     tabelas (`historico_flex` e `historico_todos`), não só a primeira —
+     mesmo SQL (`SUBSTR` removendo os 2 últimos caracteres), idempotente.
+   **Rodar 1x depois do deploy** (`POST /api/debug?tipo=corrigir-shipment-
+   id&secret=CRON_SECRET`), e depois rodar `api/backfill-todos-api.js`
+   pros pedidos específicos que já ficaram com `status_envio = null`
+   (esses continuam fora de `listarMlAguardando` até alguém tocar neles de
+   novo — o backfill sempre busca o `shipment_id` fresco direto da API, só
+   a reverificação automática que lê do banco) — mesmo padrão de
+   `?conta=ricapet|thapets&dias=N` já usado nas rodadas anteriores.
+
 ### Projeção Financeira: sob demanda, não automática (Mercado Pago + Shopee)
 
 `lib/mpProjecao.js` e `lib/shopeeProjecao.js` alimentam a mesma tela

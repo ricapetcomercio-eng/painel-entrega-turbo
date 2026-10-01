@@ -276,19 +276,33 @@ const ALTERS_PONTO = [
 // coluna TEXT, fazendo o SQLite aplicar a conversão REAL->TEXT (que sempre
 // inclui ".0"). Isso quebrava a reverificação de status desses pedidos pra
 // sempre, porque "123456789.0" não é um shipment_id válido na API do ML.
+// ⚠️ out/2026: mesmo bug confirmado também em historico_todos (tabela do
+// "ML geral", mais nova) — montarPedidoGenerico (lib/mlAllOrders.js) tinha
+// a mesma falta do String(...) que montarPedidoFlex já tinha aqui. As duas
+// origens já foram corrigidas no código (não deve voltar a acontecer pra
+// pedido novo); esta rota agora limpa as duas tabelas, pra cobrir o que já
+// tinha sido gravado errado antes da correção.
 async function debugCorrigirShipmentId(req, res) {
   const db = getDb();
-  const antes = await db.execute(
+  const antesFlex = await db.execute(
     "SELECT id_unico, shipment_id FROM historico_flex WHERE shipment_id LIKE '%.0'"
   );
   await db.execute(
     "UPDATE historico_flex SET shipment_id = SUBSTR(shipment_id, 1, LENGTH(shipment_id) - 2) WHERE shipment_id LIKE '%.0'"
   );
+  const antesTodos = await db.execute(
+    "SELECT id_unico, shipment_id FROM historico_todos WHERE shipment_id LIKE '%.0'"
+  );
+  await db.execute(
+    "UPDATE historico_todos SET shipment_id = SUBSTR(shipment_id, 1, LENGTH(shipment_id) - 2) WHERE shipment_id LIKE '%.0'"
+  );
   res.status(200).json({
     ok: true,
     tipo: 'corrigir-shipment-id',
-    corrigidos: antes.rows.length,
-    exemplos: antes.rows.slice(0, 10),
+    corrigidos_historico_flex: antesFlex.rows.length,
+    exemplos_historico_flex: antesFlex.rows.slice(0, 10),
+    corrigidos_historico_todos: antesTodos.rows.length,
+    exemplos_historico_todos: antesTodos.rows.slice(0, 10),
   });
 }
 
