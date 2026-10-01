@@ -42,11 +42,27 @@ module.exports = async (req, res) => {
 
     let rs;
     if (tipo === 'ml') {
-      rs = await db.execute({
+      const rsFlex = await db.execute({
         sql: `UPDATE historico_flex SET categoria = 'coletado', coletado = 1, coletado_em = ?
               WHERE shipment_id = ? AND categoria = 'aguardando'`,
         args: [agora, identificador],
       });
+      // Também marca no histórico geral (historico_todos) — pedido ML de
+      // QUALQUER forma de entrega, não só Flex (ver lib/historicoTodos.js:
+      // listarMlAguardando, usado pela seção "ML geral" do painel). Sem
+      // isso a bipagem no galpão só refletia em historico_flex — o "ML
+      // geral" continuava mostrando "aguardando" até a próxima
+      // reconferência contra a API do ML confirmar o despacho (minutos
+      // depois, às vezes nunca se o status_envio não progredir — ver 3ª/4ª
+      // rodada do bug "ML geral" no topo deste arquivo). Mesmo espírito do
+      // que o lado Shopee já fazia aqui.
+      const rsTodos = await db.execute({
+        sql: `UPDATE historico_todos SET categoria = 'coletado', coletado = 1, coletado_em = ?
+              WHERE marketplace = 'mercado_livre' AND shipment_id = ?
+                AND (categoria IS NULL OR categoria = 'aguardando')`,
+        args: [agora, identificador],
+      });
+      rs = { rowsAffected: (rsFlex.rowsAffected || 0) + (rsTodos.rowsAffected || 0) };
     } else {
       const rsTurbo = await db.execute({
         sql: `UPDATE historico_turbo_live SET categoria = 'coletado', resolvido_em = ?
