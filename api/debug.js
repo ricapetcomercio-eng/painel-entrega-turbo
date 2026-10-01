@@ -761,6 +761,57 @@ async function debugMlShipment(req, res) {
   });
 }
 
+// Diagnóstico: pra TODO pedido que listarMlAguardando (TV, "ML geral")
+// considera "ainda aguardando despacho" agora, busca o shipment AO VIVO e
+// devolve status/substatus reais — pra confirmar (ou refutar) se
+// status_envio IN (pending, handling, ready_to_ship) é mesmo suficiente
+// pra decidir "ainda no galpão", ou se existe caso real onde o shipment
+// fica em "ready_to_ship" mesmo depois de já despachado de verdade.
+// Achado em produção (out/2026, pedido #2000018704052230, logistic_type
+// xd_drop_off/Correios): shipment.status continuava "ready_to_ship" com
+// substatus "in_packing_list", mas o substatus_history já mostrava
+// "dropped_off" → "picked_up" → "in_hub" — ou seja, o pacote já tinha
+// saído fisicamente do vendedor, só que o campo top-level `status` nunca
+// mudou pra refletir isso (diferente do que a doc "esperaria"). Rodar
+// esta rota depois de qualquer rodada de reconferência/backfill grande
+// pra ver a distribuição real de substatus antes de decidir o critério
+// certo de exclusão.
+async function debugMlAguardandoSubstatus(req, res) {
+  const { listarMlAguardando } = require('../lib/historicoTodos');
+  const horas = parseInt(req.query.horas, 10) || 48;
+  const pendentes = (await listarMlAguardando(horas)).filter((p) => p.shipment_id);
+
+  const porSubstatus = {};
+  const detalhes = [];
+  for (const pedido of pendentes) {
+    try {
+      const accessToken = await getMLAccessToken(pedido.conta);
+      const shipment = await mlFetch(`/shipments/${pedido.shipment_id}`, accessToken);
+      const chave = `${shipment.status}/${shipment.substatus || '(sem substatus)'}`;
+      porSubstatus[chave] = (porSubstatus[chave] || 0) + 1;
+      detalhes.push({
+        order_id: pedido.order_id,
+        conta: pedido.conta,
+        logistic_type: shipment.logistic_type,
+        status_gravado: pedido.status_envio,
+        status_ao_vivo: shipment.status,
+        substatus_ao_vivo: shipment.substatus,
+        ultimo_evento_substatus_history: (shipment.substatus_history || []).slice(-1)[0] || null,
+      });
+    } catch (err) {
+      detalhes.push({ order_id: pedido.order_id, conta: pedido.conta, erro: err.message });
+    }
+  }
+
+  res.status(200).json({
+    ok: true,
+    tipo: 'ml-aguardando-substatus',
+    total_aguardando: pendentes.length,
+    distribuicao_status_substatus: porSubstatus,
+    detalhes,
+  });
+}
+
 // Diagnóstico: devolve o pedido CRU da API do ML (GET /orders/{id}), sem
 // nenhum processamento — pra confirmar o valor real de status/status_detail/
 // tags num pedido cancelado, antes de confiar cegamente em
@@ -3550,6 +3601,7 @@ module.exports = async (req, res) => {
     if (req.query.tipo === 'ml-claims') return await debugMlClaims(req, res);
     if (req.query.tipo === 'ml-claims-resumo') return await debugMlClaimsResumo(req, res);
     if (req.query.tipo === 'ml-shipment') return await debugMlShipment(req, res);
+    if (req.query.tipo === 'ml-aguardando-substatus') return await debugMlAguardandoSubstatus(req, res);
     if (req.query.tipo === 'ml-order-raw') return await debugMlOrderRaw(req, res);
     if (req.query.tipo === 'flex-status') return await debugFlexStatus(req, res);
     if (req.query.tipo === 'ml-id-teste') return await debugMlIdTeste(req, res);
