@@ -345,6 +345,7 @@ async function debugAdicionarColunaTipo(req, res) {
     ['historico_todos.reclamacao_motivo', 'ALTER TABLE historico_todos ADD COLUMN reclamacao_motivo TEXT'],
     ['historico_todos.reclamacao_tipo', 'ALTER TABLE historico_todos ADD COLUMN reclamacao_tipo TEXT'],
     ['historico_todos.shipment_id', 'ALTER TABLE historico_todos ADD COLUMN shipment_id TEXT'],
+    ['historico_todos.status_substatus', 'ALTER TABLE historico_todos ADD COLUMN status_substatus TEXT'],
   ]) {
     try {
       await db.execute(sql);
@@ -1167,7 +1168,7 @@ async function debugHistoricoTodosRow(req, res) {
   }
   const placeholders = idsBrutos.map(() => '?').join(',');
   const rs = await db.execute({
-    sql: `SELECT id_unico, marketplace, order_id, date_created, shipment_id, status_envio, status_pedido, cancelado, categoria, coletado, coletado_em, prazo_entrega
+    sql: `SELECT id_unico, marketplace, order_id, date_created, shipment_id, status_envio, status_substatus, status_pedido, cancelado, categoria, coletado, coletado_em, prazo_entrega
           FROM historico_todos WHERE order_id IN (${placeholders})`,
     args: idsBrutos,
   });
