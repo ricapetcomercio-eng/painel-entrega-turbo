@@ -488,15 +488,16 @@
     // SHOPEE (geral) — qualquer forma de entrega, não só Entrega Turbo.
     // p.prazo_entrega é o "ship by date" de verdade (prazo real do
     // vendedor pra despachar, direto da Shopee) — dá um cronômetro
-    // regressivo real, igual o Flex. Só cai no modo "sem prazo" (sem
-    // countdown, prazo bem largo só pra ordenar por último) pra pedidos
-    // antigos que ainda não tiveram esse campo coletado.
+    // regressivo real, igual o Flex. Só cai no modo "sem prazo" (prazo
+    // sintético de 24h, decisão do dono do projeto — pedido aguardando
+    // despacho é urgente, não deve ficar relegado pro fim da fila) pra
+    // pedidos antigos que ainda não tiveram esse campo coletado.
     (dados.pedidosShopeeTodos || []).forEach((p) => {
       const createdMs = new Date(p.date_created).getTime();
       const temPrazoReal = !!p.prazo_entrega;
       const deadlineMs = temPrazoReal
         ? new Date(p.prazo_entrega).getTime()
-        : createdMs + 30 * 24 * 60 * 60 * 1000;
+        : createdMs + 24 * 60 * 60 * 1000;
       cards.push({
         id: 'shopee-geral:' + p.order_id,
         tipo: 'SHOPEE',
@@ -515,13 +516,13 @@
     // Mesmo tratamento do Shopee geral acima: usa prazo_entrega quando
     // existe (Flex sempre tem; outras formas de entrega do ML às vezes
     // trazem estimated_delivery_limit/final também, ver mlAllOrders.js),
-    // senão cai no modo "sem prazo" (só tempo decorrido).
+    // senão cai no modo "sem prazo" (prazo sintético de 24h).
     (dados.pedidosMlTodos || []).forEach((p) => {
       const createdMs = new Date(p.date_created).getTime();
       const temPrazoReal = !!p.prazo_entrega;
       const deadlineMs = temPrazoReal
         ? new Date(p.prazo_entrega).getTime()
-        : createdMs + 30 * 24 * 60 * 60 * 1000;
+        : createdMs + 24 * 60 * 60 * 1000;
       cards.push({
         id: 'ml-geral:' + p.order_id,
         tipo: 'ML',

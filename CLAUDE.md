@@ -120,6 +120,17 @@ praticamente nunca é verdadeiro, e sem essa exceção o card ficaria opaco
 (quase invisível) pelos 30 dias inteiros, o oposto do que "geral" existe
 pra fazer (dar visibilidade de volume).
 
+**✅ Prazo sintético reduzido de 30 dias pra 24h (out/2026)**: decisão
+explícita do dono do projeto — 30 dias empurrava todo pedido "sem prazo
+real" (Shopee/ML geral) sempre pro fim da fila (`pendentes.sort` por
+`msRestante`), mesmo sendo um pedido recém-criado genuinamente aguardando
+despacho; 24h reflete melhor a urgência real de expedição. `diaSeguinte`
+continua protegido do mesmo jeito (a exceção já é por `semPrazo`, não pelo
+tamanho do deadline, então não precisou mudar). `formatarContador` continua
+com o prefixo de dias por segurança, mas na prática esses cards devem
+raramente passar de "23:59:59" agora — só ultrapassam 1 dia se o pedido já
+estiver, de fato, atrasado em relação a esse prazo sintético.
+
 **✅ "ML geral" nunca atualizava o status depois da 1ª coleta — pedido
 entregue continuava aparecendo como "aguardando" (set/2026)**: bug real em
 produção — um pedido Flex já ENTREGUE (confirmado no próprio Mercado Livre)
@@ -284,6 +295,25 @@ há tempos: "ainda não validado... se esses 3 valores cobrem todo 'aguardando'"
   pra popular `status_substatus` nos pedidos já gravados — sem isso eles
   ficam com a coluna `NULL` (que a query trata como "ainda aguardando",
   lado seguro) até a próxima reconferência/backfill tocar neles.
+
+**✅ 5ª rodada: pedido ML bipado no galpão não saía do "ML geral" (out/2026)**:
+pedido explícito do dono do projeto depois da 4ª rodada — "se já foi
+bipado, não deverá aparecer". Causa raiz: diferente
+do Shopee (onde `api/marcar-coletado.js` já atualizava `historico_todos`
+desde antes, ver comentário no próprio arquivo), a bipagem de um pedido ML
+(`tipo: "ml"`) só atualizava `historico_flex` — `historico_todos` (usado
+pelo "ML geral") nunca ficava sabendo, então o pedido continuava
+"aguardando" até a próxima reconferência contra a API do ML confirmar o
+despacho do lado dela (minutos depois, ou nunca, se `status_envio` não
+progredir — ver 3ª/4ª rodada). Corrigido:
+- `marcar-coletado.js` agora também atualiza `historico_todos` (marketplace
+  `mercado_livre`, por `shipment_id`) na mesma chamada, mesmo espírito do
+  que já existia pro Shopee.
+- `listarMlAguardando` (`lib/historicoTodos.js`) ganhou a mesma proteção que
+  `listarShopeeAguardando` já tinha: `categoria NOT IN ('coletado',
+  'entregue', 'cancelado')`.
+- Sem custo de API novo — `marcar-coletado.js` é um webhook local
+  (`checkout_bipagem.py`), não bate em nenhuma API de marketplace.
 
 ### Projeção Financeira: sob demanda, não automática (Mercado Pago + Shopee)
 
