@@ -438,6 +438,11 @@
         <div class="comparativo-linha"><span class="rotulo">Faturamento</span><span class="valores"><b id="compMesAtualFat">–</b><span class="anterior" id="compMesAnteriorFat">–</span><span class="kpi-delta" id="compMesDeltaFat">–</span></span></div>
         <div class="comparativo-linha"><span class="rotulo">Pedidos</span><span class="valores"><b id="compMesAtualPed">–</b><span class="anterior" id="compMesAnteriorPed">–</span><span class="kpi-delta" id="compMesDeltaPed">–</span></span></div>
       </div>
+      <div class="comparativo-card">
+        <div class="comparativo-titulo">Entregues com Atraso — Últimos 7 dias</div>
+        <div class="comparativo-linha"><span class="rotulo">Pedidos entregues com atraso</span><span class="valores"><b id="atrasados7dAtual">–</b><span class="anterior" id="atrasados7dAnterior">–</span></span></div>
+        <div id="atrasados7dStatus" class="kpi-delta" style="margin-top:6px;">–</div>
+      </div>
     </div>
   </div>
 
@@ -1245,6 +1250,43 @@
     setDelta(idPrefix + 'DeltaPed', deltaPed);
   }
 
+  // Pedidos ENTREGUES com atraso (entregue_em preenchido e atrasado === true)
+  // — diferente do KPI "Pedidos Atrasados" do grid principal, que também
+  // conta pedido ainda não entregue mas já passou do prazo. Esse aqui é só
+  // "atraso que já virou atraso de verdade na entrega", janela fixa dos
+  // últimos 7 dias (independe do filtro de período selecionado acima, mesmo
+  // espírito dos comparativos Hoje/Semana/Mês). Só considera Mercado Livre,
+  // que é o único com prazo_entrega capturado hoje (mesma limitação do SLA).
+  function contarEntreguesAtrasados(pedidos) {
+    return pedidos.filter(p => p.entregue_em && p.atrasado === true).length;
+  }
+
+  async function renderEntreguesAtrasados7d(agora) {
+    const seteDiasAtras = new Date(agora.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const catorzeDiasAtras = new Date(agora.getTime() - 14 * 24 * 60 * 60 * 1000);
+    const [pedidos7d, pedidosAnt7d] = await Promise.all([
+      buscarPedidosPeriodoGenerico(seteDiasAtras.toISOString(), agora.toISOString()),
+      buscarPedidosPeriodoGenerico(catorzeDiasAtras.toISOString(), seteDiasAtras.toISOString()),
+    ]);
+    const atual = contarEntreguesAtrasados(pedidos7d);
+    const anterior = contarEntreguesAtrasados(pedidosAnt7d);
+
+    const setId = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+    setId('atrasados7dAtual', String(atual));
+    setId('atrasados7dAnterior', `${anterior} no período anterior`);
+
+    const statusEl = document.getElementById('atrasados7dStatus');
+    if (statusEl) {
+      if (atual > 0) {
+        statusEl.textContent = `🔴 Houve ${atual} pedido(s) entregue(s) com atraso nos últimos 7 dias.`;
+        statusEl.className = 'kpi-delta down';
+      } else {
+        statusEl.textContent = '✅ Nenhum pedido entregue com atraso nos últimos 7 dias.';
+        statusEl.className = 'kpi-delta up';
+      }
+    }
+  }
+
   // ---------- HEATMAP Hora × Dia da Semana ----------
   function agregarHeatmapHoraDia(pedidos) {
     // matriz[diaSemana][hora] = quantidade de pedidos
@@ -1425,6 +1467,7 @@
       const mesPassadoInicio = new Date(agora.getFullYear(), agora.getMonth() - 1, 1);
       const mesPassadoFimEquivalente = new Date(mesPassadoInicio.getTime() + (agora.getTime() - mesInicio.getTime()));
       renderComparativo('compMes', mesInicio, agora, mesPassadoInicio, mesPassadoFimEquivalente);
+      await renderEntreguesAtrasados7d(agora);
     } catch (e) { /* silencioso */ }
   }
 
