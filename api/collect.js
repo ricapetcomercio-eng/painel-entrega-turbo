@@ -260,7 +260,21 @@ async function reverificarPendentesMlTodos(erros) {
         return {
           ...pedido,
           status_pedido: pedidoAtual.status,
-          status_envio: detalhes.status,
+          // detalhes.status vem null quando buscarDetalhesShipment falha
+          // (shipment_id inválido/corrompido, rate limit, etc. — o erro é
+          // engolido lá dentro e devolve tudo null). Sem o fallback pro
+          // valor antigo, uma falha de reconferência APAGAVA um
+          // status_envio que já estava correto (ex.: "handling") de volta
+          // pra null — e null cai fora de listarMlAguardando (não bate em
+          // nenhum dos status aceitos), então o pedido some da TV e nunca
+          // mais é reconferido (a mesma consulta decide quem reconferir).
+          // Bug real confirmado em produção (out/2026): causa raiz de fato
+          // era o shipment_id salvo com ".0" no final (ver montarPedidoGenerico
+          // em lib/mlAllOrders.js), mas mesmo corrigindo isso, qualquer OUTRA
+          // falha transitória de API faria a mesma coisa sem esse fallback —
+          // os demais campos abaixo (estado/cidade/coletado_em/entregue_em)
+          // já tinham essa proteção, só status_envio não tinha.
+          status_envio: detalhes.status || pedido.status_envio,
           estado: detalhes.estado || pedido.estado,
           cidade: detalhes.cidade || pedido.cidade,
           coletado_em: detalhes.coletado_em || pedido.coletado_em || null,
