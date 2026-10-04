@@ -351,6 +351,43 @@ substatus um a um conforme aparecem em produção.
   só mostrar substatus explicitamente confirmados como "ainda aguardando",
   em vez de assumir que é esse o padrão).
 
+**✅ 6ª rodada: corte de 48h em `listarShopeeAguardando`/`listarMlAguardando`
+escondia pedido genuinamente pendente há mais tempo (out/2026)**: achado
+comparando o Painel TV contra um painel externo de terceiros
+(orosconnect, usado pelo dono do projeto pra expedição) — 21 pedidos
+Shopee apareciam lá como aguardando despacho mas sumiam do Painel TV.
+Confirmado com dado real (`?tipo=historico-todos-row`): 2 desses pedidos
+(`261003K48JU0JH`, `261003KQX37F1M`) tinham `categoria: null` (genuinamente
+ainda não resolvidos) mas foram criados ~54h antes da captura — passaram
+do corte rígido `date_created_ts >= desde` (48h, `HORAS_JANELA_SHOPEE_TODOS`)
+e desapareceram da tela mesmo continuando pendentes de verdade. Descartada
+a hipótese de atraso/backlog do coletor incremental (`?tipo=shopee-todos-
+status` confirmou que ele estava em dia, sem janela travada) — o corte de
+48h em si é que estava errado. Um 3º pedido da mesma lista
+(`260930C2Q8M3XH`) já estava `categoria: "coletado"` desde 30/set no nosso
+lado — nesse caso específico é o orosconnect mostrando dado
+desatualizado/errado, não um gap nosso (prazo que ele mostra nem bate com
+o `prazo_entrega` real gravado aqui).
+
+Causa raiz: diferente de `listarRecentes` (Flex, `lib/historicoFlex.js`),
+que já tinha a proteção certa desde sempre (`date_created_ts >= desde OR
+categoria = 'aguardando'` — nunca esconde pedido ainda pendente só por ser
+velho), `listarShopeeAguardando`/`listarShopeePendentesParaReverificar`/
+`listarMlAguardando` nunca tiveram esse OR — o filtro de data era
+incondicional. Isso também tirava o pedido do **pool de reconferência**
+(`reverificarPendentesShopeeTodos`/`reverificarPendentesMlTodos` usam
+essas mesmas funções), não só da exibição — um pedido que passasse dos
+48h ficava congelado pra sempre no último estado capturado, nunca mais
+revisitado.
+
+Corrigido nas 3 funções: o filtro de data virou `(date_created_ts >= ?
+OR categoria IS NULL OR categoria NOT IN ('coletado', 'entregue',
+'cancelado'))` — como a condição de categoria já é exigida numa cláusula
+AND separada logo acima, isso na prática remove qualquer corte por idade
+pra pedido ainda genuinamente pendente, mantendo o filtro de data só como
+otimização pros já resolvidos. Efeito imediato após deploy, sem migração
+nem backfill (é só mudança de `WHERE`, os dados já estão certos no banco).
+
 ### Projeção Financeira: sob demanda, não automática (Mercado Pago + Shopee)
 
 `lib/mpProjecao.js` e `lib/shopeeProjecao.js` alimentam a mesma tela
