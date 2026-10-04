@@ -388,6 +388,53 @@ pra pedido ainda genuinamente pendente, mantendo o filtro de data só como
 otimização pros já resolvidos. Efeito imediato após deploy, sem migração
 nem backfill (é só mudança de `WHERE`, os dados já estão certos no banco).
 
+**✅ 7ª rodada: `processarEmLotes` descartava pedido silenciosamente quando
+uma chamada de API falhava no meio da descoberta incremental (out/2026)**:
+mesma investigação comparando com o orosconnect — pedido Flex **#2.874**
+(`2000018758478948`) aparecia lá como atrasado (~20h esperando coleta) mas
+nunca apareceu no Painel TV. Confirmado com dado AO VIVO
+(`?tipo=ml-shipment`): `logistic_type: "self_service"` (Flex de verdade),
+`status: "ready_to_ship"`, `substatus: "printed"` — genuinamente ainda
+aguardando coleta, nunca entregue/cancelado. Como `listarRecentes`
+(`lib/historicoFlex.js`) já tem a proteção "sempre mostra se `categoria =
+'aguardando'`, independente da idade" (ver 6ª rodada acima, mesmo padrão),
+a única explicação pra esse pedido estar ausente é **nunca ter sido
+gravado em `historico_flex`** — um gap na descoberta, não um filtro de
+exibição.
+
+Causa raiz, em `processarEmLotes` (`api/collect.js`, helper genérico usado
+por descoberta E reconferência de Flex/ML Todos/Turbo): usa
+`Promise.allSettled` e só aproveita os itens com `status: 'fulfilled'` —
+um item que REJEITA (erro lançado) é descartado **sem registrar nada em
+lugar nenhum**, nem em `erros`. Pior: `i += lote.length` (o avanço do
+offset do checkpoint incremental) acontece incondicionalmente, sucesso ou
+falha — ou seja, uma falha TRANSITÓRIA de API (rate limit, timeout, blip
+de rede) num pedido específico, bem no momento em que a descoberta
+incremental passa por ele, faz esse pedido ser pulado **pra sempre**
+(a janela só anda pra frente, nunca revisita offset já avançado).
+`verificarFlex` (`lib/mlFlexOrders.js`) deixa erro subir de propósito (já
+documentado no próprio arquivo, correção de uma rodada anterior bem mais
+antiga) — mas `coletarNovosFlex` (descoberta de Flex) nunca tinha um
+try/catch em volta dessa chamada, então o erro que devia "subir pra ser
+tratado" só chegava até `processarEmLotes`, que o engolia de vez.
+
+Corrigido:
+- `processarEmLotes` agora devolve também `falhas` (item + motivo de cada
+  rejeição) — visibilidade mínima, não resolve sozinho (o offset ainda
+  avança; resolver de verdade exigiria mudar a semântica de paginação, risco
+  maior do que o benefício agora). `coletarNovosFlex` e
+  `coletarNovosParaHistoricoTodos` (os 2 únicos call sites sem try/catch
+  próprio — os outros 4 usos de `processarEmLotes`, reconferência de
+  Flex/ML Todos/Turbo, já tratavam erro por item internamente, nunca
+  deixavam a promise rejeitar) agora registram cada falha em `erros` com
+  `fonte: 'flex_novos:<conta>:<id>'`/`'historico_todos_novos:<conta>:<id>'`
+  — aparece na resposta de `/api/collect` e em `entrega_turbo:
+  ultima_coleta`, dá pra notar quando isso acontecer de novo.
+- **Recuperar o pedido já pulado** (e qualquer outro no mesmo caso) precisa
+  de backfill manual — `api/backfill-flex-api.js?conta=ricapet|thapets&dias=N`
+  (mesmo padrão `&dia=X&offset=Y` dos outros backfills, busca sempre fresco
+  direto da API, não depende do checkpoint incremental que pulou o pedido).
+
 ### Projeção Financeira: sob demanda, não automática (Mercado Pago + Shopee)
 
 `lib/mpProjecao.js` e `lib/shopeeProjecao.js` alimentam a mesma tela
