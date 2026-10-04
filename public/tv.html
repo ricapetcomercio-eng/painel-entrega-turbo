@@ -365,21 +365,27 @@
   // entrega_turbo:ultima_coleta_ml_todos (ver listarMlAguardando,
   // lib/historicoTodos.js).
   //
-  // ⚠️ DESATIVADO TEMPORARIAMENTE A PEDIDO DO DONO DO PROJETO (out/2026) —
-  // rollback do recurso, não remoção: depois de 4 rodadas de bug
-  // (status_envio null, cancelamento tardio, shipment_id corrompido,
-  // status_substatus incompleto — ver CLAUDE.md), pedido ML ainda estava
-  // aparecendo "aguardando" já despachado de verdade com frequência maior
-  // do que o aceitável pra uma tela de operação ao vivo. Em vez de confiar
-  // cegamente na heurística de status/substatus do shipment (que já
-  // provou ter mais variações do que o confirmado até agora), a seção
-  // fica OCULTA incondicionalmente — ignora até o toggle salvo em
-  // localStorage de cada tela, pra garantir que nenhuma TV já configurada
-  // como "exibindo" continue mostrando. Shopee geral, Flex, Turbo e Agora
-  // NÃO são afetados — o problema é específico do lado ML "geral".
-  // Pra reativar: trocar a constante abaixo pra false (isso volta a
-  // respeitar o toggle/localStorage de cada tela, igual era antes).
-  const ML_TODOS_DESATIVADO = true;
+  // ✅ REATIVADO (out/2026) — depois de 4 rodadas de bug na heurística de
+  // status/substatus (status_envio null, cancelamento tardio, shipment_id
+  // corrompido, status_substatus incompleto — ver CLAUDE.md), a seção
+  // tinha sido desligada de propósito (ver histórico git) enquanto pedido
+  // já despachado ainda aparecia como "aguardando" com frequência inaceitável
+  // numa tela ao vivo. A reativação foi pedida pelo dono do projeto depois
+  // de duas correções estruturais, de causa diferente do substatus:
+  // - o corte rígido de 48h em listarMlAguardando escondia (e parava de
+  //   reconferir) pedido genuinamente pendente mais velho que isso;
+  // - processarEmLotes descartava pedido silenciosamente quando uma
+  //   chamada de API falhava durante a descoberta incremental, derrubando
+  //   ele da coleta pra sempre.
+  // Nenhuma delas é a heurística de substatus em si (STATUS_SUBSTATUS_
+  // JA_DESPACHADO, lib/historicoTodos.js, continua a mesma lista
+  // conservadora da 4ª rodada) — mas ambas faziam pedido pendente de
+  // verdade sumir ou nunca ser revisitado, o que também alimentava a
+  // sensação de heurística ruim. Se pedido já despachado voltar a aparecer
+  // como "aguardando" com frequência alta, o próximo passo é revisar
+  // STATUS_SUBSTATUS_JA_DESPACHADO (lista de bloqueio) ou trocar pra lista
+  // de permissão, não desligar de novo a seção inteira.
+  const ML_TODOS_DESATIVADO = false;
   let mostrarMlTodos = !ML_TODOS_DESATIVADO;
   if (!ML_TODOS_DESATIVADO) {
     try {

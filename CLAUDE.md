@@ -320,36 +320,45 @@ progredir — ver 3ª/4ª rodada). Corrigido:
 - Sem custo de API novo — `marcar-coletado.js` é um webhook local
   (`checkout_bipagem.py`), não bate em nenhuma API de marketplace.
 
-**⚠️ "ML geral" DESATIVADO na TV (rollback temporário, out/2026)**: depois
-de 5 rodadas de correção (status_envio apagado, cancelamento tardio,
-shipment_id corrompido, status_substatus incompleto duas vezes seguidas —
-`in_hub`/`in_packing_list` e depois `authorized_by_carrier`) ainda
-aparecia pedido já despachado como "aguardando" com frequência maior do
-que aceitável numa tela usada ao vivo no galpão — decisão explícita do
-dono do projeto: desligar a seção até a heurística de status/substatus
-do shipment estar de fato confiável, em vez de continuar corrigindo
-substatus um a um conforme aparecem em produção.
-- `public/tv.html`: `ML_TODOS_DESATIVADO = true` força `mostrarMlTodos =
-  false` incondicionalmente, **ignorando** até o toggle salvo em
-  `localStorage` de cada tela — garante que nenhuma TV já configurada
-  como "exibindo" continue mostrando. Botão "ML geral" fica desabilitado
-  (`📦 ML geral: desativado`) em vez de escondido, pra deixar claro que é
-  uma decisão deliberada, não um bug de UI.
-- **Não afeta** Flex, Turbo, Agora nem Shopee geral — o problema é
-  específico do "ML geral" (pedido ML de forma de entrega não-Flex,
-  `logistic_type` tipo `xd_drop_off`/Correios). A coleta/reconferência em
-  `api/collect.js` continua rodando normalmente nos bastidores (mesmo
-  custo de CPU de antes) — só a exibição na TV foi desligada; os dados
-  continuam disponíveis via `?tipo=historico-todos-row`/
-  `?tipo=ml-aguardando-substatus` pra quem quiser investigar mais.
-- **Pra reativar**: trocar `ML_TODOS_DESATIVADO` pra `false` em
-  `public/tv.html` — isso volta a respeitar o toggle/`localStorage` de
-  cada tela, exatamente como funcionava antes desta rodada. Antes de
-  reativar, vale revisar se `STATUS_SUBSTATUS_JA_DESPACHADO`
-  (`lib/historicoTodos.js`) precisa de mais valores, ou se vale a pena
-  trocar a estratégia (lista de permissão em vez de lista de bloqueio —
-  só mostrar substatus explicitamente confirmados como "ainda aguardando",
-  em vez de assumir que é esse o padrão).
+**✅ "ML geral" reativado na TV (out/2026, depois de ter sido desligado
+temporariamente)**: depois de 5 rodadas de correção (status_envio apagado,
+cancelamento tardio, shipment_id corrompido, status_substatus incompleto
+duas vezes seguidas — `in_hub`/`in_packing_list` e depois
+`authorized_by_carrier`) ainda aparecia pedido já despachado como
+"aguardando" com frequência maior do que aceitável numa tela usada ao vivo
+no galpão — decisão explícita do dono do projeto, na época: desligar a
+seção até a heurística de status/substatus do shipment estar de fato
+confiável (`public/tv.html`: `ML_TODOS_DESATIVADO = true` forçava
+`mostrarMlTodos = false` incondicionalmente, ignorando até o toggle salvo
+em `localStorage` de cada tela; botão ficava desabilitado, `📦 ML geral:
+desativado`, em vez de escondido).
+
+Nessa investigação com os dados desligados, a mesma auditoria contra o
+orosconnect (ver 6ª e 7ª rodadas abaixo) encontrou duas causas estruturais
+separadas da heurística de substatus — que também faziam pedido ML
+pendente de verdade sumir ou nunca mais ser revisitado:
+- o corte rígido de 48h em `listarMlAguardando` (6ª rodada);
+- `processarEmLotes` descartando pedido silenciosamente quando uma chamada
+  de API falhava durante a descoberta incremental (7ª rodada, afeta a
+  descoberta de Flex e de "Todos os pedidos" ML).
+
+Nenhuma das duas é a heurística de substatus em si — `STATUS_SUBSTATUS_
+JA_DESPACHADO` (`lib/historicoTodos.js`) continua a mesma lista
+conservadora da 4ª rodada, sem mudança — mas corrigidas essas duas causas,
+o dono do projeto pediu a reativação: `ML_TODOS_DESATIVADO` voltou a
+`false` em `public/tv.html`, restaurando o comportamento normal (respeita
+o toggle/`localStorage` de cada tela, igual era antes de qualquer rollback).
+Não afeta Flex, Turbo, Agora nem Shopee geral — nunca afetou, o problema
+sempre foi específico do "ML geral". Dados continuam disponíveis via
+`?tipo=historico-todos-row`/`?tipo=ml-aguardando-substatus` pra investigar
+qualquer suspeita nova.
+
+**Se pedido já despachado voltar a aparecer como "aguardando" com
+frequência alta**: não repetir o desligamento total como primeira resposta
+— revisar primeiro se `STATUS_SUBSTATUS_JA_DESPACHADO` precisa de mais
+valores, ou se vale trocar a estratégia (lista de permissão em vez de
+lista de bloqueio — só mostrar substatus explicitamente confirmados como
+"ainda aguardando", em vez de assumir que é esse o padrão).
 
 **✅ 6ª rodada: corte de 48h em `listarShopeeAguardando`/`listarMlAguardando`
 escondia pedido genuinamente pendente há mais tempo (out/2026)**: achado
