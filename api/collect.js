@@ -90,22 +90,40 @@ const INTERVALO_MINIMO_TODOS_ML_MS = 5 * 60 * 1000; // 5 minutos
 const CONCORRENCIA = 4;
 const PAUSA_ENTRE_LOTES_MS = 200;
 
+// ⚠️ `i += lote.length` avança o offset do checkpoint incremental mesmo
+// quando um item falha (Promise.allSettled rejeitado) — ou seja, uma falha
+// TRANSITÓRIA de API (rate limit, timeout, blip de rede) num pedido
+// específico faz esse pedido ser pulado pra sempre pela descoberta
+// incremental (coletarNovosFlex/coletarNovosParaHistoricoTodos), nunca mais
+// tentado de novo, já que a janela só anda pra frente. Até out/2026 essas
+// falhas eram descartadas silenciosamente (nem apareciam em `erros`) — bug
+// real confirmado em produção: pedido Flex #2000018758478948 (logistic_type
+// self_service, status real ready_to_ship/printed — genuinamente aguardando
+// coleta) nunca chegou a ser gravado em historico_flex, mesmo
+// `listarRecentes` já tendo a proteção de sempre mostrar pedido ainda
+// 'aguardando' independente da idade (ver lib/historicoFlex.js) — a
+// proteção não ajuda se o pedido nunca foi inserido em primeiro lugar.
+// `falhas` agora devolve o item + motivo pra quem chama poder registrar em
+// `erros` (visibilidade mínima; não resolve sozinho o pedido pulado — isso
+// precisa de um backfill manual, ver api/backfill-flex-api.js).
 async function processarEmLotes(itens, tempoOrcamentoMs, processarItem) {
   const inicio = Date.now();
   const resultados = [];
+  const falhas = [];
   let i = 0;
   while (i < itens.length && Date.now() - inicio < tempoOrcamentoMs) {
     const lote = itens.slice(i, i + CONCORRENCIA);
     const respostas = await Promise.allSettled(lote.map(processarItem));
-    respostas.forEach((r) => {
+    respostas.forEach((r, idx) => {
       if (r.status === 'fulfilled' && r.value) resultados.push(r.value);
+      else if (r.status === 'rejected') falhas.push({ item: lote[idx], motivo: (r.reason && r.reason.message) || String(r.reason) });
     });
     i += lote.length;
     if (i < itens.length && Date.now() - inicio < tempoOrcamentoMs) {
       await new Promise((r) => setTimeout(r, PAUSA_ENTRE_LOTES_MS));
     }
   }
-  return { resultados, processados: i };
+  return { resultados, processados: i, falhas };
 }
 
 // -------- Histórico Turbo/Shopee (tabela historico_turbo) --------
@@ -165,7 +183,7 @@ async function coletarNovosParaHistoricoTodos(conta, erros) {
       if (pagina.results.length === 0) break;
 
       const tempoRestante = TEMPO_MAXIMO_TODOS_MS - (Date.now() - inicioExecucao);
-      const { resultados, processados } = await processarEmLotes(pagina.results, tempoRestante, async (pedido) => {
+      const { resultados, processados, falhas } = await processarEmLotes(pagina.results, tempoRestante, async (pedido) => {
         const shipmentId = pedido.shipping && pedido.shipping.id;
         const detalhes = await buscarDetalhesShipment(conta, shipmentId);
         const pedidoMontado = montarPedidoGenerico(conta, pedido, shipmentId, detalhes);
@@ -181,6 +199,9 @@ async function coletarNovosParaHistoricoTodos(conta, erros) {
       });
       pedidosParaGravar.push(...resultados);
       offset += processados;
+      for (const f of falhas) {
+        erros.push({ fonte: `historico_todos_novos:${conta}:${f.item.id}`, mensagem: f.motivo });
+      }
 
       if (processados < pagina.results.length) break; // orçamento acabou no meio da página
       if (total !== null && offset >= total) break;
@@ -397,13 +418,24 @@ async function coletarNovosFlex(conta, erros) {
       if (pagina.results.length === 0) break;
 
       const tempoRestante = TEMPO_MAXIMO_FLEX_NOVOS_MS - (Date.now() - inicioExecucao);
-      const { resultados, processados } = await processarEmLotes(pagina.results, tempoRestante, async (pedido) => {
+      const { resultados, processados, falhas } = await processarEmLotes(pagina.results, tempoRestante, async (pedido) => {
         const shipmentId = pedido.shipping && pedido.shipping.id;
         const info = await verificarFlex(conta, shipmentId);
         return info ? montarPedidoFlex(conta, pedido, shipmentId, info) : null;
       });
       pedidosParaGravar.push(...resultados);
       offset += processados;
+      // `verificarFlex` deixa erro subir de propósito (ver comentário no
+      // próprio arquivo) — sem registrar aqui, uma falha transitória de API
+      // nesse pedido específico desaparecia sem deixar rastro nenhum (bug
+      // real confirmado em produção, out/2026: pedido #2000018758478948,
+      // Flex de verdade e genuinamente aguardando coleta, nunca chegou a
+      // ser gravado em historico_flex). Visibilidade só — não re-tenta
+      // sozinho; recuperar um pedido já pulado precisa de
+      // api/backfill-flex-api.js cobrindo a janela em que ele foi criado.
+      for (const f of falhas) {
+        erros.push({ fonte: `flex_novos:${conta}:${f.item.id}`, mensagem: f.motivo });
+      }
 
       if (processados < pagina.results.length) break;
       if (total !== null && offset >= total) break;
