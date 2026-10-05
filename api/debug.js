@@ -1296,7 +1296,7 @@ async function debugHistoricoTodosRow(req, res) {
   }
   const placeholders = idsBrutos.map(() => '?').join(',');
   const rs = await db.execute({
-    sql: `SELECT id_unico, marketplace, order_id, date_created, shipment_id, status_envio, status_substatus, status_pedido, cancelado, categoria, coletado, coletado_em, prazo_entrega
+    sql: `SELECT id_unico, marketplace, order_id, date_created, shipment_id, forma_entrega, status_envio, status_substatus, status_pedido, cancelado, categoria, coletado, coletado_em, prazo_entrega
           FROM historico_todos WHERE order_id IN (${placeholders})`,
     args: idsBrutos,
   });
