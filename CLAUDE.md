@@ -534,12 +534,48 @@ e grava status fresco. Orçamento de 8s por chamada; rodado em loop até
 (todos os 406 zumbis resolvidos, zero erro no processamento) — a
 distribuição final ficou só com substatus já classificados como
 legitimamente "aguardando" desde a 4ª rodada (`printed`, `invoice_pending`,
-`buffered`), nenhum valor desconhecido sobrando. Ainda existe uma diferença
+`buffered`), nenhum valor desconhecido sobrando. Ainda existia uma diferença
 contra o total do painel nativo do ML (~140 nos prints do dono do projeto)
-— não investigada a fundo ainda, hipótese mais provável é critério
-diferente do que "Próximos dias"/"hoje" conta ali (pode incluir algo além
-de "aguardando despacho no nosso galpão", ex. agendamento de Full) — não
-é um sintoma do mesmo bug dos zumbis (esse já está fechado).
+na época — investigada e explicada na 10ª rodada abaixo (não é sintoma do
+mesmo bug dos zumbis, esse já estava fechado).
+
+**✅ 10ª rodada: diferença contra o painel nativo do ML explicada —
+critério de janela e cancelado, não bug (out/2026)**: o dono do projeto
+reportou de novo a TV (237 aguardando, 45 FLEX, 0 TURBO, 167 Shopee geral,
+25 ML geral) mostrando números diferentes do painel nativo do Mercado
+Livre (print do dia: "Envios de hoje" 72, sendo "PARA ENVIAR: Agência
+Mercado Livre" 22 e "PARA ENVIAR: Flex" 48, com a Flex já detalhada em
+43 prontas + 1 atrasada + 1 reagendada + 3 canceladas). Confirmado com
+dado real de produção (`?tipo=aguardando-resumo`) que **não é bug** — as
+duas diferenças (25×22 no geral, 45×48 no Flex) se explicam inteiramente
+por critério, não por pedido perdido:
+
+- **Contas separadas**: o `por_conta` do nosso 25 (ML geral) é Ricapet 23 +
+  Thapets 2 — o painel nativo do ML é por loja (1 login = 1 conta), então
+  a comparação certa é **Ricapet: 23** contra o "Agência Mercado Livre" do
+  print (22), não o nosso total combinado (25) contra ele.
+- **Janela "hoje" (ML) vs "qualquer dia ainda pendente, até 15 dias"
+  (nosso painel)**: `listarMlAguardando` não filtra por data de promessa —
+  mostra qualquer pedido ainda aguardando despacho dentro do teto de 15
+  dias da 8ª rodada, não só os que vencem hoje. Por isso o nosso número é
+  um pouco MAIOR (23 vs 22) — pega também pedido de ontem ainda pendente
+  que já saiu da aba "hoje" do ML.
+- **Cancelado/reagendado contado pelo ML, excluído por nós**: o ML inclui
+  "Canceladas. Não enviar" (3) e "Reagendadas" (1) dentro do total "Flex
+  hoje" (48); `montarPedidoFlex` (`lib/mlFlexOrders.js:185`,
+  `shipment.status === 'cancelled' → categoria = 'cancelado'`) e o filtro
+  `naoConcluido` da TV (`tv.html`) sempre excluíram cancelado do KPI FLEX,
+  de propósito. `48 − 3 = 45` bate exatamente com o nosso FLEX (45) —
+  nenhum Flex "turbo"/Shopee Turbo misturado no cálculo nesse dia (TURBO
+  estava em 0).
+
+Nenhuma mudança de código necessária — só fecha a lacuna de documentação
+deixada aberta na 9ª rodada. Se o dono do projeto reportar de novo um
+"número bem menor" (não só 1-3 pedidos de diferença), tratar como suspeita
+real de bug, não assumir de novo que é só critério — o que fecha essa
+suspeita de vez é sempre o `por_conta`/substatus do `?tipo=aguardando-resumo`
+comparado contra o painel nativo DA MESMA conta e da MESMA aba (hoje vs.
+qualquer dia).
 
 `lib/mpProjecao.js` e `lib/shopeeProjecao.js` alimentam a mesma tela
 (`public/projecao-financeira.html`). Diferente de tudo mais nesta tabela,
