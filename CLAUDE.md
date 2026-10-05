@@ -444,6 +444,38 @@ Corrigido:
   (mesmo padrão `&dia=X&offset=Y` dos outros backfills, busca sempre fresco
   direto da API, não depende do checkpoint incremental que pulou o pedido).
 
+**✅ 8ª rodada: remover o corte de 48h por completo (6ª rodada) abriu
+espaço pra linha "zumbi" aparecer pra sempre (out/2026)**: assim que "ML
+geral" foi reativado (ver bloco de reativação acima), o dono do projeto
+reportou a tela cheia de pedidos com contagem regressiva de **dezenas a
+centenas de dias** (`-338d`, `-68d`, `-63d`...) — nenhum pedido real da
+operação (SLA de horas/poucos dias) fica tanto tempo "aguardando
+despacho" de verdade. Causa raiz: o `OR categoria IS NULL OR categoria
+NOT IN (...)` que a 6ª rodada adicionou pra não esconder pedido
+genuinamente pendente **também** faz o filtro de data nunca se aplicar a
+nenhuma linha não resolvida — então um pedido que nunca foi reconferido
+com sucesso (API falhando sempre pra ele, pedido de teste antigo nunca
+limpo, etc.) fica "aguardando" PRA SEMPRE, com a contagem sintética de 24h
+(ver seção de prazo sintético acima) só crescendo mês após mês. Pior: como
+a mesma função alimenta o pool de reconferência (`ORDER BY date_created_ts
+ASC`, mais antigo primeiro), esse acúmulo também consumia o orçamento de
+tempo de cada ciclo tentando revisitar pedido quase certamente já resolvido
+de verdade no marketplace, atrasando a reconferência de pedido recente de
+verdade.
+
+Corrigido com um teto duro, não a volta do corte de 48h: `IDADE_MAXIMA_
+AGUARDANDO_MS` (15 dias — generoso frente ao caso real confirmado na 6ª
+rodada, ~54h) em `listarShopeeAguardando`, `listarShopeePendentesParaReverificar`
+e `listarMlAguardando` (`lib/historicoTodos.js`) — um `AND date_created_ts
+>= limiteMaximo` incondicional, antes do `OR` da 6ª rodada (que continua
+valendo dentro desse teto). Pedido com mais de 15 dias sem ser resolvido
+some da exibição **e** do pool de reconferência — não é mais perseguido
+automaticamente, porque a reconferência incremental já provou não
+conseguir dar conta desse volume. Pra corrigir o status real de uma linha
+específica que caiu nesse teto, é backfill manual mesmo (`api/backfill-
+todos-api.js`/`api/backfill-shopee-todos.js`, janela antiga) — não é
+urgente, só afeta dado histórico, não a exibição ao vivo.
+
 ### Projeção Financeira: sob demanda, não automática (Mercado Pago + Shopee)
 
 `lib/mpProjecao.js` e `lib/shopeeProjecao.js` alimentam a mesma tela
