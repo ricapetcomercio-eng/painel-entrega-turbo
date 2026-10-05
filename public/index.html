@@ -2525,7 +2525,17 @@
     const PLATAFORMA_POR_TIPO = { FLEX: 'Mercado Livre', AGORA: 'Mercado Livre', TURBO: 'Shopee', SHOPEE: 'Shopee', ML: 'Mercado Livre' };
     const STATUS_LABEL = { aguardando: 'Aguardando', coletado: 'Coletado', entregue: 'Entregue', cancelado: 'Cancelado', nao_entregue: 'Não entregue' };
 
+    // Mesmo critério de renderizarCards()/passaNoFiltro() em tv.html: a TV
+    // só MOSTRA card em "PEDIDOS EM ABERTO" quando o status ainda não foi
+    // resolvido — coletado/entregue/cancelado/não entregue continuam no
+    // payload só pra contar KPI ("Coletados hoje") e tocar som, nunca viram
+    // card visível. Sem esse filtro o relatório trazia pedido que já
+    // sumiu da tela há dias (reportado pelo dono do projeto: pedido já
+    // coletado ainda aparecia no CSV).
+    const CONCLUIDOS = new Set(['coletado', 'entregue', 'cancelado', 'nao_entregue']);
+
     function adicionar(pedido, tipo, status) {
+      if (CONCLUIDOS.has(status)) return;
       const itens = pedido.itens && pedido.itens.length ? pedido.itens : [{ titulo: null, sku: null }];
       const statusTexto = STATUS_LABEL[status] || status || 'Aguardando';
       const bipado = (status === 'coletado' || status === 'entregue') ? 'Sim' : 'Não';
