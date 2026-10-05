@@ -166,6 +166,7 @@
   <div id="gravar-status" class="gravar-status"></div>
   <button id="saldo-inicial-btn" class="gravar-btn saldo-inicial-btn">Usar esta contagem como saldo inicial do sistema automático</button>
   <div id="saldo-inicial-status" class="gravar-status"></div>
+  <button id="exportar-excel-btn" class="gravar-btn saldo-inicial-btn">📊 Exportar planilha (Excel)</button>
 </div>
 
 
@@ -762,6 +763,63 @@
     }
   }
   document.getElementById('saldo-inicial-btn').addEventListener('click', enviarComoSaldoInicial);
+
+  // ===================================================================
+  // Exportar planilha (Excel) — pedido do dono do projeto: todas as
+  // informações já carregadas nesta página (STATE/ROLL_STATE, preenchidos
+  // em init() pra TODO produto/cor/tamanho do CATALOG, não só os já
+  // contados) num CSV com BOM UTF-8 — abre direto como planilha no Excel,
+  // mesmo padrão já usado no relatório exportável da TV (public/index.html,
+  // exportarRelatorioTV). Gerado 100% no navegador, sem rota nova no
+  // servidor nem exposição da chave do JSONBin.
+  // ===================================================================
+  function escaparCsv(valor){
+    return '"' + String(valor == null ? '' : valor).replace(/"/g, '""') + '"';
+  }
+  function exportarPlanilhaExcel(){
+    const linhas = [];
+    linhas.push(['Produto', 'Cor', 'Tamanho', 'Estoque Próprio', 'Estoque Full', 'Estoque Total', 'Preço Unitário (R$)', 'Valor Total (R$)', 'Atualizado em'].map(escaparCsv).join(';'));
+
+    function adicionar(produtoNome, cor, tam, st){
+      const proprio = (st && st.proprio) || 0;
+      const full = (st && st.full) || 0;
+      const total = proprio + full;
+      const preco = precoFor(produtoNome, cor, tam);
+      const valorTotal = preco != null ? preco * total : null;
+      linhas.push([
+        displayNameFor(produtoNome), cor, tam, proprio, full, total,
+        preco != null ? preco.toFixed(2).replace('.', ',') : '',
+        valorTotal != null ? valorTotal.toFixed(2).replace('.', ',') : '',
+        (st && st.atualizadoEm) || '',
+      ].map(escaparCsv).join(';'));
+    }
+
+    TARGET_PRODUCTS_RAW.forEach(p => {
+      Object.keys(CATALOG[p]).forEach(cor => {
+        (CATALOG[p][cor] || []).forEach(tam => {
+          if(ROLL_TAMS.includes(tam)) return;
+          adicionar(p, cor, tam, STATE[p] && STATE[p][cor] && STATE[p][cor][tam]);
+        });
+      });
+    });
+    ROLL_COLORS.forEach(cor => {
+      ROLL_TAMS.forEach(tam => {
+        adicionar(ROLL_PSEUDO_PRODUCT, cor, TAM_LABEL[tam] || tam, ROLL_STATE[cor] && ROLL_STATE[cor][tam]);
+      });
+    });
+
+    const csv = '﻿' + linhas.join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'estoque-ricapet-' + todayStr() + '.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+  document.getElementById('exportar-excel-btn').addEventListener('click', exportarPlanilhaExcel);
 
   init();
 })();
