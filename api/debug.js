@@ -842,6 +842,8 @@ async function debugAguardandoResumo(req, res) {
     const porConta = {};
     const porFaixaIdade = {};
     const porSubstatus = comSubstatus ? {} : undefined;
+    const porFaixaIdadeComShipmentId = comSubstatus ? {} : undefined;
+    const porFaixaIdadeSemShipmentId = comSubstatus ? {} : undefined;
     for (const p of lista) {
       const conta = p.conta || '(sem conta)';
       porConta[conta] = (porConta[conta] || 0) + 1;
@@ -850,9 +852,18 @@ async function debugAguardandoResumo(req, res) {
       if (comSubstatus) {
         const chave = p.status_substatus || '(sem substatus)';
         porSubstatus[chave] = (porSubstatus[chave] || 0) + 1;
+        const alvo = p.shipment_id ? porFaixaIdadeComShipmentId : porFaixaIdadeSemShipmentId;
+        alvo[faixa] = (alvo[faixa] || 0) + 1;
       }
     }
-    return { total: lista.length, por_conta: porConta, por_faixa_idade: porFaixaIdade, por_substatus: porSubstatus };
+    return {
+      total: lista.length,
+      por_conta: porConta,
+      por_faixa_idade: porFaixaIdade,
+      por_substatus: porSubstatus,
+      por_faixa_idade_com_shipment_id: porFaixaIdadeComShipmentId,
+      por_faixa_idade_sem_shipment_id: porFaixaIdadeSemShipmentId,
+    };
   }
 
   res.status(200).json({
