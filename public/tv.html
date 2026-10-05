@@ -16,7 +16,11 @@
     --amarelo: #f5c518;
     --laranja: #ff8a3d;
     --vermelho: #ff4d4f;
-    --preto: #7a0d0f;
+    /* "preto" é só o nome interno da zona "atrasado" (zona === 'preto' no
+       JS, KPI "Atrasados", filtro) - pedido explícito do dono do projeto
+       pra aparecer vermelho piscante, não preto/escuro, por isso o mesmo
+       valor de --vermelho aqui. */
+    --preto: #ff4d4f;
     --flex: #4d9bff;
     --turbo: #b968f2;
     --agora: #ff4d4f;
@@ -113,7 +117,7 @@
   .card-pedido.zona-amarelo { border-color: var(--amarelo); }
   .card-pedido.zona-laranja { border-color: var(--laranja); }
   .card-pedido.zona-vermelho { border-color: var(--vermelho); background: #2a1010; }
-  .card-pedido.zona-preto { border-color: var(--preto); background: #200404; }
+  .card-pedido.zona-preto { border-color: var(--preto); background: #2a1010; }
   .card-pedido.zona-vermelho, .card-pedido.zona-preto { animation: piscaCard 1.1s infinite; }
   @keyframes piscaCard {
     0%,100% { box-shadow: 0 0 0 0 rgba(255,77,79,0.5); }
@@ -171,7 +175,7 @@
   .zona-amarelo .card-contador { color: var(--amarelo); }
   .zona-laranja .card-contador { color: var(--laranja); }
   .zona-vermelho .card-contador { color: var(--vermelho); }
-  .zona-preto .card-contador { color: #ff8080; }
+  .zona-preto .card-contador { color: var(--preto); }
 
   .card-status { text-align: center; font-size: 12px; font-weight: 700; color: var(--muted); }
   .status-coletado-txt { color: var(--verde); }
@@ -182,7 +186,7 @@
   .zona-amarelo .barra-prazo-fill { background: var(--amarelo); }
   .zona-laranja .barra-prazo-fill { background: var(--laranja); }
   .zona-vermelho .barra-prazo-fill { background: var(--vermelho); }
-  .zona-preto .barra-prazo-fill { background: #ff8080; }
+  .zona-preto .barra-prazo-fill { background: var(--preto); }
 
   .empty { text-align: center; padding: 60px; color: var(--muted); font-size: 15px; grid-column: 1 / -1; }
 
@@ -222,10 +226,11 @@
       <div class="kpi"><div class="v" style="color:var(--shopee);" id="kpiShopeeGeral">-</div><div class="l">Shopee (geral)</div></div>
       <div class="kpi"><div class="v" style="color:var(--ml-geral);" id="kpiMlGeral">-</div><div class="l">ML (geral)</div></div>
       <div class="kpi"><div class="v" style="color:var(--vermelho);" id="kpiCriticos">-</div><div class="l">Críticos</div></div>
-      <div class="kpi"><div class="v" style="color:#ff8080;" id="kpiAtrasados">-</div><div class="l">Atrasados</div></div>
+      <div class="kpi"><div class="v" style="color:var(--preto);" id="kpiAtrasados">-</div><div class="l">Atrasados</div></div>
       <div class="kpi"><div class="v" style="color:var(--verde);" id="kpiColetadosHoje">-</div><div class="l">Coletados hoje</div></div>
       <div class="kpi"><div class="v" id="kpiTempoMedio">-</div><div class="l">Tempo médio até coleta</div></div>
       <div class="kpi"><div class="v" id="kpiMaiorAtraso">-</div><div class="l">Maior atraso</div></div>
+      <div class="kpi"><div class="v" style="color:var(--preto);" id="kpiAtrasoSemana">-</div><div class="l">Atraso total (7 dias)</div></div>
     </div>
 
     <div class="controles">
@@ -429,6 +434,17 @@
     return negativo ? '-' + txt : txt;
   }
 
+  // "Total de atraso da semana" (ver atrasoSemanaAtual) é só horas:minutos
+  // somados — não tem data/hora limite, então não faz sentido no formato
+  // de contador regressivo (dia/hora/min/seg) usado nos cards.
+  function formatarDuracaoHoras(ms) {
+    if (!ms || ms <= 0) return '0h';
+    const totalMin = Math.round(ms / 60000);
+    const h = Math.floor(totalMin / 60);
+    const m = totalMin % 60;
+    return m > 0 ? `${h}h${String(m).padStart(2, '0')}` : `${h}h`;
+  }
+
   // Cor por tempo até o prazo (decisão do dono do projeto, out/2026) —
   // substitui o esquema antigo por fração (tempo decorrido / janela total
   // desde a criação), que tinha o problema de pedido "antigo" (criado há
@@ -495,6 +511,10 @@
   // ================= ESTADO =================
   let cardsAtuais = [];
   let filtroAtivo = 'todos';
+  // Pedido do dono do projeto (out/2026): "total de atraso que tivemos na
+  // semana" - soma pré-calculada no servidor (ver lib/atrasoSemanal.js),
+  // lida direto do payload de /api/dashboard-data, sem cálculo aqui.
+  let atrasoSemanaAtual = null;
   let estadoAnterior = {}; // id -> { zona, status } — para detectar mudanças e disparar sons
 
   // ================= BUSCA DE DADOS =================
@@ -712,6 +732,10 @@
     else if (c.status === 'coletado') statusHtml = '<span class="status-coletado-txt">✅ Coletado</span>';
     else if (naoEntregue) statusHtml = '<span class="status-nao-entregue-txt">⚠️ Não entregue</span>';
     else if (cancelado) statusHtml = '<span class="status-nao-entregue-txt">🚫 Cancelado</span>';
+    // Zona "preto" = prazo já vencido (ver zonaPorPrazo) — texto explícito
+    // pedido pelo dono do projeto, pra não depender só da cor/piscar pra
+    // notar que esse pedido já passou do prazo.
+    else if (c.zona === 'preto') statusHtml = '<span class="status-nao-entregue-txt">🔴 ATRASADO</span>';
     else statusHtml = '⏳ Aguardando coleta';
 
     const contadorHtml = concluido
@@ -789,6 +813,10 @@
     const maiorAtraso = atrasadosMs.length ? Math.max(...atrasadosMs) : null;
     document.getElementById('kpiMaiorAtraso').textContent = maiorAtraso === null ? '-' : formatarContador(-maiorAtraso);
 
+    document.getElementById('kpiAtrasoSemana').textContent = atrasoSemanaAtual
+      ? formatarDuracaoHoras(atrasoSemanaAtual.total_ms)
+      : '-';
+
     const agora = Date.now();
     const heat15 = pendentes.filter((c) => c.msRestante > 0 && c.msRestante <= 15 * 60000).length;
     const heat30 = pendentes.filter((c) => c.msRestante > 15 * 60000 && c.msRestante <= 30 * 60000).length;
@@ -829,6 +857,7 @@
       const novosCards = montarCards(dados);
       detectarEventosSonoros(novosCards);
       cardsAtuais = novosCards;
+      atrasoSemanaAtual = dados.atrasoSemana || null;
       renderizarCards();
 
       document.getElementById('pontoConexao').style.background = 'var(--verde)';

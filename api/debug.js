@@ -1380,6 +1380,16 @@ async function debugBipagemDoDia(req, res) {
   res.status(200).json({ ok: true, tipo: 'bipagem-do-dia', data, empresa: empresa || null, total: rs.rows.length, registros: rs.rows });
 }
 
+// Diagnóstico: roda calcularAtrasoSemana() (lib/atrasoSemanal.js) ao vivo,
+// sem passar pelo cache do KV (que só é atualizado por /api/collect no
+// throttle de 30min, ver INTERVALO_MINIMO_ATRASO_SEMANA_MS) — pra conferir
+// o número contra o banco na hora, sem esperar o próximo ciclo de coleta.
+async function debugAtrasoSemana(req, res) {
+  const { calcularAtrasoSemana } = require('../lib/atrasoSemanal');
+  const resultado = await calcularAtrasoSemana();
+  res.status(200).json({ ok: true, tipo: 'atraso-semana', ...resultado });
+}
+
 // Correção pontual: reabre em historico_todos um pedido marcado "coletado"
 // (categoria/coletado/coletado_em) de volta pro estado "aguardando" —
 // caso real (out/2026): pedido Shopee 260930C2Q8M3XH bipado no galpão em
@@ -3863,6 +3873,7 @@ module.exports = async (req, res) => {
     if (req.query.tipo === 'historico-todos-row') return await debugHistoricoTodosRow(req, res);
     if (req.query.tipo === 'bipagem-por-order-id') return await debugBipagemPorOrderId(req, res);
     if (req.query.tipo === 'bipagem-do-dia') return await debugBipagemDoDia(req, res);
+    if (req.query.tipo === 'atraso-semana') return await debugAtrasoSemana(req, res);
     if (req.query.tipo === 'reabrir-pedido') return await debugReabrirPedido(req, res);
     if (req.query.tipo === 'registrar-bipagem-diaria') return await debugRegistrarBipagemDiaria(req, res);
     if (req.query.tipo === 'apagar-bipagem-diaria-teste') return await debugApagarBipagemDiariaTeste(req, res);
