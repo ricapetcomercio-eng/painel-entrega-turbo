@@ -2534,12 +2534,27 @@
     // coletado ainda aparecia no CSV).
     const CONCLUIDOS = new Set(['coletado', 'entregue', 'cancelado', 'nao_entregue']);
 
+    // Um mesmo pedido pode aparecer em dois blocos da TV ao mesmo tempo —
+    // ex.: Flex + "ML geral", Turbo + "Shopee geral" — decisão aceita de
+    // propósito (ver CLAUDE.md, "decisão aceita de não deduplicar entre os
+    // dois blocos"), cada bloco tem seu próprio propósito visual na tela.
+    // Mas numa lista plana de relatório isso só aparece como linha
+    // duplicada sem motivo (reportado pelo dono do projeto). As origens
+    // são percorridas na ordem Flex/Agora/Turbo → Turbo "ao vivo" → Shopee
+    // geral → ML geral, então marcar o par pedido+SKU já visto e pular
+    // repetição mantém a linha do bloco mais específico (Flex/Turbo) e
+    // descarta só a cópia genérica.
+    const vistos = new Set();
+
     function adicionar(pedido, tipo, status) {
       if (CONCLUIDOS.has(status)) return;
       const itens = pedido.itens && pedido.itens.length ? pedido.itens : [{ titulo: null, sku: null }];
       const statusTexto = STATUS_LABEL[status] || status || 'Aguardando';
       const bipado = (status === 'coletado' || status === 'entregue') ? 'Sim' : 'Não';
       itens.forEach((item) => {
+        const chave = `${pedido.order_id}|${item.sku || item.titulo || ''}`;
+        if (vistos.has(chave)) return;
+        vistos.add(chave);
         linhas.push({
           // Número de pedido tem 16 dígitos — o Excel, ao abrir .csv,
           // detecta a coluna como numérica e converte pra double (só
