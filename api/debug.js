@@ -813,6 +813,57 @@ async function debugMlAguardandoSubstatus(req, res) {
   });
 }
 
+// Diagnóstico: resumo agregado do que listarMlAguardando/listarShopeeAguardando
+// devolvem HOJE (exatamente a mesma consulta que alimenta "ML geral"/"Shopee
+// geral" na TV) — por conta, por faixa de idade e por status_substatus (ML).
+// Zero chamada de API: só lê o que já está no Turso, então é seguro rodar a
+// qualquer momento pra comparar contra o painel nativo do marketplace (ver
+// 8ª rodada do teto de 15 dias, CLAUDE.md) sem gastar orçamento de CPU/API.
+async function debugAguardandoResumo(req, res) {
+  const { listarMlAguardando, listarShopeeAguardando } = require('../lib/historicoTodos');
+  const horas = parseInt(req.query.horas, 10) || 48;
+
+  const [ml, shopee] = await Promise.all([
+    listarMlAguardando(horas),
+    listarShopeeAguardando(horas),
+  ]);
+
+  const agora = Date.now();
+  const faixaIdade = (dataCriacao) => {
+    if (!dataCriacao) return '(sem date_created)';
+    const horasIdade = (agora - new Date(dataCriacao).getTime()) / (60 * 60 * 1000);
+    if (horasIdade < 24) return '0-24h';
+    if (horasIdade < 72) return '1-3d';
+    if (horasIdade < 168) return '3-7d';
+    return '7-15d';
+  };
+
+  function resumir(lista, { comSubstatus } = {}) {
+    const porConta = {};
+    const porFaixaIdade = {};
+    const porSubstatus = comSubstatus ? {} : undefined;
+    for (const p of lista) {
+      const conta = p.conta || '(sem conta)';
+      porConta[conta] = (porConta[conta] || 0) + 1;
+      const faixa = faixaIdade(p.date_created);
+      porFaixaIdade[faixa] = (porFaixaIdade[faixa] || 0) + 1;
+      if (comSubstatus) {
+        const chave = p.status_substatus || '(sem substatus)';
+        porSubstatus[chave] = (porSubstatus[chave] || 0) + 1;
+      }
+    }
+    return { total: lista.length, por_conta: porConta, por_faixa_idade: porFaixaIdade, por_substatus: porSubstatus };
+  }
+
+  res.status(200).json({
+    ok: true,
+    tipo: 'aguardando-resumo',
+    horas_janela_consulta: horas,
+    ml: resumir(ml, { comSubstatus: true }),
+    shopee: resumir(shopee),
+  });
+}
+
 // Diagnóstico: devolve o pedido CRU da API do ML (GET /orders/{id}), sem
 // nenhum processamento — pra confirmar o valor real de status/status_detail/
 // tags num pedido cancelado, antes de confiar cegamente em
@@ -3603,6 +3654,7 @@ module.exports = async (req, res) => {
     if (req.query.tipo === 'ml-claims-resumo') return await debugMlClaimsResumo(req, res);
     if (req.query.tipo === 'ml-shipment') return await debugMlShipment(req, res);
     if (req.query.tipo === 'ml-aguardando-substatus') return await debugMlAguardandoSubstatus(req, res);
+    if (req.query.tipo === 'aguardando-resumo') return await debugAguardandoResumo(req, res);
     if (req.query.tipo === 'ml-order-raw') return await debugMlOrderRaw(req, res);
     if (req.query.tipo === 'flex-status') return await debugFlexStatus(req, res);
     if (req.query.tipo === 'ml-id-teste') return await debugMlIdTeste(req, res);
