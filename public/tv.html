@@ -562,6 +562,21 @@
         deadlineMs,
         status: 'aguardando',
         semPrazo: !temPrazoReal,
+        // Mesmo princípio do "ML geral" (ver calcularProximoDespachoMl16h
+        // acima) — com prazo real, usar (deadline - createdMs) como janela
+        // total quebra quando a Shopee REESTIMA prazo_entrega num pedido
+        // que está parado há dias (reconferência periódica troca a
+        // estimativa pelo valor oficial mais atual, ver comentário em
+        // montarPedidoGenericoShopee/lib/shopeeOrders.js) — createdMs fica
+        // velho, o prazo novo fica perto de agora, e a janela total vira
+        // gigante só por causa da idade do pedido, não da urgência real.
+        // Caso real (out/2026): pedido 260930C2Q8M3XH, criado 29/set, prazo
+        // reestimado pra 06/out — mesmo tempo restante que um pedido criado
+        // 3/out com o mesmo prazo, mas aparecia vermelho (quase vencido) em
+        // vez de laranja igual o vizinho. Janela fixa de 48h (prazo típico
+        // de despacho da Shopee) pra prazo real — cor passa a refletir só
+        // o tempo até o prazo, não há quanto tempo o pedido está parado.
+        totalMs: temPrazoReal ? 48 * 60 * 60 * 1000 : null,
       });
     });
 
