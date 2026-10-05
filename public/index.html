@@ -2531,7 +2531,16 @@
       const bipado = (status === 'coletado' || status === 'entregue') ? 'Sim' : 'Não';
       itens.forEach((item) => {
         linhas.push({
-          pedido: pedido.order_id,
+          // Número de pedido tem 16 dígitos — o Excel, ao abrir .csv,
+          // detecta a coluna como numérica e converte pra double (só
+          // ~15-17 dígitos de precisão confiável), trocando os últimos
+          // dígitos por zero (ex.: "2000018768734081" virava
+          // "2000018768734000" na tela, pedido real ficava impossível de
+          // localizar). `="..."` é o truque padrão reconhecido pelo Excel
+          // (fórmula que resulta em texto) — mostra o número completo sem
+          // arredondar e sem notação científica. `escapar()` abaixo já
+          // duplica as aspas internas certo pro CSV.
+          pedido: `="${pedido.order_id}"`,
           status: statusTexto,
           valor: typeof pedido.total_amount === 'number' ? pedido.total_amount : null,
           bipado,
