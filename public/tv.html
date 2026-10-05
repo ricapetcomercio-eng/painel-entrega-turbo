@@ -586,11 +586,21 @@
         deadlineMs,
         status: 'aguardando',
         semPrazo: !temPrazoReal,
+        // Sem isso, a cor/barra usaria (deadline - createdMs) como "janela
+        // total" — como todo pedido sem prazo real agora compartilha o MESMO
+        // deadline (próximo 16h), um pedido criado há dias teria uma janela
+        // total enorme e pareceria "quase no limite" (vermelho) mesmo tendo
+        // o mesmo tempo restante que um pedido criado há 1h (verde) — cores
+        // diferentes pro mesmo prazo, confuso de olhar na TV (reportado pelo
+        // dono do projeto, out/2026). Com uma janela fixa de 24h (o próprio
+        // ciclo do prazo: de um 16h ao próximo), a cor passa a refletir só o
+        // tempo até o prazo, igual pra todo mundo que compartilha ele.
+        totalMs: temPrazoReal ? null : 24 * 60 * 60 * 1000,
       });
     });
 
     cards.forEach((c) => {
-      const total = c.deadlineMs - c.createdMs;
+      const total = c.totalMs || (c.deadlineMs - c.createdMs);
       const restante = c.deadlineMs - agora;
       c.fracao = total > 0 ? Math.max(0, 1 - restante / total) : 1;
       c.zona = (c.status === 'coletado' || c.status === 'entregue' || c.status === 'nao_entregue' || c.status === 'cancelado') ? 'concluido' : zonaPorFracao(c.fracao);
