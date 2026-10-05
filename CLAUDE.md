@@ -93,10 +93,25 @@ comentário no próprio código) se esses 3 valores cobrem todo "aguardando"
 sem deixar escapar pedido pago nem mostrar pedido ainda não confirmado.
 
 Cada bloco aparece nos cards da TV com seu próprio selo (🛍️ SHOPEE laranja,
-📦 ML teal). Um mesmo pedido Shopee Entrega Turbo pode aparecer tanto no
-card TURBO quanto no "Shopee geral" (comportamento já existente antes do
-ML geral existir, não uma regressão nova) — decisão aceita de não
-deduplicar entre os dois blocos.
+📦 ML teal).
+
+**✅ Pedido Turbo/Flex não aparece mais duplicado em "Shopee geral"/"ML
+geral" (out/2026)**: até esta correção, um mesmo pedido Shopee Entrega
+Turbo aparecia tanto no card TURBO quanto no "Shopee geral" (e o
+equivalente pro ML: um pedido Flex aparecia tanto no card FLEX quanto no
+"ML geral") — mesmo pedido físico, duas linhas na tela (e, por
+consequência, duas linhas no relatório exportável, ver seção "Botão
+escondido" abaixo). Isso tinha sido uma decisão aceita no passado ("não
+vale a pena deduplicar"), mas o dono do projeto pediu pra corrigir na
+origem depois de reportar confusão tanto na TV quanto no relatório.
+Corrigido excluindo Turbo/Flex das consultas "geral": `listarShopeeAguardando`
+agora também filtra `forma_entrega NOT LIKE '%turbo%'` (mesmo padrão já
+usado pra excluir Full), e `listarMlAguardando` filtra `forma_entrega NOT
+LIKE '%flex%'` (`lib/historicoTodos.js`). Shopee Turbo continua coberto em
+tempo real por `historicoTurboLive.js`/card TURBO; Flex continua coberto
+por `historicoFlex.js`/card FLEX — "geral" agora é mesmo só o volume que
+não tem cobertura em nenhum card específico. Efeito imediato após deploy,
+sem migração nem backfill (só mudança de `WHERE`).
 
 **✅ Todo card sempre com contagem regressiva, nunca "há Xh" (set/2026)**:
 decisão explícita do dono do projeto — quis o MESMO padrão visual pra
