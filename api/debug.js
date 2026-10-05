@@ -813,6 +813,72 @@ async function debugMlAguardandoSubstatus(req, res) {
   });
 }
 
+// Correção pontual: pedido ML "geral" sem `shipment_id` nunca é reconferido
+// (reverificarPendentesMlTodos, api/collect.js, filtra `.filter(p =>
+// p.shipment_id)`) — confirmado em produção (out/2026, ?tipo=aguardando-
+// resumo) que 406 dos 470 pedidos "aguardando" eram exatamente esse caso,
+// todos com 7-15 dias e `status_substatus` nunca preenchido (zumbi
+// histórico, não fluxo normal — a faixa 3-7d tinha só 2). Diferente de
+// rodar api/backfill-todos-api.js pra essa janela inteira (reprocessaria
+// milhares de pedidos já corretos só pra achar os poucos quebrados — caro
+// demais pro volume da Ricapet), esta rota vai direto nos candidatos
+// específicos: busca o PEDIDO primeiro (buscarPedidoPorId, pega
+// `shipping.id` que nunca foi gravado) e, se ainda não cancelado, o
+// shipment (mesma sequência de reverificarPendentesMlTodos) — grava
+// shipment_id novo + status fresco de uma vez, tirando o pedido do estado
+// "nunca reconferido" pra sempre. Orçamento de tempo por chamada (8s, igual
+// aos scripts de backfill) — rodar de novo com os mesmos parâmetros até
+// `restantes_estimados` chegar a 0.
+async function debugMlRecuperarSemShipmentId(req, res) {
+  const { listarMlAguardando, registrarHistoricoTodos } = require('../lib/historicoTodos');
+  const { buscarPedidoPorId, buscarDetalhesShipment, montarPedidoGenerico } = require('../lib/mlAllOrders');
+
+  const contaFiltro = req.query.conta;
+  const tempoOrcamentoMs = 8000;
+  const inicio = Date.now();
+
+  const candidatos = (await listarMlAguardando(48))
+    .filter((p) => !p.shipment_id)
+    .filter((p) => !contaFiltro || p.conta === contaFiltro);
+
+  const resultados = [];
+  const erros = [];
+  let processados = 0;
+
+  for (const pedido of candidatos) {
+    if (Date.now() - inicio >= tempoOrcamentoMs) break;
+    processados++;
+    try {
+      const pedidoAtual = await buscarPedidoPorId(pedido.conta, pedido.order_id);
+      const shipmentId = pedidoAtual.shipping && pedidoAtual.shipping.id;
+      const detalhes = await buscarDetalhesShipment(pedido.conta, shipmentId);
+      resultados.push({
+        ...montarPedidoGenerico(pedido.conta, pedidoAtual, shipmentId, detalhes),
+        cancelado: pedidoAtual.status === 'cancelled',
+      });
+    } catch (err) {
+      erros.push({ order_id: pedido.order_id, conta: pedido.conta, erro: err.message });
+    }
+    await new Promise((r) => setTimeout(r, 80));
+  }
+
+  let gravados = 0;
+  if (resultados.length > 0) {
+    const r = await registrarHistoricoTodos(resultados);
+    gravados = r.gravados;
+  }
+
+  res.status(200).json({
+    ok: true,
+    tipo: 'ml-recuperar-sem-shipment-id',
+    total_candidatos: candidatos.length,
+    processados_nesta_execucao: processados,
+    gravados_nesta_execucao: gravados,
+    restantes_estimados: candidatos.length - processados,
+    erros,
+  });
+}
+
 // Diagnóstico: resumo agregado do que listarMlAguardando/listarShopeeAguardando
 // devolvem HOJE (exatamente a mesma consulta que alimenta "ML geral"/"Shopee
 // geral" na TV) — por conta, por faixa de idade e por status_substatus (ML).
@@ -3666,6 +3732,7 @@ module.exports = async (req, res) => {
     if (req.query.tipo === 'ml-shipment') return await debugMlShipment(req, res);
     if (req.query.tipo === 'ml-aguardando-substatus') return await debugMlAguardandoSubstatus(req, res);
     if (req.query.tipo === 'aguardando-resumo') return await debugAguardandoResumo(req, res);
+    if (req.query.tipo === 'ml-recuperar-sem-shipment-id') return await debugMlRecuperarSemShipmentId(req, res);
     if (req.query.tipo === 'ml-order-raw') return await debugMlOrderRaw(req, res);
     if (req.query.tipo === 'flex-status') return await debugFlexStatus(req, res);
     if (req.query.tipo === 'ml-id-teste') return await debugMlIdTeste(req, res);
