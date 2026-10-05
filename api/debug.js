@@ -1308,6 +1308,41 @@ async function debugHistoricoTodosRow(req, res) {
   res.status(200).json({ ok: true, tipo: 'historico-todos-row', total: resultado.length, registros: resultado });
 }
 
+// Diagnóstico: quem bipou um pedido específico no galpão, cruzando
+// bipagem_diaria.order_id_resolvido (ver lib/bipagemResolver.js — n_id_pedido
+// da Omie precisa ser resolvido pro order_id real do marketplace antes de
+// dar pra cruzar por aqui; pedido ainda não resolvido não aparece neste
+// diagnóstico até alguém clicar "Resolver pendentes" em bipagem.html).
+// Criado pra investigar um caso real (out/2026): pedido Shopee marcado
+// "coletado" no nosso banco desde uma data, mas a própria Shopee mostrando
+// "A Enviar" dias depois — precisa saber quem bipou, quando e de onde pra
+// confirmar se foi etiqueta errada ou falha de retirada da transportadora.
+async function debugBipagemPorOrderId(req, res) {
+  const db = getDb();
+  const orderId = (req.query.order_id || '').trim();
+  if (!orderId) {
+    res.status(400).json({ error: 'Use ?order_id=...' });
+    return;
+  }
+  const rs = await db.execute({
+    sql: `SELECT id_unico, empresa, data, hora, cliente, n_id_pedido, n_id_nfe, tipo_envio,
+                 bipado_por, bipado_ip, marcado_manualmente, bipado_em_ts,
+                 order_id_resolvido, marketplace_resolvido, resolvido_em
+          FROM bipagem_diaria WHERE order_id_resolvido = ? ORDER BY bipado_em_ts DESC`,
+    args: [orderId],
+  });
+  res.status(200).json({
+    ok: true,
+    tipo: 'bipagem-por-order-id',
+    order_id: orderId,
+    total: rs.rows.length,
+    registros: rs.rows,
+    aviso: rs.rows.length === 0
+      ? 'Nenhuma linha encontrada com order_id_resolvido = esse valor — ou o pedido nunca foi bipado, ou ainda não foi resolvido (clique "Resolver pendentes" em bipagem.html e tente de novo).'
+      : undefined,
+  });
+}
+
 // Backfill pontual: pedidos Shopee "geral" já gravados como aguardando
 // (ver lib/historicoTodos.js: listarShopeeAguardando) nunca tiveram
 // prazo_entrega (ship_by_date) coletado, porque esse campo só passou a ser
@@ -3737,6 +3772,7 @@ module.exports = async (req, res) => {
     if (req.query.tipo === 'flex-status') return await debugFlexStatus(req, res);
     if (req.query.tipo === 'ml-id-teste') return await debugMlIdTeste(req, res);
     if (req.query.tipo === 'historico-todos-row') return await debugHistoricoTodosRow(req, res);
+    if (req.query.tipo === 'bipagem-por-order-id') return await debugBipagemPorOrderId(req, res);
     if (req.query.tipo === 'registrar-bipagem-diaria') return await debugRegistrarBipagemDiaria(req, res);
     if (req.query.tipo === 'apagar-bipagem-diaria-teste') return await debugApagarBipagemDiariaTeste(req, res);
     if (req.query.tipo === 'bipagem-cruzamento-teste') return await debugBipagemCruzamentoTeste(req, res);
