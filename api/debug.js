@@ -1380,6 +1380,58 @@ async function debugBipagemDoDia(req, res) {
   res.status(200).json({ ok: true, tipo: 'bipagem-do-dia', data, empresa: empresa || null, total: rs.rows.length, registros: rs.rows });
 }
 
+// Correção pontual: reabre em historico_todos um pedido marcado "coletado"
+// (categoria/coletado/coletado_em) de volta pro estado "aguardando" —
+// caso real (out/2026): pedido Shopee 260930C2Q8M3XH bipado no galpão em
+// 30/set (ver debugBipagemPorOrderId/debugBipagemDoDia, usados pra tentar
+// achar quem bipou, sem sucesso — linha não encontrada em bipagem_diaria),
+// mas a própria Shopee mostrando "A Enviar" dias depois com prazo novo —
+// sinal de que a retirada pela transportadora não aconteceu de verdade. O
+// dono do projeto pediu pra colocar de volta na fila da TV até o pacote
+// ser retirado/investigado fisicamente no galpão.
+// POST { order_id, marketplace: "shopee"|"mercado_livre" } — só mexe em
+// historico_todos (o bloco "geral" da TV); não existe um caso Flex/Turbo
+// equivalente ainda, então esta rota não cobre historico_flex/
+// historico_turbo_live de propósito (adicionar se algum dia precisar).
+async function debugReabrirPedido(req, res) {
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Use POST { order_id, marketplace }' }); return; }
+  const db = getDb();
+  const orderId = (req.body && req.body.order_id ? String(req.body.order_id) : '').trim();
+  const marketplace = (req.body && req.body.marketplace ? String(req.body.marketplace) : '').trim();
+  if (!orderId || !['shopee', 'mercado_livre'].includes(marketplace)) {
+    res.status(400).json({ error: 'Use POST { order_id, marketplace: "shopee"|"mercado_livre" }' });
+    return;
+  }
+  const antes = await db.execute({
+    sql: `SELECT id_unico, marketplace, order_id, categoria, coletado, coletado_em, status_pedido, status_envio
+          FROM historico_todos WHERE marketplace = ? AND order_id = ?`,
+    args: [marketplace, orderId],
+  });
+  if (antes.rows.length === 0) {
+    res.status(404).json({ error: `Nenhum pedido encontrado em historico_todos com marketplace=${marketplace} e order_id=${orderId}` });
+    return;
+  }
+  await db.execute({
+    sql: `UPDATE historico_todos SET categoria = NULL, coletado = 0, coletado_em = NULL
+          WHERE marketplace = ? AND order_id = ?`,
+    args: [marketplace, orderId],
+  });
+  const depois = await db.execute({
+    sql: `SELECT id_unico, marketplace, order_id, categoria, coletado, coletado_em, status_pedido, status_envio
+          FROM historico_todos WHERE marketplace = ? AND order_id = ?`,
+    args: [marketplace, orderId],
+  });
+  res.status(200).json({
+    ok: true,
+    tipo: 'reabrir-pedido',
+    order_id: orderId,
+    marketplace,
+    antes: antes.rows[0],
+    depois: depois.rows[0],
+    aviso: 'Reflete na TV só depois que /api/collect rodar de novo (lê do cache gravado por ela) — ou, pra ver na hora, consulte ?tipo=historico-todos-row direto.',
+  });
+}
+
 // Backfill pontual: pedidos Shopee "geral" já gravados como aguardando
 // (ver lib/historicoTodos.js: listarShopeeAguardando) nunca tiveram
 // prazo_entrega (ship_by_date) coletado, porque esse campo só passou a ser
@@ -3811,6 +3863,7 @@ module.exports = async (req, res) => {
     if (req.query.tipo === 'historico-todos-row') return await debugHistoricoTodosRow(req, res);
     if (req.query.tipo === 'bipagem-por-order-id') return await debugBipagemPorOrderId(req, res);
     if (req.query.tipo === 'bipagem-do-dia') return await debugBipagemDoDia(req, res);
+    if (req.query.tipo === 'reabrir-pedido') return await debugReabrirPedido(req, res);
     if (req.query.tipo === 'registrar-bipagem-diaria') return await debugRegistrarBipagemDiaria(req, res);
     if (req.query.tipo === 'apagar-bipagem-diaria-teste') return await debugApagarBipagemDiariaTeste(req, res);
     if (req.query.tipo === 'bipagem-cruzamento-teste') return await debugBipagemCruzamentoTeste(req, res);
