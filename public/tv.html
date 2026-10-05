@@ -454,6 +454,30 @@
     return fmt.format(new Date(ms)) === fmt.format(new Date());
   }
 
+  // "ML geral" (Agência Mercado Livre/Correios, xd_drop_off) quase nunca
+  // tem prazo real — estimated_delivery_limit/estimated_delivery_final vêm
+  // nulos pra esse tipo de envio (confirmado com dado real de produção,
+  // out/2026: pedido #2000018748799894, shipping_option inteiro com os dois
+  // campos `{ date: null }`). Caía no prazo sintético genérico de 24h desde
+  // a CRIAÇÃO (mesmo usado pro Shopee sem prazo) — mas esse pedido foi
+  // criado em 1/out e só teve a etiqueta impressa em 4/out
+  // (date_first_printed), e o próprio Mercado Livre não cobra um prazo fixo
+  // desde a criação: a tela nativa do vendedor mostra um aviso dinâmico
+  // ("despache HOJE até as 16h"), recalculado todo dia até o pacote sair —
+  // não existe um campo de API com essa data, é uma regra de negócio da
+  // Agência. Com o prazo sintético de 24h desde a criação, um pedido parado
+  // há dias virava um atraso de "-2d" ou mais, sem bater com a regra real
+  // nem com o que o dono do projeto vê no painel do próprio Mercado Livre.
+  // Substituído por um prazo que sempre aponta pro PRÓXIMO 16h de Brasília
+  // (hoje, se ainda não passou; amanhã, se já passou) — nunca fica "preso"
+  // no passado, do mesmo jeito que o aviso do Mercado Livre se comporta.
+  function calcularProximoDespachoMl16h() {
+    const agora = Date.now();
+    const dataBrasil = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date(agora));
+    const hoje16h = new Date(`${dataBrasil}T16:00:00-03:00`).getTime();
+    return agora < hoje16h ? hoje16h : hoje16h + 24 * 60 * 60 * 1000;
+  }
+
   // ================= ESTADO =================
   let cardsAtuais = [];
   let filtroAtivo = 'todos';
@@ -541,17 +565,16 @@
       });
     });
 
-    // MERCADO LIVRE (geral) — qualquer forma de entrega, não só Flex.
-    // Mesmo tratamento do Shopee geral acima: usa prazo_entrega quando
-    // existe (Flex sempre tem; outras formas de entrega do ML às vezes
-    // trazem estimated_delivery_limit/final também, ver mlAllOrders.js),
-    // senão cai no modo "sem prazo" (prazo sintético de 24h).
+    // MERCADO LIVRE (geral) — qualquer forma de entrega, não só Flex. Usa
+    // prazo_entrega quando existe (raro pra esse bloco — ver
+    // calcularProximoDespachoMl16h acima), senão usa o próximo 16h de
+    // Brasília (regra real da Agência, não um prazo sintético genérico).
     (dados.pedidosMlTodos || []).forEach((p) => {
       const createdMs = new Date(p.date_created).getTime();
       const temPrazoReal = !!p.prazo_entrega;
       const deadlineMs = temPrazoReal
         ? new Date(p.prazo_entrega).getTime()
-        : createdMs + 24 * 60 * 60 * 1000;
+        : calcularProximoDespachoMl16h();
       cards.push({
         id: 'ml-geral:' + p.order_id,
         tipo: 'ML',
