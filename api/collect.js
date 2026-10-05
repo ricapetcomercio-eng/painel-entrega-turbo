@@ -43,6 +43,7 @@ const { coletarProjecaoFinanceira } = require('../lib/mpProjecao');
 const { coletarProjecaoFinanceiraShopee } = require('../lib/shopeeProjecao');
 const { coletarContasPagar } = require('../lib/omieContasPagar');
 const { obterAdminSessao } = require('../lib/pontoAuth');
+const { calcularAtrasoSemana } = require('../lib/atrasoSemanal');
 
 // Janela de DESCOBERTA de pedidos Turbo novos (não confundir com a
 // reverificação, que cobre qualquer "aguardando" sem limite de idade).
@@ -84,6 +85,11 @@ const DIAS_JANELA_DEVOLUCOES = 60; // cobre pedidos com prazo de reclamação em
 // mais devagar, sobra mais orçamento de chamadas pro ML antes de bater
 // em rate limit (429).
 const INTERVALO_MINIMO_TODOS_ML_MS = 5 * 60 * 1000; // 5 minutos
+// "Total de atraso da semana" (TV) é uma agregação só sobre dado já
+// gravado no Turso (sem chamada de API de marketplace) — bem mais barato
+// que os outros blocos, mas não precisa de mais frequência que isso (é um
+// número que muda devagar, só reflete pedido já coletado/entregue).
+const INTERVALO_MINIMO_ATRASO_SEMANA_MS = 30 * 60 * 1000; // 30 minutos
 
 // Processamento em lotes paralelos — bem mais rápido que um por um, ainda
 // gentil com a API do ML (pausa entre lotes, poucas chamadas simultâneas).
@@ -899,6 +905,21 @@ module.exports = async (req, res) => {
       }
       for (const loja of LOJAS_SHOPEE) {
         await enriquecerDevolucoesShopee(loja, erros);
+      }
+    });
+  }
+
+  // -------- "Total de atraso da semana" (TV) — só lê o Turso, throttle próprio --------
+  const ultimaExecucaoAtrasoSemana = await kvGet('entrega_turbo:ultima_execucao_atraso_semana_ts');
+  const deveRodarAtrasoSemana = !ultimaExecucaoAtrasoSemana || (agora - ultimaExecucaoAtrasoSemana >= INTERVALO_MINIMO_ATRASO_SEMANA_MS);
+  if (deveRodarAtrasoSemana) {
+    await medirTempo('atraso_semana', async () => {
+      await kvSet('entrega_turbo:ultima_execucao_atraso_semana_ts', agora);
+      try {
+        const atrasoSemana = await calcularAtrasoSemana();
+        await kvSet('entrega_turbo:atraso_semana', atrasoSemana);
+      } catch (err) {
+        erros.push({ fonte: 'atraso_semana', mensagem: err.message });
       }
     });
   }

@@ -39,6 +39,7 @@ module.exports = async (req, res) => {
   const dadosShopeeTodos = await kvGet('entrega_turbo:ultima_coleta_shopee_todos');
   const dadosMlTodos = await kvGet('entrega_turbo:ultima_coleta_ml_todos');
   const dadosProjecaoFinanceira = await kvGet('entrega_turbo:ultima_coleta_projecao_financeira');
+  const atrasoSemana = await kvGet('entrega_turbo:atraso_semana');
 
   // Site automático via Appmax (webhook, ver api/debug.js?tipo=appmax-
   // webhook): diferente de MP/Shopee/Omie, não vem do blob salvo pelo
@@ -73,6 +74,7 @@ module.exports = async (req, res) => {
       pedidosShopeeTodos: (dadosShopeeTodos && dadosShopeeTodos.pedidos) || [],
       pedidosMlTodos: (dadosMlTodos && dadosMlTodos.pedidos) || [],
       projecaoFinanceira: projecaoFinanceiraComSite,
+      atrasoSemana: atrasoSemana || null,
       aviso: 'Ainda não há dados coletados. Aguarde a primeira execução do cron.',
     });
     return;
@@ -87,5 +89,6 @@ module.exports = async (req, res) => {
     pedidosMlTodos: (dadosMlTodos && dadosMlTodos.pedidos) || [],
     atualizado_em_ml_todos: (dadosMlTodos && dadosMlTodos.atualizado_em) || null,
     projecaoFinanceira: projecaoFinanceiraComSite,
+    atrasoSemana: atrasoSemana || null,
   });
 };
