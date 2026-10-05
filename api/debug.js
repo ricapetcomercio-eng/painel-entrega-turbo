@@ -1348,16 +1348,27 @@ async function debugBipagemPorOrderId(req, res) {
 // não encontrou (order_id_resolvido vazio: tradução pendente ou já tentada
 // e falhou, ver resolver_erro). Cruza por `cliente` (nome do destinatário,
 // que a Omie também guarda) quando não dá pra cruzar por order_id ainda.
+//
+// ⚠️ Filtra por `bipado_em_ts` (timestamp, convertido pro fuso de São
+// Paulo com isoDeDiaHoraLoja/dataFusoLoja — mesmo padrão de
+// responderVisaoBipagem em api/analytics-todos-data.js), NUNCA pela coluna
+// `data` em si: ela é texto livre mandado pelo checkout_bipagem.py/RobotOmie
+// (formato não garantido/validado neste backend) e o próprio código de
+// produção já evita usá-la pra filtro de período por esse motivo.
 async function debugBipagemDoDia(req, res) {
   const db = getDb();
-  const data = (req.query.data || '').trim();
+  const { isoDeDiaHoraLoja } = require('../lib/registrosPonto');
+  const ehData = (v) => /^\d{4}-\d{2}-\d{2}$/.test(String(v || ''));
+  const data = ehData(req.query.data) ? req.query.data : null;
   const empresa = (req.query.empresa || '').trim();
   if (!data) {
     res.status(400).json({ error: 'Use ?data=AAAA-MM-DD (opcional &empresa=ricapet|thapets)' });
     return;
   }
-  const condicoes = ['data = ?'];
-  const args = [data];
+  const inicioTs = Math.floor(new Date(isoDeDiaHoraLoja(data, '00:00')).getTime() / 1000);
+  const fimTs = Math.floor(new Date(isoDeDiaHoraLoja(data, '23:59')).getTime() / 1000) + 59;
+  const condicoes = ['bipado_em_ts BETWEEN ? AND ?'];
+  const args = [inicioTs, fimTs];
   if (empresa) { condicoes.push('LOWER(empresa) = LOWER(?)'); args.push(empresa); }
   const rs = await db.execute({
     sql: `SELECT id_unico, empresa, data, hora, cliente, n_id_pedido, n_id_nfe, tipo_envio,
