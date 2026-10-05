@@ -476,7 +476,55 @@ específica que caiu nesse teto, é backfill manual mesmo (`api/backfill-
 todos-api.js`/`api/backfill-shopee-todos.js`, janela antiga) — não é
 urgente, só afeta dado histórico, não a exibição ao vivo.
 
-### Projeção Financeira: sob demanda, não automática (Mercado Pago + Shopee)
+**✅ 9ª rodada: causa raiz específica dos 406 zumbis confirmada e corrigida —
+pedido sem `shipment_id` nunca é reconferido (out/2026)**: mesmo depois da
+8ª rodada (teto de 15 dias), o dono do projeto mandou print do painel
+nativo do Mercado Livre/Shopee mostrando um volume real de pedidos
+aguardando BEM menor que o nosso — confirmado com diagnóstico real de
+produção (`?tipo=aguardando-resumo`, nova rota de leitura pura adicionada
+pra essa investigação): ML total = 470, sendo **406 (86%) concentrados
+exatamente na faixa 7-15 dias, todos sem `status_substatus`** (nunca
+reconferidos nem uma vez — número idêntico nas duas contagens, não
+coincidência). O lado Shopee, por outro lado, **já estava certo**: 155
+Ricapet ≈ 13 "Envios a Processar" + 147 "Envios Processados" do painel
+nativo (que na Shopee, assim como `printed` no ML, ainda significa
+etiqueta impressa mas pacote não retirado do galpão — mesmo padrão já
+aceito desde a 4ª rodada) — não era bug, só comparação incompleta contra
+só uma das duas abas da Shopee.
+
+Causa raiz confirmada com um 2º diagnóstico (`por_faixa_idade_com_
+shipment_id`/`_sem_shipment_id`, adicionado à mesma rota): **100% dos 406
+zumbis não tinham `shipment_id` gravado** (nenhum pedido recente — 0-24h a
+3-7d — tinha esse problema). `reverificarPendentesMlTodos` (`api/
+collect.js`) só reconfere quem já tem essa coluna preenchida
+(`.filter(p => p.shipment_id)`) — pedido gravado antes dela existir/ser
+populada fica excluído do pool de reconferência pra sempre, congelado no
+status capturado na descoberta original (mesma limitação já registrada na
+1ª rodada do histórico "ML geral", nunca com um remédio além do backfill
+manual).
+
+Corrigido com uma rota nova e cirúrgica, não com `api/backfill-todos-
+api.js` pra janela inteira (reprocessaria milhares de pedidos já corretos
+só pra achar os ~400 quebrados — caro demais pro volume da Ricapet, ~233
+pedidos/dia): `?tipo=ml-recuperar-sem-shipment-id&secret=CRON_SECRET`
+(`api/debug.js`) busca só os candidatos específicos (aguardando + sem
+`shipment_id`), rebusca o pedido (pega `shipping.id` que nunca tinha sido
+gravado) e o shipment — mesma sequência de `reverificarPendentesMlTodos` —
+e grava status fresco. Orçamento de 8s por chamada; rodado em loop até
+`restantes_estimados = 0` (confirmado seguro reprocessar: `reconciliarEstoque`,
+`lib/estoqueSaldo.js`, já é idempotente por `id_unico` via tabela
+`estoque_baixas`, e reverte baixa se o pedido vier cancelado/devolvido).
+
+**Resultado confirmado em produção**: ML total caiu de **470 para 65**
+(todos os 406 zumbis resolvidos, zero erro no processamento) — a
+distribuição final ficou só com substatus já classificados como
+legitimamente "aguardando" desde a 4ª rodada (`printed`, `invoice_pending`,
+`buffered`), nenhum valor desconhecido sobrando. Ainda existe uma diferença
+contra o total do painel nativo do ML (~140 nos prints do dono do projeto)
+— não investigada a fundo ainda, hipótese mais provável é critério
+diferente do que "Próximos dias"/"hoje" conta ali (pode incluir algo além
+de "aguardando despacho no nosso galpão", ex. agendamento de Full) — não
+é um sintoma do mesmo bug dos zumbis (esse já está fechado).
 
 `lib/mpProjecao.js` e `lib/shopeeProjecao.js` alimentam a mesma tela
 (`public/projecao-financeira.html`). Diferente de tudo mais nesta tabela,
