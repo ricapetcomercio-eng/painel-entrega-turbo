@@ -69,10 +69,16 @@
   .heatmap-60 { background: var(--amarelo); color: #2a2200; }
 
   /* ---- KPI strip ---- */
-  .kpis { display: grid; grid-template-columns: repeat(10, 1fr); gap: 1px; background: var(--border); }
+  .kpis { display: grid; grid-template-columns: repeat(9, 1fr); gap: 1px; background: var(--border); }
   .kpi { background: var(--card); padding: 10px 8px; text-align: center; }
   .kpi .v { font-size: 24px; font-weight: 800; }
   .kpi .l { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
+  /* "Atraso total (7 dias)" com destaque pedido pelo dono do projeto —
+     fundo/borda vermelha (mesma cor da zona "atrasado") e valor maior,
+     pra se diferenciar visualmente dos outros KPIs neutros da faixa. */
+  .kpi-destaque { background: #2a1010; border: 2px solid var(--preto); }
+  .kpi-destaque .v { font-size: 30px; color: var(--preto); }
+  .kpi-destaque .l { color: #ff8080; }
 
   /* ---- modo emergencia ---- */
   body.emergencia { background: #1a0a0a; }
@@ -228,8 +234,7 @@
       <div class="kpi"><div class="v" style="color:var(--vermelho);" id="kpiCriticos">-</div><div class="l">Críticos</div></div>
       <div class="kpi"><div class="v" style="color:var(--preto);" id="kpiAtrasados">-</div><div class="l">Atrasados</div></div>
       <div class="kpi"><div class="v" style="color:var(--verde);" id="kpiColetadosHoje">-</div><div class="l">Coletados hoje</div></div>
-      <div class="kpi"><div class="v" id="kpiTempoMedio">-</div><div class="l">Tempo médio até coleta</div></div>
-      <div class="kpi"><div class="v" style="color:var(--preto);" id="kpiAtrasoSemana">-</div><div class="l">Atraso total (7 dias)</div></div>
+      <div class="kpi kpi-destaque"><div class="v" id="kpiAtrasoSemana">-</div><div class="l">Atraso total (7 dias)</div></div>
     </div>
 
     <div class="controles">
@@ -790,12 +795,6 @@
     document.getElementById('kpiCriticos').textContent = criticos;
     document.getElementById('kpiAtrasados').textContent = atrasados;
     document.getElementById('kpiColetadosHoje').textContent = coletadosHoje.length;
-
-    const comTempo = cardsAtuais.filter((c) => typeof c.horas_ate_coleta === 'number');
-    const tempoMedio = comTempo.length
-      ? comTempo.reduce((a, c) => a + c.horas_ate_coleta, 0) / comTempo.length
-      : null;
-    document.getElementById('kpiTempoMedio').textContent = tempoMedio === null ? '-' : tempoMedio.toFixed(1) + 'h';
 
     // "Atraso total (7 dias)" mostra QUANTIDADE de pedidos coletados/
     // entregues com atraso nos últimos 7 dias (não a soma de horas) —
