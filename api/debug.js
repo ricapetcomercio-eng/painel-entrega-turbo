@@ -1343,6 +1343,32 @@ async function debugBipagemPorOrderId(req, res) {
   });
 }
 
+// Diagnóstico: todas as linhas de bipagem_diaria de um dia (e empresa, se
+// informada) — pra achar manualmente uma linha que debugBipagemPorOrderId
+// não encontrou (order_id_resolvido vazio: tradução pendente ou já tentada
+// e falhou, ver resolver_erro). Cruza por `cliente` (nome do destinatário,
+// que a Omie também guarda) quando não dá pra cruzar por order_id ainda.
+async function debugBipagemDoDia(req, res) {
+  const db = getDb();
+  const data = (req.query.data || '').trim();
+  const empresa = (req.query.empresa || '').trim();
+  if (!data) {
+    res.status(400).json({ error: 'Use ?data=AAAA-MM-DD (opcional &empresa=ricapet|thapets)' });
+    return;
+  }
+  const condicoes = ['data = ?'];
+  const args = [data];
+  if (empresa) { condicoes.push('LOWER(empresa) = LOWER(?)'); args.push(empresa); }
+  const rs = await db.execute({
+    sql: `SELECT id_unico, empresa, data, hora, cliente, n_id_pedido, n_id_nfe, tipo_envio,
+                 bipado_por, bipado_ip, marcado_manualmente, bipado_em_ts,
+                 order_id_resolvido, marketplace_resolvido, resolvido_em, resolver_erro
+          FROM bipagem_diaria WHERE ${condicoes.join(' AND ')} ORDER BY bipado_em_ts ASC`,
+    args,
+  });
+  res.status(200).json({ ok: true, tipo: 'bipagem-do-dia', data, empresa: empresa || null, total: rs.rows.length, registros: rs.rows });
+}
+
 // Backfill pontual: pedidos Shopee "geral" já gravados como aguardando
 // (ver lib/historicoTodos.js: listarShopeeAguardando) nunca tiveram
 // prazo_entrega (ship_by_date) coletado, porque esse campo só passou a ser
@@ -3773,6 +3799,7 @@ module.exports = async (req, res) => {
     if (req.query.tipo === 'ml-id-teste') return await debugMlIdTeste(req, res);
     if (req.query.tipo === 'historico-todos-row') return await debugHistoricoTodosRow(req, res);
     if (req.query.tipo === 'bipagem-por-order-id') return await debugBipagemPorOrderId(req, res);
+    if (req.query.tipo === 'bipagem-do-dia') return await debugBipagemDoDia(req, res);
     if (req.query.tipo === 'registrar-bipagem-diaria') return await debugRegistrarBipagemDiaria(req, res);
     if (req.query.tipo === 'apagar-bipagem-diaria-teste') return await debugApagarBipagemDiariaTeste(req, res);
     if (req.query.tipo === 'bipagem-cruzamento-teste') return await debugBipagemCruzamentoTeste(req, res);
