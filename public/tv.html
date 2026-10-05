@@ -429,11 +429,25 @@
     return negativo ? '-' + txt : txt;
   }
 
-  function zonaPorFracao(fracao) {
-    if (fracao >= 1) return 'preto';
-    if (fracao >= 0.9) return 'vermelho';
-    if (fracao >= 0.75) return 'laranja';
-    if (fracao >= 0.5) return 'amarelo';
+  // Cor por tempo até o prazo (decisão do dono do projeto, out/2026) —
+  // substitui o esquema antigo por fração (tempo decorrido / janela total
+  // desde a criação), que tinha o problema de pedido "antigo" (criado há
+  // dias, mas com o mesmo tempo restante que um recém-criado) aparecer
+  // mais crítico só por ter sido criado antes — ver PRs #204/#205, achado
+  // primeiro no "ML geral"/"Shopee geral" e generalizado pra TODO card da
+  // TV (Flex/Turbo/Agora inclusive) a pedido do dono do projeto. Regras:
+  // - Prazo já vencido → preto (mantém o "Atrasados" da KPI/som/filtro).
+  // - Menos de 2h pro prazo → vermelho.
+  // - Menos de 3h pro prazo → laranja.
+  // - Vence ainda hoje (mesmo dia calendário, horário de Brasília) → amarelo.
+  // - Vence amanhã ou depois (ou qualquer outro caso) → verde.
+  function zonaPorPrazo(deadlineMs, restanteMs) {
+    if (restanteMs < 0) return 'preto';
+    const DUAS_HORAS_MS = 2 * 60 * 60 * 1000;
+    const TRES_HORAS_MS = 3 * 60 * 60 * 1000;
+    if (restanteMs < DUAS_HORAS_MS) return 'vermelho';
+    if (restanteMs < TRES_HORAS_MS) return 'laranja';
+    if (ehHojeBrasil(deadlineMs)) return 'amarelo';
     return 'verde';
   }
 
@@ -618,7 +632,7 @@
       const total = c.totalMs || (c.deadlineMs - c.createdMs);
       const restante = c.deadlineMs - agora;
       c.fracao = total > 0 ? Math.max(0, 1 - restante / total) : 1;
-      c.zona = (c.status === 'coletado' || c.status === 'entregue' || c.status === 'nao_entregue' || c.status === 'cancelado') ? 'concluido' : zonaPorFracao(c.fracao);
+      c.zona = (c.status === 'coletado' || c.status === 'entregue' || c.status === 'nao_entregue' || c.status === 'cancelado') ? 'concluido' : zonaPorPrazo(c.deadlineMs, restante);
       c.msRestante = restante;
       // O "dia seguinte" apaga visualmente quem tem prazo real só amanhã —
       // não se aplica ao Shopee geral, que não tem prazo real nenhum (o
