@@ -229,7 +229,6 @@
       <div class="kpi"><div class="v" style="color:var(--preto);" id="kpiAtrasados">-</div><div class="l">Atrasados</div></div>
       <div class="kpi"><div class="v" style="color:var(--verde);" id="kpiColetadosHoje">-</div><div class="l">Coletados hoje</div></div>
       <div class="kpi"><div class="v" id="kpiTempoMedio">-</div><div class="l">Tempo médio até coleta</div></div>
-      <div class="kpi"><div class="v" id="kpiMaiorAtraso">-</div><div class="l">Maior atraso</div></div>
       <div class="kpi"><div class="v" style="color:var(--preto);" id="kpiAtrasoSemana">-</div><div class="l">Atraso total (7 dias)</div></div>
     </div>
 
@@ -432,17 +431,6 @@
     const pad = (n) => String(n).padStart(2, '0');
     const txt = (dias > 0 ? `${dias}d ` : '') + `${pad(h)}:${pad(m)}:${pad(s)}`;
     return negativo ? '-' + txt : txt;
-  }
-
-  // "Total de atraso da semana" (ver atrasoSemanaAtual) é só horas:minutos
-  // somados — não tem data/hora limite, então não faz sentido no formato
-  // de contador regressivo (dia/hora/min/seg) usado nos cards.
-  function formatarDuracaoHoras(ms) {
-    if (!ms || ms <= 0) return '0h';
-    const totalMin = Math.round(ms / 60000);
-    const h = Math.floor(totalMin / 60);
-    const m = totalMin % 60;
-    return m > 0 ? `${h}h${String(m).padStart(2, '0')}` : `${h}h`;
   }
 
   // Cor por tempo até o prazo (decisão do dono do projeto, out/2026) —
@@ -809,12 +797,11 @@
       : null;
     document.getElementById('kpiTempoMedio').textContent = tempoMedio === null ? '-' : tempoMedio.toFixed(1) + 'h';
 
-    const atrasadosMs = pendentes.filter((c) => c.zona === 'preto').map((c) => Math.abs(c.msRestante));
-    const maiorAtraso = atrasadosMs.length ? Math.max(...atrasadosMs) : null;
-    document.getElementById('kpiMaiorAtraso').textContent = maiorAtraso === null ? '-' : formatarContador(-maiorAtraso);
-
+    // "Atraso total (7 dias)" mostra QUANTIDADE de pedidos coletados/
+    // entregues com atraso nos últimos 7 dias (não a soma de horas) —
+    // decisão do dono do projeto, no lugar do antigo "Maior atraso".
     document.getElementById('kpiAtrasoSemana').textContent = atrasoSemanaAtual
-      ? formatarDuracaoHoras(atrasoSemanaAtual.total_ms)
+      ? atrasoSemanaAtual.pedidos_atrasados
       : '-';
 
     const agora = Date.now();
