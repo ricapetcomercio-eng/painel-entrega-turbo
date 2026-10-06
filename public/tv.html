@@ -651,7 +651,10 @@
       // não se aplica ao Shopee geral, que não tem prazo real nenhum (o
       // deadline de 30 dias é só um truque de ordenação, não uma data que
       // baixa importância "por enquanto").
-      c.diaSeguinte = !c.semPrazo && c.zona !== 'concluido' && !ehHojeBrasil(c.deadlineMs);
+      // Só prazo FUTURO (amanhã ou depois) — "não é hoje" sozinho também
+      // pegava prazo que venceu ONTEM, e o atrasado mais antigo (o mais
+      // grave) ficava apagado em vez de vermelho.
+      c.diaSeguinte = !c.semPrazo && c.zona !== 'concluido' && c.zona !== 'preto' && !ehHojeBrasil(c.deadlineMs);
     });
 
     return cards;
@@ -706,12 +709,21 @@
     return true;
   }
 
+  // Título/SKU vêm crus da API do marketplace e vão pra innerHTML (inclusive
+  // dentro de title="...") — sem escapar, um título com aspas ou "<...>"
+  // quebra o atributo e some com parte do texto do card.
+  function escaparHtml(v) {
+    return String(v == null ? '' : v)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
   function cardHtml(c) {
     // SKU em destaque (é o que o time de expedição usa pra achar o produto
     // na prateleira); nome completo do produto vira info secundária, numa
     // linha só com "..." — títulos da Shopee/ML costumam ser bem longos.
-    const itensSkuTxt = (c.itens || []).map((i) => `${i.quantidade}x ${i.sku || i.titulo}`).join(', ');
-    const itensTxt = (c.itens || []).map((i) => `${i.quantidade}x ${i.titulo}`).join(', ');
+    const itensSkuTxt = escaparHtml((c.itens || []).map((i) => `${i.quantidade}x ${i.sku || i.titulo}`).join(', '));
+    const itensTxt = escaparHtml((c.itens || []).map((i) => `${i.quantidade}x ${i.titulo}`).join(', '));
     const naoEntregue = c.status === 'nao_entregue';
     const cancelado = c.status === 'cancelado';
     const concluido = c.status === 'coletado' || c.status === 'entregue' || naoEntregue || cancelado;
@@ -743,9 +755,9 @@
       <div class="card-pedido ${zonaClasse}${concluido ? ' concluido' : ''}${flashClasse}${diaSeguinteClasse}" data-id="${c.id}">
         <div class="card-topo">
           <span class="selo-tipo ${seloClasse}">${c.tipo}</span>
-          <span class="card-conta">${c.conta || ''}</span>
+          <span class="card-conta">${escaparHtml(c.conta)}</span>
         </div>
-        <div class="card-pedido-id">#${c.order_id}</div>
+        <div class="card-pedido-id">#${escaparHtml(c.order_id)}</div>
         <div class="card-sku" title="${itensSkuTxt}">${itensSkuTxt}</div>
         <div class="card-itens" title="${itensTxt}">${itensTxt}</div>
         ${contadorHtml}
@@ -838,6 +850,16 @@
   async function buscarDados() {
     try {
       const resp = await fetch('/api/dashboard-data' + (TOKEN ? '?token=' + encodeURIComponent(TOKEN) : ''));
+      // 401 (DASHBOARD_TOKEN sem ?token= certo na URL) e outros erros HTTP
+      // vêm com corpo JSON válido ({ error }) — sem esta checagem, viravam
+      // "0 pedidos 🎉" com o ponto verde de "atualizado", apagando a tela
+      // em silêncio (armadilha registrada no CLAUDE.md). Assim cai no catch:
+      // mantém os últimos cards e mostra o erro.
+      if (!resp.ok) {
+        throw new Error(resp.status === 401
+          ? 'erro 401 — confira o ?token= na URL da TV'
+          : 'erro ' + resp.status + ' ao atualizar');
+      }
       const dados = await resp.json();
 
       const novosCards = montarCards(dados);
@@ -854,7 +876,7 @@
       }, 2400);
     } catch (e) {
       document.getElementById('pontoConexao').style.background = 'var(--vermelho)';
-      document.getElementById('ultimaAtualizacao').textContent = 'erro ao atualizar';
+      document.getElementById('ultimaAtualizacao').textContent = (e && /^erro /.test(e.message)) ? e.message : 'erro ao atualizar';
     }
   }
 
