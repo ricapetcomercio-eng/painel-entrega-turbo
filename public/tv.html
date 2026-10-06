@@ -146,9 +146,14 @@
     display: flex; flex-direction: column;
     transition: border-color 0.3s, background 0.3s;
   }
-  .card-pedido.zona-verde { border-color: var(--verde); }
-  .card-pedido.zona-amarelo { border-color: var(--amarelo); }
-  .card-pedido.zona-laranja { border-color: var(--laranja); }
+  /* Zonas "no prazo"/"vence hoje"/"< 3h": borda neutra, cor só no contador
+     e numa faixa fina à esquerda. Em produção dezenas de cards ML geral
+     dividem o mesmo prazo (próximo 16h) e ficavam todos com a mesma borda
+     colorida — viravam ruído e escondiam o atrasado. Borda forte só a
+     partir de < 2h (coral) e no atrasado (vermelho). */
+  .card-pedido.zona-verde { box-shadow: inset 6px 0 0 var(--verde); }
+  .card-pedido.zona-amarelo { box-shadow: inset 6px 0 0 var(--amarelo); }
+  .card-pedido.zona-laranja { box-shadow: inset 6px 0 0 var(--laranja); }
   .card-pedido.zona-vermelho { border-color: var(--vermelho); background: var(--card-2); }
 
   /* ===== ATRASADO (zona "preto") — o elemento mais chamativo da tela =====
