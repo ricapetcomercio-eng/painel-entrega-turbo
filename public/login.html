@@ -120,8 +120,12 @@
     ponto: '/ponto.html',
     'projecao-financeira': '/projecao-financeira.html',
     tv: '/tv.html',
+    // Mesmo index.html do Dashboard, mas no modo iframe-only: com
+    // ?painel=concorrencia ele não chama /api/dashboard-data (gate
+    // 'dashboard'), então funciona pra quem tem só 'concorrencia'.
+    concorrencia: '/?painel=concorrencia',
   };
-  const ORDEM_FALLBACK = ['bipagem', 'estoque', 'ponto', 'projecao-financeira', 'tv'];
+  const ORDEM_FALLBACK = ['bipagem', 'estoque', 'ponto', 'projecao-financeira', 'tv', 'concorrencia'];
   // Caminho de arquivo -> chave de permissão, pra decidir se um ?redirect=
   // aponta pra algo que a pessoa realmente pode abrir (ver irParaDestino).
   // Mesmas chaves de PAGINA_POR_ARQUIVO em assets/auth.js.
@@ -150,7 +154,12 @@
   // mesmo jeito, sem checagem (o próprio backend dessas páginas confere
   // sozinho, ex. exigirSuperAdmin).
   function paginaDoCaminho(caminho) {
-    const arquivo = caminho.split('?')[0].split('/').pop();
+    const [semQuery, query] = caminho.split('?');
+    const arquivo = semQuery.split('/').pop();
+    // "/?painel=concorrencia" é o index.html, mas só exige 'concorrencia'
+    // (ver MODO_CONCORRENCIA em index.html), não 'dashboard'.
+    if ((arquivo === '' || arquivo === 'index.html')
+      && new URLSearchParams(query || '').get('painel') === 'concorrencia') return 'concorrencia';
     return Object.prototype.hasOwnProperty.call(ARQUIVO_PARA_PAGINA, arquivo) ? ARQUIVO_PARA_PAGINA[arquivo] : null;
   }
 

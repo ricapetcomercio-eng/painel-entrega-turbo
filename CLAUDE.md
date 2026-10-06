@@ -932,7 +932,8 @@ de fato tinha acesso. `login.html` (`irParaDestino`/`destinoPadrao`) agora
 usa o `paginas`/`super_admin` que `debugPontoLogin` já devolve no login pra
 escolher o destino: super_admin ou quem tem `dashboard` continua caindo em
 `/` como antes; quem não tem, cai na primeira página que tiver, na ordem
-`bipagem` → `estoque` → `ponto` → `projecao-financeira` → `tv`. Sem
+`bipagem` → `estoque` → `ponto` → `projecao-financeira` → `tv` →
+`concorrencia`. Sem
 nenhuma página liberada, continua caindo no Dashboard (mesmo resultado de
 antes — a tela de "Acesso restrito" com a instrução de pedir liberação ao
 Ricardo). `?redirect=` explícito só tem prioridade quando aponta pra uma
@@ -953,16 +954,23 @@ situação mais comum (bookmark da raiz), não só em deep links de verdade.
 Por isso o `redirect` agora só é seguido cego quando a página de destino
 não está no mapa de permissão conhecido.
 
-⚠️ **Limitação conhecida, não corrigida ainda**: `concorrencia` é
-renderizado dentro do próprio `index.html` (`?painel=concorrencia`,
-iframe), que sempre chama `/api/dashboard-data` (gate `dashboard`)
-incondicionalmente ao carregar — então alguém com **só** `concorrencia`
-liberado (sem `dashboard`) ainda bateria em "Acesso restrito" ao tentar
-usá-lo, mesmo que o link apareça na barra lateral. Por isso `concorrencia`
-foi deixado FORA da lista de fallback do login acima — de propósito, pra
-não mandar esse usuário pra uma página que sabidamente ainda não funciona
-pra ele. Não é uma combinação usada hoje (quem tem `concorrencia` também
-tem outras páginas), mas fica registrado caso vire problema.
+**✅ Página "concorrencia" funciona sem "dashboard" (out/2026)**: até
+aqui era uma limitação conhecida — `concorrencia` é renderizado dentro do
+próprio `index.html` (`?painel=concorrencia`, iframe), que chamava
+`/api/dashboard-data` (gate `dashboard`) incondicionalmente ao carregar,
+então quem tinha **só** `concorrencia` liberado via o link na barra
+lateral mas batia em "Acesso restrito". Corrigido só no frontend (zero
+mudança em `api/dashboard-data.js`, que continua CPU ~zero):
+`index.html` com `?painel=concorrencia` (`MODO_CONCORRENCIA`) não chama
+`/api/dashboard-data` nem `/api/analytics-todos-data` — só confere
+`RicapetAuth.possuiAcesso('concorrencia')` (lista `sessao.paginas` que já
+vem do login, super_admin sempre passa) e mostra o overlay de acesso
+negado se faltar. A carga do Dashboard (`iniciarCargaDashboard`) só começa
+se a pessoa clicar no painel nativo (`mostrarPainelNativo`), que aí exige
+`dashboard` como sempre. Com isso `concorrencia` entrou no fim da ordem de
+fallback do login (`/?painel=concorrencia`), e `paginaDoCaminho`
+(`login.html`) passou a tratar `/?painel=concorrencia` como página
+`concorrencia` (não `dashboard`) ao decidir se segue um `?redirect=`.
 
 - `funcionarios.super_admin` (0/1) — nível acima do admin comum, ignora
   todo o controle abaixo (acesso total sempre). Só o Ricardo tem essa

@@ -887,6 +887,7 @@
     document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('ativo'));
     document.getElementById('linkPainelNativo').classList.add('ativo');
     toggleGrupoConcorrencia(false);
+    iniciarCargaDashboard(); // no-op se já começou; ver MODO_CONCORRENCIA
   }
 
   function renderGrupoConcorrencia(nomes, ativo) {
@@ -2659,12 +2660,35 @@
   }
 
   inicializarPeriodoPadrao();
-  carregar();
-  carregarAnalytics();
-  setInterval(carregar, 30000);
-  setInterval(carregarAnalytics, 60000);
 
-  mudarAba('executivo');
+  // Aberto como "Análise de Concorrência" (/?painel=concorrencia): é só um
+  // iframe pra ricapet-concorrencia.vercel.app, não usa nenhum dado do
+  // Dashboard. Sem isso, a página chamava /api/dashboard-data (gate
+  // 'dashboard') incondicionalmente ao carregar, e quem tinha SÓ
+  // 'concorrencia' liberado batia em "Acesso restrito" mesmo vendo o link
+  // na barra lateral. Nesse modo, a única exigência é a própria sessão já
+  // ter 'concorrencia' (ou super_admin) -- vem pronta do login
+  // (sessao.paginas), sem chamada nenhuma ao backend. A carga do Dashboard
+  // só começa se a pessoa clicar pra ir ao painel nativo (ver
+  // mostrarPainelNativo), que aí sim exige 'dashboard' como sempre.
+  const MODO_CONCORRENCIA = new URLSearchParams(location.search).get('painel') === 'concorrencia';
+  let cargaDashboardIniciada = false;
+  function iniciarCargaDashboard() {
+    if (cargaDashboardIniciada) return;
+    cargaDashboardIniciada = true;
+    carregar();
+    carregarAnalytics();
+    setInterval(carregar, 30000);
+    setInterval(carregarAnalytics, 60000);
+    mudarAba('executivo');
+  }
+  if (MODO_CONCORRENCIA) {
+    if (SESSAO && !window.RicapetAuth.possuiAcesso('concorrencia')) {
+      window.RicapetAuth.mostrarAcessoNegado('Você não tem acesso à Análise de Concorrência. Peça liberação ao Ricardo.');
+    }
+  } else {
+    iniciarCargaDashboard();
+  }
 
   // O painel que abre ao entrar no link é sempre o primeiro item do menu
   // "Painéis Ricapet" — que pode ter sido reordenado por arrastar-e-soltar
