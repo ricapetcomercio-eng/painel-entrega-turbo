@@ -1,119 +1,176 @@
 # Painel Entrega Turbo/Expressa — Ricapet & Thapets
 
 Painel que identifica pedidos do Mercado Livre e da Shopee com promessa de
-entrega em poucas horas (ML: "entrega em poucas horas" via lead_time;
-Shopee: modalidade **Entrega Turbo**, até 4h).
+entrega em poucas horas (ML: "entrega em poucas horas" via lead_time / Flex;
+Shopee: modalidade **Entrega Turbo**, até 4h) e exibe em tempo real numa TV
+no galpão de expedição. Deploy na Vercel (plano Hobby), produção em
+`ricapetadministrativo.vercel.app`.
 
-## Telas disponíveis
+> Detalhes de arquitetura, decisões e histórico de correções ficam em
+> [`CLAUDE.md`](CLAUDE.md). Este README é só a visão geral.
 
-- `/index.html` — painel operacional (tabela), pra uso no navegador normal.
-- `/tv.html` — **tela pensada pra TV da expedição**: alto contraste, anel de
-  contagem regressiva por pedido (verde → âmbar <45% do prazo → vermelho
-  pulsante nos últimos 20% do prazo ou atrasado), faixa de alerta piscante
-  quando há pedido crítico/atrasado, sem necessidade de interação. Deixe essa
-  URL aberta em tela cheia no navegador/Chromecast/Fire TV Stick conectado
-  na TV. Atualiza os dados a cada 30s e os contadores a cada 1s.
+## Telas principais
 
- (pensada para não estourar limites de CPU do Vercel)
+- `/tv.html` — **tela da TV da expedição**: alto contraste, contagem
+  regressiva por pedido (verde → âmbar → vermelho pulsante perto do prazo ou
+  atrasado), faixa de alerta quando há pedido crítico, sem interação. Além de
+  Flex/Turbo, mostra os blocos "Shopee geral" e "ML geral" (todo pedido ainda
+  aguardando despacho). Busca dados a cada 20s e atualiza os contadores a
+  cada 1s.
+- `/index.html` — painel operacional (tabela), pra uso no navegador.
+- Telas administrativas com login único (`/login.html`): Ponto, Bipagem,
+  Estoque, Fluxo de Caixa (`projecao-financeira.html`) e Acessos.
+
+## Fluxo de dados
+
+Pensado para caber no orçamento de CPU do plano Hobby da Vercel (4h de
+Fluid Active CPU por 30 dias):
 
 ```
-/api/collect.js         -> rodado pelo cron. Chama ML + Shopee, processa,
-                            grava resultado pronto no Redis. NUNCA chamado
-                            diretamente pelo navegador.
-/api/dashboard-data.js  -> chamado pelo frontend. Só lê o Redis. CPU ~zero.
-/public/index.html      -> painel visual, consome /api/dashboard-data.
-/lib/redis.js           -> cliente Upstash Redis (REST).
-/lib/mlAuth.js          -> gerencia access_token/refresh_token do ML (2 contas).
-/lib/mlOrders.js        -> busca pedidos ML e verifica lead_time (entrega expressa).
-/lib/shopeeAuth.js      -> autenticação e assinatura Shopee Open API v2.
-/lib/shopeeOrders.js    -> busca pedidos Shopee e filtra por canal "Turbo".
+cron-job.org (externo, 6h-18h, seg-sáb)
+   │  GET /api/collect?secret=CRON_SECRET  (a cada 1 min)
+   ▼
+api/collect.js  ──► chama APIs do Mercado Livre + Shopee, processa e
+   │                grava o resultado pronto no Turso
+   ▼
+Turso (SQLite cloud: kv_simples + tabelas de histórico)
+   ▲
+   │  só leitura (CPU ~zero)
+api/dashboard-data.js
+   ▲
+   │  fetch periódico
+public/tv.html  +  public/index.html
 ```
 
-## Variáveis de ambiente necessárias (configurar na Vercel)
+- `/api/collect.js` faz todo o trabalho pesado e nunca é chamado pelo
+  navegador.
+- `/api/dashboard-data.js` só lê dado já pronto do banco — **não colocar
+  lógica pesada ali**.
 
-### Redis (reaproveitar do painelvendas-seven, se preferir o mesmo banco)
-- `UPSTASH_REDIS_REST_URL`
-- `UPSTASH_REDIS_REST_TOKEN`
+### Throttles internos de `/api/collect.js`
 
-### Mercado Livre (uma conta = uma app)
-- `ML_RICAPET_CLIENT_ID`
-- `ML_RICAPET_CLIENT_SECRET`
-- `ML_RICAPET_REFRESH_TOKEN` (gerado uma vez via fluxo OAuth; depois o sistema renova sozinho)
-- `ML_THAPETS_CLIENT_ID`
-- `ML_THAPETS_CLIENT_SECRET`
-- `ML_THAPETS_REFRESH_TOKEN`
+O cron chama a cada minuto, mas cada bloco só roda de verdade no seu próprio
+intervalo mínimo (constantes no topo de `api/collect.js`):
 
-### Shopee (uma loja = um shop_id)
-- `SHOPEE_RICAPET_PARTNER_ID`
-- `SHOPEE_RICAPET_PARTNER_KEY`
-- `SHOPEE_RICAPET_SHOP_ID`
-- `SHOPEE_RICAPET_REFRESH_TOKEN`
-- `SHOPEE_THAPETS_PARTNER_ID`
-- `SHOPEE_THAPETS_PARTNER_KEY`
-- `SHOPEE_THAPETS_SHOP_ID`
-- `SHOPEE_THAPETS_REFRESH_TOKEN`
+| Dado | Intervalo mínimo | Motivo |
+|---|---|---|
+| Pedidos Flex (ML, tempo real p/ TV) | 5 min | maior custo de CPU; TV aceita até 5 min de atraso |
+| "Todos os pedidos" ML (BI/"ML geral") | 5 min | não precisa do ritmo do Flex |
+| Shopee | 15 min | cota limitada do proxy Fixie (IP fixo) |
+| Devoluções | 30 min | mudam devagar |
+| Atraso total da semana (TV) | 30 min | só agrega dado já gravado, muda devagar |
 
-### Cron
-- `CRON_SECRET` — string aleatória, usada pra você testar a rota `/api/collect`
-  manualmente (`/api/collect?secret=...`) sem precisar do cabeçalho do Vercel Cron.
+## Armazenamento
 
-### Ponto (app nativo Ricapet — controle interno de presença)
-- `PONTO_PUBLIC_SECRET` — string aleatória própria, igual ao `ESTOQUE_PUBLIC_SECRET`
-  mas pro app de Ponto: fica embutida no app nativo, então precisa ser
-  diferente do `CRON_SECRET`. Libera só `ponto-funcionarios`, `ponto-login`
-  e `ponto-bater` — nunca o relatório nem o cadastro de funcionário (esses
-  dois usam o `CRON_SECRET`, de gestão).
-- `PONTO_TOKEN_SECRET` — string aleatória usada só pra assinar o token de
-  sessão devolvido no login (HMAC) — não precisa decorar, só gerar uma vez
-  e configurar na Vercel.
-- `PONTO_PIN_SALT` — string aleatória misturada no hash do PIN de cada
-  funcionário antes de gravar no banco (nunca fica em texto puro).
+- **Turso** (libSQL/SQLite cloud) é o banco principal: `lib/db.js` (cliente)
+  e `lib/kv.js` (get/set/del genérico sobre a tabela `kv_simples`), além das
+  tabelas de histórico (`historico_flex`, `historico_todos`, etc.).
+- **Redis (Upstash)** é legado: `lib/redis.js` só é usado em `api/debug.js`.
+  Não usar em código novo. (A migração aconteceu porque o Redis era
+  compartilhado com outros projetos e estourou a cota de requisições.)
 
-### Painel (opcional, mas recomendado)
-- `DASHBOARD_TOKEN` — string aleatória que protege `/api/dashboard-data`
-  (pedidos reais, valores, SKUs). Se não estiver configurada, a rota fica
-  aberta pra qualquer um com a URL — configure e use as telas com
-  `?token=SEU_TOKEN` na URL (ex.: `.../tv.html?token=SEU_TOKEN`), tanto na
-  TV quanto no painel operacional (`index.html`). O front-end repassa esse
-  `?token=` pra API sozinho.
+## Estrutura
 
-## ⏱️ Como a coleta é disparada (sem depender do Vercel Cron)
+```
+api/
+  collect.js              coleta (cron externo) — trabalho pesado
+  dashboard-data.js       leitura para o frontend, CPU ~zero
+  marcar-coletado.js      webhook da bipagem local (checkout_bipagem.py)
+  pendencias-ml.js        perguntas/mensagens pendentes no ML
+  analytics-todos-data.js aba "Desempenho" e visões de BI
+  backfill-*.js           reprocessamento manual de períodos antigos
+  shopee-auth-url.js / shopee-callback.js   OAuth Shopee (1x por loja)
+  debug.js                rotas de diagnóstico/administração
+lib/
+  db.js, kv.js            Turso
+  redis.js                Upstash legado (só debug.js)
+  ml*.js, shopee*.js      integrações Mercado Livre / Shopee
+  historico*.js           leitura/gravação de histórico no Turso
+  mp*.js, omie*.js        Mercado Pago / Omie (Fluxo de Caixa)
+public/                   telas (tv.html, index.html, admin)
+scripts/                  utilitários locais (ex.: gerar_tabela_produtos.py)
+vercel.json               {} — vazio de propósito (sem cron nativo)
+```
 
-O SLA de entrega expressa é de 3-4h, então "1x por dia" (limite do Vercel Cron
-no plano Hobby) não serve. A solução usada aqui: **um scheduler externo
-gratuito chama a rota `/api/collect` diretamente por HTTP** — o Vercel não
-restringe requisições HTTP normais recebidas por uma function, só o cron
-nativo dele.
+## Variáveis de ambiente (Vercel → Project Settings)
 
-**Passo a passo com [cron-job.org](https://cron-job.org) (gratuito, sem cartão, até 1x/min):**
+### Banco
+- `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` — banco principal.
+- `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` — Redis legado, só
+  `api/debug.js`.
 
-1. Crie uma conta gratuita em cron-job.org.
-2. Crie um novo cronjob:
-   - URL: `https://SEU-DOMINIO.vercel.app/api/collect?secret=SEU_CRON_SECRET`
-   - Método: GET
-   - Intervalo: a cada 1 ou 2 minutos (o `/api/collect` já tem um throttle
-     interno de 2 min, então chamar mais rápido que isso não gera trabalho
-     duplicado nem gasta CPU à toa)
-3. Pronto — o cron-job.org vai bater nessa URL sozinho, 24/7, de graça.
+### Mercado Livre (uma conta = um prefixo)
+- `ML_RICAPET_CLIENT_ID` / `ML_RICAPET_CLIENT_SECRET` / `ML_RICAPET_REFRESH_TOKEN`
+- `ML_THAPETS_CLIENT_ID` / `ML_THAPETS_CLIENT_SECRET` / `ML_THAPETS_REFRESH_TOKEN`
 
-A rota `/api/collect` já valida o `?secret=` contra a variável de ambiente
-`CRON_SECRET`, então só quem souber o segredo consegue disparar a coleta.
+### Shopee (uma loja = um prefixo)
+- `SHOPEE_RICAPET_PARTNER_ID` / `_PARTNER_KEY` / `_SHOP_ID` / `_REFRESH_TOKEN`
+- `SHOPEE_THAPETS_PARTNER_ID` / `_PARTNER_KEY` / `_SHOP_ID` / `_REFRESH_TOKEN`
+- `SHOPEE_AMBIENTE` — `sandbox` (padrão) ou produção.
+- `FIXIE_URL` — proxy com IP fixo, exigido pela Shopee em produção.
 
-**Alternativa**: se preferir manter tudo dentro do ecossistema Vercel, o
-plano Pro ($20/mês) libera cron nativo com frequência de minutos — mas não é
-necessário só por causa disso, o cron-job.org resolve sem custo.
+### Mercado Pago e Omie (Fluxo de Caixa)
+- `MP_RICAPET_CLIENT_ID` / `MP_RICAPET_CLIENT_SECRET`
+- `MP_THAPETS_CLIENT_ID` / `MP_THAPETS_CLIENT_SECRET`
+- `OMIE_RICAPET_APP_KEY` / `OMIE_RICAPET_APP_SECRET`
+- `OMIE_THAPETS_APP_KEY` / `OMIE_THAPETS_APP_SECRET`
 
-## Aba "Desempenho" (vendas por produto, cruzando SKU com a TABELA_AUXILIAR)
+### Segurança de rotas
+- `CRON_SECRET` — protege `/api/collect`, `/api/marcar-coletado` e as rotas
+  de gestão de `/api/debug`.
+- `DASHBOARD_TOKEN` — opcional; protege `/api/dashboard-data`. Se estiver
+  configurado, `tv.html` e `index.html` **precisam** ser abertos com
+  `?token=...` na URL (o front repassa pra API), senão a tela fica zerada
+  (401 silencioso).
+- `PENDENCIAS_ML_SECRET` — secret próprio de `/api/pendencias-ml`.
+- `ESTOQUE_PUBLIC_SECRET` — secret das rotas públicas de estoque.
+- `APPMAX_WEBHOOK_SECRET` — webhook da Appmax.
 
-A aba Desempenho (`/api/analytics-todos-data.js?visao=produtos` — dividindo o
-mesmo arquivo da rota "Todos os pedidos" pra não estourar o limite de 12
-Serverless Functions do plano Hobby da Vercel) agrupa o histórico de
-pedidos (`lib/historicoTodos.js`) por mês e por PRODUTO/COR/TAMANHO,
-cruzando o SKU de cada item com `lib/tabelaProdutos.json` — uma cópia
-gerada de `C:\FECHAMENTO\03 AUXILIARES\TABELA_AUXILIAR.xlsx` (aba
-`TABELA_PRODUTOS`), já que o deploy na Vercel não tem acesso ao seu PC.
+### Ponto
+- `PONTO_PUBLIC_SECRET` — embutido no app nativo de ponto (diferente do
+  `CRON_SECRET`); libera só listar funcionários, login e bater ponto.
+- `PONTO_TOKEN_SECRET` — assina (HMAC) o token de sessão.
+- `PONTO_PIN_SALT` — salt do hash do PIN.
+- `PONTO_EMPRESA_NOME` / `PONTO_EMPRESA_CNPJ` / `PONTO_EMPRESA_ENDERECO` —
+  opcionais, cabeçalho do Cartão de Ponto.
 
-**Sempre que `TABELA_AUXILIAR.xlsx` for atualizado**, rode e dê push:
+### Estoque
+- `JSONBIN_ESTOQUE_API_KEY`, `JSONBIN_ESTOQUE_BIN_ID`, `GOOGLE_SHEETS_WEBAPP_URL`
+
+### Leftover de outro projeto
+- `REDIS_URL`, `CONCORRENTES_WEBHOOK_SECRET` — só `api/concorrentes.js`
+  (aparentemente do projeto `ricapet-concorrencia`).
+
+## ⏱️ Por que não usa o cron nativo da Vercel
+
+O SLA de entrega expressa é de poucas horas, e o Vercel Cron no plano Hobby
+só permite execução **1x por dia**. Por isso a coleta é disparada por um
+scheduler externo gratuito, o [cron-job.org](https://cron-job.org), que faz
+um GET HTTP normal — a Vercel não restringe requisições comuns a uma
+function, só o cron nativo. `vercel.json` fica vazio de propósito.
+
+Configuração do cronjob:
+- URL: `https://ricapetadministrativo.vercel.app/api/collect?secret=SEU_CRON_SECRET`
+- Método: GET
+- Frequência: a cada 1 min, **só 6h-18h, segunda a sábado** (economia de
+  CPU). Chamar com frequência maior que os throttles acima não gera trabalho
+  duplicado.
+
+A rota valida `?secret=` contra `CRON_SECRET`. Alternativa descartada por
+ora: Vercel Pro ($20/mês), que libera cron nativo por minuto.
+
+## Deploy
+
+O deploy é automático via GitHub (merge em `main` → projeto
+`ricapetadministrativo` na Vercel). Evite `vercel deploy` manual a partir de
+checkout local — pode publicar código desatualizado (ver `CLAUDE.md`).
+
+## Aba "Desempenho" e TABELA_AUXILIAR
+
+A aba Desempenho agrupa o histórico de pedidos por produto/cor/tamanho
+cruzando o SKU com `lib/tabelaProdutos.json`, gerado a partir de
+`C:\FECHAMENTO\03 AUXILIARES\TABELA_AUXILIAR.xlsx`. **Sempre que a planilha
+mudar**:
 
 ```
 python scripts/gerar_tabela_produtos.py
@@ -122,28 +179,17 @@ git commit -m "Atualiza tabela SKU->Produto"
 git push
 ```
 
-SKUs sem correspondência na planilha aparecem agrupados como "Não mapeado"
-na aba Desempenho — é o sinal de que a planilha precisa ser atualizada.
+SKUs sem correspondência aparecem como "Não mapeado" — sinal de que a
+planilha precisa ser atualizada.
 
-Os itens de pedido só passaram a guardar `valor_unitario` a partir desta
-mudança — pedidos coletados antes dela não têm preço por item no histórico
-(a aba mostra a % de cobertura). Pra completar o valor de meses antigos,
-rode de novo `api/backfill-todos-api.js`/`api/backfill-shopee-todos.js`
-(mesmo uso de sempre — ver seções desses backfills) pro período desejado;
-eles resincronizam o pedido inteiro, incluindo os itens com preço.
+## Pendências conhecidas
 
-## ⚠️ Outras pendências / TODOs antes de ir pra produção
-
-1. **Campo exato do canal "Entrega Turbo" na Shopee**: `lib/shopeeOrders.js`
-   descobre automaticamente o `logistics_channel_id` via `get_channel_list`
-   procurando um nome com "Turbo", e depois compara com o campo
-   `logistics_channel_id` no pedido — mas esse nome de campo no
-   `get_order_detail` ainda não foi validado com um pedido real. Rodar uma vez
-   e conferir/ajustar em `shopeeOrders.js` se necessário.
-
-2. ~~**Limite de horas do ML**~~ — resolvido: Envios Turbo é 3h, dias úteis
-   9h-15h (`HORAS_PADRAO_FLEX` + `dentroJanelaTurbo` em `mlOrders.js`).
-
-3. **Autorização OAuth inicial**: se você já tem os refresh_tokens salvos em
-   outro Redis (ex: painelvendas), copie os valores pra cá. Se não, rode o
-   fluxo de autorização (ver conversa anterior) uma vez por conta.
+1. **Campo do canal "Entrega Turbo" na Shopee**: `lib/shopeeOrders.js`
+   descobre o `logistics_channel_id` via `get_channel_list` (nome com
+   "Turbo"), mas o campo correspondente no `get_order_detail` ainda não foi
+   validado com pedido real de produção.
+2. **Autorização OAuth inicial**: se já existirem refresh_tokens em outro
+   projeto, copiar os valores; senão, rodar o fluxo OAuth uma vez por conta
+   (Shopee: `api/shopee-auth-url.js` / `api/shopee-callback.js`).
+3. **`api/concorrentes.js`** usa Redis direto e parece pertencer a outro
+   projeto — confirmar se ainda é necessário antes de mexer.
