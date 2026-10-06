@@ -3,34 +3,53 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Centro de Controle - Expedicao Flex/Turbo</title>
+<title>Centro de Controle - Expedição</title>
 <link rel="icon" type="image/png" href="favicon-ricapet.png?v=teal1">
+<!-- Fontes pensadas pra leitura de longe: Atkinson Hyperlegible (feita pra
+     diferenciar 0/O, 1/l/I — ajuda a ler SKU) e Barlow Condensed nos números
+     (contador/KPI/relógio: dígitos largos, mas estreitos o bastante pra
+     "-1d 06:00:00" caber no card). Sem internet na TV, cai no fallback. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #0b0e14;
-    --card: #151a24;
-    --border: #232a38;
-    --text: #e8ebf2;
-    --muted: #8993a8;
-    --verde: #17c987;
-    --amarelo: #f5c518;
-    --laranja: #ff8a3d;
-    --vermelho: #ff4d4f;
+    --bg: #0a0d13;
+    --card: #141925;
+    --card-2: #1b2130;
+    --border: #2a3245;
+    --text: #f3f5f9;
+    /* Texto secundário — mais claro que o cinza antigo (#8993a8) pra passar
+       com folga do AA (~9:1 sobre --card) lido a 3-5 m. */
+    --muted: #b9c1d0;
+    --verde: #2ee59d;
+    --amarelo: #ffd23f;
+    --laranja: #ffa53d;
+    /* Zona "vermelho" (< 2h): coral/laranja-avermelhado, NÃO o vermelho puro
+       — vermelho cheio fica reservado só pra atrasado (decisão do dono do
+       projeto, out/2026: atrasado tem que sobressair mais que tudo). */
+    --vermelho: #ff7a45;
     /* "preto" é só o nome interno da zona "atrasado" (zona === 'preto' no
-       JS, KPI "Atrasados", filtro) - pedido explícito do dono do projeto
-       pra aparecer vermelho piscante, não preto/escuro, por isso o mesmo
-       valor de --vermelho aqui. */
-    --preto: #ff4d4f;
-    --flex: #4d9bff;
-    --turbo: #b968f2;
-    --agora: #ff4d4f;
-    --shopee: #ee4d2d;
-    --ml-geral: #2dd4bf;
+       JS, KPI "Atrasados", filtro) — vermelho forte, destaque máximo. */
+    --preto: #ff545c;
+    --atrasado-fundo: #3a0a10;
+    --atrasado-faixa: #d1121c;
+    --flex: #5aa8ff;
+    --turbo: #c58bff;
+    --agora: #ff6b9a;
+    --shopee: #ff6a3d;
+    --ml-geral: #4fd8c6;
+    /* Acentos da marca (public/assets/tokens-admin.css — a TV não linka esse
+       arquivo de propósito, só copia os valores). */
+    --marca-teal: #4FB8B9;
+    --marca-terracota: #B5651D;
+    --fonte-texto: 'Atkinson Hyperlegible', 'Segoe UI', Arial, sans-serif;
+    --fonte-numero: 'Barlow Condensed', 'Arial Narrow', 'Roboto Condensed', 'Segoe UI', Arial, sans-serif;
   }
   * { box-sizing: border-box; }
   html, body {
-    margin: 0; height: 100%; background: var(--bg); color: var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+    margin: 0; min-height: 100%; background: var(--bg); color: var(--text);
+    font-family: var(--fonte-texto);
     overflow-x: hidden;
   }
 
@@ -38,166 +57,247 @@
   body::before {
     content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
     background: url('logo-ricapet.png') center / min(72vmin, 760px) no-repeat;
-    opacity: 0.06;
+    opacity: 0.05;
   }
   .secao-titulo, .area-cards { position: relative; z-index: 1; }
 
   /* ---- topo fixo (header+heatmap+kpis+controles não rolam com os cards) ---- */
-  .topo-fixo { position: sticky; top: 0; z-index: 50; background: var(--bg); }
+  .topo-fixo { position: sticky; top: 0; z-index: 50; background: var(--bg); box-shadow: 0 6px 18px rgba(0,0,0,0.45); }
 
   /* ---- header ---- */
   .header {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 14px 24px; background: var(--card); border-bottom: 1px solid var(--border);
+    padding: 8px 24px; background: var(--card);
+    border-bottom: 3px solid var(--marca-teal);
   }
   .marca-tv { display: flex; align-items: center; gap: 14px; }
-  .logo-tv { height: 56px; width: 56px; object-fit: contain; flex: none; }
-  .header h1 { font-size: 22px; margin: 0; }
-  .header .sub { color: var(--muted); font-size: 12px; margin-top: 2px; }
-  .relogio { font-size: 30px; font-weight: 800; }
-  .conexao { font-size: 11px; color: var(--muted); text-align: right; }
-  .conexao .ponto { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--verde); margin-right: 5px; }
+  .logo-tv { height: 52px; width: 52px; object-fit: contain; flex: none; }
+  .header h1 { font-size: 26px; margin: 0; letter-spacing: 0.01em; }
+  .header .sub { color: var(--muted); font-size: 15px; margin-top: 2px; }
+  .relogio { font-family: var(--fonte-numero); font-size: 46px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+  .conexao { font-size: 15px; color: var(--muted); text-align: right; margin-top: 2px; }
+  .conexao .ponto { display: inline-block; width: 11px; height: 11px; border-radius: 50%; background: var(--verde); margin-right: 6px; vertical-align: middle; }
 
   /* ---- heatmap urgencia ---- */
-  .heatmap { display: flex; gap: 1px; }
+  .heatmap { display: flex; gap: 2px; background: var(--bg); }
   .heatmap-fatia {
-    flex: 1; padding: 6px 10px; text-align: center; font-size: 12px; font-weight: 700; color: #fff;
+    flex: 1; padding: 5px 12px; font-size: 16px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; gap: 10px;
   }
-  .heatmap-fatia .n { font-size: 18px; display: block; }
-  .heatmap-15 { background: var(--vermelho); }
-  .heatmap-30 { background: var(--laranja); }
+  .heatmap-fatia .n { font-family: var(--fonte-numero); font-size: 30px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+  /* Texto escuro nas faixas claras e fundo mais escuro na vermelha: o branco
+     sobre laranja/vermelho claro ficava abaixo de 3,5:1. */
+  .heatmap-15 { background: #b3141d; color: #fff; }
+  .heatmap-30 { background: var(--laranja); color: #2a1400; }
   .heatmap-60 { background: var(--amarelo); color: #2a2200; }
 
   /* ---- KPI strip ---- */
-  .kpis { display: grid; grid-template-columns: repeat(9, 1fr); gap: 1px; background: var(--border); }
-  .kpi { background: var(--card); padding: 10px 8px; text-align: center; }
-  .kpi .v { font-size: 24px; font-weight: 800; }
-  .kpi .l { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
+  .kpis { display: grid; grid-template-columns: repeat(9, 1fr); gap: 2px; background: var(--bg); }
+  .kpi { background: var(--card); padding: 6px 6px 8px; text-align: center; display: flex; flex-direction: column; justify-content: center; }
+  .kpi .v { font-family: var(--fonte-numero); font-size: 42px; font-weight: 800; line-height: 1.05; font-variant-numeric: tabular-nums; }
+  .kpi .l { font-size: 14px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; line-height: 1.15; }
   /* "Atraso total (7 dias)" com destaque pedido pelo dono do projeto —
-     fundo/borda vermelha (mesma cor da zona "atrasado") e valor maior,
-     pra se diferenciar visualmente dos outros KPIs neutros da faixa. */
-  .kpi-destaque { background: #2a1010; border: 2px solid var(--preto); }
-  .kpi-destaque .v { font-size: 30px; color: var(--preto); }
-  .kpi-destaque .l { color: #ff8080; }
+     fundo/borda vermelha (mesma cor da zona "atrasado"). Borda por
+     box-shadow inset (não border) pra não deixar esse KPI mais alto que os
+     vizinhos. */
+  .kpi-destaque { background: var(--atrasado-fundo); box-shadow: inset 0 0 0 3px var(--preto); }
+  .kpi-destaque .v { color: var(--preto); }
+  .kpi-destaque .l { color: #ffc2c5; }
+  /* KPI "Atrasados" vira bloco vermelho cheio quando tem pelo menos 1. */
+  .kpi.kpi-alerta { background: var(--atrasado-faixa); }
+  .kpi.kpi-alerta .v, .kpi.kpi-alerta .l { color: #fff !important; }
 
   /* ---- modo emergencia ---- */
-  body.emergencia { background: #1a0a0a; }
-  body.emergencia .header { background: #2a0d0d; }
+  body.emergencia { background: #170709; }
+  body.emergencia .header { background: #2a0d10; }
   .faixa-emergencia {
-    display: none; background: var(--vermelho); color: #fff; text-align: center;
-    font-weight: 800; padding: 8px; font-size: 15px; letter-spacing: 0.02em;
+    display: none; background: var(--atrasado-faixa); color: #fff; text-align: center;
+    font-weight: 700; padding: 6px; font-size: 20px; letter-spacing: 0.03em;
   }
-  body.emergencia .faixa-emergencia { display: block; animation: piscaFundo 1s infinite; }
-  @keyframes piscaFundo { 0%,100% { opacity: 1; } 50% { opacity: 0.55; } }
+  body.emergencia .faixa-emergencia { display: block; animation: piscaFundo 2s ease-in-out infinite; }
+  @keyframes piscaFundo { 0%,100% { background: var(--atrasado-faixa); } 50% { background: #8f0b12; } }
 
   /* ---- controles (filtros/busca/silenciar) ---- */
   .controles {
-    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-    padding: 10px 24px; background: var(--card); border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    padding: 6px 24px; background: var(--card); border-bottom: 1px solid var(--border);
   }
-  .filtro-btn {
+  .filtro-btn, .btn-icone, #buscaInput {
+    font-family: var(--fonte-texto); font-size: 14px; border-radius: 8px;
     background: var(--bg); border: 1px solid var(--border); color: var(--muted);
-    border-radius: 8px; padding: 7px 14px; font-size: 13px; font-weight: 700; cursor: pointer;
   }
-  .filtro-btn.ativo { background: var(--flex); color: #fff; border-color: var(--flex); }
-  #buscaInput {
-    background: var(--bg); border: 1px solid var(--border); color: var(--text);
-    border-radius: 8px; padding: 7px 12px; font-size: 13px; width: 220px;
-  }
-  .btn-icone {
-    background: var(--bg); border: 1px solid var(--border); color: var(--muted);
-    border-radius: 8px; padding: 7px 10px; font-size: 13px; cursor: pointer; margin-left: auto;
-  }
-  .btn-icone.ativo { color: var(--verde); border-color: var(--verde); }
+  .filtro-btn { padding: 6px 12px; font-weight: 700; cursor: pointer; }
+  .filtro-btn.ativo { background: var(--marca-teal); color: #04201f; border-color: var(--marca-teal); }
+  #buscaInput { color: var(--text); padding: 6px 12px; width: 220px; }
+  #buscaInput::placeholder { color: #8f98aa; }
+  .btn-icone { padding: 6px 10px; cursor: pointer; }
+  /* Só o primeiro botão de ícone empurra o grupo pra direita — antes todos
+     tinham margin-left:auto e ficavam espalhados pela barra. */
+  #btnSom { margin-left: auto; }
+  .btn-icone.ativo { color: var(--verde); border-color: rgba(46,229,157,0.55); }
   .btn-icone:disabled { opacity: 0.45; cursor: not-allowed; }
 
   /* ---- grid de cards ---- */
-  .area-cards { padding: 18px 24px; display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; }
+  .area-cards { padding: 14px 24px 20px; display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 16px; }
 
   .card-pedido {
-    background: var(--card); border: 2px solid var(--border); border-radius: 14px;
-    padding: 14px 16px; position: relative; overflow: hidden;
+    background: var(--card); border: 3px solid var(--border); border-radius: 14px;
+    padding: 12px 16px 14px; position: relative; overflow: hidden;
+    display: flex; flex-direction: column;
     transition: border-color 0.3s, background 0.3s;
   }
-  .card-pedido.zona-verde { border-color: var(--verde); }
-  .card-pedido.zona-amarelo { border-color: var(--amarelo); }
-  .card-pedido.zona-laranja { border-color: var(--laranja); }
-  .card-pedido.zona-vermelho { border-color: var(--vermelho); background: #2a1010; }
-  .card-pedido.zona-preto { border-color: var(--preto); background: #2a1010; }
-  .card-pedido.zona-vermelho, .card-pedido.zona-preto { animation: piscaCard 1.1s infinite; }
-  @keyframes piscaCard {
-    0%,100% { box-shadow: 0 0 0 0 rgba(255,77,79,0.5); }
-    50% { box-shadow: 0 0 0 8px rgba(255,77,79,0); }
+  /* Zonas "no prazo"/"vence hoje"/"< 3h": borda neutra, cor só no contador
+     e numa faixa fina à esquerda. Em produção dezenas de cards ML geral
+     dividem o mesmo prazo (próximo 16h) e ficavam todos com a mesma borda
+     colorida — viravam ruído e escondiam o atrasado. Borda forte só a
+     partir de < 2h (coral) e no atrasado (vermelho). */
+  .card-pedido.zona-verde { box-shadow: inset 6px 0 0 var(--verde); }
+  .card-pedido.zona-amarelo { box-shadow: inset 6px 0 0 var(--amarelo); }
+  .card-pedido.zona-laranja { box-shadow: inset 6px 0 0 var(--laranja); }
+  .card-pedido.zona-vermelho { border-color: var(--vermelho); background: var(--card-2); }
+
+  /* ===== ATRASADO (zona "preto") — o elemento mais chamativo da tela =====
+     Pedido explícito do dono do projeto (out/2026): "quando tem um pedido em
+     atraso, ele tem que estar DESTACADO e não apagado. Precisa sobressair
+     mais que os demais." Fundo vermelho escuro, borda vermelha grossa, faixa
+     "ATRASADO" cheia no topo, contador maior e brilho lento. Sempre opacidade
+     total (dia-seguinte nunca se aplica a atrasado, ver montarCards). */
+  .card-pedido.zona-preto {
+    border: 5px solid var(--preto); background: var(--atrasado-fundo);
+    padding-top: 0; opacity: 1;
+    box-shadow: 0 0 0 2px rgba(255,74,82,0.35), 0 0 28px rgba(255,40,50,0.45);
+    animation: brilhoAtrasado 2.4s ease-in-out infinite;
+  }
+  @keyframes brilhoAtrasado {
+    0%,100% { box-shadow: 0 0 0 2px rgba(255,74,82,0.35), 0 0 18px rgba(255,40,50,0.35); }
+    50% { box-shadow: 0 0 0 6px rgba(255,74,82,0.55), 0 0 42px rgba(255,40,50,0.75); }
+  }
+  .faixa-atrasado {
+    margin: 0 -16px 10px; padding: 6px 12px;
+    background: var(--atrasado-faixa); color: #fff; text-align: center;
+    font-size: 26px; font-weight: 700; letter-spacing: 0.12em; line-height: 1.1;
   }
   .card-pedido.novo-flash { animation: flashNovo 2.4s ease-out; }
   @keyframes flashNovo {
-    0% { background: rgba(77,155,255,0.5); }
-    100% { background: transparent; }
+    0% { background: rgba(79,184,185,0.55); }
+    100% { background: var(--card); }
   }
-  .card-pedido.concluido { opacity: 0.55; border-style: dashed; }
+  /* Card atrasado novo: mantém o brilho de atrasado em vez do flash azul. */
+  .card-pedido.zona-preto.novo-flash { animation: brilhoAtrasado 2.4s ease-in-out infinite; }
+  .card-pedido.concluido { opacity: 0.7; border-style: dashed; }
 
   /* Pedido cujo prazo vence só amanhã (não hoje) — não precisa competir
      visualmente com o que é urgente agora; some a cor/pulso de urgência,
      mesmo que a fração do prazo já esteja alta (janela naturalmente longa). */
   .card-pedido.dia-seguinte { opacity: 0.4; border-color: var(--border) !important; background: var(--card) !important; animation: none !important; box-shadow: none !important; }
 
-  .card-topo { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-  .selo-tipo {
-    font-size: 11px; font-weight: 800; padding: 3px 10px; border-radius: 999px; letter-spacing: 0.03em;
+  @media (prefers-reduced-motion: reduce) {
+    /* Sem animação: o atrasado continua se destacando por cor, faixa,
+       borda grossa e tamanho do contador. */
+    .card-pedido, .card-pedido.zona-preto, .card-pedido.novo-flash,
+    body.emergencia .faixa-emergencia, .selo-coleta { animation: none !important; transition: none !important; }
   }
-  .selo-flex { background: rgba(77,155,255,0.18); color: var(--flex); }
-  .selo-turbo { background: rgba(185,104,242,0.18); color: var(--turbo); }
-  .selo-agora { background: rgba(255,77,79,0.18); color: var(--agora); }
-  .selo-shopee { background: rgba(238,77,45,0.18); color: var(--shopee); }
-  .selo-ml-geral { background: rgba(45,212,191,0.18); color: var(--ml-geral); }
-  .status-nao-entregue-txt { color: var(--vermelho); }
+
+  .card-topo { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; min-width: 0; }
+  .selo-tipo {
+    flex: none; font-size: 16px; font-weight: 700; padding: 3px 10px; border-radius: 6px;
+    letter-spacing: 0.05em; color: #0a0d13;
+  }
+  .selo-flex { background: var(--flex); }
+  .selo-turbo { background: var(--turbo); }
+  .selo-agora { background: var(--agora); }
+  .selo-shopee { background: var(--shopee); }
+  .selo-ml-geral { background: var(--ml-geral); }
+  .card-pedido-id {
+    flex: 1; min-width: 0; font-size: 17px; font-weight: 700; color: var(--muted);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums;
+  }
+  .card-conta { flex: none; font-size: 15px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  .status-nao-entregue-txt { color: var(--preto); }
   .selo-coleta {
-    display: block; margin-top: 6px; font-size: 13px; font-weight: 800;
-    color: #fff; background: var(--laranja);
-    padding: 5px 8px; border-radius: 6px; text-align: center;
-    animation: piscaColeta 1.4s infinite;
+    display: block; margin-top: 8px; font-size: 20px; font-weight: 700;
+    /* terracota da marca um pouco mais escuro: branco sobre #B5651D puro
+       dava 4,3:1, abaixo do AA. */
+    color: #fff; background: #98531a; border: 2px solid var(--marca-terracota);
+    padding: 5px 8px; border-radius: 8px; text-align: center;
+    animation: piscaColeta 2s ease-in-out infinite;
   }
   @keyframes piscaColeta {
-    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(255,138,61,0.6); }
-    50% { opacity: 0.85; box-shadow: 0 0 0 6px rgba(255,138,61,0); }
+    0%, 100% { box-shadow: 0 0 0 0 rgba(181,101,29,0.7); }
+    50% { box-shadow: 0 0 0 6px rgba(181,101,29,0); }
   }
-  .card-conta { font-size: 11px; color: var(--muted); }
 
-  .card-pedido-id { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
-  /* SKU é o que o time de expedição usa pra achar o produto — fica em
-     destaque; o nome completo do produto (geralmente longo) fica menor e
-     numa linha só, com "..." no fim em vez de estourar o card. */
+  /* SKU é o que o time de expedição usa pra achar o produto — maior texto
+     do card junto com o contador; o nome completo do produto (geralmente
+     longo) fica secundário, numa linha só, com "..." no fim. */
   .card-sku {
-    font-size: 16px; font-weight: 800; color: var(--text); margin-bottom: 2px;
+    font-size: 27px; font-weight: 700; color: var(--text); line-height: 1.15;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .card-itens {
-    font-size: 12px; color: var(--muted); margin-bottom: 10px;
+    font-size: 16px; color: var(--muted); margin-top: 3px;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
 
-  .card-contador { font-size: 32px; font-weight: 800; text-align: center; margin: 6px 0; }
+  .card-contador {
+    font-family: var(--fonte-numero); font-size: 60px; font-weight: 700; line-height: 1;
+    text-align: center; margin: 10px 0 4px; font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .card-contador.longo { font-size: 48px; }
+  .zona-preto .card-contador { font-size: 76px; font-weight: 800; }
+  .zona-preto .card-contador.longo { font-size: 58px; }
   .zona-verde .card-contador { color: var(--verde); }
   .zona-amarelo .card-contador { color: var(--amarelo); }
   .zona-laranja .card-contador { color: var(--laranja); }
   .zona-vermelho .card-contador { color: var(--vermelho); }
   .zona-preto .card-contador { color: var(--preto); }
 
-  .card-status { text-align: center; font-size: 12px; font-weight: 700; color: var(--muted); }
+  .card-status { text-align: center; font-size: 17px; font-weight: 700; color: var(--muted); }
   .status-coletado-txt { color: var(--verde); }
 
-  .barra-prazo { height: 6px; border-radius: 4px; background: #222833; overflow: hidden; margin-top: 8px; }
+  /* margin-top:auto: cards da mesma linha têm a mesma altura (grid), a
+     barra fica sempre colada no rodapé e o resto alinhado no topo. */
+  .barra-prazo { flex: none; height: 8px; border-radius: 4px; background: #262d3c; overflow: hidden; margin-top: auto; }
+  .card-status, .selo-coleta { margin-bottom: 10px; }
   .barra-prazo-fill { height: 100%; transition: width 0.4s; }
   .zona-verde .barra-prazo-fill { background: var(--verde); }
   .zona-amarelo .barra-prazo-fill { background: var(--amarelo); }
   .zona-laranja .barra-prazo-fill { background: var(--laranja); }
   .zona-vermelho .barra-prazo-fill { background: var(--vermelho); }
   .zona-preto .barra-prazo-fill { background: var(--preto); }
+  .zona-preto .barra-prazo { background: #5a1a20; }
 
-  .empty { text-align: center; padding: 60px; color: var(--muted); font-size: 15px; grid-column: 1 / -1; }
+  .empty { text-align: center; padding: 50px; color: var(--muted); font-size: 22px; grid-column: 1 / -1; }
 
-  /* ---- secao coletados hoje ---- */
-  .secao-titulo { padding: 14px 24px 4px; font-size: 14px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  /* ---- títulos de seção ---- */
+  .secao-titulo {
+    margin: 16px 24px 0; padding-left: 12px; border-left: 5px solid var(--marca-teal);
+    font-size: 20px; font-weight: 700; color: var(--text); text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .secao-titulo .dica { color: var(--muted); font-weight: 400; text-transform: none; letter-spacing: 0; font-size: 17px; }
+
+  /* TV menor (1366x768): topo mais compacto pra sobrar altura pros cards. */
+  @media (max-width: 1500px) {
+    .header { padding: 6px 18px; }
+    .logo-tv { height: 42px; width: 42px; }
+    .header h1 { font-size: 22px; }
+    .relogio { font-size: 38px; }
+    .kpi .v { font-size: 34px; }
+    .kpi .l { font-size: 12px; }
+    .heatmap-fatia { font-size: 14px; padding: 3px 10px; }
+    .heatmap-fatia .n { font-size: 24px; }
+    .controles { padding: 5px 18px; gap: 5px; }
+    .filtro-btn, .btn-icone, #buscaInput { font-size: 13px; padding: 5px 9px; }
+    #buscaInput { width: 170px; }
+    .area-cards { padding: 12px 18px 18px; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 14px; }
+    .secao-titulo { margin: 12px 18px 0; }
+    .card-sku { font-size: 25px; }
+    .card-contador { font-size: 54px; }
+    .zona-preto .card-contador { font-size: 66px; }
+    .zona-preto .card-contador.longo { font-size: 56px; }
+    .faixa-atrasado { font-size: 24px; }
+  }
 </style>
 </head>
 <body>
@@ -210,7 +310,7 @@
         <img src="logo-ricapet.png" alt="Ricapet" class="logo-tv">
         <div>
           <h1>Centro de Controle — Expedição</h1>
-          <div class="sub">Ricapet &amp; Thapets · Flex e Turbo</div>
+          <div class="sub">Ricapet &amp; Thapets · Flex · Turbo · Agora · Shopee e ML geral</div>
         </div>
       </div>
       <div style="text-align:right;">
@@ -232,7 +332,7 @@
       <div class="kpi"><div class="v" style="color:var(--shopee);" id="kpiShopeeGeral">-</div><div class="l">Shopee (geral)</div></div>
       <div class="kpi"><div class="v" style="color:var(--ml-geral);" id="kpiMlGeral">-</div><div class="l">ML (geral)</div></div>
       <div class="kpi"><div class="v" style="color:var(--vermelho);" id="kpiCriticos">-</div><div class="l">Críticos</div></div>
-      <div class="kpi"><div class="v" style="color:var(--preto);" id="kpiAtrasados">-</div><div class="l">Atrasados</div></div>
+      <div class="kpi" id="kpiAtrasadosBloco"><div class="v" style="color:var(--preto);" id="kpiAtrasados">-</div><div class="l">Atrasados</div></div>
       <div class="kpi"><div class="v" style="color:var(--verde);" id="kpiColetadosHoje">-</div><div class="l">Coletados hoje</div></div>
       <div class="kpi kpi-destaque"><div class="v" id="kpiAtrasoSemana">-</div><div class="l">Atraso total (7 dias)</div></div>
     </div>
@@ -252,7 +352,7 @@
     </div>
   </div>
 
-  <div class="secao-titulo">Pedidos em aberto (mais urgente primeiro)</div>
+  <div class="secao-titulo">Pedidos em aberto <span class="dica">· atrasados, depois Turbo, depois o mais urgente</span></div>
   <div class="area-cards" id="areaCards"></div>
 
   <div class="secao-titulo">Coletados hoje</div>
@@ -718,6 +818,10 @@
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
+  // Contador com prefixo de dias ("-1d 06:00:00") é mais largo — reduz um
+  // pouco a fonte pra caber no card sem cortar.
+  function contadorLongo(txt) { return txt.length > 9; }
+
   function cardHtml(c) {
     // SKU em destaque (é o que o time de expedição usa pra achar o produto
     // na prateleira); nome completo do produto vira info secundária, numa
@@ -737,15 +841,21 @@
     else if (c.status === 'coletado') statusHtml = '<span class="status-coletado-txt">✅ Coletado</span>';
     else if (naoEntregue) statusHtml = '<span class="status-nao-entregue-txt">⚠️ Não entregue</span>';
     else if (cancelado) statusHtml = '<span class="status-nao-entregue-txt">🚫 Cancelado</span>';
-    // Zona "preto" = prazo já vencido (ver zonaPorPrazo) — texto explícito
-    // pedido pelo dono do projeto, pra não depender só da cor/piscar pra
-    // notar que esse pedido já passou do prazo.
-    else if (c.zona === 'preto') statusHtml = '<span class="status-nao-entregue-txt">🔴 ATRASADO</span>';
     else statusHtml = '⏳ Aguardando coleta';
+
+    // Zona "preto" = prazo já vencido (ver zonaPorPrazo) — faixa "ATRASADO"
+    // cheia no topo do card, legível de longe (pedido do dono do projeto,
+    // out/2026: atrasado tem que ser o que mais sobressai na tela, não só
+    // uma linha de texto pequena no rodapé do card).
+    const atrasado = !concluido && c.zona === 'preto';
+    const faixaAtrasadoHtml = atrasado ? '<div class="faixa-atrasado">⚠ ATRASADO</div>' : '';
 
     const contadorHtml = concluido
       ? `<div class="card-contador" style="color:${(naoEntregue || cancelado) ? 'var(--vermelho)' : 'var(--verde)'};">${cancelado ? '🚫' : naoEntregue ? '!' : '✓'}</div>`
-      : `<div class="card-contador" data-deadline="${c.deadlineMs}">${formatarContador(c.msRestante)}</div>`;
+      : (() => {
+          const txt = formatarContador(c.msRestante);
+          return `<div class="card-contador${contadorLongo(txt) ? ' longo' : ''}" data-deadline="${c.deadlineMs}">${txt}</div>`;
+        })();
 
     const seloClasse = c.tipo === 'AGORA' ? 'selo-agora' : c.tipo === 'TURBO' ? 'selo-turbo' : c.tipo === 'SHOPEE' ? 'selo-shopee' : c.tipo === 'ML' ? 'selo-ml-geral' : 'selo-flex';
     const prontoParaColeta = !concluido && c.horaColetaMs && Date.now() >= c.horaColetaMs;
@@ -753,11 +863,12 @@
 
     return `
       <div class="card-pedido ${zonaClasse}${concluido ? ' concluido' : ''}${flashClasse}${diaSeguinteClasse}" data-id="${c.id}">
+        ${faixaAtrasadoHtml}
         <div class="card-topo">
           <span class="selo-tipo ${seloClasse}">${c.tipo}</span>
+          <span class="card-pedido-id">#${escaparHtml(c.order_id)}</span>
           <span class="card-conta">${escaparHtml(c.conta)}</span>
         </div>
-        <div class="card-pedido-id">#${escaparHtml(c.order_id)}</div>
         <div class="card-sku" title="${itensSkuTxt}">${itensSkuTxt}</div>
         <div class="card-itens" title="${itensTxt}">${itensTxt}</div>
         ${contadorHtml}
@@ -769,7 +880,11 @@
 
   function renderizarCards() {
     const pendentes = cardsAtuais.filter((c) => c.status !== 'coletado' && c.status !== 'entregue' && c.status !== 'nao_entregue' && c.status !== 'cancelado' && passaNoFiltro(c));
-    pendentes.sort((a, b) => a.msRestante - b.msRestante);
+    // Ordem pedida pelo dono do projeto (out/2026): 1º atrasados (qualquer
+    // tipo), 2º TURBO/AGORA (janela de poucas horas), 3º o resto. Dentro de
+    // cada grupo, prazo mais próximo primeiro (atrasado: o mais atrasado).
+    const prioridade = (c) => c.zona === 'preto' ? 0 : (c.tipo === 'TURBO' || c.tipo === 'AGORA') ? 1 : 2;
+    pendentes.sort((a, b) => prioridade(a) - prioridade(b) || a.msRestante - b.msRestante);
 
     const areaCards = document.getElementById('areaCards');
     areaCards.innerHTML = pendentes.length
@@ -806,6 +921,7 @@
     document.getElementById('kpiMlGeral').textContent = mlGeralCount;
     document.getElementById('kpiCriticos').textContent = criticos;
     document.getElementById('kpiAtrasados').textContent = atrasados;
+    document.getElementById('kpiAtrasadosBloco').classList.toggle('kpi-alerta', atrasados > 0);
     document.getElementById('kpiColetadosHoje').textContent = coletadosHoje.length;
 
     // "Atraso total (7 dias)" mostra QUANTIDADE de pedidos coletados/
@@ -837,7 +953,9 @@
   function atualizarContadoresAoVivo() {
     document.querySelectorAll('.card-contador[data-deadline]').forEach((el) => {
       const deadlineMs = Number(el.getAttribute('data-deadline'));
-      el.textContent = formatarContador(deadlineMs - Date.now());
+      const txt = formatarContador(deadlineMs - Date.now());
+      el.textContent = txt;
+      el.classList.toggle('longo', contadorLongo(txt));
     });
   }
 

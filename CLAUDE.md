@@ -146,6 +146,33 @@ com o prefixo de dias por segurança, mas na prática esses cards devem
 raramente passar de "23:59:59" agora — só ultrapassam 1 dia se o pedido já
 estiver, de fato, atrasado em relação a esse prazo sintético.
 
+**✅ Pedido atrasado é o que mais se destaca na TV, nunca apagado
+(out/2026)**: pedido explícito do dono do projeto: "quando tem um pedido
+em atraso, ele tem que estar DESTACADO e não apagado. Precisa sobressair
+mais que os demais." Antes, atrasado (zona `preto`) e "menos de 2h"
+(zona `vermelho`) tinham exatamente o mesmo visual (mesmo fundo, mesmo
+pulso), então o atrasado não se diferenciava. Agora, em `public/tv.html`,
+**vermelho cheio fica reservado só pra atrasado**: faixa "⚠ ATRASADO"
+cheia no topo do card, borda de 5px, fundo vermelho escuro, contador
+maior que o dos outros cards e brilho lento (sem animação com
+`prefers-reduced-motion`, e o destaque continua por cor e tamanho). A zona
+`vermelho` (< 2h) passou a ser coral, sem fundo vermelho nem pulso. O KPI
+"Atrasados" vira bloco vermelho cheio quando é > 0. Vale pra qualquer tipo,
+inclusive Shopee/ML geral que passam do prazo (real ou sintético). Zonas,
+`diaSeguinte` (que nunca se aplica a atrasado, ver correção do PR #215) e
+dados não mudaram. Ao mexer no visual da TV, não voltar a usar o mesmo
+destaque do atrasado pra outra zona.
+
+**✅ Ordem dos cards: atrasados, depois Turbo, depois o resto (out/2026)**:
+pedido explícito do dono do projeto, "sempre priorizar o turbo depois dos
+atrasados". `renderizarCards` (`public/tv.html`) ordena em 3 grupos:
+(1) todo atrasado (zona `preto`, qualquer tipo), (2) TURBO e AGORA ainda no
+prazo, (3) todo o resto (Flex, Shopee geral, ML geral). Dentro de cada
+grupo continua o prazo mais próximo primeiro. AGORA entra junto com TURBO
+porque a TV já trata os dois como um grupo só (filtro "Turbo" e KPI
+"Turbo"). Antes era só `msRestante` crescente, então um Turbo com 2h de
+prazo ficava atrás de dezenas de ML geral com prazo menor (próximo 16h).
+
 **✅ "ML geral" nunca atualizava o status depois da 1ª coleta — pedido
 entregue continuava aparecendo como "aguardando" (set/2026)**: bug real em
 produção — um pedido Flex já ENTREGUE (confirmado no próprio Mercado Livre)
