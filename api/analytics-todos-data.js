@@ -227,9 +227,15 @@ async function responderVisaoBipagem(req, res) {
   // MILISSEGUNDOS (ver lib/historicoTodos.js), diferente de bipado_em_ts
   // em bipagem_diaria (SEGUNDOS, usado no SELECT acima) -- por isso usa
   // inicioIso/fimIso direto em vez de inicioTs/fimTs.
+  // Exclui também Full/fulfillment (ML e Shopee): esses pedidos saem do
+  // centro de distribuição do próprio marketplace, nunca passam pelo galpão
+  // e por isso nunca são bipados -- contá-los no denominador derrubava a
+  // "Cobertura" sem ser falha da expedição. Mesmo critério de
+  // listarMlAguardando (lib/historicoTodos.js).
   const rsTotalPedidos = await db.execute({
     sql: `SELECT COUNT(*) AS total FROM historico_todos
-          WHERE date_created_ts BETWEEN ? AND ? AND (cancelado IS NULL OR cancelado = 0)`,
+          WHERE date_created_ts BETWEEN ? AND ? AND (cancelado IS NULL OR cancelado = 0)
+            AND (forma_entrega IS NULL OR LOWER(forma_entrega) NOT LIKE '%full%')`,
     args: [new Date(inicioIso).getTime(), new Date(fimIso).getTime()],
   });
   const totalPedidosPeriodo = Number(rsTotalPedidos.rows[0].total) || 0;
