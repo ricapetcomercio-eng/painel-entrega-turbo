@@ -724,16 +724,27 @@ categorias nas linhas, saldo acumulado embaixo). Peças do modelo:
     (`codigo_cliente_fornecedor`), não o nome — `resolverNomesFornecedores`
     (`lib/omieContasPagar.js`) resolve via API de Clientes/Fornecedores do
     Omie (`ConsultarCliente`, `geral/clientes/`), **1 chamada por
-    fornecedor ÚNICO no período** (não por título — cacheado num `Map`
-    dentro da própria coleta), trava de segurança
-    `MAX_FORNECEDORES_RESOLVIDOS` (150). Testável isoladamente via
+    fornecedor ÚNICO no período** (não por título), trava de segurança
+    `MAX_FORNECEDORES_RESOLVIDOS` (150, conta só chamadas reais à API).
+    Testável isoladamente via
     `/api/debug?tipo=omie-cliente-test&conta=ricapet&codigo=...`. Falha
     silenciosa por fornecedor (não derruba a coleta): sem nome resolvido,
     a tela cai pro fallback `Fornecedor #<código>`. Ainda sob demanda (só
-    no clique de "Atualizar agora"), mas é custo extra real por cima da
-    paginação de títulos que já existia — se a cota do Omie apertar, esse
-    é candidato a rever primeiro (ex.: cachear nomes já resolvidos entre
-    coletas em vez de resolver tudo de novo a cada clique).
+    no clique de "Atualizar agora", nunca em cron).
+    - **Cache entre coletas (out/2026)**: nomes já resolvidos ficam
+      persistidos no Turso via `lib/kv.js`, um objeto por conta Omie —
+      `entrega_turbo:omie_fornecedores_nomes:<ricapet|thapets>`, formato
+      `{ "<codigo>": { nome, em: <ms> } }`. 1 `kvGet` no início e no
+      máximo 1 `kvSet` no fim de `resolverNomesFornecedores` (só grava se
+      algum nome novo foi resolvido; nunca 1 chamada de kv por
+      fornecedor). Só código ausente do cache (ou com entrada vencida —
+      TTL de 30 dias, `TTL_NOME_FORNECEDOR_MS`, pra pegar fornecedor
+      renomeado) vai pra API do Omie; na prática, depois do 1º clique só
+      fornecedor novo gera chamada. Falha de resolução **não** é gravada
+      no cache (tenta de novo no próximo clique). Falha ao ler/gravar o
+      cache é engolida — cai pro comportamento antigo (resolve tudo pela
+      API), não derruba a coleta. Pra forçar re-resolução de tudo, apagar
+      a chave em `kv_simples`.
 - **Saldo acumulado**: calculado no frontend (não vem pronto do backend) —
   `saldo do dia anterior + total de entradas do dia − total a pagar do
   dia`, começando do saldo bancário manual somado (Ricapet + Thapets).
