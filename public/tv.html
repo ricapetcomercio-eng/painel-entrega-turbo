@@ -352,7 +352,7 @@
     </div>
   </div>
 
-  <div class="secao-titulo">Pedidos em aberto <span class="dica">· atrasados e mais urgentes primeiro</span></div>
+  <div class="secao-titulo">Pedidos em aberto <span class="dica">· atrasados, depois Turbo, depois o mais urgente</span></div>
   <div class="area-cards" id="areaCards"></div>
 
   <div class="secao-titulo">Coletados hoje</div>
@@ -880,7 +880,11 @@
 
   function renderizarCards() {
     const pendentes = cardsAtuais.filter((c) => c.status !== 'coletado' && c.status !== 'entregue' && c.status !== 'nao_entregue' && c.status !== 'cancelado' && passaNoFiltro(c));
-    pendentes.sort((a, b) => a.msRestante - b.msRestante);
+    // Ordem pedida pelo dono do projeto (out/2026): 1º atrasados (qualquer
+    // tipo), 2º TURBO/AGORA (janela de poucas horas), 3º o resto. Dentro de
+    // cada grupo, prazo mais próximo primeiro (atrasado: o mais atrasado).
+    const prioridade = (c) => c.zona === 'preto' ? 0 : (c.tipo === 'TURBO' || c.tipo === 'AGORA') ? 1 : 2;
+    pendentes.sort((a, b) => prioridade(a) - prioridade(b) || a.msRestante - b.msRestante);
 
     const areaCards = document.getElementById('areaCards');
     areaCards.innerHTML = pendentes.length
