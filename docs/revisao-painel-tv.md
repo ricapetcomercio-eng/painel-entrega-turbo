@@ -28,6 +28,8 @@ Screenshots em [`docs/revisao-painel-tv/`](revisao-painel-tv/):
 | `07-depois-api-401-1920x1080.png` | **Depois** da correção: 401 desde o carregamento |
 | `08-depois-ok-depois-401-1920x1080.png` | **Depois** da correção: ok e depois 401 (mantém os cards) |
 | `09-depois-titulo-com-aspas-1920x1080.png` | **Depois** da correção: título com `"` e `<...>` |
+| `10-antes-atrasado-de-ontem-apagado-1920x1080.png` | **Antes**: Flex e Shopee com prazo vencido ontem aparecem apagados |
+| `11-depois-atrasado-de-ontem-destacado-1920x1080.png` | **Depois**: os mesmos pedidos em vermelho, como qualquer atrasado |
 
 Console: **nenhum erro de JavaScript** (`pageerror`) em nenhum cenário. Os
 únicos erros no console são os `Failed to load resource` esperados nos
@@ -78,6 +80,28 @@ cenários 401/500/offline.
   (antes) com `09-depois-titulo-com-aspas-1920x1080.png` (depois).
 - **Correção**: nova função `escaparHtml()` (escapa `& < > " '`) aplicada a
   esses quatro campos. O texto exibido fica idêntico para títulos normais.
+
+### 3. [Alta] Pedido atrasado desde ONTEM aparecia apagado (opacidade 0,4), não destacado
+
+- **Onde**: `public/tv.html`, `montarCards()`, cálculo de `c.diaSeguinte`
+  (antes: `!c.semPrazo && c.zona !== 'concluido' && !ehHojeBrasil(c.deadlineMs)`).
+- **Causa**: a classe `.dia-seguinte` (opacidade 0,4, borda e fundo neutros e
+  `animation: none`, tudo com `!important`) existe para apagar o card cujo prazo
+  só vence **amanhã**. Mas o teste era só "o prazo não é hoje", e isso também é
+  verdade para um prazo que venceu **ontem**. Resultado: o atrasado mais grave
+  (vencido no dia anterior, ex. Flex de ontem que ninguém coletou, ou Shopee
+  geral com `prazo_entrega` real de ontem) ia para o topo da lista (a ordenação
+  por `msRestante` já estava certa), mas aparecia **apagado**, mais discreto
+  que qualquer pedido no prazo. Atrasados de hoje não eram afetados, por isso o
+  problema só aparece com atraso que passa da meia-noite. Shopee/ML geral **sem
+  prazo real** (`semPrazo`) já ficavam fora do `diaSeguinte` e não eram
+  afetados.
+- **Como reproduzir (antes)**: pedido Flex com `deadline` no dia anterior e
+  ainda `aguardando`. Screenshot 10: os dois primeiros cards.
+- **Correção**: `diaSeguinte` agora também exige `c.zona !== 'preto'` (prazo
+  ainda não vencido). Todo atrasado volta a ter o destaque normal de atrasado:
+  borda e fundo vermelhos, contador vermelho, "🔴 ATRASADO" e pulso. Screenshot
+  11. A exceção do `diaSeguinte` para pedidos sem prazo real continua igual.
 
 ---
 
