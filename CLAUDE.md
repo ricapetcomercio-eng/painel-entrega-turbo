@@ -900,9 +900,6 @@ cota de 500k req/mês.
 `lib/redis.js` (Upstash) ainda existe só como referência legada, usado
 apenas em `api/debug.js`. Não usar para código novo.
 
-⚠️ O README na raiz ainda descreve o Redis como armazenamento principal —
-está desatualizado nesse ponto; confie neste arquivo e em `lib/db.js`/`lib/kv.js`.
-
 ## Cargo do funcionário
 
 Coluna `cargo` (texto livre, ex. "Auxiliar de Expedição") na tabela
