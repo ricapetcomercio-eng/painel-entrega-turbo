@@ -900,6 +900,43 @@ coluna de motivo nem filtro nenhum.
   devolução (o fluxo normal de coleta de pedidos não sabe nada sobre
   devolução/reclamação — só quem grava isso é `enriquecerDevolucoes`).
 
+## Fechamento Mensal (`public/fechamento.html`, out/2026)
+
+Painel do fechamento mensal que o Ricardo faz no próprio computador
+(sistema em `C:\FECHAMENTO`, fora deste repo, gera uma planilha Excel com
+uma aba por mês, ex. "26 - Setembro").
+
+- **Fluxo**: `C:\FECHAMENTO\01 EXECUTAR\99_enviar_painel.bat` →
+  `scripts/fechamento/enviar_fechamento.py` (openpyxl, `data_only=True`)
+  monta o JSON de UM mês → `POST /api/debug?tipo=fechamento-enviar&secret=
+  CRON_SECRET` → `lib/fechamento.js` valida (lista de permissão de campos)
+  e grava no Turso. A tela só lê (`?tipo=fechamento-dados`, sessão de admin
+  + página `fechamento`, em `TIPOS_SESSAO_ADMIN`). CPU ~zero, sem cron, sem
+  API externa. Rotas dentro de `api/debug.js` porque o projeto já está no
+  limite de 12 Serverless Functions do Hobby.
+- **Chaves no `kv_simples`**: `entrega_turbo:fechamento:AAAA-MM` (mês
+  completo) e `entrega_turbo:fechamento_indice` (resumo de todos os meses,
+  alimenta o seletor e a evolução de 12 meses sem ler cada mês). Reenviar
+  um mês substitui o anterior.
+- **Parser guiado por rótulos**, não por posição ("Custos Mensais",
+  cabeçalho "porcentagem/Meta/Resultado", nomes de canal, "Cor"/"Modelo"
+  + "Unidades", "REFERENCIA"/"CATEGORIA", "Algo Errado"/"OK"). Suporta o
+  layout 2025-2026; abas antigas que não batem são puladas no `--todos`.
+  Planilha salva por script (fórmulas sem valor em cache) é recusada com
+  aviso claro, em vez de enviar zeros.
+- **Dados sensíveis, repo público**: OBS dos lançamentos nunca é enviada;
+  CPF/CNPJ é removido dos textos no script E de novo no servidor. Nunca
+  commitar planilha real — `scripts/fechamento/exemplo/gerar_exemplo.py`
+  gera uma 100% inventada para testes (os `.xlsx` gerados ficam no
+  `.gitignore`, assim como `painel_config.ini`).
+- **Metas**: o status (dentro/fora) é calculado na tela pelo tipo da linha
+  (custo — taxas, CMV, custos fixos — bom é ficar abaixo da meta;
+  resultado — contribuição, lucro — bom é ficar acima), não pelo sinal da
+  coluna "Resultado" da planilha (guardada como `resultado_planilha`).
+- Página `fechamento` faz parte de `PAGINAS_PAINEL` (default-deny, ver
+  "Controle de acesso por página") — precisa ser liberada em `/acessos.html`.
+- Instalação/uso no computador do Ricardo: `scripts/fechamento/README.md`.
+
 ## Banco de dados
 
 Turso (libSQL/SQLite cloud) é o banco principal — `lib/db.js` + `lib/kv.js`
@@ -967,8 +1004,8 @@ de fato tinha acesso. `login.html` (`irParaDestino`/`destinoPadrao`) agora
 usa o `paginas`/`super_admin` que `debugPontoLogin` já devolve no login pra
 escolher o destino: super_admin ou quem tem `dashboard` continua caindo em
 `/` como antes; quem não tem, cai na primeira página que tiver, na ordem
-`bipagem` → `estoque` → `ponto` → `projecao-financeira` → `tv` →
-`concorrencia`. Sem
+`bipagem` → `estoque` → `ponto` → `projecao-financeira` → `fechamento` →
+`tv` → `concorrencia`. Sem
 nenhuma página liberada, continua caindo no Dashboard (mesmo resultado de
 antes — a tela de "Acesso restrito" com a instrução de pedir liberação ao
 Ricardo). `?redirect=` explícito só tem prioridade quando aponta pra uma
@@ -1023,7 +1060,7 @@ fallback do login (`/?painel=concorrencia`), e `paginaDoCaminho`
   explícita do dono do projeto, não um bug.
 - Páginas controláveis (`PAGINAS_PAINEL` em `lib/pontoAuth.js`, mesmas
   chaves do `data-menu-key` da barra lateral): `ponto`, `dashboard`,
-  `bipagem`, `estoque`, `projecao-financeira`, `concorrencia`, `tv`.
+  `bipagem`, `estoque`, `projecao-financeira`, `fechamento`, `concorrencia`, `tv`.
 - `public/acessos.html`: tela nova, só super_admin, lista todo funcionário
   ativo com a flag admin + quais páginas tem liberadas, editável por
   linha. Backend `acessos-listar`/`acessos-definir` em `api/debug.js`
@@ -1244,6 +1281,8 @@ public/
   próprio, não precisam). `login.html` fica de fora (card centralizado
   pequeno, sem "fundo" de verdade pra mostrar a marca d'água).
 scripts/
+  fechamento/                 enviar_fechamento.py + .bat + README — roda no PC do
+                             Ricardo e manda o Fechamento Mensal pro painel
   gerar_tabela_produtos.py   regenera lib/tabelaProdutos.json a partir do
                              Excel local — rodar sempre que TABELA_AUXILIAR mudar
 

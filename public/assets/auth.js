@@ -92,7 +92,7 @@
   const PAGINA_POR_ARQUIVO = {
     'estoque-atualizar.html': 'estoque', 'estoque.html': 'estoque',
     'ponto.html': 'ponto', 'bipagem.html': 'bipagem', 'bipagem-v2.html': 'bipagem',
-    'projecao-financeira.html': 'projecao-financeira',
+    'projecao-financeira.html': 'projecao-financeira', 'fechamento.html': 'fechamento',
   };
 
   // Veio de um link do Portal Ricapet (PortalRicapet, PWA) com ?pt=... --

@@ -19,6 +19,7 @@ const { resolverPedidoBipagem } = require('../lib/bipagemResolver');
 const { resumirClaimsPeriodo } = require('../lib/mlClaims');
 const { importarContagemFisica, importarSaldoDaPlanilha, completarCatalogoFaltante, corrigirCorArranhadorAdesivoBege, enviarBalancoAgora } = require('../lib/estoqueSaldo');
 const { dataFusoLoja, isoDeDiaHoraLoja, resolverMarcacoes } = require('../lib/registrosPonto');
+const { normalizarFechamento, gravarFechamento, lerFechamentos } = require('../lib/fechamento');
 
 const TABELAS_SQL = [
   `CREATE TABLE IF NOT EXISTS kv_simples (
@@ -3105,6 +3106,33 @@ async function debugPontoAdminCpf(req, res) {
   res.status(200).json({ ok: true, tipo: 'ponto-admin-cpf' });
 }
 
+// Fechamento Mensal (public/fechamento.html) -- ver lib/fechamento.js e
+// CLAUDE.md, seção "Fechamento Mensal". Recebe o JSON montado pelo
+// scripts/fechamento/enviar_fechamento.py (computador do Ricardo, protegido
+// pelo CRON_SECRET) e grava pronto no Turso; a tela só lê. Fica aqui (e
+// não num api/fechamento.js) porque o projeto já está no limite de 12
+// Serverless Functions do plano Hobby.
+async function debugFechamentoEnviar(req, res) {
+  if (req.method !== 'POST') { res.status(405).json({ ok: false, error: 'Use POST { fechamento: {...} }' }); return; }
+  const corpo = req.body || {};
+  const { fechamento, erro } = normalizarFechamento(corpo.fechamento || corpo);
+  if (erro) { res.status(400).json({ ok: false, error: erro }); return; }
+  const indice = await gravarFechamento(fechamento);
+  res.status(200).json({
+    ok: true, tipo: 'fechamento-enviar', mes: fechamento.mes, meses_disponiveis: indice.length,
+    lancamentos: fechamento.lancamentos.length,
+    conferencias_com_erro: fechamento.conferencias.filter((c) => c.status === 'erro').length,
+  });
+}
+
+async function debugFechamentoDados(req, res) {
+  const db = getDb();
+  const admin = await exigirAdmin(req, res, db, 'fechamento');
+  if (!admin) return;
+  const dados = await lerFechamentos(req.query.mes);
+  res.status(200).json({ ok: true, tipo: 'fechamento-dados', ...dados });
+}
+
 // Fluxo de Caixa: pedaços de dado mantidos manualmente (não vêm de nenhuma
 // API) — o saldo bancário atual de cada empresa (ponto de partida do saldo
 // acumulado projetado), a previsão diária de vendas do site próprio
@@ -3333,7 +3361,7 @@ const TIPOS_PUBLICOS_APPMAX = new Set(['appmax-webhook']);
 // (mesma origem: só a própria tela logada chama essas rotas).
 const TIPOS_SESSAO_ADMIN = new Set([
   'fluxo-caixa-config-get', 'fluxo-caixa-config-set', 'acessos-listar', 'acessos-definir',
-  'bipagem-resolver-pendentes', 'ponto-renovar-sessao', 'acessos-historico',
+  'bipagem-resolver-pendentes', 'ponto-renovar-sessao', 'acessos-historico', 'fechamento-dados',
 ]);
 
 module.exports = async (req, res) => {
@@ -3346,6 +3374,7 @@ module.exports = async (req, res) => {
       if (req.query.tipo === 'acessos-historico') return await debugAcessosHistorico(req, res);
       if (req.query.tipo === 'bipagem-resolver-pendentes') return await debugBipagemResolverPendentes(req, res);
       if (req.query.tipo === 'ponto-renovar-sessao') return await debugPontoRenovarSessao(req, res);
+      if (req.query.tipo === 'fechamento-dados') return await debugFechamentoDados(req, res);
     } catch (err) {
       res.status(500).json({ error: err.message });
       return;
@@ -3935,6 +3964,7 @@ module.exports = async (req, res) => {
     if (req.query.tipo === 'ponto-reindexar-cadeia') return await debugPontoReindexarCadeia(req, res);
     if (req.query.tipo === 'ponto-relatorio') return await debugPontoRelatorio(req, res);
     if (req.query.tipo === 'ponto-cadastrar-funcionario') return await debugPontoCadastrarFuncionario(req, res);
+    if (req.query.tipo === 'fechamento-enviar') return await debugFechamentoEnviar(req, res);
     res.status(400).json({ error: 'Use ?tipo=ml-claims, ?tipo=ml-claims-resumo, ?tipo=ml-shipment, ?tipo=ml-sla, ?tipo=shopee-returns, ?tipo=shopee-channels, ?tipo=criar-tabelas, ?tipo=migrar-redis-turso, ?tipo=corrigir-shipment-id ou ?tipo=adicionar-coluna-tipo' });
   } catch (err) {
     res.status(500).json({ error: err.message });
