@@ -43,19 +43,41 @@ async function mlFetch(path, accessToken) {
 // Multiget com os atributos completos (não só título) — precisa de
 // attributes/variations pra lib/mlRespostaSugerida.js conseguir sugerir
 // resposta de medidas/cor/material.
+//
+// Usa /items/bulk?ids= — o antigo /items?ids= foi depreciado pelo Mercado
+// Livre (migração exigida até 25/10/2026, issue #183). Diferenças do bulk:
+// o filtro de campos precisa do prefixo `body.` (`attributes=body.id,...`;
+// sem o prefixo o filtro não pega nada dentro do item), e a resposta muda
+// de formato: sem `attributes` vem `[{id, status_code, body}]`; com
+// `attributes=body.*` vem só `[{body}]`, e item não encontrado vira `{}`.
+// O antigo devolvia `[{code, body}]`. Os três formatos são aceitos abaixo:
+// vale o item que tem `body.id` e cujo status (se veio) é 200.
+const CAMPOS_ITEM_BULK = ['id', 'title', 'permalink', 'attributes', 'variations']
+  .map((campo) => `body.${campo}`)
+  .join(',');
+
+function extrairItensMultiget(data) {
+  const itens = [];
+  for (const entrada of Array.isArray(data) ? data : []) {
+    if (!entrada) continue;
+    const status = entrada.status_code != null ? entrada.status_code : entrada.code;
+    if (status != null && Number(status) !== 200) continue;
+    const corpo = entrada.body || {};
+    if (corpo.id) itens.push(corpo);
+  }
+  return itens;
+}
+
 async function buscarDetalhesItens(accessToken, itemIds) {
   const detalhes = {};
   const ids = [...new Set(itemIds.filter(Boolean))];
   for (let i = 0; i < ids.length; i += 20) {
     const lote = ids.slice(i, i + 20);
     const data = await mlFetch(
-      `/items?ids=${lote.join(',')}&attributes=id,title,permalink,attributes,variations`,
+      `/items/bulk?ids=${lote.join(',')}&attributes=${CAMPOS_ITEM_BULK}`,
       accessToken
     );
-    for (const entrada of data) {
-      const corpo = entrada.body || {};
-      if (corpo.id) detalhes[corpo.id] = corpo;
-    }
+    for (const corpo of extrairItensMultiget(data)) detalhes[corpo.id] = corpo;
   }
   return detalhes;
 }
