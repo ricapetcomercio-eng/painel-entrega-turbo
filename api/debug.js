@@ -1823,7 +1823,11 @@ async function garantirEsquemaPonto(db) {
     try { await db.execute(sql); } catch (e) { if (!/duplicate column/i.test(e.message)) throw e; }
   }
   const rs = await db.execute('SELECT id, funcionario_id, tipo, registrado_em, origem, nsr FROM registros_ponto ORDER BY registrado_em, id');
-  if (rs.rows.some((r) => r.nsr == null)) {
+  // Só numera do zero se NENHUM registro tem NSR ainda (banco anterior à
+  // Fase 4). Se já existe cadeia, renumerar trocaria os NSRs já emitidos
+  // (comprovantes/AFD) e zeraria ref_nsr dos ajustes -- edições e exclusões
+  // deixariam de valer e batidas excluídas voltariam a aparecer.
+  if (rs.rows.length && rs.rows.every((r) => r.nsr == null)) {
     const cfg = await configPonto(db);
     let anterior = '0'.repeat(64);
     let n = 0;
@@ -2948,11 +2952,17 @@ async function debugPontoAdminIntegridade(req, res) {
 }
 
 // Bootstrap (CRON_SECRET): atribui NSR + cadeia de hash aos registros que já
-// existiam antes da Fase 4. Roda uma vez. Idempotente: se todos já têm nsr,
-// não faz nada.
+// existiam antes da Fase 4. Roda uma vez. Se qualquer registro já tem NSR,
+// recusa e não mexe em nada (renumerar apagaria o vínculo dos ajustes,
+// ref_nsr, e mudaria NSRs já impressos em comprovantes/AFD).
 async function debugPontoReindexarCadeia(req, res) {
   const db = getDb();
   const cfg = await configPonto(db);
+  const jaTem = await db.execute('SELECT COUNT(*) AS n FROM registros_ponto WHERE nsr IS NOT NULL');
+  if (Number(jaTem.rows[0].n) > 0) {
+    res.status(409).json({ ok: false, tipo: 'ponto-reindexar-cadeia', registros_reindexados: 0, error: 'A cadeia de NSR já existe; renumerar destruiria os ajustes. Nada foi alterado.' });
+    return;
+  }
   const rs = await db.execute("SELECT id, funcionario_id, tipo, registrado_em, origem FROM registros_ponto ORDER BY registrado_em, id");
   let anterior = '0'.repeat(64);
   let n = 0;
