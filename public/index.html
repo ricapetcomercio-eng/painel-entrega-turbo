@@ -365,7 +365,7 @@
     <div class="grid-stats">
       <div class="stat-card"><div class="stat-icon-wrap tone-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div>
         <div class="value" id="execFaturamento">–</div>
-        <div class="label">Faturamento Total</div>
+        <div class="label">Faturamento Total <span style="font-weight:400;opacity:.7;">(sem cancelados)</span></div>
         <div class="kpi-delta" id="execFaturamentoDelta">–</div>
       </div>
       <div class="stat-card"><div class="stat-icon-wrap tone-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg></div>
@@ -1146,8 +1146,9 @@
     return topN(mapa, n);
   }
   function ticketMedio(pedidos) {
-    if (!pedidos.length) return null;
-    return pedidos.reduce((a, p) => a + (Number(p.total_amount) || 0), 0) / pedidos.length;
+    const vendidos = pedidos.filter(p => p.cancelado !== true);
+    if (!vendidos.length) return null;
+    return vendidos.reduce((a, p) => a + (Number(p.total_amount) || 0), 0) / vendidos.length;
   }
 
   // ---------- EXECUTIVO (Fase 1: sem custo/margem, só o que já temos) ----------
@@ -1162,27 +1163,36 @@
     };
   }
 
+  // Pedido cancelado não é venda: fica fora de faturamento e ticket médio
+  // (continua contando em "Quantidade de Pedidos" e em "Cancelamentos").
+  function valorVendido(p) {
+    return p.cancelado === true ? 0 : (Number(p.total_amount) || 0);
+  }
+
   function agregarPorDia(pedidos) {
     const mapaFaturamento = {};
     const mapaPedidos = {};
+    const mapaVendidos = {};
     pedidos.forEach(p => {
       const dia = new Date(p.date_created).toISOString().slice(0, 10);
-      mapaFaturamento[dia] = (mapaFaturamento[dia] || 0) + (Number(p.total_amount) || 0);
+      mapaFaturamento[dia] = (mapaFaturamento[dia] || 0) + valorVendido(p);
       mapaPedidos[dia] = (mapaPedidos[dia] || 0) + 1;
+      if (p.cancelado !== true) mapaVendidos[dia] = (mapaVendidos[dia] || 0) + 1;
     });
     const dias = Object.keys(mapaFaturamento).sort();
     return {
       dias,
       faturamento: dias.map(d => Math.round(mapaFaturamento[d] * 100) / 100),
       pedidos: dias.map(d => mapaPedidos[d]),
-      ticketMedio: dias.map(d => mapaPedidos[d] ? Math.round((mapaFaturamento[d] / mapaPedidos[d]) * 100) / 100 : 0),
+      ticketMedio: dias.map(d => mapaVendidos[d] ? Math.round((mapaFaturamento[d] / mapaVendidos[d]) * 100) / 100 : 0),
     };
   }
 
   function calcularKPIs(pedidos) {
-    const faturamento = pedidos.reduce((a, p) => a + (Number(p.total_amount) || 0), 0);
+    const faturamento = pedidos.reduce((a, p) => a + valorVendido(p), 0);
     const totalPedidos = pedidos.length;
-    const ticket = totalPedidos ? faturamento / totalPedidos : null;
+    const vendidos = pedidos.filter(p => p.cancelado !== true).length;
+    const ticket = vendidos ? faturamento / vendidos : null;
     // Tempo até coleta/entrega só existe para pedidos do Mercado Livre com
     // shipment já verificado — Shopee ainda não traz esse dado no histórico
     // geral, então a média aqui reflete só a fatia que tem essa informação.
@@ -1235,7 +1245,7 @@
 
   async function buscarResumoPeriodo(de, ate) {
     const pedidos = await buscarPedidosPeriodoGenerico(de.toISOString(), ate.toISOString());
-    const faturamento = pedidos.reduce((a, p) => a + (Number(p.total_amount) || 0), 0);
+    const faturamento = pedidos.reduce((a, p) => a + valorVendido(p), 0);
     return { faturamento, pedidos: pedidos.length };
   }
 
@@ -2096,7 +2106,7 @@
     // Gráfico misto: barras = pedidos por hora, linha = ticket médio por hora
     const porHora = agregarPorHora(pedidos);
     const ticketPorHora = new Array(24).fill(0).map((_, h) => {
-      const doHora = pedidos.filter(p => new Date(p.date_created).getHours() === h);
+      const doHora = pedidos.filter(p => p.cancelado !== true && new Date(p.date_created).getHours() === h);
       return doHora.length ? doHora.reduce((a, p) => a + (Number(p.total_amount) || 0), 0) / doHora.length : null;
     });
     criarOuAtualizarChart('chartFlexHora', {
