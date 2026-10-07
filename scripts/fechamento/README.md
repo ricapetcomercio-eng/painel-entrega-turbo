@@ -23,9 +23,11 @@ Qualquer número com cara de CPF/CNPJ também é apagado dos textos antes do env
    abra no Bloco de Notas e preencha:
    - `secret` = o mesmo valor do `CRON_SECRET` da Vercel (o mesmo que já
      está no cron-job.org);
-   - `pasta` / `padrao` = onde o fechamento salva a planilha final e o nome
-     dela (ex.: `Fechamento_*.xlsx`). Se houver mais de uma planilha, o
-     script usa a mais recente.
+   - `pasta` / `padrao`: já vêm prontos para o padrão
+     `C:\FECHAMENTO\05 FECHAMENTOS\AAAA_MM\Fechamento_<Mês>_<AA>.xlsx`.
+     O script entra sozinho na subpasta `AAAA_MM` mais recente (ex.:
+     `2026_09`) e pega o `Fechamento_*.xlsx` de dentro dela. Para usar outra
+     planilha, passe `--arquivo "caminho\do\arquivo.xlsx"`.
 5. Copie `99_enviar_painel.bat` para `C:\FECHAMENTO\01 EXECUTAR`. O número
    99 no nome é para ele ficar por último, depois dos outros arquivos.
 6. Mande o histórico uma vez, para o painel já ter comparação mês a mês.
@@ -65,6 +67,16 @@ Reenviar um mês substitui a versão anterior dele no painel.
   `painel_config.ini`.
 - **"PULADO (layout antigo...)"** no `--todos`: abas antigas (antes de 2025)
   têm outro formato. Elas são puladas e os outros meses são enviados mesmo assim.
+
+## Formato do envio (para o futuro servidor)
+
+O envio é um `POST` com JSON (`{ "fechamento": { "mes": "AAAA-MM", ... } }`)
+para `/api/debug?tipo=fechamento-enviar&secret=CRON_SECRET`. A rota não sabe
+nem precisa saber de onde ele vem: se um dia o fechamento rodar num servidor
+web, basta esse servidor montar o mesmo JSON (pode até reaproveitar
+`montar_fechamento` deste script) e mandar para a mesma rota. O campo
+`origem` só registra quem enviou (`script-local` hoje; dá para mudar com a
+variável de ambiente `PAINEL_ORIGEM`).
 
 ## Como o script lê a planilha
 

@@ -914,6 +914,14 @@ uma aba por mês, ex. "26 - Setembro").
   + página `fechamento`, em `TIPOS_SESSAO_ADMIN`). CPU ~zero, sem cron, sem
   API externa. Rotas dentro de `api/debug.js` porque o projeto já está no
   limite de 12 Serverless Functions do Hobby.
+- **Rota independente de onde o fechamento roda**: hoje quem envia é o PC
+  do Ricardo, mas o dono quer, no futuro, rodar o fechamento num servidor
+  web (projeto à parte). Por isso o contrato é só "POST de JSON + secret";
+  campo `origem` registra quem enviou. Não acoplar nada da rota/do formato
+  a caminho de Windows, .bat ou openpyxl.
+- **Planilha padrão**: `C:\FECHAMENTO\05 FECHAMENTOS\AAAA_MM\Fechamento_
+  <Mês>_<AA>.xlsx` — o script pega a subpasta `AAAA_MM` mais recente pelo
+  nome; `--arquivo` sobrepõe.
 - **Chaves no `kv_simples`**: `entrega_turbo:fechamento:AAAA-MM` (mês
   completo) e `entrega_turbo:fechamento_indice` (resumo de todos os meses,
   alimenta o seletor e a evolução de 12 meses sem ler cada mês). Reenviar

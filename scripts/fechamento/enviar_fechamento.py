@@ -500,6 +500,9 @@ def montar_fechamento(aba, ano, mes, arquivo):
         'aba': aba.nome.strip(),
         'arquivo': os.path.basename(arquivo),
         'gerado_em': dt.datetime.now().astimezone().isoformat(timespec='seconds'),
+        # De onde veio o envio -- hoje o PC do Ricardo; no futuro pode ser um
+        # servidor rodando o fechamento, mandando o MESMO JSON pra mesma rota.
+        'origem': os.environ.get('PAINEL_ORIGEM') or 'script-local',
         'resumo': resumo,
         'metas': metas,
         'conferencias': ler_conferencias(aba, col_resumo),
@@ -531,7 +534,7 @@ def carregar_config(caminho_arg):
     conf = {
         'url': os.environ.get('PAINEL_URL') or cfg.get('painel', 'url', fallback=''),
         'secret': os.environ.get('PAINEL_SECRET') or cfg.get('painel', 'secret', fallback=''),
-        'pasta': cfg.get('planilha', 'pasta', fallback=r'C:\FECHAMENTO'),
+        'pasta': cfg.get('planilha', 'pasta', fallback=r'C:\FECHAMENTO\05 FECHAMENTOS'),
         'padrao': cfg.get('planilha', 'padrao', fallback='Fechamento_*.xlsx'),
         'arquivo_config': usado,
     }
@@ -541,11 +544,22 @@ def carregar_config(caminho_arg):
 
 
 def achar_planilha(conf):
-    padrao = os.path.join(conf['pasta'], conf['padrao'])
-    arquivos = [a for a in glob.glob(padrao) if not os.path.basename(a).startswith('~$')]
-    if not arquivos:
-        raise ErroFechamento(f'Nenhuma planilha encontrada em "{padrao}". Ajuste [planilha] pasta/padrao no painel_config.ini ou use --arquivo.')
-    return max(arquivos, key=os.path.getmtime)
+    """Padrao do fechamento: C:\\FECHAMENTO\\05 FECHAMENTOS\\AAAA_MM\\Fechamento_<Mes>_<AA>.xlsx.
+    Pega a subpasta AAAA_MM mais recente (pelo NOME, nao pela data do
+    arquivo) e, dentro dela, o Fechamento_*.xlsx mais recente. Sem subpastas
+    AAAA_MM, procura direto na pasta configurada."""
+    pasta = conf['pasta']
+    if not os.path.isdir(pasta):
+        raise ErroFechamento(f'Pasta nao encontrada: "{pasta}". Ajuste [planilha] pasta no painel_config.ini ou use --arquivo.')
+    meses = sorted(d for d in os.listdir(pasta)
+                   if re.match(r'^\d{4}_\d{2}$', d) and os.path.isdir(os.path.join(pasta, d)))
+    for d in reversed(meses) if meses else [None]:
+        base = os.path.join(pasta, d) if d else pasta
+        arquivos = [a for a in glob.glob(os.path.join(base, conf['padrao'])) if not os.path.basename(a).startswith('~$')]
+        if arquivos:
+            return max(arquivos, key=os.path.getmtime)
+    onde = os.path.join(pasta, 'AAAA_MM' if meses else '', conf['padrao'])
+    raise ErroFechamento(f'Nenhuma planilha encontrada em "{onde}". Ajuste [planilha] pasta/padrao no painel_config.ini ou use --arquivo.')
 
 
 def enviar(conf, fechamento):
@@ -554,9 +568,15 @@ def enviar(conf, fechamento):
     headers = {'Content-Type': 'application/json; charset=utf-8'}
     try:
         import requests  # opcional; sem ele usa urllib
-        resp = requests.post(url, params={'secret': conf['secret']}, data=corpo, headers=headers, timeout=60)
-        status, texto_resp = resp.status_code, resp.text
     except ImportError:
+        requests = None
+    if requests is not None:
+        try:
+            resp = requests.post(url, params={'secret': conf['secret']}, data=corpo, headers=headers, timeout=60)
+        except requests.RequestException as e:
+            raise ErroFechamento(f'Nao consegui falar com o painel ({conf["url"]}). Confira a internet e a url no painel_config.ini. Detalhe: {e.__class__.__name__}')
+        status, texto_resp = resp.status_code, resp.text
+    else:
         import urllib.error
         import urllib.parse
         import urllib.request
@@ -566,6 +586,8 @@ def enviar(conf, fechamento):
                 status, texto_resp = r.status, r.read().decode('utf-8', 'replace')
         except urllib.error.HTTPError as e:
             status, texto_resp = e.code, e.read().decode('utf-8', 'replace')
+        except (urllib.error.URLError, OSError) as e:
+            raise ErroFechamento(f'Nao consegui falar com o painel ({conf["url"]}). Confira a internet e a url no painel_config.ini. Detalhe: {e}')
     try:
         dados = json.loads(texto_resp)
     except ValueError:
