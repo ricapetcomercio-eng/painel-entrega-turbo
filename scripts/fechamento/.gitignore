@@ -1,0 +1,4 @@
+painel_config.ini
+exemplo/*.xlsx
+__pycache__/
+*.json

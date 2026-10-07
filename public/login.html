@@ -119,13 +119,14 @@
     estoque: '/estoque.html',
     ponto: '/ponto.html',
     'projecao-financeira': '/projecao-financeira.html',
+    fechamento: '/fechamento.html',
     tv: '/tv.html',
     // Mesmo index.html do Dashboard, mas no modo iframe-only: com
     // ?painel=concorrencia ele não chama /api/dashboard-data (gate
     // 'dashboard'), então funciona pra quem tem só 'concorrencia'.
     concorrencia: '/?painel=concorrencia',
   };
-  const ORDEM_FALLBACK = ['bipagem', 'estoque', 'ponto', 'projecao-financeira', 'tv', 'concorrencia'];
+  const ORDEM_FALLBACK = ['bipagem', 'estoque', 'ponto', 'projecao-financeira', 'fechamento', 'tv', 'concorrencia'];
   // Caminho de arquivo -> chave de permissão, pra decidir se um ?redirect=
   // aponta pra algo que a pessoa realmente pode abrir (ver irParaDestino).
   // Mesmas chaves de PAGINA_POR_ARQUIVO em assets/auth.js.
@@ -134,6 +135,7 @@
     'bipagem.html': 'bipagem', 'bipagem-v2.html': 'bipagem',
     'estoque.html': 'estoque', 'estoque-atualizar.html': 'estoque',
     'ponto.html': 'ponto', 'projecao-financeira.html': 'projecao-financeira',
+    'fechamento.html': 'fechamento',
     'tv.html': 'tv',
   };
 

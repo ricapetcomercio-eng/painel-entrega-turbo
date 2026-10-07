@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fechamento Mensal — Ricapet · Thapets</title>
+<link rel="icon" type="image/png" href="favicon-ricapet.png?v=teal1">
+<script>(function(){try{var t=localStorage.getItem('ricapet_tema2');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+<script src="assets/auth.js"></script>
+<script src="assets/tema.js" defer></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="assets/tokens-admin.css">
+<style>
+  /* Fechamento Mensal: só LÊ o JSON pronto que o script local
+     (scripts/fechamento/enviar_fechamento.py) gravou no Turso -- nenhum
+     cálculo pesado aqui nem no backend (ver CLAUDE.md, seção "Fechamento
+     Mensal"). Sidebar/kpi/card/tabela/badge vêm de assets/tokens-admin.css;
+     aqui fica só o que é desta página. */
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 0; background: var(--page-bg); color: var(--ink); font-family: var(--font-body); -webkit-font-smoothing: antialiased; font-variant-numeric: tabular-nums; }
+
+  /* Séries dos gráficos -- 3 cores validadas (daltonismo + contraste) no
+     claro e no escuro: faturamento, lucro, custos. Sempre na mesma ordem. */
+  :root { --s-fat: #0095B0; --s-lucro: #B8791F; --s-custo: #6D5BD0; --grade: #E2E8F0; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --s-fat: #0E97B0; --s-lucro: #B77B26; --s-custo: #8C7FE6; --grade: #2A3B44; }
+  }
+  :root[data-theme="dark"] { --s-fat: #0E97B0; --s-lucro: #B77B26; --s-custo: #8C7FE6; --grade: #2A3B44; }
+
+  .shell { max-width: 1320px; margin: 0 auto; padding: 20px 24px 60px; display: flex; flex-direction: column; gap: 18px; }
+
+  header { position: sticky; top: 0; z-index: 5; background: var(--page-bg); border-bottom: 1px solid var(--border); }
+  .hrow { padding: 0 24px; min-height: 64px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .hrow h1 { font-family: var(--font-display); font-size: 1.05rem; font-weight: 700; margin: 0; margin-right: auto; display: flex; flex-direction: column; gap: 2px; line-height: 1.25; }
+  .h-sub { font-size: 0.72rem; font-weight: 500; color: var(--ink-muted); }
+  .seletor-mes { display: flex; align-items: center; gap: 8px; }
+  .seletor-mes label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--ink-muted); }
+  .seletor-mes select { min-width: 170px; font-weight: 700; }
+  .enviado-em { font-size: 11.5px; color: var(--ink-muted); }
+
+  .grid-2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; }
+  .grid-2.prod-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); }
+  @media (max-width: 1000px) { .grid-2, .grid-2.prod-grid { grid-template-columns: minmax(0, 1fr); } }
+
+  /* alerta de conferência ("Algo Errado" na planilha) */
+  .alerta { display: flex; gap: 12px; align-items: flex-start; border-radius: var(--radius-sm); padding: 14px 16px; font-size: 13.5px; line-height: 1.5; }
+  .alerta-erro { background: var(--danger-bg); color: var(--danger-text); border: 2px solid var(--danger); }
+  .alerta-erro strong { font-size: 15px; }
+  .alerta-aviso { background: var(--surface-2); color: var(--ink-soft); border: 1px solid var(--border); font-size: 12.5px; }
+  .alerta .icone { font-size: 22px; line-height: 1; }
+
+  /* KPIs */
+  .kpi-row.cinco { grid-template-columns: repeat(5, 1fr); }
+  @media (max-width: 1080px) { .kpi-row.cinco { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 620px) { .kpi-row.cinco { grid-template-columns: repeat(2, 1fr); } }
+  .kpi-value { font-size: 23px; white-space: nowrap; }
+  .kpi.negativo { border: 2px solid var(--danger); background: var(--danger-bg); }
+  .kpi.negativo .kpi-value { color: var(--danger-text); }
+  .comp { display: flex; flex-direction: column; gap: 3px; font-size: 11.5px; color: var(--ink-muted); }
+  .delta { font-weight: 800; white-space: nowrap; }
+  .delta.bom { color: var(--success-text); }
+  .delta.ruim { color: var(--danger-text); }
+  .delta.neutro { color: var(--ink-muted); }
+  .resumo-extra { display: flex; flex-wrap: wrap; gap: 8px 22px; font-size: 12.5px; color: var(--ink-soft); padding: 2px 4px; }
+  .resumo-extra b { color: var(--ink); font-family: var(--font-mono); font-weight: 600; }
+
+  /* quadro de metas */
+  table.metas td { white-space: nowrap; }
+  .bullet { position: relative; height: 14px; min-width: 90px; background: var(--surface-2); border-radius: 4px; }
+  .bullet .barra { position: absolute; left: 0; top: 3px; height: 8px; border-radius: 0 4px 4px 0; }
+  .bullet .barra.ok { background: var(--success); }
+  .bullet .barra.fora { background: var(--danger); }
+  .bullet .barra.neutra { background: var(--ink-muted); }
+  .bullet .marca { position: absolute; top: -3px; width: 3px; height: 20px; background: var(--ink); border-radius: 2px; }
+  .legenda-meta { font-size: 11px; color: var(--ink-muted); display: flex; gap: 14px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
+  .legenda-meta i { display: inline-block; vertical-align: middle; margin-right: 5px; }
+
+  /* gráficos */
+  .legenda { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--ink-soft); margin: 4px 0 6px; }
+  .legenda span { display: inline-flex; align-items: center; gap: 6px; }
+  .legenda i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+  .linha-chart { width: 100%; height: 280px; position: relative; }
+  .linha-chart svg { display: block; width: 100%; height: 100%; overflow: visible; }
+  .linha-chart text { font-family: var(--font-body); font-size: 11px; fill: var(--ink-muted); }
+
+  .barras { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
+  .barra-linha { display: grid; grid-template-columns: 130px 1fr; gap: 10px; align-items: center; cursor: default; }
+  .barra-linha.clicavel { cursor: pointer; }
+  .barra-linha.clicavel:hover .barra-rotulo, .barra-linha.selecionada .barra-rotulo { color: var(--brand-primary-dark); text-decoration: underline; }
+  .barra-rotulo { font-size: 12.5px; font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .barra-rotulo small { display: block; font-weight: 500; color: var(--ink-muted); font-size: 11px; }
+  .barra-trilhas { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .trilha { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .trilha .fill { height: 12px; border-radius: 0 4px 4px 0; min-width: 2px; flex: none; }
+  .trilha .val { font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-soft); white-space: nowrap; }
+  .trilha .val.neg { color: var(--danger-text); font-weight: 700; }
+
+  /* tabelas */
+  .controles { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; padding: 10px 18px 0; }
+  .controles label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--ink-muted); }
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .seg button { border: none; background: var(--surface); color: var(--ink-soft); font: 700 12px var(--font-body); padding: 7px 11px; cursor: pointer; }
+  .seg button + button { border-left: 1px solid var(--border); }
+  .seg button.ativo { background: var(--brand-primary-light); color: var(--brand-primary-dark); }
+  td.num, th.num { text-align: right; font-family: var(--font-mono); }
+  td.neg { color: var(--danger-text); font-weight: 700; }
+  td.wrap { white-space: normal; min-width: 160px; }
+  .mini-barra { display: inline-block; height: 8px; border-radius: 0 3px 3px 0; background: var(--s-fat); vertical-align: middle; margin-right: 8px; }
+  .total-filtro { margin-left: auto; font-size: 12px; color: var(--ink-muted); font-weight: 600; }
+  .total-filtro b { color: var(--ink); font-family: var(--font-mono); }
+  tfoot td { font-weight: 800; background: var(--surface-2); padding: 9px 12px; font-size: 12.5px; }
+  tr.linha-clicavel { cursor: pointer; }
+  tr.linha-clicavel.selecionada td { background: var(--brand-primary-light); }
+
+  /* tooltip compartilhado */
+  #tip { position: fixed; z-index: 50; pointer-events: none; background: var(--surface); color: var(--ink); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 8px 24px var(--shadow); padding: 9px 11px; font-size: 12px; line-height: 1.55; min-width: 160px; }
+  #tip .t-tit { font-weight: 800; margin-bottom: 3px; }
+  #tip .t-lin { display: flex; align-items: center; gap: 7px; justify-content: space-between; }
+  #tip .t-lin span:first-child { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-soft); }
+  #tip i { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+  #tip b { font-family: var(--font-mono); font-weight: 600; }
+
+  .vazio { text-align: center; padding: 60px 20px; color: var(--ink-soft); }
+  .vazio .icone { font-size: 40px; margin-bottom: 10px; }
+  .vazio h2 { font-family: var(--font-display); font-size: 1.15rem; margin: 0 0 8px; color: var(--ink); }
+  .vazio code { font-family: var(--font-mono); background: var(--surface-2); padding: 2px 7px; border-radius: 6px; }
+  .sem-dado { font-size: 12.5px; color: var(--ink-muted); padding: 14px 0; }
+  .error-note { text-align: center; padding: 24px; font-size: 14px; border-radius: var(--radius); color: var(--danger-text); background: var(--danger-bg); }
+
+  @media (max-width: 620px) {
+    .shell { padding: 14px 16px 50px; }
+    .hrow { padding: 8px 16px; }
+    .barra-linha { grid-template-columns: 96px 1fr; }
+  }
+</style>
+</head>
+<body class="marca-dagua">
+<div id="tela-painel">
+<nav class="sidebar">
+  <div class="sidebar-brand">
+    <img class="sidebar-brand-icon" src="logo-ricapet.png" alt="Ricapet">
+    <div>
+      <div class="sidebar-brand-name">Ricapet</div>
+      <div class="sidebar-brand-sub">Painel Administrativo</div>
+    </div>
+  </div>
+
+  <div class="sidebar-titulo sidebar-titulo-com-editar" id="tituloPaineis">
+    Painéis Ricapet
+    <button type="button" class="sidebar-editar-btn" id="btnEditarMenu" onclick="alternarEdicaoMenu()" title="Reordenar menu">✎</button>
+  </div>
+
+  <a class="sidebar-link" href="/?painel=dashboard" data-menu-key="dashboard">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+    Dashboard
+  </a>
+
+  <a class="sidebar-link" href="/?painel=concorrencia" data-menu-key="concorrencia">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 15l4-6 3 3 5-7"/></svg>
+    Análise de Concorrência
+  </a>
+
+  <a class="sidebar-link" href="/estoque.html" data-menu-key="estoque">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8L12 3 3 8l9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>
+    Estoque Adesivo
+  </a>
+
+  <a class="sidebar-link" href="/ponto.html" data-menu-key="ponto">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+    Controle de Ponto
+  </a>
+
+  <a class="sidebar-link" href="/bipagem-v2.html" data-menu-key="bipagem">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/></svg>
+    Expedição
+  </a>
+
+  <a class="sidebar-link" href="/projecao-financeira.html" data-menu-key="projecao-financeira">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l4-5 3 3 5-6"/><path d="M15 6h4v4"/></svg>
+    Fluxo de Caixa
+  </a>
+
+  <a class="sidebar-link ativo" href="/fechamento.html" data-menu-key="fechamento">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h5"/></svg>
+    Fechamento Mensal
+  </a>
+
+  <a class="sidebar-link" href="/tv.html?token=8IZtk2mmDv2dBiLV8T7kiLHfSzkoMjsD" target="_blank" rel="noopener" data-menu-key="tv">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+    Painel TV
+  </a>
+
+  <a class="sidebar-link" href="/acessos.html" data-menu-key="acessos" style="display:none;">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+    Acessos
+  </a>
+
+  <hr class="sidebar-separador">
+
+  <div class="tema-toggle" data-tema-toggle>
+    <button type="button" data-tema="light" title="Tema claro">☀</button>
+    <button type="button" data-tema="dark" title="Tema escuro">☾</button>
+  </div>
+
+  <div class="sidebar-footer">
+    <div class="sidebar-avatar" id="sidebarAvatarInicial">R</div>
+    <div>
+      <div class="sidebar-footer-name" id="sidebarNomeUsuario">Ricapet</div>
+      <div class="sidebar-footer-sub"><a href="#" id="linkSair" style="color:inherit">Sair</a></div>
+    </div>
+  </div>
+</nav>
+
+<div class="conteudo-principal">
+<header>
+  <div class="hrow">
+    <h1>Fechamento Mensal<span class="h-sub">Como foi o mês — números enviados pelo sistema de fechamento (C:\FECHAMENTO)</span></h1>
+    <span class="enviado-em" id="enviado-em"></span>
+    <div class="seletor-mes">
+      <label for="sel-mes">Mês</label>
+      <select id="sel-mes" class="ds-select" disabled><option>—</option></select>
+    </div>
+  </div>
+</header>
+<div class="shell" id="conteudo"><div class="loading-note">Carregando…</div></div>
+</div>
+</div>
+<div id="tip" hidden></div>
+
+<script>
+(function(){
+  const sessaoAtual = window.RicapetAuth.sessao;
+  const elNomeUsuario = document.getElementById('sidebarNomeUsuario');
+  const elAvatarUsuario = document.getElementById('sidebarAvatarInicial');
+  if (sessaoAtual && elNomeUsuario && elAvatarUsuario) {
+    elNomeUsuario.textContent = sessaoAtual.nome;
+    elAvatarUsuario.textContent = sessaoAtual.nome.charAt(0).toUpperCase();
+  }
+  const elLinkSair = document.getElementById('linkSair');
+  if (elLinkSair) elLinkSair.addEventListener('click', (ev) => { ev.preventDefault(); window.RicapetAuth.sair(); });
+  window.RicapetAuth.aplicarVisibilidadeMenu();
+
+  const MESES_ABREV = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  const MESES_NOME = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+  const elConteudo = document.getElementById('conteudo');
+  const elSel = document.getElementById('sel-mes');
+  const elTip = document.getElementById('tip');
+
+  // Estado da tela (filtros) -- sobrevive à troca de mês.
+  const estado = { dados: null, catCanal: 'todos', catOrdem: 'faturamento', prodCanal: 'todos', prodSel: null, lancRef: '', lancCat: '', lancBusca: '' };
+
+  // ---------- formatação
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const fmtMoeda = (v) => (v == null ? '—' : v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }));
+  const fmtMoeda0 = (v) => (v == null ? '—' : v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }));
+  const fmtPct = (v, casas = 1) => (v == null || !isFinite(v) ? '—' : (v * 100).toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas }) + '%');
+  const fmtNum = (v) => (v == null ? '—' : v.toLocaleString('pt-BR', { maximumFractionDigits: 0 }));
+  function fmtCompacto(v) {
+    if (v == null) return '—';
+    const a = Math.abs(v);
+    if (a >= 1e6) return 'R$ ' + (v / 1e6).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' mi';
+    if (a >= 1e3) return 'R$ ' + (v / 1e3).toLocaleString('pt-BR', { maximumFractionDigits: 0 }) + ' mil';
+    return 'R$ ' + v.toLocaleString('pt-BR', { maximumFractionDigits: 0 });
+  }
+  const rotuloMes = (mes) => { const [a, m] = mes.split('-').map(Number); return `${MESES_ABREV[m - 1]}/${String(a).slice(2)}`; };
+  const nomeMes = (mes) => { const [a, m] = mes.split('-').map(Number); return `${MESES_NOME[m - 1]} de ${a}`; };
+  function fmtDataHora(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (isNaN(d)) return '';
+    return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
+  function fmtData(s) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s || '');
+    return m ? `${m[3]}/${m[2]}` : esc(s || '');
+  }
+
+  // ---------- tooltip
+  function mostrarTip(html, x, y) {
+    elTip.innerHTML = html;
+    elTip.hidden = false;
+    const r = elTip.getBoundingClientRect();
+    let left = x + 14, top = y + 14;
+    if (left + r.width > window.innerWidth - 8) left = x - r.width - 14;
+    if (top + r.height > window.innerHeight - 8) top = y - r.height - 14;
+    elTip.style.left = Math.max(8, left) + 'px';
+    elTip.style.top = Math.max(8, top) + 'px';
+  }
+  function esconderTip() { elTip.hidden = true; }
+  const linhaTip = (cor, rotulo, valor) => `<div class="t-lin"><span>${cor ? `<i style="background:${cor}"></i>` : ''}${esc(rotulo)}</span><b>${valor}</b></div>`;
+
+  // ---------- carga
+  async function carregar(mes) {
+    if (!estado.dados) elConteudo.innerHTML = '<div class="loading-note">Carregando…</div>';
+    try {
+      const params = new URLSearchParams({ tipo: 'fechamento-dados' });
+      if (sessaoAtual) params.set('token', sessaoAtual.token);
+      if (mes) params.set('mes', mes);
+      const resp = await fetch('/api/debug?' + params.toString());
+      if (resp.status === 401) { window.RicapetAuth.sair(); return; }
+      const json = await resp.json().catch(() => ({}));
+      if (resp.status === 403) { window.RicapetAuth.mostrarAcessoNegado(json.error); return; }
+      if (!resp.ok || !json.ok) throw new Error(json.error || ('HTTP ' + resp.status));
+      estado.dados = json;
+      estado.prodSel = null;
+      render();
+    } catch (e) {
+      elConteudo.innerHTML = `<div class="error-note">Não foi possível carregar o fechamento: ${esc(e.message)}</div>`;
+    }
+  }
+
+  function preencherSeletor(indice, mesAtual) {
+    elSel.innerHTML = indice.slice().reverse().map((x) =>
+      `<option value="${esc(x.mes)}" ${x.mes === mesAtual ? 'selected' : ''}>${esc(nomeMes(x.mes))}${x.conferencia_erro ? ' ⚠' : ''}</option>`).join('');
+    elSel.disabled = indice.length < 2;
+  }
+  elSel.addEventListener('change', () => carregar(elSel.value));
+
+  // ---------- render principal
+  function render() {
+    const { indice, atual, anterior, ano_anterior: anoAnt } = estado.dados;
+    if (!atual) {
+      preencherSeletor([], null);
+      elSel.innerHTML = '<option>—</option>';
+      document.getElementById('enviado-em').textContent = '';
+      elConteudo.innerHTML = `
+        <div class="card vazio">
+          <div class="icone">📊</div>
+          <h2>Nenhum fechamento enviado ainda.</h2>
+          <p>Rode o fechamento em <code>C:\\FECHAMENTO\\01 EXECUTAR</code>.<br>
+          Depois que o envio terminar, recarregue esta página e o mês aparece aqui.</p>
+        </div>`;
+      return;
+    }
+    preencherSeletor(indice, atual.mes);
+    document.getElementById('enviado-em').textContent = atual.recebido_em ? `Enviado em ${fmtDataHora(atual.recebido_em)}` : '';
+
+    elConteudo.innerHTML = [
+      htmlAlertas(atual),
+      htmlKpis(atual, anterior, anoAnt),
+      `<div class="grid-2">${htmlMetas(atual)}${htmlEvolucaoCard(indice)}</div>`,
+      `<div class="grid-2">${htmlCanais(atual)}${htmlCategoriasCard()}</div>`,
+      htmlProdutosCard(),
+      `<div class="grid-2">${htmlCustosCard('referencia', 'Custos por referência', 'Grupo do lançamento (FIXO GERAL, ADS, IMPOSTOS…). Clique numa barra para filtrar a lista abaixo.')}${htmlCustosCard('categoria', 'Custos por categoria', 'Detalhe do lançamento (Salários, Aluguel, Marketing…). Clique numa barra para filtrar.')}</div>`,
+      htmlLancamentosCard(),
+      htmlInvestimentos(atual),
+    ].join('');
+
+    desenharEvolucao(indice, atual.mes);
+    renderCategorias();
+    renderProdutos();
+    renderCustos();
+    renderLancamentos();
+    ligarEventos();
+  }
+
+  // ---------- alertas
+  function htmlAlertas(f) {
+    const erros = (f.conferencias || []).filter((c) => c.status === 'erro');
+    let html = '';
+    if (erros.length) {
+      const onde = erros.map((c) => `<b>${esc(c.celula)}</b>${c.rotulo ? ` (${esc(c.rotulo)})` : ''}`).join(', ');
+      html += `<div class="alerta alerta-erro" role="alert"><span class="icone">⚠</span><div>
+        <strong>Conferência da planilha: "Algo Errado"</strong><br>
+        A própria planilha de fechamento acusou erro de conferência em ${onde}. Confira o fechamento antes de usar estes números.</div></div>`;
+    }
+    if ((f.avisos || []).length) {
+      html += `<div class="alerta alerta-aviso"><span class="icone">ℹ</span><div>Partes que não foram encontradas na planilha deste mês (aparecem vazias abaixo): ${f.avisos.map(esc).join(' ')}</div></div>`;
+    }
+    return html;
+  }
+
+  // ---------- KPIs
+  function variacao(atual, base, { custo = false, pp = false } = {}) {
+    if (atual == null || base == null) return null;
+    if (pp) {
+      const d = atual - base;
+      return { txt: (d >= 0 ? '▲ ' : '▼ ') + (Math.abs(d) * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' p.p.', classe: Math.abs(d) < 0.0005 ? 'neutro' : (d > 0) !== custo ? 'bom' : 'ruim' };
+    }
+    if (base === 0) return null;
+    const d = (atual - base) / Math.abs(base);
+    return { txt: (d >= 0 ? '▲ ' : '▼ ') + (Math.abs(d) * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '%', classe: Math.abs(d) < 0.0005 ? 'neutro' : (d > 0) !== custo ? 'bom' : 'ruim' };
+  }
+  function margem(f) {
+    const r = f && f.resumo;
+    return r && r.faturamento_bruto ? (r.lucro_liquido == null ? null : r.lucro_liquido / r.faturamento_bruto) : null;
+  }
+
+  function htmlKpis(f, ant, anoAnt) {
+    const r = f.resumo;
+    const defs = [
+      { rot: 'Faturamento bruto', v: r.faturamento_bruto, ga: (x) => x.resumo.faturamento_bruto, fmt: fmtMoeda0, icone: '💰' },
+      { rot: 'Lucro bruto', v: r.lucro_bruto, ga: (x) => x.resumo.lucro_bruto, fmt: fmtMoeda0, icone: '📦', sinal: true },
+      { rot: 'Custos do mês', v: r.custos_mensais, ga: (x) => x.resumo.custos_mensais, fmt: fmtMoeda0, icone: '🧾', custo: true },
+      { rot: 'Lucro líquido', v: r.lucro_liquido, ga: (x) => x.resumo.lucro_liquido, fmt: fmtMoeda0, icone: '🏁', sinal: true },
+      { rot: 'Margem líquida', v: margem(f), ga: margem, fmt: (v) => fmtPct(v), icone: '％', sinal: true, pp: true },
+    ];
+    const tiles = defs.map((d) => {
+      const neg = d.sinal && d.v != null && d.v < 0;
+      const comps = [];
+      if (ant) {
+        const va = variacao(d.v, d.ga(ant), d);
+        comps.push(va ? `<span><span class="delta ${va.classe}">${va.txt}</span> vs ${rotuloMes(ant.mes)}</span>` : `<span>— vs ${rotuloMes(ant.mes)}</span>`);
+      }
+      if (anoAnt) {
+        const vy = variacao(d.v, d.ga(anoAnt), d);
+        comps.push(vy ? `<span><span class="delta ${vy.classe}">${vy.txt}</span> vs ${rotuloMes(anoAnt.mes)}</span>` : '');
+      }
+      if (!ant && !anoAnt) comps.push('<span>Sem mês anterior enviado para comparar</span>');
+      return `<div class="kpi ${neg ? 'negativo tone-bad' : ''}">
+        <div class="kpi-top"><span class="kpi-label">${d.rot}</span><span class="kpi-icon" aria-hidden="true">${d.icone}</span></div>
+        <div class="kpi-value">${neg ? '−' + d.fmt(Math.abs(d.v)).replace('-', '') : d.fmt(d.v)}</div>
+        ${neg ? '<div class="kpi-sub" style="color:var(--danger-text)">⚠ Prejuízo no mês</div>' : ''}
+        <div class="comp">${comps.join('')}</div>
+      </div>`;
+    }).join('');
+    const extras = [];
+    if (r.lucro_empresa != null) extras.push(`Lucro da empresa: <b style="${r.lucro_empresa < 0 ? 'color:var(--danger-text)' : ''}">${fmtMoeda(r.lucro_empresa)}</b>`);
+    if (r.retirada_socios != null) extras.push(`Retirada dos sócios: <b>${fmtMoeda(r.retirada_socios)}</b>`);
+    else if (r.retirada_socios_texto) extras.push(`Retirada dos sócios: <b>${esc(r.retirada_socios_texto.toLowerCase())}</b>`);
+    (r.bonus || []).forEach((b) => extras.push(`${esc(b.rotulo)}: <b>${fmtMoeda(b.valor)}</b>`));
+    return `<div>
+      <h2 style="font-family:var(--font-display);font-size:1.25rem;margin:0 0 10px">${esc(nomeMes(f.mes))}</h2>
+      <div class="kpi-row cinco">${tiles}</div>
+      ${extras.length ? `<div class="resumo-extra" style="margin-top:10px">${extras.map((e) => `<span>${e}</span>`).join('')}</div>` : ''}
+    </div>`;
+  }
+
+  // ---------- metas
+  function htmlMetas(f) {
+    const metas = (f.metas || []).filter((m) => m.porcentagem != null);
+    if (!metas.length) return `<div class="card"><div class="card-head"><h3>Metas do mês</h3></div><div class="sem-dado">Quadro de metas não encontrado neste mês.</div></div>`;
+    const escala = Math.max(0.5, ...metas.filter((m) => !/faturamento/i.test(m.linha)).map((m) => Math.max(Math.abs(m.porcentagem || 0), Math.abs(m.meta || 0)))) * 1.1;
+    const linhas = metas.map((m) => {
+      const ehFat = /faturamento/i.test(m.linha);
+      const temMeta = m.meta != null && !ehFat;
+      // Custo (taxas, CMV, custos fixos): bom é ficar ABAIXO da meta.
+      // Resultado (contribuição, lucro): bom é ficar ACIMA.
+      const ok = temMeta ? (m.tipo === 'custo' ? m.porcentagem <= m.meta : m.porcentagem >= m.meta) : null;
+      const dif = temMeta ? (m.tipo === 'custo' ? m.meta - m.porcentagem : m.porcentagem - m.meta) : null;
+      const largura = ehFat ? 100 : Math.max(0, Math.min(100, (Math.max(0, m.porcentagem) / escala) * 100));
+      const posMeta = temMeta ? Math.max(0, Math.min(100, (m.meta / escala) * 100)) : null;
+      const badge = ok === null ? '<span class="badge badge-neutral">—</span>'
+        : ok ? '<span class="badge badge-success">✓ Dentro</span>'
+          : '<span class="badge badge-danger">✗ Fora</span>';
+      const tip = `${m.linha}|${fmtPct(m.porcentagem)}|${temMeta ? fmtPct(m.meta) : '—'}|${fmtMoeda(m.valor)}`;
+      return `<tr data-tip-meta="${esc(tip)}">
+        <td class="c-nome">${esc(m.linha)}<div class="muted" style="font-weight:500;font-size:11px">${m.tipo === 'custo' && !ehFat ? 'quanto menor, melhor' : ehFat ? 'base (100%)' : 'quanto maior, melhor'}</div></td>
+        <td class="num">${fmtPct(m.porcentagem)}</td>
+        <td class="num">${temMeta ? fmtPct(m.meta) : '—'}</td>
+        <td><div class="bullet" aria-hidden="true"><div class="barra ${ok === null ? 'neutra' : ok ? 'ok' : 'fora'}" style="width:${largura}%"></div>${posMeta != null ? `<div class="marca" style="left:calc(${posMeta}% - 1px)"></div>` : ''}</div></td>
+        <td>${badge}${dif != null ? `<div class="muted" style="font-size:11px;margin-top:3px">${(Math.abs(dif) * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} p.p. ${dif >= 0 ? 'de folga' : m.tipo === 'custo' ? 'acima' : 'abaixo'}</div>` : ''}</td>
+      </tr>`;
+    }).join('');
+    return `<div class="table-card">
+      <div class="table-card-head"><h3>Metas do mês — realizado × meta</h3><p>Percentual sobre o faturamento bruto, como no quadro de metas da planilha. Passe o mouse numa linha para ver o valor em R$.</p></div>
+      <div class="table-scroll" style="max-height:none"><table class="metas">
+        <thead><tr><th>Linha</th><th class="num">Realizado</th><th class="num">Meta</th><th>Comparação</th><th>Situação</th></tr></thead>
+        <tbody>${linhas}</tbody></table></div>
+      <div class="legenda-meta" style="padding:0 18px 14px"><span><i style="width:16px;height:8px;background:var(--success);border-radius:2px"></i>realizado dentro da meta</span><span><i style="width:16px;height:8px;background:var(--danger);border-radius:2px"></i>fora da meta</span><span><i style="width:3px;height:14px;background:var(--ink);border-radius:2px"></i>meta</span></div>
+    </div>`;
+  }
+
+  // ---------- evolução 12 meses (linha)
+  const SERIES_EVO = [
+    { chave: 'faturamento_bruto', rot: 'Faturamento bruto', cor: 'var(--s-fat)' },
+    { chave: 'lucro_liquido', rot: 'Lucro líquido', cor: 'var(--s-lucro)' },
+    { chave: 'custos_mensais', rot: 'Custos', cor: 'var(--s-custo)' },
+  ];
+  function htmlEvolucaoCard(indice) {
+    const legenda = SERIES_EVO.map((s) => `<span><i style="background:${s.cor}"></i>${s.rot}</span>`).join('');
+    return `<div class="card">
+      <div class="card-head"><h3>Evolução — últimos 12 meses</h3><span class="hint">clique num mês para abri-lo</span></div>
+      ${indice.length < 2 ? '<div class="sem-dado">A evolução aparece quando houver pelo menos 2 meses enviados. Rode o envio com <code>--todos</code> uma vez para mandar o histórico.</div>'
+        : `<div class="legenda">${legenda}</div><div class="linha-chart" id="evo"></div>`}
+    </div>`;
+  }
+
+  function desenharEvolucao(indice, mesSel) {
+    const el = document.getElementById('evo');
+    if (!el) return;
+    const posSel = indice.findIndex((x) => x.mes === mesSel);
+    const fim = posSel >= 0 ? posSel + 1 : indice.length;
+    const pontos = indice.slice(Math.max(0, fim - 12), fim);
+    if (pontos.length < 2) { el.innerHTML = '<div class="sem-dado">Só há 1 mês até o selecionado.</div>'; return; }
+    const W = el.clientWidth || 600, H = el.clientHeight || 280;
+    const m = { t: 14, r: 92, b: 26, l: 64 };
+    const vals = [];
+    pontos.forEach((p) => SERIES_EVO.forEach((s) => { if (p[s.chave] != null) vals.push(p[s.chave]); }));
+    let min = Math.min(0, ...vals), max = Math.max(0, ...vals);
+    const passo = passoBonito((max - min) / 4);
+    min = Math.floor(min / passo) * passo; max = Math.ceil(max / passo) * passo;
+    const x = (i) => m.l + (i * (W - m.l - m.r)) / (pontos.length - 1);
+    const y = (v) => m.t + ((max - v) * (H - m.t - m.b)) / (max - min || 1);
+    let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Evolução de faturamento, lucro líquido e custos">`;
+    for (let v = min; v <= max + passo / 2; v += passo) {
+      svg += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(v)}" y2="${y(v)}" stroke="var(--grade)" stroke-width="${v === 0 ? 1.5 : 1}" ${v === 0 ? '' : 'stroke-dasharray="2 3"'}/>`;
+      svg += `<text x="${m.l - 8}" y="${y(v) + 4}" text-anchor="end">${fmtCompacto(v)}</text>`;
+    }
+    const iSel = pontos.findIndex((p) => p.mes === mesSel);
+    if (iSel >= 0) svg += `<rect x="${x(iSel) - 14}" y="${m.t}" width="28" height="${H - m.t - m.b}" fill="var(--brand-primary-light)" opacity=".8" rx="4"/>`;
+    const pulo = (W - m.l - m.r) / (pontos.length - 1) < 46 ? 2 : 1;
+    pontos.forEach((p, i) => { if ((pontos.length - 1 - i) % pulo && i !== iSel) return; svg += `<text x="${x(i)}" y="${H - 6}" text-anchor="middle" style="${i === iSel ? 'font-weight:800;fill:var(--ink)' : ''}">${rotuloMes(p.mes)}</text>`; });
+    const ultimos = [];
+    SERIES_EVO.forEach((s) => {
+      let d = '';
+      pontos.forEach((p, i) => { if (p[s.chave] != null) d += (d ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(p[s.chave]).toFixed(1); });
+      svg += `<path d="${d}" fill="none" stroke="${s.cor}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+      const ult = pontos[pontos.length - 1][s.chave];
+      if (ult != null) {
+        svg += `<circle cx="${x(pontos.length - 1)}" cy="${y(ult)}" r="4" fill="${s.cor}" stroke="var(--surface)" stroke-width="2"/>`;
+        ultimos.push({ y: y(ult), s, v: ult });
+      }
+    });
+    // rótulos diretos no fim de cada linha, sem sobreposição
+    ultimos.sort((a, b) => a.y - b.y);
+    for (let i = 1; i < ultimos.length; i++) if (ultimos[i].y - ultimos[i - 1].y < 14) ultimos[i].y = ultimos[i - 1].y + 14;
+    ultimos.forEach((u) => { svg += `<text x="${W - m.r + 8}" y="${u.y + 4}" style="fill:var(--ink-soft);font-weight:600">${esc(u.s.rot.split(' ')[0])}</text>`; });
+    svg += `<line id="evo-cruz" x1="0" x2="0" y1="${m.t}" y2="${H - m.b}" stroke="var(--ink-muted)" stroke-width="1" visibility="hidden"/>`;
+    svg += `<g id="evo-pts"></g>`;
+    svg += `<rect id="evo-hit" x="${m.l - 20}" y="0" width="${W - m.l - m.r + 40}" height="${H}" fill="transparent" style="cursor:pointer"/>`;
+    svg += '</svg>';
+    el.innerHTML = svg;
+
+    const hit = el.querySelector('#evo-hit'), cruz = el.querySelector('#evo-cruz'), pts = el.querySelector('#evo-pts');
+    const idxDe = (ev) => {
+      const r = el.getBoundingClientRect();
+      const px = ((ev.clientX - r.left) / r.width) * W;
+      return Math.max(0, Math.min(pontos.length - 1, Math.round(((px - m.l) / (W - m.l - m.r)) * (pontos.length - 1))));
+    };
+    hit.addEventListener('mousemove', (ev) => {
+      const i = idxDe(ev), p = pontos[i];
+      cruz.setAttribute('x1', x(i)); cruz.setAttribute('x2', x(i)); cruz.setAttribute('visibility', 'visible');
+      pts.innerHTML = SERIES_EVO.filter((s) => p[s.chave] != null).map((s) => `<circle cx="${x(i)}" cy="${y(p[s.chave])}" r="5" fill="${s.cor}" stroke="var(--surface)" stroke-width="2"/>`).join('');
+      const mg = p.faturamento_bruto ? p.lucro_liquido / p.faturamento_bruto : null;
+      mostrarTip(`<div class="t-tit">${esc(nomeMes(p.mes))}${p.conferencia_erro ? ' ⚠' : ''}</div>`
+        + SERIES_EVO.map((s) => linhaTip(s.cor, s.rot, fmtMoeda0(p[s.chave]))).join('')
+        + linhaTip('', 'Margem líquida', fmtPct(mg)), ev.clientX, ev.clientY);
+    });
+    hit.addEventListener('mouseleave', () => { cruz.setAttribute('visibility', 'hidden'); pts.innerHTML = ''; esconderTip(); });
+    hit.addEventListener('click', (ev) => { const p = pontos[idxDe(ev)]; if (p && p.mes !== mesSel) { esconderTip(); carregar(p.mes); } });
+  }
+  function passoBonito(bruto) {
+    if (!(bruto > 0)) return 1000;
+    const pot = Math.pow(10, Math.floor(Math.log10(bruto)));
+    const n = bruto / pot;
+    return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * pot;
+  }
+
+  // ---------- canais
+  function canaisCombinados(f) {
+    const mapa = new Map();
+    (f.faturamento_canais || []).forEach((c) => { mapa.set(c.canal, { canal: c.canal, fat: c.total, lucro: null }); });
+    (f.lucro_canais || []).forEach((c) => {
+      const x = mapa.get(c.canal) || { canal: c.canal, fat: null, lucro: null };
+      x.lucro = c.total; mapa.set(c.canal, x);
+    });
+    if (!mapa.size) {
+      (f.produtos || []).forEach((c) => { if (c.total) mapa.set(c.canal, { canal: c.canal, fat: c.total.valor_entrada, lucro: c.total.lucro_total }); });
+    }
+    return [...mapa.values()].sort((a, b) => (b.fat || 0) - (a.fat || 0));
+  }
+  function htmlCanais(f) {
+    const canais = canaisCombinados(f);
+    if (!canais.length) return `<div class="card"><div class="card-head"><h3>Faturamento e lucro por canal</h3></div><div class="sem-dado">Sem dados por canal neste mês.</div></div>`;
+    const max = Math.max(...canais.map((c) => Math.max(Math.abs(c.fat || 0), Math.abs(c.lucro || 0)))) || 1;
+    const totFat = canais.reduce((s, c) => s + (c.fat || 0), 0);
+    const linhas = canais.map((c) => {
+      const mg = c.fat ? (c.lucro || 0) / c.fat : null;
+      const tip = `${c.canal}|${fmtMoeda(c.fat)}|${fmtMoeda(c.lucro)}|${fmtPct(mg)}|${fmtPct(totFat ? (c.fat || 0) / totFat : null)}`;
+      return `<div class="barra-linha" data-tip-canal="${esc(tip)}">
+        <div class="barra-rotulo">${esc(c.canal)}<small>margem ${fmtPct(mg)}</small></div>
+        <div class="barra-trilhas">
+          <div class="trilha"><span class="fill" style="width:calc((100% - 78px) * ${Math.abs(c.fat || 0) / max});background:var(--s-fat)"></span><span class="val">${fmtCompacto(c.fat)}</span></div>
+          <div class="trilha"><span class="fill" style="width:calc((100% - 78px) * ${Math.abs(c.lucro || 0) / max});background:${(c.lucro || 0) < 0 ? 'var(--danger)' : 'var(--s-lucro)'}"></span><span class="val ${(c.lucro || 0) < 0 ? 'neg' : ''}">${fmtCompacto(c.lucro)}</span></div>
+        </div></div>`;
+    }).join('');
+    return `<div class="card">
+      <div class="card-head"><h3>Faturamento e lucro bruto por canal</h3><span class="hint">ordem: maior faturamento</span></div>
+      <div class="legenda"><span><i style="background:var(--s-fat)"></i>Faturamento</span><span><i style="background:var(--s-lucro)"></i>Lucro bruto</span></div>
+      <div class="barras">${linhas}</div>
+    </div>`;
+  }
+
+  // ---------- categorias
+  function htmlCategoriasCard() {
+    const canais = canaisCombinados(estado.dados.atual).map((c) => c.canal);
+    return `<div class="table-card">
+      <div class="table-card-head"><h3>Ranking de categorias de produto</h3><p>Soma das categorias da planilha (faturamento e lucro por canal × categoria).</p></div>
+      <div class="controles">
+        <label for="cat-canal">Canal</label>
+        <select id="cat-canal" class="ds-select"><option value="todos">Todos</option>${canais.map((c) => `<option value="${esc(c)}" ${estado.catCanal === c ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select>
+        <div class="seg" id="cat-ordem">${[['faturamento', 'Faturamento'], ['lucro', 'Lucro'], ['margem', 'Margem']].map(([k, r]) => `<button type="button" data-ordem="${k}" class="${estado.catOrdem === k ? 'ativo' : ''}">${r}</button>`).join('')}</div>
+      </div>
+      <div class="table-scroll" id="cat-tabela"></div>
+    </div>`;
+  }
+  function renderCategorias() {
+    const f = estado.dados.atual;
+    const el = document.getElementById('cat-tabela');
+    const filtro = (c) => estado.catCanal === 'todos' || c.canal === estado.catCanal;
+    const mapa = new Map();
+    (f.faturamento_canais || []).filter(filtro).forEach((c) => c.categorias.forEach((x) => {
+      const k = x.categoria.trim().toLowerCase();
+      const o = mapa.get(k) || { categoria: x.categoria, fat: 0, lucro: 0, temLucro: false };
+      o.fat += x.valor; mapa.set(k, o);
+    }));
+    (f.lucro_canais || []).filter(filtro).forEach((c) => c.categorias.forEach((x) => {
+      const k = x.categoria.trim().toLowerCase();
+      const o = mapa.get(k) || { categoria: x.categoria, fat: 0, lucro: 0, temLucro: false };
+      o.lucro += x.valor; o.temLucro = true; mapa.set(k, o);
+    }));
+    const lista = [...mapa.values()].map((o) => ({ ...o, margem: o.fat ? o.lucro / o.fat : null }));
+    if (!lista.length) { el.innerHTML = '<div class="sem-dado" style="padding:14px 18px">Sem categorias neste mês.</div>'; return; }
+    const chave = { faturamento: 'fat', lucro: 'lucro', margem: 'margem' }[estado.catOrdem];
+    lista.sort((a, b) => (b[chave] ?? -Infinity) - (a[chave] ?? -Infinity));
+    const maxFat = Math.max(...lista.map((o) => o.fat)) || 1;
+    const totFat = lista.reduce((s, o) => s + o.fat, 0), totLuc = lista.reduce((s, o) => s + o.lucro, 0);
+    el.innerHTML = `<table><thead><tr><th>#</th><th>Categoria</th><th class="num">Faturamento</th><th class="num">Lucro bruto</th><th class="num">Margem</th></tr></thead><tbody>
+      ${lista.map((o, i) => `<tr><td class="muted">${i + 1}</td><td class="c-nome">${esc(o.categoria)}</td>
+        <td class="num"><span class="mini-barra" style="width:${Math.max(2, (o.fat / maxFat) * 70)}px"></span>${fmtMoeda0(o.fat)}</td>
+        <td class="num ${o.lucro < 0 ? 'neg' : ''}">${o.temLucro ? fmtMoeda0(o.lucro) : '—'}</td>
+        <td class="num ${o.margem != null && o.margem < 0 ? 'neg' : ''}">${o.temLucro ? fmtPct(o.margem) : '—'}</td></tr>`).join('')}
+      </tbody><tfoot><tr><td></td><td>Total</td><td class="num">${fmtMoeda0(totFat)}</td><td class="num">${fmtMoeda0(totLuc)}</td><td class="num">${fmtPct(totFat ? totLuc / totFat : null)}</td></tr></tfoot></table>`;
+  }
+
+  // ---------- produtos
+  function produtosDoFiltro() {
+    const f = estado.dados.atual;
+    const mapa = new Map();
+    (f.produtos || []).filter((c) => estado.prodCanal === 'todos' || c.canal === estado.prodCanal).forEach((c) => c.produtos.forEach((p) => {
+      const k = p.nome.trim().toLowerCase();
+      const o = mapa.get(k) || { nome: p.nome, tipo: p.tipo_variacao, canais: [], unidades: 0, fat: 0, custo: 0, lucro: 0, variacoes: new Map() };
+      o.canais.push(c.canal);
+      const t = p.total || {};
+      o.unidades += t.unidades || 0; o.fat += t.valor_entrada || 0; o.custo += t.custo_total || 0; o.lucro += t.lucro_total || 0;
+      p.variacoes.forEach((v) => {
+        const kv = (v.subgrupo || '') + '|' + v.nome.trim().toLowerCase();
+        const ov = o.variacoes.get(kv) || { nome: v.nome, subgrupo: v.subgrupo, unidades: 0, fat: 0, custo: 0, lucro: 0 };
+        ov.unidades += v.unidades || 0; ov.fat += v.valor_entrada || 0; ov.custo += v.custo_total || 0; ov.lucro += v.lucro_total || 0;
+        o.variacoes.set(kv, ov);
+      });
+      mapa.set(k, o);
+    }));
+    return [...mapa.values()].sort((a, b) => b.fat - a.fat);
+  }
+  function htmlProdutosCard() {
+    const canais = (estado.dados.atual.produtos || []).map((c) => c.canal);
+    return `<div class="table-card">
+      <div class="table-card-head"><h3>Produtos — clique num produto para ver por variação (cor / modelo / tamanho)</h3><p>Da tabela de produtos da planilha. "Faturamento" aqui é o valor de entrada (o que entrou de fato por produto).</p></div>
+      <div class="controles">
+        <label for="prod-canal">Canal</label>
+        <select id="prod-canal" class="ds-select"><option value="todos">Todos</option>${canais.map((c) => `<option value="${esc(c)}" ${estado.prodCanal === c ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select>
+      </div>
+      <div class="grid-2 prod-grid" style="gap:0">
+        <div class="table-scroll" id="prod-lista"></div>
+        <div class="table-scroll" id="prod-detalhe" style="border-left:1px solid var(--border-soft)"></div>
+      </div>
+    </div>`;
+  }
+  function renderProdutos() {
+    const lista = produtosDoFiltro();
+    const elL = document.getElementById('prod-lista'), elD = document.getElementById('prod-detalhe');
+    if (!lista.length) { elL.innerHTML = '<div class="sem-dado" style="padding:14px 18px">Tabela de produtos não encontrada neste mês.</div>'; elD.innerHTML = ''; return; }
+    if (!estado.prodSel || !lista.some((p) => p.nome === estado.prodSel)) estado.prodSel = lista[0].nome;
+    const maxFat = Math.max(...lista.map((p) => p.fat)) || 1;
+    elL.innerHTML = `<table><thead><tr><th>Produto</th><th class="num">Unid.</th><th class="num">Faturamento</th><th class="num">Lucro</th><th class="num">Margem</th></tr></thead><tbody>
+      ${lista.map((p) => `<tr class="linha-clicavel ${p.nome === estado.prodSel ? 'selecionada' : ''}" data-produto="${esc(p.nome)}" tabindex="0">
+        <td class="c-nome">${esc(p.nome)}</td><td class="num">${fmtNum(p.unidades)}</td>
+        <td class="num"><span class="mini-barra" style="width:${Math.max(2, (p.fat / maxFat) * 50)}px"></span>${fmtMoeda0(p.fat)}</td>
+        <td class="num ${p.lucro < 0 ? 'neg' : ''}">${fmtMoeda0(p.lucro)}</td>
+        <td class="num ${p.lucro < 0 ? 'neg' : ''}">${fmtPct(p.fat ? p.lucro / p.fat : null)}</td></tr>`).join('')}
+      </tbody></table>`;
+    const p = lista.find((x) => x.nome === estado.prodSel);
+    const vars = [...p.variacoes.values()].sort((a, b) => (a.subgrupo || '').localeCompare(b.subgrupo || '', 'pt-BR', { numeric: true }) || b.fat - a.fat);
+    const temSub = vars.some((v) => v.subgrupo);
+    elD.innerHTML = `<div style="padding:10px 12px 0;font-weight:800;font-size:13px">${esc(p.nome)} <span class="muted" style="font-weight:500;font-size:11.5px">por ${esc((p.tipo || 'variação').toLowerCase())} · ${esc([...new Set(p.canais)].join(', '))}</span></div>
+      <table><thead><tr>${temSub ? '<th>Tamanho/grupo</th>' : ''}<th>${esc(p.tipo || 'Variação')}</th><th class="num">Unid.</th><th class="num">Faturamento</th><th class="num">Custo</th><th class="num">Lucro</th><th class="num">Margem</th></tr></thead><tbody>
+      ${vars.map((v) => `<tr>${temSub ? `<td class="muted">${esc(v.subgrupo || '—')}</td>` : ''}<td class="c-nome">${esc(v.nome)}</td><td class="num">${fmtNum(v.unidades)}</td><td class="num">${fmtMoeda0(v.fat)}</td><td class="num">${fmtMoeda0(v.custo)}</td>
+        <td class="num ${v.lucro < 0 ? 'neg' : ''}">${fmtMoeda0(v.lucro)}</td><td class="num ${v.lucro < 0 ? 'neg' : ''}">${fmtPct(v.fat ? v.lucro / v.fat : null)}</td></tr>`).join('') || `<tr><td colspan="7" class="muted">Sem variações.</td></tr>`}
+      </tbody><tfoot><tr>${temSub ? '<td></td>' : ''}<td>Total</td><td class="num">${fmtNum(p.unidades)}</td><td class="num">${fmtMoeda0(p.fat)}</td><td class="num">${fmtMoeda0(p.custo)}</td><td class="num">${fmtMoeda0(p.lucro)}</td><td class="num">${fmtPct(p.fat ? p.lucro / p.fat : null)}</td></tr></tfoot></table>`;
+  }
+
+  // ---------- custos
+  function htmlCustosCard(campo, titulo, sub) {
+    return `<div class="card"><div class="card-head"><h3>${titulo}</h3></div><div class="card-note" style="margin:0 0 6px">${sub}</div><div class="barras" id="custos-${campo}"></div></div>`;
+  }
+  function renderCustos() {
+    const lanc = estado.dados.atual.lancamentos || [];
+    const total = lanc.reduce((s, l) => s + l.valor, 0);
+    ['referencia', 'categoria'].forEach((campo) => {
+      const el = document.getElementById('custos-' + campo);
+      if (!lanc.length) { el.innerHTML = '<div class="sem-dado">Sem lançamentos de custo neste mês.</div>'; return; }
+      const mapa = new Map();
+      lanc.forEach((l) => { const k = l[campo] || '(sem ' + campo + ')'; mapa.set(k, (mapa.get(k) || 0) + l.valor); });
+      let itens = [...mapa.entries()].sort((a, b) => b[1] - a[1]);
+      if (itens.length > 12) {
+        const resto = itens.slice(11).reduce((s, x) => s + x[1], 0);
+        itens = itens.slice(0, 11).concat([['Outros', resto]]);
+      }
+      const max = Math.max(...itens.map((x) => Math.abs(x[1]))) || 1;
+      const filtroAtual = campo === 'referencia' ? estado.lancRef : estado.lancCat;
+      el.innerHTML = itens.map(([k, v]) => `<div class="barra-linha ${k !== 'Outros' ? 'clicavel' : ''} ${filtroAtual === k ? 'selecionada' : ''}" ${k !== 'Outros' ? `data-filtro-${campo}="${esc(k)}"` : ''} data-tip-custo="${esc(k + '|' + fmtMoeda(v) + '|' + fmtPct(total ? v / total : null))}">
+        <div class="barra-rotulo" title="${esc(k)}">${esc(k)}</div>
+        <div class="barra-trilhas"><div class="trilha"><span class="fill" style="width:calc((100% - 118px) * ${Math.abs(v) / max});background:var(--s-custo)"></span><span class="val">${fmtCompacto(v)} · ${fmtPct(total ? v / total : null, 0)}</span></div></div>
+      </div>`).join('');
+    });
+  }
+
+  // ---------- lançamentos
+  function htmlLancamentosCard() {
+    const lanc = estado.dados.atual.lancamentos || [];
+    const refs = [...new Set(lanc.map((l) => l.referencia).filter(Boolean))].sort();
+    const cats = [...new Set(lanc.map((l) => l.categoria).filter(Boolean))].sort();
+    if (estado.lancRef && !refs.includes(estado.lancRef)) estado.lancRef = '';
+    if (estado.lancCat && !cats.includes(estado.lancCat)) estado.lancCat = '';
+    return `<div class="table-card">
+      <div class="table-card-head"><h3>Lançamentos de custos do mês</h3><p>A coluna OBS da planilha não é enviada ao painel; CPF/CNPJ são removidos dos textos.</p></div>
+      <div class="controles">
+        <label for="lanc-ref">Referência</label>
+        <select id="lanc-ref" class="ds-select"><option value="">Todas</option>${refs.map((r) => `<option ${r === estado.lancRef ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select>
+        <label for="lanc-cat">Categoria</label>
+        <select id="lanc-cat" class="ds-select"><option value="">Todas</option>${cats.map((r) => `<option ${r === estado.lancCat ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select>
+        <input type="search" id="lanc-busca" class="ds-input" placeholder="Buscar (onde, categoria…)" value="${esc(estado.lancBusca)}" style="width:210px">
+        <button type="button" class="btn" id="lanc-limpar">Limpar filtros</button>
+        <span class="total-filtro" id="lanc-total"></span>
+      </div>
+      <div class="table-scroll" id="lanc-tabela"></div>
+    </div>`;
+  }
+  function renderLancamentos() {
+    const lanc = estado.dados.atual.lancamentos || [];
+    const busca = estado.lancBusca.trim().toLowerCase();
+    const lista = lanc.filter((l) => (!estado.lancRef || l.referencia === estado.lancRef)
+      && (!estado.lancCat || l.categoria === estado.lancCat)
+      && (!busca || [l.onde, l.categoria, l.referencia].join(' ').toLowerCase().includes(busca)))
+      .sort((a, b) => (a.data || '').localeCompare(b.data || '') || b.valor - a.valor);
+    const soma = lista.reduce((s, l) => s + l.valor, 0);
+    document.getElementById('lanc-total').innerHTML = `${lista.length} de ${lanc.length} lançamentos · <b>${fmtMoeda(soma)}</b>`;
+    document.getElementById('lanc-tabela').innerHTML = lista.length
+      ? `<table><thead><tr><th>Data</th><th class="num">Valor</th><th>Referência</th><th>Categoria</th><th>Onde</th></tr></thead><tbody>
+        ${lista.map((l) => `<tr><td class="muted">${fmtData(l.data)}</td><td class="num">${fmtMoeda(l.valor)}</td><td>${esc(l.referencia)}</td><td>${esc(l.categoria)}</td><td class="wrap">${esc(l.onde)}</td></tr>`).join('')}
+        </tbody></table>`
+      : '<div class="sem-dado" style="padding:14px 18px">Nenhum lançamento com esses filtros.</div>';
+  }
+
+  // ---------- investimentos
+  function htmlInvestimentos(f) {
+    const inv = f.investimentos || [];
+    if (!inv.length) return '';
+    const tot = inv.reduce((s, i) => s + i.valor, 0);
+    return `<div class="table-card"><div class="table-card-head"><h3>Investimentos do mês</h3><p>Fora dos custos mensais.</p></div>
+      <div class="table-scroll"><table><thead><tr><th>Descrição</th><th class="num">Valor</th></tr></thead><tbody>
+      ${inv.map((i) => `<tr><td class="wrap">${esc(i.descricao)}</td><td class="num">${fmtMoeda(i.valor)}</td></tr>`).join('')}
+      </tbody><tfoot><tr><td>Total</td><td class="num">${fmtMoeda(tot)}</td></tr></tfoot></table></div></div>`;
+  }
+
+  // ---------- eventos (o #conteudo é recriado a cada render)
+  function ligarEventos() {
+    const $ = (id) => document.getElementById(id);
+    $('cat-canal').addEventListener('change', (e) => { estado.catCanal = e.target.value; renderCategorias(); });
+    $('cat-ordem').addEventListener('click', (e) => {
+      const b = e.target.closest('button[data-ordem]'); if (!b) return;
+      estado.catOrdem = b.dataset.ordem;
+      $('cat-ordem').querySelectorAll('button').forEach((x) => x.classList.toggle('ativo', x === b));
+      renderCategorias();
+    });
+    $('prod-canal').addEventListener('change', (e) => { estado.prodCanal = e.target.value; renderProdutos(); });
+    const escolherProduto = (e) => {
+      const tr = e.target.closest('tr[data-produto]'); if (!tr) return;
+      if (e.type === 'keydown' && e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();
+      estado.prodSel = tr.dataset.produto; renderProdutos();
+    };
+    $('prod-lista').addEventListener('click', escolherProduto);
+    $('prod-lista').addEventListener('keydown', escolherProduto);
+    $('lanc-ref').addEventListener('change', (e) => { estado.lancRef = e.target.value; renderCustos(); renderLancamentos(); });
+    $('lanc-cat').addEventListener('change', (e) => { estado.lancCat = e.target.value; renderCustos(); renderLancamentos(); });
+    $('lanc-busca').addEventListener('input', (e) => { estado.lancBusca = e.target.value; renderLancamentos(); });
+    $('lanc-limpar').addEventListener('click', () => {
+      estado.lancRef = estado.lancCat = estado.lancBusca = '';
+      $('lanc-ref').value = ''; $('lanc-cat').value = ''; $('lanc-busca').value = '';
+      renderCustos(); renderLancamentos();
+    });
+  }
+
+  // Clique numa barra de custo filtra a lista (delegado no #conteudo, que é
+  // fixo -- registrado uma vez só, não a cada render).
+  elConteudo.addEventListener('click', (e) => {
+    const r = e.target.closest('[data-filtro-referencia]'), c = e.target.closest('[data-filtro-categoria]');
+    if (!r && !c) return;
+    if (r) { estado.lancRef = estado.lancRef === r.dataset.filtroReferencia ? '' : r.dataset.filtroReferencia; document.getElementById('lanc-ref').value = estado.lancRef; }
+    if (c) { estado.lancCat = estado.lancCat === c.dataset.filtroCategoria ? '' : c.dataset.filtroCategoria; document.getElementById('lanc-cat').value = estado.lancCat; }
+    renderCustos(); renderLancamentos();
+    document.getElementById('lanc-tabela').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
+
+  // Tooltips das barras/metas (delegado, um listener só)
+  document.addEventListener('mousemove', (e) => {
+    const alvo = e.target.closest && e.target.closest('[data-tip-canal],[data-tip-custo],[data-tip-meta]');
+    if (!alvo) { if (!e.target.closest || !e.target.closest('#evo')) esconderTip(); return; }
+    if (alvo.dataset.tipCanal) {
+      const [canal, fat, luc, mg, part] = alvo.dataset.tipCanal.split('|');
+      mostrarTip(`<div class="t-tit">${esc(canal)}</div>${linhaTip('var(--s-fat)', 'Faturamento', fat)}${linhaTip('var(--s-lucro)', 'Lucro bruto', luc)}${linhaTip('', 'Margem', mg)}${linhaTip('', 'Fatia do faturamento', part)}`, e.clientX, e.clientY);
+    } else if (alvo.dataset.tipCusto) {
+      const [k, v, p] = alvo.dataset.tipCusto.split('|');
+      mostrarTip(`<div class="t-tit">${esc(k)}</div>${linhaTip('var(--s-custo)', 'Total', v)}${linhaTip('', 'Fatia dos custos', p)}`, e.clientX, e.clientY);
+    } else {
+      const [l, real, meta, val] = alvo.dataset.tipMeta.split('|');
+      mostrarTip(`<div class="t-tit">${esc(l)}</div>${linhaTip('', 'Realizado', real)}${linhaTip('', 'Meta', meta)}${linhaTip('', 'Valor', val)}`, e.clientX, e.clientY);
+    }
+  });
+
+  let timerResize = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(timerResize);
+    timerResize = setTimeout(() => { if (estado.dados && estado.dados.atual) desenharEvolucao(estado.dados.indice, estado.dados.atual.mes); }, 150);
+  });
+  // Troca de tema: o SVG usa var(--...) direto, então já acompanha sozinho.
+
+  carregar(new URLSearchParams(location.search).get('mes'));
+})();
+
+// Reordenar o menu da sidebar (lápis ao lado de "Painéis Ricapet"): mesma
+// chave de localStorage usada nas outras páginas (ricapet_ordem_menu_sidebar).
+(function () {
+  const CHAVE_ORDEM = 'ricapet_ordem_menu_sidebar';
+  const nav = document.querySelector('.sidebar');
+  const titulo = document.getElementById('tituloPaineis');
+  if (!nav || !titulo) return;
+
+  function coletarUnidades() {
+    const unidades = [];
+    let el = titulo.nextElementSibling;
+    while (el && !el.classList.contains('sidebar-separador') && !el.classList.contains('sidebar-footer')) {
+      if (el.dataset && el.dataset.menuKey) {
+        const unidade = [el];
+        if (el.nextElementSibling && el.nextElementSibling.classList.contains('sidebar-submenu')) {
+          unidade.push(el.nextElementSibling);
+        }
+        unidades.push(unidade);
+        el = unidade[unidade.length - 1].nextElementSibling;
+      } else {
+        el = el.nextElementSibling;
+      }
+    }
+    return unidades;
+  }
+
+  function salvarOrdemAtual() {
+    const chaves = coletarUnidades().map((u) => u[0].dataset.menuKey);
+    localStorage.setItem(CHAVE_ORDEM, JSON.stringify(chaves));
+  }
+
+  function aplicarOrdemSalva() {
+    let ordem;
+    try { ordem = JSON.parse(localStorage.getItem(CHAVE_ORDEM) || '[]'); } catch (e) { ordem = []; }
+    if (!ordem.length) return;
+    const unidades = coletarUnidades();
+    const mapa = new Map(unidades.map((u) => [u[0].dataset.menuKey, u]));
+    const usadas = new Set();
+    let ancora = titulo;
+    ordem.forEach((chave) => {
+      const u = mapa.get(chave);
+      if (!u) return;
+      usadas.add(chave);
+      u.forEach((elemento) => { ancora.after(elemento); ancora = elemento; });
+    });
+    unidades.forEach((u) => {
+      if (usadas.has(u[0].dataset.menuKey)) return;
+      u.forEach((elemento) => { ancora.after(elemento); ancora = elemento; });
+    });
+  }
+
+  let arrastando = null;
+
+  function configurarArrasto(u) {
+    const link = u[0];
+    link.addEventListener('dragstart', (e) => {
+      arrastando = u;
+      link.classList.add('arrastando');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    link.addEventListener('dragend', () => {
+      link.classList.remove('arrastando');
+      document.querySelectorAll('.alvo-antes, .alvo-depois').forEach((el) => el.classList.remove('alvo-antes', 'alvo-depois'));
+      arrastando = null;
+    });
+    link.addEventListener('dragover', (e) => {
+      if (!arrastando || arrastando[0] === link) return;
+      e.preventDefault();
+      const rect = link.getBoundingClientRect();
+      const depois = (e.clientY - rect.top) > rect.height / 2;
+      link.classList.toggle('alvo-antes', !depois);
+      link.classList.toggle('alvo-depois', depois);
+    });
+    link.addEventListener('dragleave', () => link.classList.remove('alvo-antes', 'alvo-depois'));
+    link.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const eraDepois = link.classList.contains('alvo-depois');
+      link.classList.remove('alvo-antes', 'alvo-depois');
+      if (!arrastando || arrastando[0] === link) return;
+      const ref = eraDepois ? u[u.length - 1].nextElementSibling : link;
+      arrastando.forEach((elemento) => link.parentNode.insertBefore(elemento, ref));
+      salvarOrdemAtual();
+    });
+  }
+
+  nav.addEventListener('click', (e) => {
+    if (!nav.classList.contains('modo-edicao')) return;
+    if (e.target.closest('.sidebar-link[data-menu-key]')) { e.preventDefault(); e.stopImmediatePropagation(); }
+  }, true);
+
+  window.alternarEdicaoMenu = function () {
+    const btn = document.getElementById('btnEditarMenu');
+    const emEdicao = nav.classList.toggle('modo-edicao');
+    btn.textContent = emEdicao ? '✓' : '✎';
+    btn.classList.toggle('ativo', emEdicao);
+    btn.title = emEdicao ? 'Concluir edição do menu' : 'Reordenar menu';
+    coletarUnidades().forEach((u) => { u[0].draggable = emEdicao; });
+  };
+
+  aplicarOrdemSalva();
+  coletarUnidades().forEach(configurarArrasto);
+})();
+</script>
+</body>
+</html>
