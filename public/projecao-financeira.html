@@ -114,6 +114,11 @@
   td.saldo-auto { background: var(--brand-primary-soft, var(--brand-light)); font-family: var(--font-mono); font-size: 12px; text-align: right; padding: 3px 8px; }
 
   .updated-note { font-size: 12px; color: var(--ink-muted); margin: 10px 0 0; }
+  /* Resumo do saldo projetado (acima da tabela): responde de cara "o caixa
+     fica negativo nos próximos dias?" sem precisar varrer a linha SALDO. */
+  .resumo-saldo { margin: 0 0 12px; padding: 10px 14px; border-radius: var(--radius); font-size: 13px; line-height: 1.5; border: 1px solid var(--border); }
+  .resumo-saldo.ok { background: var(--success-bg); color: var(--success-text); }
+  .resumo-saldo.alerta { background: var(--danger-bg); color: var(--danger-text); font-weight: 600; }
   footer.foot { text-align: center; font-size: 12px; color: var(--ink-muted); margin-top: 24px; }
 
   td.clicavel { cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
@@ -444,6 +449,21 @@
     return `<td class="col-saldo editavel"><span class="valor-input-wrap"><span class="valor-prefixo">R$</span><input type="text" inputmode="decimal" data-campo-saldo="${campo}" class="saldo-conta-input" value="${fmtValorInput(valor)}"></span></td>`;
   }
 
+  // Resumo acima da tabela: primeiro dia em que o saldo projetado fica
+  // negativo e o menor saldo do período. Só usa o `saldo` já calculado em
+  // carregar() — nenhuma chamada nova de API, nenhum cálculo novo de saldo.
+  function renderResumoSaldo(saldo, datas){
+    if (!saldo.length) return '';
+    let iMenor = 0;
+    saldo.forEach((v, i) => { if (v < saldo[iMenor]) iMenor = i; });
+    const iNegativo = saldo.findIndex((v) => v < 0);
+    const menor = `Menor saldo nos próximos ${datas.length} dias: <strong>${fmtMoeda(saldo[iMenor])}</strong> em ${fmtDataCurta(datas[iMenor])}.`;
+    if (iNegativo === -1) {
+      return `<div class="resumo-saldo ok">✓ Saldo projetado fica positivo nos próximos ${datas.length} dias. ${menor}</div>`;
+    }
+    return `<div class="resumo-saldo alerta" role="alert">⚠ Saldo projetado fica negativo em <strong>${fmtDataCurta(datas[iNegativo])}</strong> (${fmtMoeda(saldo[iNegativo])}). ${menor}</div>`;
+  }
+
   function renderLinhaSaldo(rotulo, valores, datas){
     const celulas = valores.map((v, i) => {
       const classes = [ehFimDeSemana(datas[i]) ? 'fds' : '', v < 0 ? 'negativo' : ''].filter(Boolean).join(' ');
@@ -640,6 +660,7 @@
       ].join('');
 
       wrap.innerHTML = `
+        ${renderResumoSaldo(saldo, datas)}
         <div class="matriz-wrap">
           <table class="matriz">
             <thead></thead>
