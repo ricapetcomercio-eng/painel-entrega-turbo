@@ -1244,35 +1244,22 @@ public/
                          piscar — tema.js só cuida do botão depois que a
                          página carregou. Sem escolha salva, segue
                          prefers-color-scheme do sistema (não seta o atributo).
-    tokens-admin.css     identidade visual compartilhada de todas as páginas
-                         do admin. Migrada em set/2026 da identidade "Console
-                         Ricapet" (roxo #5D4FA8/laranja #f5a623, Sora/Manrope)
-                         pra identidade "portal" (teal #4FB8B9/terracota
-                         #B5651D, Space Grotesk/Inter/IBM Plex Mono, claro+
-                         escuro) — pacote de identidade visual fornecido pelo
-                         dono do projeto, aplicado a pedido dele mesmo depois
-                         de confirmado (a 1ª tentativa trocou a sidebar por um
-                         cabeçalho horizontal, como o portal originalmente não
-                         tem sidebar — revertido pra sidebar vertical de novo,
-                         só recolorida, porque era isso que ele queria manter).
-                         Os NOMES das variáveis (--page-bg, --ink, --sidebar-
-                         bg, --accent...) continuam os mesmos de antes da
-                         migração — só o VALOR mudou — pra não precisar
-                         reescrever cada regra CSS espalhada pelas páginas;
-                         por isso alguns nomes ficam "torcidos" (--teal agora
-                         guarda o terracota, não um teal de verdade — é só o
-                         2º acento da paleta). Linkar no <head> de toda página
-                         admin, ANTES do próprio <style> da página. Cada
-                         página continua livre pra ter tokens só dela no
-                         próprio :root (cores de estado tipo --ok/--bad/
-                         --danger-*, --radius, --surface-2, etc.) — este
-                         arquivo cobre só o que é da marca (cor, sidebar,
-                         fonte). `tv.html` e `backfill-runner.html` ficam de
-                         fora de propósito (não são "admin" — TV é kiosk sem
-                         menu, backfill é ferramenta interna avulsa).
-                         `estoque-atualizar.html` (mobile, sem sidebar por
-                         design) recebe só cor/fonte/tema, sem os tokens de
-                         sidebar.
+    tokens-admin.css     Design System de todas as páginas do admin (tokens
+                         de cor + componentes prontos: card, kpi, btn, badge,
+                         table-card, filter-bar, alert, modal, drawer,
+                         empty-state, skeleton). Identidade ATUAL: turquesa
+                         #00A9C7 + neutros "slate", só a fonte Inter, claro+
+                         escuro (histórico: roxo "Console" → teal/terracota
+                         "portal" → verde → turquesa, tudo em set/2026; só
+                         os VALORES mudaram, os nomes de variável antigos
+                         continuam como alias — --teal hoje é alias de
+                         --warning, não turquesa). Linkar no <head> ANTES do
+                         <style> da página. `tv.html` e `backfill-runner.html`
+                         ficam de fora de propósito. Manual completo (regras,
+                         catálogo de componentes, TV, gráficos, esqueleto de
+                         página, verificador): skill `ricapet-paineis` em
+                         `.claude/skills/ricapet-paineis/` — usar sempre que
+                         criar/alterar/revisar tela.
     logo-ricapet-teal.png  logo em teal sobre fundo TRANSPARENTE (a arte
                          BRANCA em `logo-ricapet.png` só funciona sobre fundo
                          escuro/roxo — invisível numa marca d'água sobre fundo
