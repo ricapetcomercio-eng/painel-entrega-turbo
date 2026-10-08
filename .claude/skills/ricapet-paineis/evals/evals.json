@@ -34,7 +34,7 @@
       "id": 3,
       "name": "revisao-estoque",
       "prompt": "Revisa o visual do public/estoque.html e me diz o que está fora do padrão dos outros painéis da Ricapet. Não altera nada, só me passa a lista do que corrigir, do mais importante pro menos.",
-      "expected_output": "Revisão só do visual (não decide qual cópia do estoque é a oficial — isso está pendente com o dono). Uma revisão priorizada citando linhas, apontando --surface-3 sem versão escura, cores hex inline, innerHTML sem escape, comparando com tokens-admin.css como fonte da verdade, sem sugerir nova identidade.",
+      "expected_output": "Revisão só do visual: public/estoque.html é apenas o alvo deste teste e não é a fonte oficial do painel de estoque nem da lógica de negócio (decisão pendente, tomada separadamente após a análise comparativa). Uma revisão priorizada citando linhas, apontando --surface-3 sem versão escura, cores hex inline, innerHTML sem escape, comparando com tokens-admin.css como fonte da verdade, sem sugerir nova identidade.",
       "files": ["public/estoque.html"],
       "assertions": [
         "Aponta que --surface-3 não tem versão para o tema escuro",

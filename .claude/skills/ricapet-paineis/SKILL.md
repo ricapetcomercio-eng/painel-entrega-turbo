@@ -12,7 +12,7 @@ componente próprio envelhece mal: na próxima troca de tema (já foram 4 em
 2026: roxo → teal/terracota → verde → turquesa) ela fica para trás, porque
 não herda nada.
 
-**Fonte da verdade para tokens visuais:** `public/assets/tokens-admin.css`.
+**Fonte da verdade para tokens e identidade visual:** `public/assets/tokens-admin.css`.
 Se este manual, o `CLAUDE.md` ou qualquer outra documentação disser algo
 diferente desse arquivo sobre cor, fonte ou componente, não escolha um lado
 em silêncio: corrija a documentação desatualizada no mesmo PR, para a
@@ -39,12 +39,15 @@ O painel de estoque existe em duas cópias: as páginas `public/estoque.html`,
 `public/estoque-atualizar.html` e `public/estoque-saldo.html` deste repo, e
 o repositório separado `painel-estoque-adesivo` (com o mesmo catálogo, mas
 código que já divergiu). **Qual das duas é a implementação oficial ainda
-depende de uma decisão do dono do projeto**, que não foi registrada.
+depende de uma decisão do dono do projeto, que será tomada separadamente,
+depois da análise comparativa das duas implementações.** Esta skill não
+escolhe nenhuma delas.
 
 Esta skill trata só do padrão visual. Ela **não** define qual cópia do
-estoque é a fonte de verdade — o fato de as páginas `estoque*.html` deste
-repo aparecerem aqui como exemplo de tela não significa que sejam a versão
-oficial. Até a decisão estar registrada (no `CLAUDE.md` ou na skill de
+estoque é a fonte de verdade, nem do painel nem da lógica de negócio — o
+fato de `public/estoque.html` ser usado no teste `revisao-estoque` e de as
+páginas `estoque*.html` deste repo aparecerem aqui como exemplo de tela não
+significa que sejam a versão oficial. Até a decisão estar registrada (no `CLAUDE.md` ou na skill de
 estoque):
 - antes de alterar qualquer tela de estoque, confirme com o dono em qual
   cópia a mudança deve ser feita;
