@@ -118,6 +118,7 @@
      fica negativo nos próximos dias?" sem precisar varrer a linha SALDO. */
   .resumo-saldo { margin: 0 0 12px; padding: 10px 14px; border-radius: var(--radius); font-size: 13px; line-height: 1.5; border: 1px solid var(--border); }
   .resumo-saldo.ok { background: var(--success-bg); color: var(--success-text); }
+  .resumo-saldo.atencao { background: var(--warning-bg); color: var(--warning-text); }
   .resumo-saldo.alerta { background: var(--danger-bg); color: var(--danger-text); font-weight: 600; }
   footer.foot { text-align: center; font-size: 12px; color: var(--ink-muted); margin-top: 24px; }
 
@@ -452,6 +453,38 @@
   // Resumo acima da tabela: primeiro dia em que o saldo projetado fica
   // negativo e o menor saldo do período. Só usa o `saldo` já calculado em
   // carregar() — nenhuma chamada nova de API, nenhum cálculo novo de saldo.
+  // Aviso de dado velho: a coleta só roda no clique de "Atualizar agora" e
+  // o saldo bancário é digitado à mão — se algum dos dois não é de hoje
+  // (fuso de São Paulo), o saldo projetado pode estar errado sem a tela dar
+  // nenhum sinal. Usa a peça MAIS ANTIGA (não o atualizado_em geral, que
+  // muda a cada peça) — uma peça que falhou ou ficou pra trás conta.
+  function diaSaoPaulo(iso){
+    return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date(iso));
+  }
+  function renderAvisoDadosVelhos(contas, saldoManual){
+    const hoje = diaSaoPaulo(Date.now());
+    const datasPecas = [];
+    Object.values(contas || {}).forEach((c) => {
+      ['mercadoPago', 'shopee', 'omie'].forEach((k) => {
+        if (c && c[k] && c[k].atualizado_em) datasPecas.push(c[k].atualizado_em);
+      });
+    });
+    const itens = [];
+    if (!datasPecas.length) {
+      itens.push('Ainda não há coleta de Mercado Pago/Shopee/Omie — clique em "Atualizar agora".');
+    } else {
+      const maisAntiga = datasPecas.reduce((a, b) => (new Date(a) < new Date(b) ? a : b));
+      if (diaSaoPaulo(maisAntiga) !== hoje) itens.push(`Parte dos dados (Mercado Pago/Shopee/Omie) é de ${fmtDataHora(maisAntiga)} — clique em "Atualizar agora".`);
+    }
+    if (!saldoManual.atualizado_em || diaSaoPaulo(saldoManual.atualizado_em) !== hoje) {
+      itens.push(saldoManual.atualizado_em
+        ? `Saldo bancário salvo em ${fmtDataHora(saldoManual.atualizado_em)} — confira se ainda é o saldo de hoje.`
+        : 'Saldo bancário ainda não foi salvo nenhuma vez — preencha e clique em "Salvar saldo".');
+    }
+    if (!itens.length) return '';
+    return `<div class="resumo-saldo atencao">⏱ Dados antigos: ${itens.join(' ')}</div>`;
+  }
+
   function renderResumoSaldo(saldo, datas){
     if (!saldo.length) return '';
     let iMenor = 0;
@@ -660,6 +693,7 @@
       ].join('');
 
       wrap.innerHTML = `
+        ${renderAvisoDadosVelhos(contas, saldoManual)}
         ${renderResumoSaldo(saldo, datas)}
         <div class="matriz-wrap">
           <table class="matriz">
