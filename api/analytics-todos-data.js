@@ -30,9 +30,22 @@ const { dataFusoLoja, isoDeDiaHoraLoja, resolverMarcacoes } = require('../lib/re
 
 const MES_LABELS_BASE = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 
+// Datas de "dia" e "mês" sempre no fuso de São Paulo, nunca no relógio do
+// servidor (a Vercel roda em UTC: sem isso, pedido feito depois das 21h em
+// Brasília caía no dia/mês seguinte -- issue #228). Mesmo offset fixo já
+// usado em isoDeDiaHoraLoja (lib/registrosPonto.js); o Brasil não tem mais
+// horário de verão desde 2019.
+const OFFSET_LOJA = '-03:00';
+
 function chaveMes(dataISO) {
-  const d = new Date(dataISO);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  return dataFusoLoja(dataISO).slice(0, 7);
+}
+
+// Soma `delta` meses a uma chave "YYYY-MM".
+function somarMeses(chaveMesStr, delta) {
+  const [ano, mes] = chaveMesStr.split('-').map(Number);
+  const total = ano * 12 + (mes - 1) + delta;
+  return `${Math.floor(total / 12)}-${String((total % 12) + 1).padStart(2, '0')}`;
 }
 
 function rotuloMes(chave) {
@@ -61,12 +74,10 @@ function periodosContiguos(chaves) {
 // dia, 23:59:59) do mês — usado pelo filtro de período (mês De/Até) da aba
 // Desempenho.
 function inicioDoMes(chaveMesStr) {
-  const [ano, mes] = chaveMesStr.split('-').map(Number);
-  return new Date(ano, mes - 1, 1, 0, 0, 0).getTime();
+  return new Date(`${chaveMesStr}-01T00:00:00${OFFSET_LOJA}`).getTime();
 }
 function fimDoMes(chaveMesStr) {
-  const [ano, mes] = chaveMesStr.split('-').map(Number);
-  return new Date(ano, mes, 0, 23, 59, 59, 999).getTime();
+  return inicioDoMes(somarMeses(chaveMesStr, 1)) - 1;
 }
 
 async function responderVisaoProdutos(req, res) {
@@ -80,9 +91,7 @@ async function responderVisaoProdutos(req, res) {
     if (mesDe) desdeTs = inicioDoMes(mesDe);
     if (mesAte) ateTs = fimDoMes(mesAte);
   } else if (meses) {
-    const agora = new Date();
-    const desde = new Date(agora.getFullYear(), agora.getMonth() - meses + 1, 1);
-    desdeTs = desde.getTime();
+    desdeTs = inicioDoMes(somarMeses(chaveMes(new Date()), -(meses - 1)));
   }
 
   let pedidos = await buscarPorPeriodo(desdeTs, ateTs);
@@ -167,8 +176,7 @@ async function responderVisaoProdutos(req, res) {
 
 function calcularIntervaloPadrao() {
   const agora = new Date();
-  const inicioMes = new Date(agora.getFullYear(), agora.getMonth(), 1, 0, 0, 0);
-  return { de: inicioMes, ate: agora };
+  return { de: new Date(inicioDoMes(chaveMes(agora))), ate: agora };
 }
 
 function parseData(valor, horaPadrao) {
@@ -179,7 +187,7 @@ function parseData(valor, horaPadrao) {
   if (valor.includes('T')) return new Date(valor);
   // Caso contrário, é só uma data (YYYY-MM-DD) — comportamento original,
   // dia inteiro (00:00:00 até 23:59:59).
-  return new Date(valor + horaPadrao);
+  return new Date(valor + horaPadrao + OFFSET_LOJA);
 }
 
 function parseIntervalo(query) {

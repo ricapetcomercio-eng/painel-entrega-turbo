@@ -1168,6 +1168,12 @@
     };
   }
 
+  // "YYYY-MM-DD" no fuso de São Paulo -- toISOString() dá o dia em UTC, e
+  // aí pedido feito depois das 21h em Brasília caía no dia seguinte (#228).
+  function dataLoja(d) {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date(d));
+  }
+
   // Pedido cancelado não é venda: fica fora de faturamento e ticket médio
   // (continua contando em "Quantidade de Pedidos" e em "Cancelamentos").
   function valorVendido(p) {
@@ -1179,7 +1185,7 @@
     const mapaPedidos = {};
     const mapaVendidos = {};
     pedidos.forEach(p => {
-      const dia = new Date(p.date_created).toISOString().slice(0, 10);
+      const dia = dataLoja(p.date_created);
       mapaFaturamento[dia] = (mapaFaturamento[dia] || 0) + valorVendido(p);
       mapaPedidos[dia] = (mapaPedidos[dia] || 0) + 1;
       if (p.cancelado !== true) mapaVendidos[dia] = (mapaVendidos[dia] || 0) + 1;
@@ -1972,7 +1978,7 @@
   }
 
   // ---------- PERÍODO ----------
-  function formatarDataInput(d) { return d.toISOString().slice(0, 10); }
+  function formatarDataInput(d) { return dataLoja(d); }
 
   function definirPeriodo(tipo, evt) {
     const hoje = new Date();
