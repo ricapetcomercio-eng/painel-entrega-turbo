@@ -370,6 +370,7 @@ async function responderVisaoBipagem(req, res) {
   for (const op of porOperadorMapa.values()) {
     const func = funcionariosPorNome.get(op.nome.trim().toLowerCase());
     let minutosTrabalhados = null;
+    let turnoEmAndamento = false;
     if (func) {
       const rsReg = await db.execute({
         sql: `SELECT tipo, registrado_em, origem, ref_nsr, nsr, motivo, editado_por, editado_em, metodo_validacao
@@ -384,12 +385,23 @@ async function responderVisaoBipagem(req, res) {
         if (m.tipo === 'entrada') aberto = new Date(m.registrado_em);
         else if (aberto) { ms += new Date(m.registrado_em) - aberto; aberto = null; }
       });
+      // Turno ainda em andamento (entrada de HOJE sem saída): conta até agora.
+      // Sem isso, olhando "hoje" durante o expediente, quem só bateu a
+      // entrada ficava sem ritmo e quem voltou do almoço tinha o ritmo
+      // inflado (todas as bipagens do dia ÷ só as horas da manhã). Entrada
+      // aberta de dia anterior (esqueceu de bater a saída) continua ignorada.
+      if (aberto && dataFusoLoja(aberto) === hoje) {
+        const agora = new Date();
+        if (agora > aberto) ms += agora - aberto;
+        turnoEmAndamento = true;
+      }
       minutosTrabalhados = Math.round(ms / 60000);
     }
     operadores.push({
       ...op,
       funcionario_id: func ? func.id : null,
       minutos_trabalhados: minutosTrabalhados,
+      turno_em_andamento: turnoEmAndamento,
       bipagens_por_hora: minutosTrabalhados > 0 ? Number((op.total / (minutosTrabalhados / 60)).toFixed(2)) : null,
       taxa_devolucao: op.localizados > 0 ? Number(((op.devolvidos / op.localizados) * 100).toFixed(1)) : null,
     });
