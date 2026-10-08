@@ -13,6 +13,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <script src="assets/auth.js"></script>
 <script src="assets/tema.js" defer></script>
+<script src="assets/menu-mobile.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
 <style>
@@ -136,6 +137,8 @@
   .tema-toggle { display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.28); margin: 2px 0 10px; }
   .tema-toggle button { display: grid; place-items: center; flex: 1; height: 26px; border-radius: 999px; border: none; background: none; color: rgba(255,255,255,0.75); cursor: pointer; font-size: 13px; }
   .tema-toggle button.ativo { background: #fff; color: #007F98; }
+  /* Botão "☰ Menu" (assets/menu-mobile.js): só aparece no @media abaixo. */
+  .sidebar-menu-toggle { display: none; }
   @media (max-width: 900px) {
     .sidebar { position: static; width: 100%; height: auto; flex-direction: row; flex-wrap: wrap; border-right: none; border-bottom: 1px solid rgba(255,255,255,0.28); }
     /* .tema-toggle continua visível aqui (não entra na lista de ocultos) --
@@ -143,6 +146,18 @@
        qualquer jeito de trocar de tema no mobile. */
     .sidebar-brand, .sidebar-footer, .sidebar-separador { display: none; }
     .conteudo-principal { margin-left: 0; }
+    /* Botão "☰ Menu" de assets/menu-mobile.js — mesmas regras do
+       tokens-admin.css (que esta página não linka, ver acima). */
+    .sidebar-menu-toggle {
+      display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px;
+      padding: 8px 10px; border: none; border-radius: 8px; background: none; cursor: pointer;
+      color: #fff; font-family: inherit; font-size: 13.5px; font-weight: 700; text-align: left;
+    }
+    .sidebar-menu-toggle:hover { background: rgba(255,255,255,0.16); }
+    .sidebar-menu-toggle:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+    .sidebar-menu-toggle-atual { font-weight: 600; color: rgba(255,255,255,0.78); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .sidebar.menu-recolhido { padding-top: 6px; padding-bottom: 6px; }
+    .sidebar.menu-recolhido > :not(.sidebar-menu-toggle) { display: none !important; }
   }
 
   .topbar {

@@ -275,10 +275,27 @@
 .tema-toggle button, .theme-toggle button { display: grid; place-items: center; flex: 1; height: 26px; border-radius: var(--radius-pill); border: none; background: none; color: rgba(255,255,255,0.75); cursor: pointer; font-size: 13px; }
 .tema-toggle button.ativo, .theme-toggle button.ativo { background: #fff; color: var(--brand-primary-dark); }
 
+/* Botão "☰ Menu" que assets/menu-mobile.js põe no começo da sidebar —
+   só aparece no celular (ver @media abaixo). */
+.sidebar-menu-toggle { display: none; }
+
 @media (max-width: 900px) {
   .sidebar { position: static; width: 100%; height: auto; flex-direction: row; flex-wrap: wrap; border-right: none; border-bottom: 1px solid var(--sidebar-border); }
   .sidebar-brand, .sidebar-footer, .sidebar-separador, .tema-toggle { display: none; }
   .conteudo-principal { margin-left: 0; }
+
+  .sidebar-menu-toggle {
+    display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px;
+    padding: 8px 10px; border: none; border-radius: 8px; background: none; cursor: pointer;
+    color: var(--sidebar-text); font: 700 13.5px var(--font-body); text-align: left;
+  }
+  .sidebar-menu-toggle:hover { background: var(--sidebar-hover); }
+  .sidebar-menu-toggle:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+  .sidebar-menu-toggle-atual { font-weight: 600; color: var(--sidebar-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sidebar.menu-recolhido { padding-top: 6px; padding-bottom: 6px; }
+  /* !important: alguns itens da sidebar trazem display próprio (submenu
+     aberto, link com style inline) que precisa ceder enquanto recolhido. */
+  .sidebar.menu-recolhido > :not(.sidebar-menu-toggle) { display: none !important; }
 }
 
 /* ---- topbar (menu horizontal — páginas no padrão novo, ex. bipagem-v2) ---- */

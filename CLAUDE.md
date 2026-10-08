@@ -1236,6 +1236,12 @@ public/
   assets/
     auth.js              sessão de login único (sessionStorage), redireciona
                          pra login.html se não tiver sessão válida
+    menu-mobile.js       no celular (<900px), recolhe a sidebar atrás de um
+                         botão "☰ Menu · <tela atual>" — antes ela abria
+                         inteira no topo e ocupava ~1/3 da tela. Incluído
+                         nas 9 páginas com sidebar, logo depois do tema.js.
+                         No computador não muda nada; sem JS, a sidebar
+                         fica aberta como antes.
     tema.js              alternador de tema claro/escuro — salva escolha em
                          localStorage['ricapet_tema2'], aplica data-theme no
                          <html>. Cada página também tem um <script> INLINE no

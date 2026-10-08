@@ -170,8 +170,13 @@ temas. Se a cor vai servir a mais de uma página, ela pertence ao
 
 ## Responsividade
 
-- Sidebar vira faixa no topo abaixo de 900px (já resolvido no CSS
-  compartilhado — não reescreva).
+- Sidebar vira faixa no topo abaixo de 900px, **recolhida** atrás de um
+  botão "☰ Menu · <tela atual>" (`assets/menu-mobile.js` + regras
+  `.sidebar-menu-toggle`/`.menu-recolhido` no `tokens-admin.css`). Já
+  resolvido no CSS/JS compartilhado — não reescreva; página nova com
+  sidebar só precisa incluir `<script src="assets/menu-mobile.js" defer>`
+  logo depois do `tema.js`. (`bipagem-v2.html` replica essas regras no
+  próprio `<style>`, porque não linka o `tokens-admin.css`.)
 - `.kpi-row`: 6 colunas → 3 (≤1080px) → 2 (≤620px). Grades próprias seguem
   a mesma lógica com `repeat(auto-fit, minmax(...))`.
 - Tabela larga: dentro de `.table-scroll` (rolagem horizontal no próprio

@@ -16,6 +16,7 @@ troque o conteúdo. Pontos que não podem faltar, nesta ordem:
 <!-- 2. sessão de login (redireciona pro login se não tiver) -->
 <script src="assets/auth.js"></script>
 <script src="assets/tema.js" defer></script>
+<script src="assets/menu-mobile.js" defer></script>
 <!-- 3. fonte -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
