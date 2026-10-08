@@ -187,9 +187,18 @@ nunca escreva esse valor em issue, comentário de PR ou mensagem.
 
 Responda nesta ordem, citando arquivo:linha:
 1. **Quebra o padrão?** cor/fonte/componente inventado quando havia token
-   ou classe pronta.
+   ou classe pronta. Compare com a página irmã mais parecida: bloco
+   copiado de outra página (submenu da sidebar, modal) às vezes veio sem o
+   CSS dele — o verificador lista "classe sem CSS definido".
 2. **Falta estado?** carregando/vazio/erro/dado velho.
-3. **Tema escuro** — cor nova sem versão escura, texto ilegível.
+3. **Tema escuro** — cor nova sem versão escura, texto ilegível. Procure
+   especialmente token de TEXTO usado como FUNDO (`background:
+   var(--ink)` vira quase branco no escuro) e `color: #fff` fixo sobre um
+   token que clareia no escuro (`--accent-ink`, `--brand-primary`).
+   Para "selecionado", use `--brand-primary-light` + `--brand-primary-dark`.
 4. **Acessibilidade** — itens da lista acima.
 5. **Responsivo** — rolagem horizontal da página, alvo de toque pequeno.
+Rode o verificador primeiro e use as linhas que ele aponta como ponto de
+partida — mas ele não substitui ler a página: confira à mão o que ele não
+cobre (contraste no escuro, estados, hierarquia).
 Sugestão estética de gosto pessoal vai por último e marcada como opcional.

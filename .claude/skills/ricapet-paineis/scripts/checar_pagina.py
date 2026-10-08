@@ -118,6 +118,24 @@ def checar(caminho):
         if "aria-label" not in attrs and "title=" not in attrs:
             erros.append("botão só com ícone sem aria-label/title: " + re.sub(r"\s+", " ", m.group(0))[:80])
 
+    # classes usadas no HTML estático que não estão definidas em lugar nenhum
+    # (nem no CSS da página nem no tokens-admin.css) — costuma ser bloco
+    # copiado de outra página sem trazer o CSS junto (ex.: submenu da sidebar).
+    tokens_css = Path(caminho).resolve().parent / "assets" / "tokens-admin.css"
+    css_total = css + (tokens_css.read_text(encoding="utf-8") if tokens_css.exists() else "")
+    definidas = set(re.findall(r"\.(-?[_a-zA-Z][\w-]*)", css_total))
+    corpo = re.sub(r"<(script|style)[^>]*>.*?</\1>", "", html, flags=re.S | re.I)
+    usadas = set()
+    for m in re.finditer(r'class="([^"$`{}]*)"', corpo):
+        usadas.update(m.group(1).split())
+    # classes que só servem de gancho pro JS (estado) são comuns e legítimas
+    ganchos = {"ativo", "aberto", "oculto", "active", "hidden", "selected"}
+    sem_css = sorted(c for c in usadas - definidas - ganchos)
+    if sem_css:
+        avisos.append("classe(s) no HTML sem CSS definido (nem na página nem no tokens-admin): "
+                      + ", ".join(sem_css[:12]) + ("…" if len(sem_css) > 12 else "")
+                      + " — confira se não faltou trazer o CSS de outra página")
+
     # data em UTC
     if re.search(r"toISOString\(\)\.slice\(0,\s*10\)", html):
         avisos.append("toISOString().slice(0,10) dá o dia em UTC — use o fuso America/Sao_Paulo")

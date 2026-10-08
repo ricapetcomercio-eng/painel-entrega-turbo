@@ -52,7 +52,11 @@ Páginas antigas usam `--page-bg`, `--ink`, `--ink-muted`, `--accent`,
 funcionam. Em código novo prefira os nomes novos; ao editar página antiga,
 siga o estilo que ela já usa (não misture os dois no mesmo bloco).
 
-Armadilha: `--teal` **não é turquesa** — é alias de `--warning` (sobra da
+Armadilhas:
+- `--ink`/`--text-primary` são cor de TEXTO: usados como fundo, viram
+  quase branco no tema escuro (texto branco some). Mesmo cuidado com
+  `--accent-ink`, que no escuro vira ciano claro.
+- `--teal` **não é turquesa** — é alias de `--warning` (sobra da
 identidade antiga). Para a cor da marca use `--brand-primary`.
 
 ## 3. Botões
