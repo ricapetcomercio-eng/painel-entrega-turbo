@@ -12,10 +12,12 @@ componente próprio envelhece mal: na próxima troca de tema (já foram 4 em
 2026: roxo → teal/terracota → verde → turquesa) ela fica para trás, porque
 não herda nada.
 
-**Fonte da verdade:** `public/assets/tokens-admin.css`. Se este manual e
-aquele arquivo discordarem, o arquivo vence (e vale atualizar o manual).
-O `CLAUDE.md` tem trechos antigos sobre identidade (teal/terracota, Space
-Grotesk) — estão desatualizados, ignore-os nesse ponto.
+**Fonte da verdade para tokens visuais:** `public/assets/tokens-admin.css`.
+Se este manual, o `CLAUDE.md` ou qualquer outra documentação disser algo
+diferente desse arquivo sobre cor, fonte ou componente, não escolha um lado
+em silêncio: corrija a documentação desatualizada no mesmo PR, para a
+contradição deixar de existir (foi assim que o trecho de identidade do
+`CLAUDE.md` foi atualizado junto com esta skill).
 
 ## Os dois mundos visuais
 
@@ -30,6 +32,29 @@ Grotesk) — estão desatualizados, ignore-os nesse ponto.
 Nunca misture: não leve fonte/cor da TV para o admin, nem componentes do
 admin para a TV. `backfill-runner.html` é ferramenta interna avulsa — fica
 fora do padrão de propósito.
+
+## Painel de estoque: implementação oficial ainda não definida
+
+O painel de estoque existe em duas cópias: as páginas `public/estoque.html`,
+`public/estoque-atualizar.html` e `public/estoque-saldo.html` deste repo, e
+o repositório separado `painel-estoque-adesivo` (com o mesmo catálogo, mas
+código que já divergiu). **Qual das duas é a implementação oficial ainda
+depende de uma decisão do dono do projeto**, que não foi registrada.
+
+Esta skill trata só do padrão visual. Ela **não** define qual cópia do
+estoque é a fonte de verdade — o fato de as páginas `estoque*.html` deste
+repo aparecerem aqui como exemplo de tela não significa que sejam a versão
+oficial. Até a decisão estar registrada (no `CLAUDE.md` ou na skill de
+estoque):
+- antes de alterar qualquer tela de estoque, confirme com o dono em qual
+  cópia a mudança deve ser feita;
+- não use nenhuma das duas como referência de regra de negócio de estoque
+  (cálculo, catálogo, contagem) para a outra, nem copie lógica entre elas;
+- ao revisar uma tela de estoque, avalie só o visual e diga explicitamente
+  que a escolha da versão oficial está pendente.
+
+Quando a decisão for registrada, substitua esta seção por um apontamento
+para ela.
 
 ## Fluxo de trabalho
 
@@ -149,7 +174,8 @@ temas. Se a cor vai servir a mais de uma página, ela pertence ao
 - Tabela larga: dentro de `.table-scroll` (rolagem horizontal no próprio
   bloco); a página inteira nunca rola para o lado.
 - `estoque-atualizar.html` é a tela pensada para celular no galpão: alvos
-  de toque ≥ 44px, um assunto por tela.
+  de toque ≥ 44px, um assunto por tela. (Referência só de layout mobile —
+  ver "Painel de estoque" acima sobre a implementação oficial.)
 
 ## Acessibilidade (mínimo que todo PR de tela deve cumprir)
 
