@@ -1868,35 +1868,56 @@ function hashRegistro(hashAnterior, r) {
   return crypto.createHmac('sha256', process.env.PONTO_TOKEN_SECRET || '').update(String(hashAnterior || '') + conteudo).digest('hex');
 }
 
+// Ler o último NSR e gravar o próximo precisa acontecer numa transação de
+// escrita: sem isso, duas batidas no mesmo segundo (troca de turno) liam o
+// mesmo último NSR e as duas saíam com o mesmo número -- aconteceu de verdade
+// em produção (NSR 279 e 750 repetidos, ver issue #244). BEGIN IMMEDIATE
+// serializa as escritas; se o banco estiver ocupado com outra batida, tenta
+// de novo algumas vezes antes de desistir.
+const TENTATIVAS_INSERIR_PONTO = 5;
 async function inserirRegistroPonto(db, dados) {
-  const ult = await db.execute('SELECT nsr, hash FROM registros_ponto WHERE nsr IS NOT NULL ORDER BY nsr DESC LIMIT 1');
-  const nsr = (ult.rows[0] ? Number(ult.rows[0].nsr) : 0) + 1;
-  const hashAnterior = ult.rows[0] ? ult.rows[0].hash : '0'.repeat(64);
   const cfg = await configPonto(db);
-  const linha = {
-    nsr,
-    funcionario_id: dados.funcionario_id,
-    tipo: dados.tipo,
-    registrado_em: dados.registrado_em,
-    origem: dados.origem || 'batida',
-    ref_nsr: dados.ref_nsr || null,
-    cnpj: cfg.cnpj || null,
-  };
-  const hash = hashRegistro(hashAnterior, linha);
-  await db.execute({
-    sql: `INSERT INTO registros_ponto
-          (id, funcionario_id, tipo, registrado_em, metodo_validacao, latitude, longitude, distancia_metros,
-           origem, motivo, editado_por, editado_em, ref_nsr, nsr, hash, hash_anterior, cnpj)
-          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-    args: [
-      `${dados.funcionario_id}:${dados.registrado_em}:${nsr}`,
-      dados.funcionario_id, dados.tipo, dados.registrado_em, dados.metodo_validacao || 'edicao',
-      dados.latitude ?? null, dados.longitude ?? null, dados.distancia_metros ?? null,
-      linha.origem, dados.motivo || null, dados.autor_id || null, dados.autor_id ? new Date().toISOString() : null,
-      linha.ref_nsr, nsr, hash, hashAnterior, linha.cnpj,
-    ],
-  });
-  return { nsr, hash, registrado_em: dados.registrado_em };
+  for (let tentativa = 1; ; tentativa += 1) {
+    let tx = null;
+    try {
+      tx = await db.transaction('write');
+      const ult = await tx.execute('SELECT nsr, hash FROM registros_ponto WHERE nsr IS NOT NULL ORDER BY nsr DESC LIMIT 1');
+      const nsr = (ult.rows[0] ? Number(ult.rows[0].nsr) : 0) + 1;
+      const hashAnterior = ult.rows[0] ? ult.rows[0].hash : '0'.repeat(64);
+      const linha = {
+        nsr,
+        funcionario_id: dados.funcionario_id,
+        tipo: dados.tipo,
+        registrado_em: dados.registrado_em,
+        origem: dados.origem || 'batida',
+        ref_nsr: dados.ref_nsr || null,
+        cnpj: cfg.cnpj || null,
+      };
+      const hash = hashRegistro(hashAnterior, linha);
+      await tx.execute({
+        sql: `INSERT INTO registros_ponto
+              (id, funcionario_id, tipo, registrado_em, metodo_validacao, latitude, longitude, distancia_metros,
+               origem, motivo, editado_por, editado_em, ref_nsr, nsr, hash, hash_anterior, cnpj)
+              VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        args: [
+          `${dados.funcionario_id}:${dados.registrado_em}:${nsr}`,
+          dados.funcionario_id, dados.tipo, dados.registrado_em, dados.metodo_validacao || 'edicao',
+          dados.latitude ?? null, dados.longitude ?? null, dados.distancia_metros ?? null,
+          linha.origem, dados.motivo || null, dados.autor_id || null, dados.autor_id ? new Date().toISOString() : null,
+          linha.ref_nsr, nsr, hash, hashAnterior, linha.cnpj,
+        ],
+      });
+      await tx.commit();
+      return { nsr, hash, registrado_em: dados.registrado_em };
+    } catch (err) {
+      if (tx) { try { await tx.rollback(); } catch (e) { /* já encerrada */ } }
+      const ocupado = /BUSY|LOCKED/i.test(`${err.code || ''} ${err.message || ''}`);
+      if (!ocupado || tentativa >= TENTATIVAS_INSERIR_PONTO) throw err;
+      await new Promise((r) => setTimeout(r, 40 * tentativa + Math.floor(Math.random() * 40)));
+    } finally {
+      if (tx) tx.close();
+    }
+  }
 }
 
 // Jornada esperada por dia da semana (0=domingo … 6=sábado), em minutos já
@@ -2931,24 +2952,57 @@ async function debugPontoAdminEditar(req, res) {
   }
 }
 
-// Verifica a cadeia de hash de todos os registros (só admin).
+// Verifica a cadeia de hash de todos os registros (só admin). Separa três
+// situações que antes saíam todas como "hash inconsistente":
+// - alterados: o conteúdo da linha não bate com o próprio hash (mexeram na
+//   batida por fora do sistema) -- o único caso que é adulteração de fato;
+// - elos: o hash_anterior não aponta pra nenhuma linha com o NSR anterior,
+//   ou falta um número na sequência (linha apagada por fora do sistema);
+// - repetidos: o mesmo NSR gravado em duas batidas simultâneas (bug de
+//   concorrência corrigido em inserirRegistroPonto, ver issue #244). As
+//   batidas em si estão corretas; só a numeração não é única.
 async function debugPontoAdminIntegridade(req, res) {
   const db = getDb();
   const admin = await exigirAdmin(req, res, db);
   if (!admin) return;
 
   const rs = await db.execute('SELECT nsr, funcionario_id, tipo, registrado_em, origem, ref_nsr, cnpj, hash, hash_anterior FROM registros_ponto WHERE nsr IS NOT NULL ORDER BY nsr');
-  let anterior = '0'.repeat(64);
-  const quebras = [];
+  const zeros = '0'.repeat(64);
+  const hashesPorNsr = new Map();
+  rs.rows.forEach((r) => {
+    const n = Number(r.nsr);
+    if (!hashesPorNsr.has(n)) hashesPorNsr.set(n, new Set());
+    hashesPorNsr.get(n).add(r.hash);
+  });
+
+  const alterados = [];
+  const elos = [];
   for (const r of rs.rows) {
-    const esperado = hashRegistro(anterior, r);
-    if (r.hash !== esperado) quebras.push({ nsr: Number(r.nsr), registrado_em: r.registrado_em });
-    anterior = r.hash;
+    const n = Number(r.nsr);
+    if (r.hash !== hashRegistro(r.hash_anterior, r)) {
+      alterados.push({ nsr: n, registrado_em: r.registrado_em });
+      continue;
+    }
+    const anteriores = hashesPorNsr.get(n - 1);
+    const encadeado = n === 1 ? r.hash_anterior === zeros : !!(anteriores && anteriores.has(r.hash_anterior));
+    if (!encadeado) elos.push({ nsr: n, registrado_em: r.registrado_em });
   }
+  const repetidos = [...hashesPorNsr.entries()]
+    .filter(([, hashes]) => hashes.size > 1)
+    .map(([nsr, hashes]) => ({ nsr, vezes: hashes.size }));
+  const ultimoNsr = rs.rows.length ? Number(rs.rows[rs.rows.length - 1].nsr) : 0;
+  const faltando = [];
+  for (let n = 1; n <= ultimoNsr && faltando.length < 50; n += 1) {
+    if (!hashesPorNsr.has(n)) faltando.push(n);
+  }
+
   res.status(200).json({
     ok: true, tipo: 'ponto-admin-integridade',
-    total: rs.rows.length, ultimo_nsr: rs.rows.length ? Number(rs.rows[rs.rows.length - 1].nsr) : 0,
-    integro: quebras.length === 0, quebras,
+    total: rs.rows.length, ultimo_nsr: ultimoNsr,
+    integro: alterados.length === 0 && elos.length === 0 && faltando.length === 0,
+    alterados, elos, faltando, repetidos,
+    // compatibilidade com a tela antiga
+    quebras: [...alterados, ...elos],
   });
 }
 
