@@ -1,0 +1,48 @@
+{
+  "skill_name": "ricapet-paineis",
+  "evals": [
+    {
+      "id": 1,
+      "name": "pagina-devolucoes",
+      "prompt": "Cria uma página nova public/devolucoes.html pro painel admin mostrando as devoluções do mês: 4 indicadores no topo (total, Mercado Livre, Shopee e taxa de devolução %), um gráfico de devoluções por dia e uma tabela por motivo. Os dados vêm de GET /api/analytics-todos-data?visao=devolucoes&mes=AAAA-MM, que devolve { kpis: { total, ml, shopee, taxa }, por_dia: [{ dia, ml, shopee }], por_motivo: [{ motivo, marketplace, qtd }], atualizado_em }. Pode inventar o backend depois, agora só a tela.",
+      "expected_output": "Um HTML que reaproveita tokens-admin.css (kpi-row/kpi, table-card, card, btn), Inter, script de tema, sidebar copiada, Chart.js com cores --chart-1/--chart-2 via cssVar, pt-BR, estados carregando/vazio/erro, escape de dados, sem hex solto.",
+      "files": [],
+      "assertions": [
+        "checar_pagina.py não aponta nenhum ERRO no arquivo gerado",
+        "Usa as classes kpi-row/kpi e table-card do design system em vez de CSS próprio para esses blocos",
+        "Gráfico usa Chart.js e lê cores dos tokens --chart-1/--chart-2 (ML×Shopee) via getComputedStyle",
+        "Tem estado de carregando, vazio e erro visível",
+        "Escapa texto vindo da API (motivo) antes de inserir no innerHTML",
+        "Mostra a hora da última atualização (atualizado_em)"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "tv-aviso-coleta",
+      "prompt": "No Painel TV (public/tv.html) quero um aviso bem visível no topo quando a coleta estiver parada há mais de 15 minutos — o pessoal do galpão às vezes fica olhando dado velho sem saber. O dashboard-data já devolve ultima_coleta (ISO). Faz a alteração.",
+      "expected_output": "Edição da tv.html que respeita a identidade da TV (fontes Atkinson/Barlow, paleta própria escura, sem tokens-admin/Inter), aviso legível a distância, com texto além da cor, role=alert/aria-live, sem aumentar INTERVALO_BUSCA_MS nem criar chamada nova.",
+      "files": ["public/tv.html"],
+      "assertions": [
+        "Não introduz tokens-admin.css nem a fonte Inter na TV",
+        "Usa variáveis de cor já existentes na TV (ex.: --amarelo/--laranja/--preto) em vez de hex novo solto",
+        "Não altera INTERVALO_BUSCA_MS nem adiciona fetch/endpoint novo",
+        "O aviso tem texto explícito (não só cor) e role=alert ou aria-live",
+        "Tamanho do texto pensado para leitura a distância (clamp/vw ou fonte grande)"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "revisao-estoque",
+      "prompt": "Revisa o visual do public/estoque.html e me diz o que está fora do padrão dos outros painéis da Ricapet. Não altera nada, só me passa a lista do que corrigir, do mais importante pro menos.",
+      "expected_output": "Uma revisão priorizada citando linhas, apontando --surface-3 sem versão escura, cores hex inline, innerHTML sem escape, comparando com tokens-admin.css como fonte da verdade, sem sugerir nova identidade.",
+      "files": ["public/estoque.html"],
+      "assertions": [
+        "Aponta que --surface-3 não tem versão para o tema escuro",
+        "Aponta cores hex soltas/inline no lugar de tokens",
+        "Usa tokens-admin.css como referência do padrão (não sugere identidade nova)",
+        "Cita número de linha nos achados",
+        "Lista priorizada (mais importante primeiro)"
+      ]
+    }
+  ]
+}
