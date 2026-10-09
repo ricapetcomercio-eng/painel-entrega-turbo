@@ -1226,6 +1226,12 @@ lib/
   tabelaProdutos.js / tabelaProdutos.json
                    mapeamento SKU → produto/cor/tamanho, gerado a partir de
                    C:\FECHAMENTO\03 AUXILIARES\TABELA_AUXILIAR.xlsx (ver scripts/)
+                   — inclui `unidades` (coluna UNIDADE: peças por SKU, KIT20 =
+                   20), que a baixa automática multiplica. A baixa procura a
+                   linha do catalog.json sem diferenciar maiúscula/acento
+                   (`resolverLinhaCatalogo` em estoqueSaldo.js) e manda o
+                   Arranhador de Braço pro Lado Direito/Esquerdo pela última
+                   letra do SKU (D/E).
 
 public/
   tv.html          tela para TV da expedição — alto contraste, contagem
