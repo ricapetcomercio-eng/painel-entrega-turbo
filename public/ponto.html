@@ -1462,8 +1462,21 @@
   $('b-integridade').addEventListener('click', async () => {
     try {
       const d = await api('ponto-admin-integridade', { token: sessao.token });
-      if (d.integro) alert(`✓ Cadeia íntegra.\n${d.total} registros, último NSR ${d.ultimo_nsr}.\nNenhuma marcação foi alterada por fora do sistema.`);
-      else alert(`⚠️ ATENÇÃO: ${d.quebras.length} registro(s) com hash inconsistente (NSR ${d.quebras.map((q) => q.nsr).join(', ')}).\nAlguém pode ter mexido direto no banco.`);
+      const lista = (xs) => xs.map((x) => (typeof x === 'object' ? x.nsr : x)).join(', ');
+      const repetidos = d.repetidos || [];
+      const avisoRepetidos = repetidos.length
+        ? `\n\nAviso: ${repetidos.length} número(s) NSR repetido(s) (NSR ${lista(repetidos)}). Foram duas batidas registradas no mesmo segundo; os horários estão corretos, só a numeração repetiu.`
+        : '';
+      if (d.integro) {
+        alert(`✓ Nenhuma marcação foi alterada por fora do sistema.\n${d.total} registros, último NSR ${d.ultimo_nsr}.${avisoRepetidos}`);
+      } else {
+        const partes = [];
+        if ((d.alterados || []).length) partes.push(`${d.alterados.length} registro(s) com conteúdo alterado por fora do sistema (NSR ${lista(d.alterados)})`);
+        if ((d.elos || []).length) partes.push(`${d.elos.length} registro(s) fora da sequência, possivelmente após linha apagada (NSR ${lista(d.elos)})`);
+        if ((d.faltando || []).length) partes.push(`NSR ausente(s): ${lista(d.faltando)}`);
+        if (!partes.length && (d.quebras || []).length) partes.push(`${d.quebras.length} registro(s) com hash inconsistente (NSR ${lista(d.quebras)})`);
+        alert(`⚠️ ATENÇÃO:\n- ${partes.join('\n- ')}\nAlguém pode ter mexido direto no banco.${avisoRepetidos}`);
+      }
     } catch (err) { alert(err.message); }
   });
 
