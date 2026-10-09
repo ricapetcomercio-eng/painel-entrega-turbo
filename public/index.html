@@ -1255,19 +1255,29 @@
     } catch (e) { return []; }
   }
 
-  async function buscarResumoPeriodo(de, ate) {
-    const pedidos = await buscarPedidosPeriodoGenerico(de.toISOString(), ate.toISOString());
+  // Recorta, no navegador, os pedidos de uma janela [de, ate] (inclusive
+  // nas duas pontas, igual ao filtro do servidor) a partir de uma lista já
+  // buscada. Os comparativos fixos do Executivo usam isso para sair de UMA
+  // busca só, em vez de uma busca por janela (#233, economia de CPU).
+  function filtrarPorJanela(pedidos, de, ate) {
+    const deMs = de.getTime();
+    const ateMs = ate.getTime();
+    return pedidos.filter(p => {
+      const t = new Date(p.date_created).getTime();
+      return t >= deMs && t <= ateMs;
+    });
+  }
+
+  function resumoPeriodo(pedidos) {
     const faturamento = pedidos.reduce((a, p) => a + valorVendido(p), 0);
     return { faturamento, pedidos: pedidos.length };
   }
 
   function formatarMoeda(v) { return 'R$ ' + Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 
-  async function renderComparativo(idPrefix, deAtual, ateAtual, deAnterior, ateAnterior) {
-    const [atual, anterior] = await Promise.all([
-      buscarResumoPeriodo(deAtual, ateAtual),
-      buscarResumoPeriodo(deAnterior, ateAnterior),
-    ]);
+  function renderComparativo(pedidosJanela, idPrefix, deAtual, ateAtual, deAnterior, ateAnterior) {
+    const atual = resumoPeriodo(filtrarPorJanela(pedidosJanela, deAtual, ateAtual));
+    const anterior = resumoPeriodo(filtrarPorJanela(pedidosJanela, deAnterior, ateAnterior));
     const deltaFat = anterior.faturamento > 0 ? ((atual.faturamento - anterior.faturamento) / anterior.faturamento) * 100 : null;
     const deltaPed = anterior.pedidos > 0 ? ((atual.pedidos - anterior.pedidos) / anterior.pedidos) * 100 : null;
 
@@ -1299,13 +1309,11 @@
     return pedidos.filter(p => p.entregue_em && p.atrasado === true).length;
   }
 
-  async function renderEntreguesAtrasados7d(agora) {
+  function renderEntreguesAtrasados7d(pedidosJanela, agora) {
     const seteDiasAtras = new Date(agora.getTime() - 7 * 24 * 60 * 60 * 1000);
     const catorzeDiasAtras = new Date(agora.getTime() - 14 * 24 * 60 * 60 * 1000);
-    const [pedidos7d, pedidosAnt7d] = await Promise.all([
-      buscarPedidosPeriodoGenerico(seteDiasAtras.toISOString(), agora.toISOString()),
-      buscarPedidosPeriodoGenerico(catorzeDiasAtras.toISOString(), seteDiasAtras.toISOString()),
-    ]);
+    const pedidos7d = filtrarPorJanela(pedidosJanela, seteDiasAtras, agora);
+    const pedidosAnt7d = filtrarPorJanela(pedidosJanela, catorzeDiasAtras, seteDiasAtras);
     const atual = contarEntreguesAtrasados(pedidos7d);
     const anterior = contarEntreguesAtrasados(pedidosAnt7d);
 
@@ -1490,13 +1498,11 @@
       const hojeInicio = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
       const ontemInicio = new Date(hojeInicio.getTime() - 24 * 60 * 60 * 1000);
       const ontemFimEquivalente = new Date(ontemInicio.getTime() + (agora.getTime() - hojeInicio.getTime()));
-      renderComparativo('compDia', hojeInicio, agora, ontemInicio, ontemFimEquivalente);
 
       const diaSemana = agora.getDay();
       const semanaInicio = new Date(hojeInicio.getTime() - diaSemana * 24 * 60 * 60 * 1000);
       const semanaPassadaInicio = new Date(semanaInicio.getTime() - 7 * 24 * 60 * 60 * 1000);
       const semanaPassadaFimEquivalente = new Date(semanaPassadaInicio.getTime() + (agora.getTime() - semanaInicio.getTime()));
-      renderComparativo('compSemana', semanaInicio, agora, semanaPassadaInicio, semanaPassadaFimEquivalente);
 
       // Mês anterior usa a mesma duração decorrida em milissegundos (não
       // exatamente "mesmo dia do mês", já que os meses têm tamanhos
@@ -1504,8 +1510,17 @@
       const mesInicio = new Date(agora.getFullYear(), agora.getMonth(), 1);
       const mesPassadoInicio = new Date(agora.getFullYear(), agora.getMonth() - 1, 1);
       const mesPassadoFimEquivalente = new Date(mesPassadoInicio.getTime() + (agora.getTime() - mesInicio.getTime()));
-      renderComparativo('compMes', mesInicio, agora, mesPassadoInicio, mesPassadoFimEquivalente);
-      await renderEntreguesAtrasados7d(agora);
+      const catorzeDiasAtras = new Date(agora.getTime() - 14 * 24 * 60 * 60 * 1000);
+
+      // Uma busca só cobrindo todas as janelas acima (a mais antiga até
+      // agora), recortada no navegador -- antes eram 8 buscas completas
+      // separadas, várias com os mesmos pedidos (#233).
+      const inicioJanela = new Date(Math.min(ontemInicio.getTime(), semanaPassadaInicio.getTime(), mesPassadoInicio.getTime(), catorzeDiasAtras.getTime()));
+      const pedidosJanela = await buscarPedidosPeriodoGenerico(inicioJanela.toISOString(), agora.toISOString());
+      renderComparativo(pedidosJanela, 'compDia', hojeInicio, agora, ontemInicio, ontemFimEquivalente);
+      renderComparativo(pedidosJanela, 'compSemana', semanaInicio, agora, semanaPassadaInicio, semanaPassadaFimEquivalente);
+      renderComparativo(pedidosJanela, 'compMes', mesInicio, agora, mesPassadoInicio, mesPassadoFimEquivalente);
+      renderEntreguesAtrasados7d(pedidosJanela, agora);
     } catch (e) { /* silencioso */ }
   }
 
@@ -2700,8 +2715,15 @@
     cargaDashboardIniciada = true;
     carregar();
     carregarAnalytics();
-    setInterval(carregar, 30000);
-    setInterval(carregarAnalytics, 60000);
+    // Só atualiza sozinho com a aba visível: um Dashboard esquecido aberto
+    // (minimizado, atrás de outra aba) não fica consultando o servidor a
+    // cada 30/60s à toa (#233, Restrição de design nº 1 do CLAUDE.md). Ao
+    // voltar para a aba, atualiza na hora uma vez.
+    setInterval(() => { if (!document.hidden) carregar(); }, 30000);
+    setInterval(() => { if (!document.hidden) carregarAnalytics(); }, 60000);
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) { carregar(); carregarAnalytics(); }
+    });
     mudarAba('executivo');
   }
   if (MODO_CONCORRENCIA) {
