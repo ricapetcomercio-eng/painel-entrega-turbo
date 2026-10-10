@@ -33,6 +33,12 @@ qualquer número de "geral coletado/entregue" não dá para calcular no
 navegador. Exigiria gravar esse número pronto na coleta (dentro de um
 throttle existente, consulta só no banco) → é dado novo: pergunte antes.
 
+**A TV lê fotos (snapshots) gravadas pela coleta, não as tabelas.** Ex.:
+o pedido bipado sai de `listarMlAguardando` na hora, mas o card do ML
+geral só some quando a coleta regrava `entrega_turbo:ultima_coleta_ml_todos`
+(até ~5 min; fora de 6h-18h seg-sáb, só no próximo ciclo). Testado em
+out/2026 com banco local + Playwright.
+
 ### Zonas (`zonaPorPrazo`)
 
 | Zona | Quando |

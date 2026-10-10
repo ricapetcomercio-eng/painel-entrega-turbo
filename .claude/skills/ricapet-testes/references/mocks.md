@@ -84,6 +84,10 @@ node $S api/debug.js "tipo=adicionar-coluna-tipo&secret=teste"
 node $S api/marcar-coletado.js "" '{"secret":"teste","tipo":"ml","identificador":"999"}'
 ```
 
+Banco recém-criado não tem todas as tabelas (ex.: `estoque_baixas`): um
+erro "no such table" em parte acessória (reconciliação de estoque) é
+esperado e capturado pelo próprio código — não confunda com falha da rota.
+
 Para inserir dado de teste ou conferir o que ficou gravado, use o mesmo
 banco (`/tmp/ricapet-teste.db`) com um script Node que faça `require` de
 `lib/db.js` depois de definir `TURSO_DATABASE_URL=file:/tmp/ricapet-teste.db`

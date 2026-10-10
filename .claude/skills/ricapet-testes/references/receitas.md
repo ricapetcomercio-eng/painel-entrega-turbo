@@ -59,16 +59,26 @@ Regressões
 - Conteúdo do modal corresponde ao item clicado (ex.: dia/título certo).
 
 ## Responsividade
-- `testar_pagina.mjs` já cobre 390/1366/1920 e detecta rolagem
+- `testar_pagina.mjs` já cobre 360/1366/1920 e detecta rolagem
   horizontal. **Olhe os prints**: texto cortado, botão fora da tela,
   tabela ilegível, sidebar ocupando a tela no celular (`menu-mobile.js`).
 - TV: teste 1920×1080 e 1366×768 (as duas TVs reais); legível de longe é
   responsabilidade da `ricapet-paineis`.
 
+- Toque no celular: elementos que só reagem a `mouseover`/`mousemove`
+  (tooltip, "passe o mouse") não funcionam no dedo — simule com
+  `page.tap()` num viewport com `hasTouch` e confira que nada fica preso
+  na tela.
+
 ## Estados de erro
 - `/api` com `status: 500`, `401` e `abortar: true`: a página não quebra
   (`paginaErros` vazio), mostra aviso compreensível, e (TV/painéis com
   atualização automática) mantém o último dado bom quando faz sentido.
+- Falha **na primeira carga** (ou recarregar com a API fora) é diferente
+  de falha depois de já ter dado: confira que a tela não finge "tudo
+  vazio" (ex.: "Nenhum pedido 🎉" com zero) quando na verdade não carregou.
+- Painel com relógio (TV): avance o tempo com `agora` + `page.clock` e
+  confira que contadores, zonas e KPIs continuam coerentes sem novo dado.
 - 401 em página com sessão: deve ir para o login / acesso negado, não
   ficar em loop.
 
@@ -84,6 +94,10 @@ Regressões
 - Datas e "hoje" no fuso de Brasília: use `agora` perto da virada do dia
   (ex.: `2026-10-07T23:30:00-03:00`) quando a lógica depende de "hoje".
 - Lista vazia, um só item, muitos itens (50+), valor zero e negativo.
+
+- Troca de contexto (mês, conta, aba) com filtro ativo: o filtro escolhido
+  pode não existir no novo contexto — confira que a tela não fica vazia
+  "presa" num valor que o seletor já não mostra.
 
 ## Fluxos completos
 Encadeie o que o usuário faz de verdade, num teste só. Ex.:

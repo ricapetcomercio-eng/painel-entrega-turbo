@@ -32,7 +32,13 @@ Dono: Ricardo (`ricapetcomercio-eng`). Deploy: Vercel, projeto `ricapet1` (plano
    Isso vale para merge de PR, push direto em `main` e `vercel deploy`/
    `vercel --prod` (que, além disso, nunca deve ser rodado a partir de
    checkout local — ver seção sobre deploy manual abaixo). Abra PR em
-   rascunho e espere o ok. Rotas que gravam em produção (backfill,
+   rascunho e espere o ok. **Única exceção autorizada pelo Ricardo
+   (07/10/2026, reconfirmada em 10/10/2026):** a rotina de hora em hora do
+   coordenador pode mergear PRs da equipe de agentes que passem na revisão
+   automática (sem conflito, checks verdes, sem segredo/dado real, sem
+   aumento de CPU/chamadas de API, sem lógica pesada em `dashboard-data.js`,
+   sem apagar dado, sem erro de sintaxe, sem contradizer este arquivo). Fora
+   dessa rotina, nenhum agente mergeia nada. Rotas que gravam em produção (backfill,
    migração, `?tipo=...` de correção) seguem a mesma regra: só o Ricardo
    roda.
 

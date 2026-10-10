@@ -33,7 +33,7 @@ Tudo em `.claude/skills/ricapet-testes/scripts/`, rodando da raiz do repo:
 
 | Ferramenta | Para quê |
 |---|---|
-| `testar_pagina.mjs <pagina.html>` | **Fumaça**: abre a página em 390/1366/1920px com sessão e dados falsos, salva prints, lista erro de JavaScript, erro de console, rede, `/api` sem mock e rolagem horizontal. Sai com código 1 se algo deu errado. |
+| `testar_pagina.mjs <pagina.html>` | **Fumaça**: abre a página em 360/1366/1920px com sessão e dados falsos, salva prints, lista erro de JavaScript, erro de console, rede, `/api` sem mock e rolagem horizontal. Sai com código 1 se algo deu errado. |
 | `harness.mjs` (`abrirPagina`) | Biblioteca para **teste de comportamento**: devolve um `page` do Playwright pronto para clicar, digitar e conferir. |
 | `exemplo_tv.mjs` | Modelo de teste de comportamento completo (dados, ordem, KPI, filtro, busca, estado de erro). Copie e adapte. |
 | `chamar_api.mjs <api/x.js> [query] [json]` | Chama uma rota do backend localmente, contra SQLite de arquivo. |
@@ -56,7 +56,7 @@ pelo proxy do ambiente. Detalhes e opções: `references/mocks.md`.
 2. **Fumaça da página** que você mexeu:
    `node .claude/skills/ricapet-testes/scripts/testar_pagina.mjs <pagina>.html --saida <scratchpad>`
    e **olhe os prints** (abra o PNG). Zero erro de JavaScript, zero `/api`
-   sem mock, sem rolagem horizontal no celular.
+   sem mock, sem rolagem horizontal no celular (360px pega estouros que 390px esconde). Rode também com `--offline --larguras 360`: sem a fonte Inter (internet ruim no celular) a fonte reserva é mais larga e já revelou estouro real nos KPIs do Fechamento.
 3. **Comportamento**: escreva um teste curto com `abrirPagina` que faz o
    que a tarefa pediu e confere o resultado na tela (receitas por tipo em
    `references/receitas.md`). Teste o caminho feliz **e** pelo menos um
@@ -97,7 +97,7 @@ consiga seguir (qual tela abrir, o que deve aparecer).
 ```
 ## Como testei
 - Sintaxe: node --check em api/x.js e nos 2 <script> de public/y.html — ok
-- Fumaça: testar_pagina.mjs y.html (390/1366/1920) — sem erro de JS, sem /api sem mock, sem rolagem horizontal
+- Fumaça: testar_pagina.mjs y.html (360/1366/1920) — sem erro de JS, sem /api sem mock, sem rolagem horizontal
 - Comportamento (Playwright, dados inventados): 6/6 casos ok — filtro X, ordenação, modal abre/fecha com Esc, erro 500 mostra aviso, …
 - Backend: chamar_api.mjs api/x.js — 200 e linha gravada com categoria='coletado'; secret errado → 401
 - Regressão: fumaça de tv.html e index.html — ok

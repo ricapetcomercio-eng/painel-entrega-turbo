@@ -8,7 +8,7 @@
 // Opções:
 //   --mocks <arquivo.json>    mocks de /api (padrão: fixtures/<pagina>.json, se existir)
 //   --saida <pasta>           onde salvar os prints (padrão: ./saida-testes)
-//   --larguras 390,1366,1920  larguras a testar
+//   --larguras 360,1366,1920  larguras a testar (360 = celular pequeno, pega mais estouro que 390)
 //   --sem-sessao              abre sem login (deve cair no login / acesso negado)
 //   --paginas a,b             páginas liberadas (e super_admin=false)
 //   --offline                 bloqueia fontes/CDN (simula internet ruim)
@@ -32,8 +32,8 @@ const nomeBase = pagina.split('?')[0].replace(/\.html$/, '');
 const fixturePadrao = path.join(RAIZ, '.claude/skills/ricapet-testes/fixtures', `${nomeBase}.json`);
 const mocks = opt('mocks', fs.existsSync(fixturePadrao) ? fixturePadrao : undefined);
 const saida = path.resolve(opt('saida', 'saida-testes'));
-const larguras = opt('larguras', '390,1366,1920').split(',').map(Number);
-const alturas = { 390: 844, 1366: 768, 1920: 1080 };
+const larguras = opt('larguras', '360,1366,1920').split(',').map(Number);
+const alturas = { 360: 780, 390: 844, 1366: 768, 1920: 1080 };
 const paginasLib = opt('paginas');
 const sessao = flag('sem-sessao') ? false
   : paginasLib ? { superAdmin: false, paginas: paginasLib.split(',') } : {};
