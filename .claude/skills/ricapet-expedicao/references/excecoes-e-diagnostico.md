@@ -18,6 +18,9 @@
 ## Roteiro: "pedido X sumiu da TV" / "número não bate"
 
 1. Qual **tipo** e **conta**? (Flex, Turbo, geral; Ricapet ou Thapets.)
+   E **quando**: o cron só roda 6h-18h de segunda a sábado — fora disso a
+   TV mostra a última foto gravada, e nada é reconferido até o próximo
+   horário de coleta.
 2. O pedido **está no banco**? `?tipo=historico-todos-row` (geral),
    `?tipo=flex-status` (Flex), `?tipo=turbo-live-status` (Turbo).
    - Não está → problema de **descoberta** (falha de API, janela) →

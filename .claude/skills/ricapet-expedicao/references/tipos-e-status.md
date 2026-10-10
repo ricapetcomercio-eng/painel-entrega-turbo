@@ -88,7 +88,11 @@ fração do prazo), mas a TV **não** usa — usa zonas (ver `paineis.md`).
   status em `ready_to_ship` mesmo depois de despachado; só o substatus
   revela. Substatus confirmados como "ainda no galpão": `printed`,
   `invoice_pending`, `buffered`. Lista de bloqueio **conservadora**: só
-  entra valor confirmado com pedido real (ver `CLAUDE.md`, 4ª rodada);
+  entra valor confirmado com pedido real (ver `CLAUDE.md`, 4ª rodada).
+  Candidatos **ainda não confirmados** (aparecem no histórico real
+  `dropped_off` → `picked_up` → `in_hub` → `in_packing_list`): `dropped_off`
+  e `picked_up`. Só incluir depois de ver um pedido real nesse substatus
+  com o ML mostrando "A caminho" — e com o ok do dono;
 - sem `%full%` e sem `%flex%`; mesmas regras de `categoria`/`cancelado`.
 
 **Teto de idade** (as duas acima e a reverificação da Shopee):

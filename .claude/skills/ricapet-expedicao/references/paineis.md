@@ -27,6 +27,12 @@ geral tem botão próprio (localStorage `tv_mostrar_shopee_todos` /
 chave de emergência (hoje `false`); a orientação do dono é **não** desligar
 o bloco como primeira resposta a um problema de status.
 
+**Limite importante:** os blocos geral só recebem pedidos **ainda
+pendentes**. Pedido geral já coletado/entregue nunca chega à TV — então
+qualquer número de "geral coletado/entregue" não dá para calcular no
+navegador. Exigiria gravar esse número pronto na coleta (dentro de um
+throttle existente, consulta só no banco) → é dado novo: pergunte antes.
+
 ### Zonas (`zonaPorPrazo`)
 
 | Zona | Quando |
@@ -65,6 +71,10 @@ Shopee geral · ML geral · Críticos (vermelho + preto) · Atrasados (vira
 bloco vermelho cheio quando > 0) · Coletados hoje · Atraso total (7 dias) =
 **quantidade** de pedidos atrasados (não horas) · heatmap vence em ≤15 /
 15-30 / 30-60 min. Modo emergência quando Críticos > 5.
+
+**"Hoje" na TV:** use `ehHojeBrasil` (fuso America/Sao_Paulo) em qualquer
+cálculo novo. O "Coletados hoje" atual usa `toDateString()` do navegador
+(ver `inconsistencias.md`) — não copie esse padrão.
 
 ### Filtros e alertas
 
