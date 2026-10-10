@@ -42,6 +42,22 @@ Dono: Ricardo (`ricapetcomercio-eng`). Deploy: Vercel, projeto `ricapet1` (plano
    migração, `?tipo=...` de correção) seguem a mesma regra: só o Ricardo
    roda.
 
+### Quanto processo usar (pelo tamanho da mudança)
+
+| Tamanho | Exemplos | Fluxo |
+|---|---|---|
+| **Pequena** | texto, cor, ajuste de 1 tela, nit, doc | implementa → testa (fumaça `ricapet-testes`) → revisão |
+| **Média** | tela nova ou aba nova, filtro/KPI novo, correção de bug com regra conhecida | plano → implementa → Playwright (comportamento) → `code-review` → verificação com evidência |
+| **Grande** | mexe em `api/collect.js`, gravação no banco, coleta/throttle, controle de acesso, Ponto (registro legal), várias telas, nova rota | plano (pergunta o que for regra) → subagentes se houver partes independentes → implementa → Playwright + `chamar_api.mjs` → auditoria → `code-review` → verificação → **deploy só com ok explícito** (regra 7) |
+
+Na dúvida entre dois tamanhos, use o maior. Auditoria: o `audit-suite`
+instalado foi escrito para outro projeto (Rust/Tauri/React); neste repo
+use só as lentes que se aplicam — `audit-as-a11y-eng`, `audit-as-ux-eng`,
+`audit-as-design-eng`, `audit-as-perf-eng`, `audit-as-prod-readiness`,
+`audit-as-repo-maintainer` e `audit-as-structural-eng`. Não rode o
+`full-audit` (inclui lentes de Rust/React que não existem aqui) nem em
+mudança pequena/média.
+
 ## Restrição de design nº 1: orçamento de CPU do plano Hobby
 
 Isso guia praticamente toda decisão de arquitetura no repo — qualquer
