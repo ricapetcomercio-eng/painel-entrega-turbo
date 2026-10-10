@@ -6,6 +6,58 @@ para Ricapet e Thapets, e exibe em tempo real numa TV no galpão de expedição.
 
 Dono: Ricardo (`ricapetcomercio-eng`). Deploy: Vercel, projeto `ricapet1` (plano Hobby).
 
+## Regras de trabalho (valem para todo agente, sempre)
+
+1. **Analise antes de mexer.** Entenda o problema e monte um plano antes de
+   modificar código. Mudança significativa só depois de verificar a
+   arquitetura existente (este arquivo + as skills em `.claude/skills/`).
+2. **Não invente regra de negócio.** Prazo, status, cálculo, permissão,
+   critério de KPI: se não está documentado nem no código, pergunte ao
+   Ricardo. Ao achar inconsistência, sinalize em vez de "consertar de
+   passagem".
+3. **Reaproveite o que existe.** Não substitua componente, tela ou função
+   sem verificar se o existente já atende ao padrão do projeto
+   (`ricapet-paineis` para tela; `ricapet-expedicao` para pedido/TV).
+4. **Subagentes só com benefício real** — tarefas independentes que podem
+   rodar em paralelo (ex.: revisão por design, código, acessibilidade e
+   desempenho). Tarefa pequena ou sequencial: um agente só.
+5. **Navegador se valida no navegador.** Comportamento de tela (clique,
+   filtro, modal, celular, erro) se confirma com Playwright — skill
+   `ricapet-testes`.
+6. **Pronto só com evidência.** Antes de dizer "concluído", rode as
+   verificações e mostre o resultado (comando + saída, prints, contagens).
+   O que não deu para testar, diga o que é e como conferir.
+7. **Nada vai para produção sem confirmação explícita do Ricardo.** Aqui,
+   **merge em `main` já é deploy em produção** (a Vercel publica sozinha).
+   Isso vale para merge de PR, push direto em `main` e `vercel deploy`/
+   `vercel --prod` (que, além disso, nunca deve ser rodado a partir de
+   checkout local — ver seção sobre deploy manual abaixo). Abra PR em
+   rascunho e espere o ok. **Única exceção autorizada pelo Ricardo
+   (07/10/2026, reconfirmada em 10/10/2026):** a rotina de hora em hora do
+   coordenador pode mergear PRs da equipe de agentes que passem na revisão
+   automática (sem conflito, checks verdes, sem segredo/dado real, sem
+   aumento de CPU/chamadas de API, sem lógica pesada em `dashboard-data.js`,
+   sem apagar dado, sem erro de sintaxe, sem contradizer este arquivo). Fora
+   dessa rotina, nenhum agente mergeia nada. Rotas que gravam em produção (backfill,
+   migração, `?tipo=...` de correção) seguem a mesma regra: só o Ricardo
+   roda.
+
+### Quanto processo usar (pelo tamanho da mudança)
+
+| Tamanho | Exemplos | Fluxo |
+|---|---|---|
+| **Pequena** | texto, cor, ajuste de 1 tela, nit, doc | implementa → testa (fumaça `ricapet-testes`) → revisão |
+| **Média** | tela nova ou aba nova, filtro/KPI novo, correção de bug com regra conhecida | plano → implementa → Playwright (comportamento) → `code-review` → verificação com evidência |
+| **Grande** | mexe em `api/collect.js`, gravação no banco, coleta/throttle, controle de acesso, Ponto (registro legal), várias telas, nova rota | plano (pergunta o que for regra) → subagentes se houver partes independentes → implementa → Playwright + `chamar_api.mjs` → auditoria → `code-review` → verificação → **deploy só com ok explícito** (regra 7) |
+
+Na dúvida entre dois tamanhos, use o maior. Auditoria: o `audit-suite`
+instalado foi escrito para outro projeto (Rust/Tauri/React); neste repo
+use só as lentes que se aplicam — `audit-as-a11y-eng`, `audit-as-ux-eng`,
+`audit-as-design-eng`, `audit-as-perf-eng`, `audit-as-prod-readiness`,
+`audit-as-repo-maintainer` e `audit-as-structural-eng`. Não rode o
+`full-audit` (inclui lentes de Rust/React que não existem aqui) nem em
+mudança pequena/média.
+
 ## Restrição de design nº 1: orçamento de CPU do plano Hobby
 
 Isso guia praticamente toda decisão de arquitetura no repo — qualquer

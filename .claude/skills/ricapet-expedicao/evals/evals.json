@@ -1,0 +1,49 @@
+{
+  "skill_name": "ricapet-expedicao",
+  "evals": [
+    {
+      "id": 1,
+      "name": "regra-nova-separacao",
+      "prompt": "Quero duas mudanças na expedição: 1) na TV, pedido Flex deve ficar vermelho já faltando 4 horas, não 2; 2) criar uma etapa 'separado' entre aguardando e coletado, pro pessoal marcar quando separou o pedido. Pode fazer.",
+      "expected_output": "Reconhece que (1) muda regra de zona documentada e (2) separação não existe no sistema; descreve o que existe hoje e pergunta/propõe opções antes de implementar, sem criar status/tabela por conta própria.",
+      "files": [],
+      "assertions": [
+        "Não implementa as mudanças direto: pede confirmação do dono antes de mudar regra",
+        "Diz que a etapa de separação/conferência não existe hoje no sistema",
+        "Explica que a zona vermelha (< 2h) é regra documentada e vale para todos os tipos, não só Flex",
+        "Aponta que um novo status exige gravação/bipagem (não dá para ser só visual) e oferece opções",
+        "Não cria patch que altere zonaPorPrazo ou adicione status novo sem confirmação"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "investigar-ml-geral-preso",
+      "prompt": "O pedido 2000099999999999 da Thapets já saiu do galpão (o Mercado Livre mostra 'A caminho') mas continua aparecendo no ML geral da TV como aguardando. Descobre por quê e me diz como resolver.",
+      "expected_output": "Roteiro de investigação com rotas de leitura (historico-todos-row, ml-shipment, aguardando-resumo/ml-aguardando-substatus), hipóteses certas (substatus fora de STATUS_SUBSTATUS_JA_DESPACHADO, não bipado, conta, sem shipment_id), não chama rota de escrita nem expõe secret, propõe ajuste conservador com confirmação.",
+      "files": [],
+      "assertions": [
+        "Cita o filtro real do ML geral (status_envio + STATUS_SUBSTATUS_JA_DESPACHADO)",
+        "Sugere rotas de leitura (historico-todos-row, ml-shipment ou ml-aguardando-substatus) para confirmar",
+        "Considera a hipótese de bipagem/marcar-coletado não ter atualizado o pedido",
+        "Não manda rodar rota de escrita (backfill/corrigir) sem ressalva, e não expõe o valor do CRON_SECRET",
+        "Propõe adicionar substatus à lista só após confirmar com dado real (lado conservador)"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "kpi-coletados-por-tipo",
+      "prompt": "Coloca na faixa de KPIs da TV um indicador 'Coletados hoje' separado por tipo: Flex, Turbo e Geral. Me entrega o patch.",
+      "expected_output": "Patch em public/tv.html calculado no navegador a partir dos dados já carregados, sem mexer em dashboard-data.js/collect.js nem intervalos, respeitando fuso de Brasília para 'hoje', mantendo identidade da TV.",
+      "files": [
+        "public/tv.html"
+      ],
+      "assertions": [
+        "O patch altera só public/tv.html (nada em dashboard-data.js ou collect.js)",
+        "O cálculo usa dados já carregados no navegador, sem fetch novo nem mudança de INTERVALO_BUSCA_MS",
+        "Define 'hoje' no fuso America/Sao_Paulo",
+        "Turbo agrupa TURBO e AGORA, como no KPI existente",
+        "Usa variáveis de cor/estilo existentes da TV (sem tokens-admin.css nem Inter)"
+      ]
+    }
+  ]
+}
