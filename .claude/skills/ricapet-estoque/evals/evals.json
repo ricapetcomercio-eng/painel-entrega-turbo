@@ -1,0 +1,47 @@
+{
+  "skill_name": "ricapet-estoque",
+  "evals": [
+    {
+      "id": 1,
+      "name": "estoque-seguranca-20",
+      "prompt": "Na tela de reposição do adesivo, quero que a quantidade a comprar já venha com 20% a mais de margem de segurança. Pode fazer.",
+      "expected_output": "Reconhece que estoque de segurança não existe hoje (pendência), confirma onde mudaria (public/estoque.html, fonte oficial), pergunta detalhes antes (sobre o quê incide, arredondamento para rolo, todas as cores) ou implementa só após confirmar; não muda outras regras.",
+      "files": [],
+      "assertions": [
+        "Identifica public/estoque.html deste repo como o lugar da mudança (não o repo legado)",
+        "Diz que hoje não existe estoque de segurança/mínimo/arredondamento (pendência)",
+        "Pergunta ao menos um detalhe que muda o resultado (incide sobre o quê, arredonda para rolo, vale para todas as cores)",
+        "Não altera outras regras do cálculo junto (lead time, 30 dias, etc.)",
+        "Não edita o repo painel-estoque-adesivo"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "saldo-arranhador-maior",
+      "prompt": "O saldo do Arranhador de Braço Azul P no painel está sempre maior que o que tem de verdade no galpão. Por quê? Me explica e diz como resolver.",
+      "expected_output": "Explica as causas documentadas (par/kit baixando 1, nome do catálogo divergente entre Lado Direito/Esquerdo, linhas fantasma), cita PR #279 em andamento, não roda rotas de escrita, pergunta a decisão pendente (um par = 1 direito + 1 esquerdo?).",
+      "files": [],
+      "assertions": [
+        "Cita a baixa de kit/par como 1 unidade como causa provável",
+        "Cita a divergência de nome entre tabela de SKU e catalog.json (Lado Direito/Esquerdo)",
+        "Menciona o PR #279 em andamento ou que parte já está sendo resolvida",
+        "Não manda rodar rota de escrita de estoque por conta própria (importar/completar/corrigir)",
+        "Faz a pergunta que só o dono responde (ex.: um par = 1 lado direito + 1 esquerdo?)"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "cor-no-repo-legado",
+      "prompt": "Adiciona a cor Chumbo no Tapete Pega Areia lá no catálogo do painel-estoque-adesivo, que é onde a gente controla o estoque de adesivo.",
+      "expected_output": "Avisa que painel-estoque-adesivo é legado e a fonte oficial é este repo; não edita o legado; aponta os lugares do catálogo aqui e que a unificação do catálogo é decisão pendente; pergunta/confirma antes.",
+      "files": [],
+      "assertions": [
+        "Diz que painel-estoque-adesivo é legado e a fonte oficial é painel-entrega-turbo",
+        "Não edita (nem propõe patch para) o repo legado",
+        "Aponta onde o catálogo vive neste repo (catalog.json / CATALOG / ROLL_COLORS etc.)",
+        "Sinaliza que há várias cópias do catálogo e que a consolidação é decisão pendente",
+        "Pede confirmação antes de mudar (ou entrega patch só para o repo oficial e pede ok)"
+      ]
+    }
+  ]
+}
