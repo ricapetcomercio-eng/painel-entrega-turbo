@@ -1518,7 +1518,9 @@ CONCORRENTES_WEBHOOK_SECRET
 
 ## Projetos relacionados (mesma conta Vercel `ricapet1` / GitHub `ricapetcomercio-eng`)
 
-- `painel-estoque-adesivo` — estoque e planejamento de compras
+- `painel-estoque-adesivo` — **legado** (decisão do Ricardo, 10/10/2026): a fonte
+  oficial do painel de estoque é este repo (`public/estoque*.html`). Não
+  alterar nem usar como referência — ver skill `ricapet-estoque`.
 - `painelvendas-seven` — dashboard de vendas (compartilhava o Redis antigo)
 - `analise-concorrencia` (`ricapet-concorrencia.vercel.app`) — scraper de
   concorrentes (Python/Playwright)
