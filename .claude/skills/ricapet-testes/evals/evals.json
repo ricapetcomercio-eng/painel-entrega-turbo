@@ -1,0 +1,47 @@
+{
+  "skill_name": "ricapet-testes",
+  "evals": [
+    {
+      "id": 1,
+      "name": "fechamento-celular-filtro",
+      "prompt": "Confere se o painel de Fechamento Mensal (public/fechamento.html) funciona bem no celular e se o filtro de produtos por canal está funcionando. Me diz se está tudo ok ou o que tem de errado.",
+      "expected_output": "Abre a página de verdade (Playwright) com dados inventados, em largura de celular, usa o filtro de canal e confere o resultado; relata com evidência (prints, contagens, erros de console) e diz o que não foi verificado.",
+      "files": [],
+      "assertions": [
+        "Abriu a página num navegador real (Playwright) em vez de só ler o código",
+        "Testou em largura de celular (~390px) e olhou/conferiu rolagem horizontal ou layout",
+        "Usou o filtro de canal e conferiu que a lista mudou de acordo",
+        "Usou só dados inventados/mocks, sem chamar produção",
+        "Relato traz evidência concreta (números, prints ou saída de comando) e diz o que não foi verificado"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "tv-api-fora",
+      "prompt": "Se a internet do galpão cair ou a API der erro, a TV da expedição continua mostrando alguma coisa útil ou fica em branco? Testa e me fala.",
+      "expected_output": "Simula erro 500 / queda de rede depois de um carregamento bom e confere o comportamento real da TV (mantém cards? mostra aviso?), com evidência.",
+      "files": [],
+      "assertions": [
+        "Simulou a falha da API no navegador (mock 500/abort), não só leu o código",
+        "Testou a falha DEPOIS de um carregamento com dados (cenário real de queda no meio do dia)",
+        "Conferiu se aparece aviso para quem olha a TV",
+        "Não chamou produção nem usou token real",
+        "Relato com evidência concreta (o que apareceu na tela, prints ou saída)"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "bipagem-tira-ml-geral",
+      "prompt": "Quando o pessoal bipa um pedido do Mercado Livre no galpão, ele sai do 'ML geral' da TV? Testa isso de verdade e me diz.",
+      "expected_output": "Usa banco SQLite local: cria tabelas, insere pedido ML geral aguardando com shipment_id, confere listarMlAguardando antes, chama marcar-coletado, confere depois; não toca produção.",
+      "files": [],
+      "assertions": [
+        "Executou a rota marcar-coletado de verdade (localmente), não só leu o código",
+        "Usou banco local de teste (SQLite/arquivo), nunca o Turso de produção nem o CRON_SECRET real",
+        "Conferiu o antes e o depois na consulta que alimenta o ML geral (listarMlAguardando ou equivalente)",
+        "Não criou node_modules nem outros arquivos dentro do repo",
+        "Relato com evidência concreta e diz o que não foi verificado (ex.: bipagem real/checkout_bipagem.py)"
+      ]
+    }
+  ]
+}

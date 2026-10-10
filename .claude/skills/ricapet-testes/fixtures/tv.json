@@ -1,0 +1,31 @@
+{
+  "descricao": "Dados 100% inventados para a TV: 1 atrasado, 1 Turbo Shopee, 1 Agora, 1 Flex no prazo, 1 Flex coletado, 1 Shopee geral sem prazo e 1 ML geral. Datas relativas ao momento do teste.",
+  "rotas": [
+    {
+      "url": "/api/dashboard-data",
+      "body": {
+        "atualizado_em": "@agora-2m",
+        "atualizado_em_flex": "@agora-2m",
+        "atualizado_em_shopee_todos": "@agora-10m",
+        "atualizado_em_ml_todos": "@agora-3m",
+        "erros": [],
+        "pedidos": [
+          { "marketplace": "shopee", "conta": "ricapet", "order_id": "TESTE-SHP-TURBO-1", "date_created": "@agora-1h", "deadline": "@agora+3h", "categoria": "aguardando", "itens": [{ "quantidade": 1, "sku": "SKU-TESTE-01", "titulo": "Produto Teste A" }] }
+        ],
+        "pedidosFlex": [
+          { "conta": "ricapet", "order_id": "TESTE-ML-ATRASADO", "tipo": "flex", "date_created": "@agora-1d", "deadline": "@agora-30m", "categoria": "aguardando", "itens": [{ "quantidade": 2, "sku": "SKU-TESTE-02", "titulo": "Produto Teste B" }] },
+          { "conta": "thapets", "order_id": "TESTE-ML-AGORA", "tipo": "agora", "date_created": "@agora-10m", "deadline": "@agora+15m", "categoria": "aguardando", "itens": [{ "quantidade": 1, "sku": "SKU-TESTE-03", "titulo": "Produto Teste C" }] },
+          { "conta": "ricapet", "order_id": "TESTE-ML-FLEX", "tipo": "flex", "date_created": "@agora-2h", "deadline": "@agora+5h", "categoria": "aguardando", "itens": [{ "quantidade": 1, "sku": "SKU-TESTE-04", "titulo": "Produto Teste D" }] },
+          { "conta": "ricapet", "order_id": "TESTE-ML-COLETADO", "tipo": "flex", "date_created": "@agora-3h", "deadline": "@agora+4h", "categoria": "coletado", "coletado": true, "coletado_em": "@agora-20m", "itens": [{ "quantidade": 1, "sku": "SKU-TESTE-05", "titulo": "Produto Teste E" }] }
+        ],
+        "pedidosShopeeTodos": [
+          { "conta": "thapets", "order_id": "TESTE-SHP-GERAL", "date_created": "@agora-5h", "prazo_entrega": null, "itens": [{ "quantidade": 3, "sku": "SKU-TESTE-06", "titulo": "Produto Teste F" }] }
+        ],
+        "pedidosMlTodos": [
+          { "conta": "ricapet", "order_id": "TESTE-ML-GERAL", "date_created": "@agora-6h", "prazo_entrega": "@agora+20h", "itens": [{ "quantidade": 1, "sku": "SKU-TESTE-07", "titulo": "Produto Teste G" }] }
+        ],
+        "atrasoSemana": { "pedidos_atrasados": 3, "total_ms": 3600000 }
+      }
+    }
+  ]
+}
