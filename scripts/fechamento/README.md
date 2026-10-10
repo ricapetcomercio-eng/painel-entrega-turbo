@@ -83,6 +83,15 @@ web, basta esse servidor montar o mesmo JSON (pode até reaproveitar
 `origem` só registra quem enviou (`script-local` hoje; dá para mudar com a
 variável de ambiente `PAINEL_ORIGEM`).
 
+## Abas antigas (até jan/2026)
+
+Nas abas mais antigas não existe um total de "Faturamento Bruto" no resumo:
+o faturamento vem por canal e conta ("Faturamento BRUTO ML Ricapet",
+"Faturamento Shopee Ricapet"...). Nesse caso o script soma essas linhas e o
+painel mostra um aviso no topo do mês dizendo que o valor foi calculado
+assim. O `--diagnostico` também grava `diagnostico_painel.txt` na mesma
+pasta da planilha, para mandar o arquivo em vez de prints.
+
 ## Como o script lê a planilha
 
 Ele procura os blocos pelos **rótulos**, não por posição fixa:

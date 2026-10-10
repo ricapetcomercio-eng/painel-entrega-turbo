@@ -316,14 +316,59 @@ def ler_resumo(aba, regiao_metas, metas=None):
         if n.startswith('lucro liquido') and resumo.get('lucro_liquido') is None:
             resumo['lucro_liquido'] = m['valor']
     if resumo.get('faturamento_bruto') is None:
+        soma = faturamento_por_canais(aba)
+        if soma:
+            resumo['faturamento_bruto'] = soma[0]
+            resumo['faturamento_calculado'] = (f'Faturamento bruto calculado somando {soma[1]} linhas '
+                                               f'"Faturamento ..." por canal/conta a partir de {soma[2]} (layout antigo).')
+    if resumo.get('faturamento_bruto') is None:
         raise ErroFechamento(f'Nao achei o valor de "Faturamento Bruto" no resumo da aba "{aba.nome}". '
                              'Rode de novo com --diagnostico e mande o print da janela (ele nao mostra valores).')
     return resumo, col
 
 
+def faturamento_por_canais(aba):
+    """Layout antigo (ate jan/26): nao ha total de Faturamento Bruto no
+    resumo; cada canal/conta tem a sua linha ("Faturamento BRUTO ML
+    Ricapet", "Faturameto Bruto ML Thapets", "Faturamento Shopee
+    Ricapet"...), uma embaixo da outra na mesma coluna. Soma o maior bloco
+    desses (>= 3 linhas). Devolve (soma, linhas, celula_inicial) ou None."""
+    por_coluna = {}
+    for r, c, v in aba.celulas():
+        if not isinstance(v, str):
+            continue
+        n = rotulo_norm(v)
+        if not n.startswith('fatura') or n in ('faturamento', 'faturamento bruto', 'faturamento bruto total'):
+            continue
+        x = num_flex(valor_ao_lado(aba, r, c))
+        if x is not None:
+            por_coluna.setdefault(c, []).append((r, x))
+    melhor = None
+    for c, linhas in por_coluna.items():
+        linhas.sort()
+        bloco = [linhas[0]]
+        for item in linhas[1:]:
+            if item[0] - bloco[-1][0] <= 2:
+                bloco.append(item)
+            else:
+                if melhor is None or len(bloco) > len(melhor[1]):
+                    melhor = (c, bloco)
+                bloco = [item]
+        if melhor is None or len(bloco) > len(melhor[1]):
+            melhor = (c, bloco)
+    if not melhor or len(melhor[1]) < 3:
+        return None
+    c, bloco = melhor
+    return sum(x for _, x in bloco), len(bloco), f'{letra_coluna(c)}{bloco[0][0]}'
+
+
 def diagnostico(aba):
     """Mostra ONDE o script achou cada rotulo e o TIPO das celulas ao lado
-    (numero / texto / formula sem valor / vazio) -- nunca o valor em si."""
+    (numero / texto / formula sem valor / vazio) -- nunca o valor em si.
+    Devolve as linhas (o main grava tambem num .txt)."""
+    linhas = []
+    out = linhas.append
+
     def tipo(r, c):
         v = aba.v(r, c)
         if v is None:
@@ -333,24 +378,43 @@ def diagnostico(aba):
         if isinstance(v, (dt.datetime, dt.date)):
             return 'data'
         return 'numero em texto' if num_flex(v) is not None else f'texto "{texto(v)[:25]}"'
-    procurados = ('faturamento', 'custos mensais', 'lucro', 'retirada', 'resultado', 'porcentagem', 'meta',
-                  'referencia', 'unidades', 'algo errado', 'total geral')
-    print(f'--- Diagnostico da aba "{aba.nome}" ({aba.max_linha} linhas x {aba.max_coluna} colunas) ---')
+
+    def linha(r, c):
+        lado = ' | '.join(tipo(r, c + k) for k in range(1, 6))
+        return f'  {letra_coluna(c)}{r}: "{texto(aba.v(r, c))[:40]}" -> a direita: {lado} ; abaixo: {tipo(r + 1, c)}'
+
+    out(f'--- Diagnostico da aba "{aba.nome}" ({aba.max_linha} linhas x {aba.max_coluna} colunas) ---')
+    # 1) Bloco do resumo: tudo o que esta na mesma coluna perto de "Custos Mensais".
+    ocorr = [(r, c) for r, c, v in aba.celulas() if isinstance(v, str) and rotulo_norm(v).startswith('custos mensais')]
+    if not ocorr:
+        out('[Resumo] Nenhum "Custos Mensais" encontrado.')
+    for r0, c0 in ocorr[:3]:
+        out(f'[Resumo] em volta de {letra_coluna(c0)}{r0} ("Custos Mensais"):')
+        for r in range(max(1, r0 - 10), r0 + 14):
+            if isinstance(aba.v(r, c0), str) and texto(aba.v(r, c0)):
+                out(linha(r, c0))
+    # 2) Rotulos-chave no resto da aba (sem o "ruido" da tabela de produtos).
+    exatos = {'data', 'valor', 'referencia', 'categoria', 'onde', 'obs', 'meta', 'resultado', 'porcentagem'}
+    prefixos = ('faturamento', 'faturameto', 'lucro liquido', 'lucro bruto', 'lucro empresa', 'retirada',
+                'algo errado', 'total geral', 'investimento', 'cmv', 'taxas', 'contribuicao', 'custos fixos')
+    out('[Outros rotulos]')
     achou = 0
     for r, c, v in aba.celulas():
         if not isinstance(v, str):
             continue
         n = rotulo_norm(v)
-        if any(n.startswith(p) for p in procurados) and len(n) <= 40:
+        if (n in exatos or n.startswith(prefixos)) and len(n) <= 45:
             achou += 1
-            if achou > 60:
-                print('  ... (mais rotulos omitidos)')
+            if achou > 120:
+                out('  ... (mais rotulos omitidos)')
                 break
-            lado = ' | '.join(tipo(r, c + k) for k in range(1, 5))
-            print(f'  {letra_coluna(c)}{r}: "{texto(v)[:40]}" -> a direita: {lado} ; abaixo: {tipo(r + 1, c)}')
+            out(linha(r, c))
     if not achou:
-        print('  Nenhum rotulo conhecido encontrado nesta aba.')
-    print('--- fim do diagnostico (nenhum valor foi mostrado nem enviado) ---')
+        out('  Nenhum rotulo conhecido encontrado nesta aba.')
+    out('--- fim do diagnostico (nenhum valor foi mostrado nem enviado) ---')
+    for l in linhas:
+        print(l)
+    return linhas
 
 
 def ler_conferencias(aba, col_resumo):
@@ -503,10 +567,17 @@ def ler_produtos(aba):
 
 def ler_lancamentos(aba):
     cab = None
+    chaves = ('data', 'valor', 'referencia', 'categoria', 'onde', 'obs')
     for r, c, v in aba.celulas():
-        if norm(v) == 'referencia':
-            linha = {norm(aba.v(r, cc)): cc for cc in range(max(1, c - 4), c + 6)}
-            if 'valor' in linha and 'categoria' in linha:
+        if isinstance(v, str) and rotulo_norm(v).startswith('referencia'):
+            linha = {}
+            for cc in range(max(1, c - 5), c + 7):
+                n = rotulo_norm(aba.v(r, cc))
+                k = next((k for k in chaves if n == k or n.startswith(k + ' ')), None)
+                if k and k not in linha:
+                    linha[k] = cc
+            if 'valor' in linha:
+                linha.setdefault('categoria', linha['referencia'] + 1)
                 cab = (r, linha)
                 break
     if not cab:
@@ -567,6 +638,8 @@ def montar_fechamento(aba, ano, mes, arquivo):
     produtos, total_geral = ler_produtos(aba)
     lancamentos, c_obs = ler_lancamentos(aba)
     avisos = []
+    if resumo.get('faturamento_calculado'):
+        avisos.append(resumo.pop('faturamento_calculado'))
     if not metas:
         avisos.append('Quadro de metas nao encontrado.')
     if not fat_canais:
@@ -728,12 +801,12 @@ def main():
         else:
             escolhidas = [abas_mes[-1]]
 
-        enviados, pulados, gerados = 0, [], []
+        enviados, pulados, gerados, texto_diag = 0, [], [], []
         for (ano, mes), nome in escolhidas:
             try:
                 aba = Aba(wb_val[nome], wb_form[nome])
                 if args.diagnostico:
-                    diagnostico(aba)
+                    texto_diag.extend(diagnostico(aba))
                     continue
                 fech = montar_fechamento(aba, ano, mes, arquivo)
             except ErroFechamento as e:
@@ -765,7 +838,14 @@ def main():
 
         print()
         if args.diagnostico:
-            print('Diagnostico concluido, nada enviado. Mande um print desta janela.')
+            destino = os.path.join(os.path.dirname(os.path.abspath(arquivo)), 'diagnostico_painel.txt')
+            try:
+                with open(destino, 'w', encoding='utf-8') as f:
+                    f.write('\n'.join(texto_diag) + '\n')
+                print(f'Diagnostico concluido, nada enviado. Tambem salvo em: {destino}')
+                print('Mande esse arquivo .txt (ou um print desta janela).')
+            except OSError:
+                print('Diagnostico concluido, nada enviado. Mande um print desta janela.')
         elif args.simular:
             print(f'Simulacao concluida: {len(gerados)} mes(es) lido(s), nada enviado.')
         else:
