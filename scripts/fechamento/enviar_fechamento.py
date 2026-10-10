@@ -302,11 +302,14 @@ def ler_resumo(aba, regiao_metas, metas=None):
                     resumo['retirada_socios_texto'] = texto(valor)
             elif n.startswith('bonus'):
                 resumo['bonus'].append({'rotulo': rotulo, 'valor': num_flex(valor_ao_lado(aba, r, col))})
-        if melhor is None or (resumo.get('faturamento_bruto') is not None and melhor[0].get('faturamento_bruto') is None):
-            melhor = (resumo, col)
-        if resumo.get('faturamento_bruto') is not None:
-            break
-    resumo, col = melhor
+        # Fica com a ocorrencia que achou mais campos com valor. Nas abas
+        # antigas ha um 2o "CUSTOS MENSAIS" (titulo da lista de lancamentos,
+        # em W3/Z3) sem nada por perto; o resumo de verdade e o de T5.
+        pontos = sum(1 for _, k in CAMPOS_RESUMO if resumo.get(k) is not None)
+        pontos += resumo.get('retirada_socios') is not None
+        if melhor is None or pontos > melhor[2]:
+            melhor = (resumo, col, pontos)
+    resumo, col, _ = melhor
     # Plano B: o quadro de metas tambem tem o valor em R$ de Faturamento
     # Bruto e Lucro liquido (coluna "Valor").
     for m in metas or []:
@@ -315,6 +318,17 @@ def ler_resumo(aba, regiao_metas, metas=None):
             resumo['faturamento_bruto'] = m['valor']
         if n.startswith('lucro liquido') and resumo.get('lucro_liquido') is None:
             resumo['lucro_liquido'] = m['valor']
+    if resumo.get('faturamento_bruto') is None:
+        # Algumas abas antigas (ex.: nov/dez 2022) tem uma celula
+        # "Faturamento total" com o numero do lado: e o total pronto.
+        for r, c, v in aba.celulas():
+            if isinstance(v, str) and rotulo_norm(v) == 'faturamento total':
+                x = num_flex(valor_ao_lado(aba, r, c))
+                if x is not None:
+                    resumo['faturamento_bruto'] = x
+                    resumo['faturamento_calculado'] = (f'Faturamento bruto lido de "Faturamento total" em '
+                                                       f'{letra_coluna(c)}{r} (layout antigo).')
+                    break
     if resumo.get('faturamento_bruto') is None:
         soma = faturamento_por_canais(aba)
         if soma:
@@ -338,7 +352,7 @@ def faturamento_por_canais(aba):
         if not isinstance(v, str):
             continue
         n = rotulo_norm(v)
-        if not n.startswith('fatura') or n in ('faturamento', 'faturamento bruto', 'faturamento bruto total'):
+        if not n.startswith('fatura') or n in ('faturamento', 'faturamento bruto', 'faturamento bruto total', 'faturamento total'):
             continue
         x = num_flex(valor_ao_lado(aba, r, c))
         if x is not None:
@@ -566,42 +580,60 @@ def ler_produtos(aba):
 
 
 def ler_lancamentos(aba):
+    """Lista de custos do mes. Cabecalhos conhecidos:
+      2026 (abr+):  Data | Valor | REFERENCIA | CATEGORIA | ONDE | OBS
+      mar/2026:     Data | Valor | Referente | CATEGORIA | OBS
+      out/23-fev/26: Data | Valor | Referente | ONDE | OBS
+      2022-set/23:  Data | Valor | Referente
+    Em algumas abas o titulo "Valor" esta em branco: usa a coluna logo
+    depois de Data. Sem REFERENCIA, o texto de "Referente" (descricao) vai
+    em "onde" e CATEGORIA/ONDE (grupo do gasto) em "categoria"."""
     cab = None
-    chaves = ('data', 'valor', 'referencia', 'categoria', 'onde', 'obs')
+    chaves = ('data', 'valor', 'referencia', 'referente', 'categoria', 'onde', 'obs')
     for r, c, v in aba.celulas():
-        if isinstance(v, str) and rotulo_norm(v).startswith('referencia'):
-            linha = {}
-            for cc in range(max(1, c - 5), c + 7):
-                n = rotulo_norm(aba.v(r, cc))
-                k = next((k for k in chaves if n == k or n.startswith(k + ' ')), None)
-                if k and k not in linha:
-                    linha[k] = cc
-            if 'valor' in linha:
-                linha.setdefault('categoria', linha['referencia'] + 1)
-                cab = (r, linha)
-                break
+        if not (isinstance(v, str) and rotulo_norm(v) == 'data'):
+            continue
+        linha = {'data': c}
+        for cc in range(c + 1, c + 7):
+            n = rotulo_norm(aba.v(r, cc))
+            k = next((k for k in chaves if n == k or n.startswith(k + ' ')), None)
+            if k and k not in linha:
+                linha[k] = cc
+        if 'referencia' in linha or 'referente' in linha:
+            linha.setdefault('valor', c + 1)
+            cab = (r, linha)
+            break
     if not cab:
         return [], None
     r0, cols = cab
-    c_data, c_valor = cols.get('data'), cols['valor']
-    c_ref, c_cat, c_onde = cols['referencia'], cols['categoria'], cols.get('onde')
-    c_obs = cols.get('obs', (c_onde or c_cat) + 1)
+    c_data, c_valor = cols['data'], cols['valor']
+    if 'referencia' in cols:
+        c_ref = cols['referencia']
+        c_cat = cols.get('categoria', c_ref + 1)
+        c_onde = cols.get('onde')
+    else:
+        c_ref = None
+        c_cat = cols.get('categoria') or cols.get('onde')
+        c_onde = cols['referente']
+    ultima = max(x for x in (c_valor, c_ref, c_cat, c_onde) if x)
+    c_obs = cols.get('obs', ultima + 1)
+    texto_cols = [x for x in (c_ref, c_cat, c_onde) if x]
     itens, vazias = [], 0
     for r in range(r0 + 1, aba.max_linha + 1):
         valor = aba.v(r, c_valor)
         if not eh_numero(valor):
-            if all(aba.v(r, cc) is None for cc in (c_valor, c_ref, c_cat)):
+            if all(aba.v(r, cc) is None for cc in [c_valor] + texto_cols):
                 vazias += 1
-                if vazias >= 15:
+                if vazias >= 40:
                     break
             continue
         vazias = 0
-        d = aba.v(r, c_data) if c_data else None
+        d = aba.v(r, c_data)
         itens.append({
             'data': d.strftime('%Y-%m-%d') if isinstance(d, (dt.datetime, dt.date)) else texto(d)[:20],
             'valor': float(valor),
-            'referencia': sem_documento(aba.v(r, c_ref))[:60],
-            'categoria': sem_documento(aba.v(r, c_cat))[:60],
+            'referencia': sem_documento(aba.v(r, c_ref))[:60] if c_ref else '',
+            'categoria': sem_documento(aba.v(r, c_cat))[:60] if c_cat else '',
             # OBS nunca e enviada (as vezes tem CPF); ONDE vai sem CPF/CNPJ.
             'onde': sem_documento(aba.v(r, c_onde))[:80] if c_onde else '',
         })
@@ -637,9 +669,19 @@ def montar_fechamento(aba, ano, mes, arquivo):
     luc_canais, luc_total = ler_canal_categoria(aba, cols[1]) if len(cols) >= 2 else ([], None)
     produtos, total_geral = ler_produtos(aba)
     lancamentos, c_obs = ler_lancamentos(aba)
-    avisos = []
+    avisos, console = [], []
     if resumo.get('faturamento_calculado'):
         avisos.append(resumo.pop('faturamento_calculado'))
+    else:
+        # So no console (nao vai pro painel): confere o Faturamento Bruto do
+        # resumo contra a soma das linhas "Faturamento ..." por canal/conta.
+        soma = faturamento_por_canais(aba)
+        fb = resumo.get('faturamento_bruto')
+        if soma and fb:
+            dif = soma[0] - fb
+            console.append(f'conferencia: soma dos {soma[1]} canais ({soma[2]}) '
+                           + ('bate com o Faturamento Bruto' if abs(dif) < 1 else
+                              f'difere do Faturamento Bruto em {dif:,.2f} ({dif / fb:+.1%})'))
     if not metas:
         avisos.append('Quadro de metas nao encontrado.')
     if not fat_canais:
@@ -671,6 +713,7 @@ def montar_fechamento(aba, ano, mes, arquivo):
         'lancamentos': lancamentos,
         'investimentos': ler_investimentos(aba, c_obs),
         'avisos': avisos,
+        '_console': console,
     }
 
 
@@ -815,6 +858,7 @@ def main():
                 pulados.append((nome.strip(), str(e)))
                 print(f'  - {nome.strip()}: PULADO ({e})')
                 continue
+            console = fech.pop('_console', [])
             gerados.append(fech)
             r = fech['resumo']
             linha = (f"  - {nome.strip()} ({fech['mes']}): faturamento {r.get('faturamento_bruto') or 0:,.2f} | "
@@ -830,6 +874,8 @@ def main():
                 print(linha + ' -> ENVIADO')
             for a in fech['avisos']:
                 print(f'      aviso: {a}')
+            for a in console:
+                print(f'      {a}')
 
         if args.salvar_json:
             with open(args.salvar_json, 'w', encoding='utf-8') as f:

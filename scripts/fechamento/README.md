@@ -70,8 +70,9 @@ Reenviar um mês substitui a versão anterior dele no painel.
   `painel_config.ini` não bate com o `CRON_SECRET` da Vercel.
 - **"Nenhuma planilha encontrada"**: confira `pasta` e `padrao` no
   `painel_config.ini`.
-- **"PULADO (layout antigo...)"** no `--todos`: abas antigas (antes de 2025)
-  têm outro formato. Elas são puladas e os outros meses são enviados mesmo assim.
+- **"PULADO (layout antigo...)"** no `--todos`: as abas de 2021 e de jan/2022
+  não têm o bloco "Custos Mensais" e ficam de fora. Os outros meses são
+  enviados mesmo assim.
 
 ## Formato do envio (para o futuro servidor)
 
@@ -83,13 +84,24 @@ web, basta esse servidor montar o mesmo JSON (pode até reaproveitar
 `origem` só registra quem enviou (`script-local` hoje; dá para mudar com a
 variável de ambiente `PAINEL_ORIGEM`).
 
-## Abas antigas (até jan/2026)
+## Abas antigas (fev/2022 até jan/2026)
 
-Nas abas mais antigas não existe um total de "Faturamento Bruto" no resumo:
-o faturamento vem por canal e conta ("Faturamento BRUTO ML Ricapet",
-"Faturamento Shopee Ricapet"...). Nesse caso o script soma essas linhas e o
-painel mostra um aviso no topo do mês dizendo que o valor foi calculado
-assim. O `--diagnostico` também grava `diagnostico_painel.txt` na mesma
+- **Resumo**: fica na coluna T (Lucro Bruto, Custos Mensais, Lucro Liquido...).
+  Existe também um título "CUSTOS MENSAIS" em cima da lista de lançamentos;
+  o script usa o bloco onde achou mais valores, que é o resumo de verdade.
+- **Faturamento**: essas abas não têm "Faturamento Bruto" no resumo. Se
+  existir uma célula "Faturamento total" com número ao lado (ex.: nov e
+  dez/2022), o script usa esse valor. Se não, soma as linhas por canal e conta
+  ("Faturamento BRUTO ML Ricapet", "Faturamento Shopee Ricapet"...). Nos dois
+  casos o painel mostra um aviso no topo do mês dizendo de onde veio o número.
+- **Lançamentos**: o cabeçalho antigo é "Data / Valor / Referente / ONDE /
+  OBS". O texto de "Referente" aparece como descrição e "ONDE" (ou
+  "CATEGORIA") como categoria. Se o título "Valor" estiver em branco, o
+  script usa a coluna logo depois de "Data".
+- Nas abas de 2026 que têm tanto o "Faturamento Bruto" quanto as linhas por
+  canal, a janela mostra a linha `conferencia:` dizendo se a soma dos canais
+  bate com o total. Essa linha só aparece na tela e não vai para o painel.
+- Célula com `#REF!` na planilha chega vazia no painel (ex.: ago a out/2022). O `--diagnostico` também grava `diagnostico_painel.txt` na mesma
 pasta da planilha, para mandar o arquivo em vez de prints.
 
 ## Como o script lê a planilha
@@ -97,8 +109,8 @@ pasta da planilha, para mandar o arquivo em vez de prints.
 Ele procura os blocos pelos **rótulos**, não por posição fixa:
 "Custos Mensais" (resumo), o cabeçalho "porcentagem / Meta / Resultado"
 (metas), os nomes de canal (ML, SHOPEE…) nas colunas canal × categoria,
-"Cor"/"Modelo" + "Unidades" (tabela de produtos), "REFERENCIA" +
-"CATEGORIA" (lançamentos) e "Algo Errado"/"OK" (conferência). Assim, uma
+"Cor"/"Modelo" + "Unidades" (tabela de produtos), "Data" + "Referente"/"REFERENCIA"
+(lançamentos) e "Algo Errado"/"OK" (conferência). Assim, uma
 coluna a mais ou a menos não quebra o envio.
 
 ## Teste sem dados reais
