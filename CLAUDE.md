@@ -928,8 +928,13 @@ uma aba por mês, ex. "26 - Setembro").
   um mês substitui o anterior.
 - **Parser guiado por rótulos**, não por posição ("Custos Mensais",
   cabeçalho "porcentagem/Meta/Resultado", nomes de canal, "Cor"/"Modelo"
-  + "Unidades", "REFERENCIA"/"CATEGORIA", "Algo Errado"/"OK"). Suporta o
-  layout 2025-2026; abas antigas que não batem são puladas no `--todos`.
+  + "Unidades", "Data"+"Referente"/"REFERENCIA", "Algo Errado"/"OK").
+  Suporta de fev/2022 em diante: com vários "Custos Mensais" na aba, vale o
+  bloco com mais campos achados (nas abas antigas há um 2º só como título
+  dos lançamentos). Faturamento sem total no resumo vem, nesta ordem, do
+  quadro de metas, da célula "Faturamento total" ou da soma das linhas por
+  canal, sempre com aviso no painel. 2021 e jan/2022 não têm o resumo e são
+  pulados no `--todos`.
   Planilha salva por script (fórmulas sem valor em cache) é recusada com
   aviso claro, em vez de enviar zeros.
 - **Dados sensíveis, repo público**: OBS dos lançamentos nunca é enviada;
