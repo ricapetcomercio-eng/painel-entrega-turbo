@@ -86,6 +86,28 @@ def eh_numero(v):
     return isinstance(v, (int, float)) and not isinstance(v, bool) and v == v and v not in (float('inf'), float('-inf'))
 
 
+RE_NUM_TEXTO = re.compile(r'^\(?-?\s*(R\$)?\s*-?[\d.]+(,\d+)?\)?$')
+
+
+def num_flex(v):
+    """Como num(), mas tambem aceita numero digitado como texto
+    ("R$ 1.234,56", "(1.234,56)" = negativo)."""
+    if eh_numero(v):
+        return float(v)
+    if not isinstance(v, str):
+        return None
+    t = v.strip().replace('\xa0', ' ')
+    if not t or not RE_NUM_TEXTO.match(t):
+        return None
+    negativo = t.startswith('(') or '-' in t
+    t = re.sub(r'[^\d,.]', '', t).replace('.', '').replace(',', '.')
+    try:
+        x = float(t)
+    except ValueError:
+        return None
+    return -x if negativo else x
+
+
 def num(v):
     return float(v) if eh_numero(v) else None
 
@@ -228,40 +250,107 @@ def ler_metas(aba):
     return metas, regiao
 
 
-def ler_resumo(aba, regiao_metas):
-    pos = aba.achar('custos mensais')
-    if not pos:
-        raise ErroFechamento(f'Nao achei o rotulo "Custos Mensais" na aba "{aba.nome}" (layout antigo ou diferente).')
-    r_custos, col = pos
-    resumo = {'bonus': []}
-    campos = {
-        'faturamento bruto': 'faturamento_bruto', 'lucro bruto': 'lucro_bruto',
-        'custos mensais': 'custos_mensais', 'lucro liquido': 'lucro_liquido', 'lucro empresa': 'lucro_empresa',
-    }
-    for r in range(max(1, r_custos - 8), r_custos + 12):
-        if regiao_metas and regiao_metas[0] <= r <= regiao_metas[1] and regiao_metas[2] == col:
+CAMPOS_RESUMO = [
+    ('faturamento bruto', 'faturamento_bruto'), ('lucro bruto', 'lucro_bruto'),
+    ('custos mensais', 'custos_mensais'), ('lucro liquido', 'lucro_liquido'), ('lucro empresa', 'lucro_empresa'),
+]
+
+
+def rotulo_norm(v):
+    """Rotulo normalizado sem pontuacao no fim ("Faturamento Bruto:" -> "faturamento bruto")."""
+    return re.sub(r'[\s:=.\-]+$', '', norm(v))
+
+
+def valor_ao_lado(aba, r, c, aceita_texto=False):
+    """Primeiro valor a direita do rotulo (ate 5 colunas); se nao houver, o
+    de baixo. Numero digitado como texto tambem vale."""
+    for rr, cc in [(r, c + k) for k in range(1, 6)] + [(r + 1, c)]:
+        v = aba.v(rr, cc)
+        if v is None or (isinstance(v, str) and not v.strip()):
             continue
-        rotulo = texto(aba.v(r, col))
-        n = norm(rotulo)
-        if not n:
-            continue
-        valor = None
-        for cc in range(col + 1, col + 4):
-            if aba.v(r, cc) is not None:
-                valor = aba.v(r, cc)
-                break
-        chave = campos.get(n)
-        if chave and chave not in resumo:
-            resumo[chave] = num(valor)
-        elif n.startswith('retirada') and 'retirada_socios' not in resumo:
-            resumo['retirada_socios'] = num(valor)
-            if not eh_numero(valor) and valor is not None:
-                resumo['retirada_socios_texto'] = texto(valor)
-        elif n.startswith('bonus'):
-            resumo['bonus'].append({'rotulo': rotulo, 'valor': num(valor)})
+        if num_flex(v) is not None:
+            return v
+        if isinstance(v, str) and rotulo_norm(v) and (rr, cc) != (r + 1, c):
+            return v if aceita_texto else None
+    return None
+
+
+def ler_resumo(aba, regiao_metas, metas=None):
+    # Pode haver mais de um "Custos Mensais" na aba (ex.: em outro bloco);
+    # usa o primeiro que tiver o Faturamento Bruto por perto.
+    ocorrencias = [(r, c) for r, c, v in aba.celulas() if isinstance(v, str) and rotulo_norm(v).startswith('custos mensais')]
+    if not ocorrencias:
+        raise ErroFechamento(f'Nao achei o rotulo "Custos Mensais" na aba "{aba.nome}" (layout antigo ou diferente). '
+                             'Rode com --diagnostico e mande o print.')
+    melhor = None
+    for r_custos, col in ocorrencias:
+        resumo = {'bonus': []}
+        for r in range(max(1, r_custos - 10), r_custos + 14):
+            if regiao_metas and regiao_metas[0] <= r <= regiao_metas[1] and regiao_metas[2] == col:
+                continue
+            rotulo = texto(aba.v(r, col))
+            n = rotulo_norm(rotulo)
+            if not n:
+                continue
+            chave = next((k for prefixo, k in CAMPOS_RESUMO if n.startswith(prefixo)), None)
+            if chave and chave not in resumo:
+                resumo[chave] = num_flex(valor_ao_lado(aba, r, col))
+            elif n.startswith('retirada') and 'retirada_socios' not in resumo:
+                valor = valor_ao_lado(aba, r, col, aceita_texto=True)
+                resumo['retirada_socios'] = num_flex(valor)
+                if resumo['retirada_socios'] is None and valor is not None:
+                    resumo['retirada_socios_texto'] = texto(valor)
+            elif n.startswith('bonus'):
+                resumo['bonus'].append({'rotulo': rotulo, 'valor': num_flex(valor_ao_lado(aba, r, col))})
+        if melhor is None or (resumo.get('faturamento_bruto') is not None and melhor[0].get('faturamento_bruto') is None):
+            melhor = (resumo, col)
+        if resumo.get('faturamento_bruto') is not None:
+            break
+    resumo, col = melhor
+    # Plano B: o quadro de metas tambem tem o valor em R$ de Faturamento
+    # Bruto e Lucro liquido (coluna "Valor").
+    for m in metas or []:
+        n = rotulo_norm(m['linha'])
+        if n.startswith('faturamento') and resumo.get('faturamento_bruto') is None:
+            resumo['faturamento_bruto'] = m['valor']
+        if n.startswith('lucro liquido') and resumo.get('lucro_liquido') is None:
+            resumo['lucro_liquido'] = m['valor']
     if resumo.get('faturamento_bruto') is None:
-        raise ErroFechamento(f'Nao achei o valor de "Faturamento Bruto" no resumo da aba "{aba.nome}".')
+        raise ErroFechamento(f'Nao achei o valor de "Faturamento Bruto" no resumo da aba "{aba.nome}". '
+                             'Rode de novo com --diagnostico e mande o print da janela (ele nao mostra valores).')
     return resumo, col
+
+
+def diagnostico(aba):
+    """Mostra ONDE o script achou cada rotulo e o TIPO das celulas ao lado
+    (numero / texto / formula sem valor / vazio) -- nunca o valor em si."""
+    def tipo(r, c):
+        v = aba.v(r, c)
+        if v is None:
+            return 'formula SEM valor' if aba.formula(r, c) else 'vazio'
+        if eh_numero(v):
+            return 'numero'
+        if isinstance(v, (dt.datetime, dt.date)):
+            return 'data'
+        return 'numero em texto' if num_flex(v) is not None else f'texto "{texto(v)[:25]}"'
+    procurados = ('faturamento', 'custos mensais', 'lucro', 'retirada', 'resultado', 'porcentagem', 'meta',
+                  'referencia', 'unidades', 'algo errado', 'total geral')
+    print(f'--- Diagnostico da aba "{aba.nome}" ({aba.max_linha} linhas x {aba.max_coluna} colunas) ---')
+    achou = 0
+    for r, c, v in aba.celulas():
+        if not isinstance(v, str):
+            continue
+        n = rotulo_norm(v)
+        if any(n.startswith(p) for p in procurados) and len(n) <= 40:
+            achou += 1
+            if achou > 60:
+                print('  ... (mais rotulos omitidos)')
+                break
+            lado = ' | '.join(tipo(r, c + k) for k in range(1, 5))
+            print(f'  {letra_coluna(c)}{r}: "{texto(v)[:40]}" -> a direita: {lado} ; abaixo: {tipo(r + 1, c)}')
+    if not achou:
+        print('  Nenhum rotulo conhecido encontrado nesta aba.')
+    print('--- fim do diagnostico (nenhum valor foi mostrado nem enviado) ---')
 
 
 def ler_conferencias(aba, col_resumo):
@@ -477,7 +566,7 @@ def ler_investimentos(aba, c_obs):
 def montar_fechamento(aba, ano, mes, arquivo):
     checar_formulas_calculadas(aba)
     metas, regiao = ler_metas(aba)
-    resumo, col_resumo = ler_resumo(aba, regiao)
+    resumo, col_resumo = ler_resumo(aba, regiao, metas)
     cols = colunas_canal_categoria(aba)
     fat_canais, fat_total = ler_canal_categoria(aba, cols[0]) if len(cols) >= 1 else ([], None)
     luc_canais, luc_total = ler_canal_categoria(aba, cols[1]) if len(cols) >= 2 else ([], None)
@@ -610,6 +699,7 @@ def main():
     ap.add_argument('--todos', action='store_true', help='Envia todos os meses da planilha (historico)')
     ap.add_argument('--config', help='Caminho do painel_config.ini')
     ap.add_argument('--simular', action='store_true', help='So le a planilha e mostra o resumo, sem enviar')
+    ap.add_argument('--diagnostico', action='store_true', help='Mostra onde achou cada rotulo (sem valores) e nao envia nada')
     ap.add_argument('--salvar-json', help='Salva o JSON gerado neste arquivo (para conferencia)')
     args = ap.parse_args()
 
@@ -618,7 +708,7 @@ def main():
         arquivo = args.arquivo or achar_planilha(conf)
         if not os.path.isfile(arquivo):
             raise ErroFechamento(f'Arquivo nao encontrado: {arquivo}')
-        if not args.simular and (not conf['url'] or not conf['secret']):
+        if not (args.simular or args.diagnostico) and (not conf['url'] or not conf['secret']):
             raise ErroFechamento('Falta configurar url e secret em C:\\FECHAMENTO\\painel_config.ini (veja painel_config.exemplo.ini).')
 
         print(f'Lendo {arquivo} ...')
@@ -648,6 +738,9 @@ def main():
         for (ano, mes), nome in escolhidas:
             try:
                 aba = Aba(wb_val[nome], wb_form[nome])
+                if args.diagnostico:
+                    diagnostico(aba)
+                    continue
                 fech = montar_fechamento(aba, ano, mes, arquivo)
             except ErroFechamento as e:
                 if not args.todos:
@@ -677,7 +770,9 @@ def main():
             print(f'JSON salvo em {args.salvar_json}')
 
         print()
-        if args.simular:
+        if args.diagnostico:
+            print('Diagnostico concluido, nada enviado. Mande um print desta janela.')
+        elif args.simular:
             print(f'Simulacao concluida: {len(gerados)} mes(es) lido(s), nada enviado.')
         else:
             print(f'Pronto! {enviados} mes(es) enviado(s) para o painel.')
