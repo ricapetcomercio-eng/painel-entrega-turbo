@@ -6,6 +6,36 @@ para Ricapet e Thapets, e exibe em tempo real numa TV no galpão de expedição.
 
 Dono: Ricardo (`ricapetcomercio-eng`). Deploy: Vercel, projeto `ricapet1` (plano Hobby).
 
+## Regras de trabalho (valem para todo agente, sempre)
+
+1. **Analise antes de mexer.** Entenda o problema e monte um plano antes de
+   modificar código. Mudança significativa só depois de verificar a
+   arquitetura existente (este arquivo + as skills em `.claude/skills/`).
+2. **Não invente regra de negócio.** Prazo, status, cálculo, permissão,
+   critério de KPI: se não está documentado nem no código, pergunte ao
+   Ricardo. Ao achar inconsistência, sinalize em vez de "consertar de
+   passagem".
+3. **Reaproveite o que existe.** Não substitua componente, tela ou função
+   sem verificar se o existente já atende ao padrão do projeto
+   (`ricapet-paineis` para tela; `ricapet-expedicao` para pedido/TV).
+4. **Subagentes só com benefício real** — tarefas independentes que podem
+   rodar em paralelo (ex.: revisão por design, código, acessibilidade e
+   desempenho). Tarefa pequena ou sequencial: um agente só.
+5. **Navegador se valida no navegador.** Comportamento de tela (clique,
+   filtro, modal, celular, erro) se confirma com Playwright — skill
+   `ricapet-testes`.
+6. **Pronto só com evidência.** Antes de dizer "concluído", rode as
+   verificações e mostre o resultado (comando + saída, prints, contagens).
+   O que não deu para testar, diga o que é e como conferir.
+7. **Nada vai para produção sem confirmação explícita do Ricardo.** Aqui,
+   **merge em `main` já é deploy em produção** (a Vercel publica sozinha).
+   Isso vale para merge de PR, push direto em `main` e `vercel deploy`/
+   `vercel --prod` (que, além disso, nunca deve ser rodado a partir de
+   checkout local — ver seção sobre deploy manual abaixo). Abra PR em
+   rascunho e espere o ok. Rotas que gravam em produção (backfill,
+   migração, `?tipo=...` de correção) seguem a mesma regra: só o Ricardo
+   roda.
+
 ## Restrição de design nº 1: orçamento de CPU do plano Hobby
 
 Isso guia praticamente toda decisão de arquitetura no repo — qualquer
