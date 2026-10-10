@@ -360,16 +360,10 @@ def ler_conferencias(aba, col_resumo):
             continue
         n = norm(v)
         if n == 'algo errado' or (n == 'ok' and c == col_resumo):
-            rotulo = ''
-            for cc in range(c - 1, max(0, c - 4), -1):
-                t = texto(aba.v(r, cc))
-                if t and not eh_numero(aba.v(r, cc)):
-                    rotulo = t
-                    break
-            if not rotulo:
-                acima = texto(aba.v(r - 1, c))
-                if acima and norm(acima) not in ('ok', 'algo errado'):
-                    rotulo = acima
+            # Rotulo so da celula IMEDIATAMENTE a esquerda: ir mais longe
+            # pegava nome de produto de outro bloco (ex.: "Lavavel" na T45).
+            esquerda = aba.v(r, c - 1)
+            rotulo = texto(esquerda) if isinstance(esquerda, str) and norm(esquerda) not in ('ok', 'algo errado') else ''
             itens.append({'celula': f'{letra_coluna(c)}{r}', 'status': 'erro' if n == 'algo errado' else 'ok', 'rotulo': rotulo[:80]})
     return itens
 
