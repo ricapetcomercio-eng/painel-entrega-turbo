@@ -52,11 +52,16 @@ Outras opções (pelo Prompt de Comando):
 | `99_enviar_painel.bat --mes "26 - Agosto"` | envia (ou reenvia) um mês específico |
 | `99_enviar_painel.bat --todos` | envia todos os meses da planilha |
 | `99_enviar_painel.bat --simular` | só lê a planilha e mostra o resumo, sem enviar |
+| `99_enviar_painel.bat --diagnostico` | mostra onde achou cada rótulo da planilha e o tipo das células ao lado (número, texto, fórmula sem valor), **sem mostrar valores** e sem enviar nada |
 | `99_enviar_painel.bat --arquivo "C:\caminho\arquivo.xlsx"` | usa outra planilha |
 
 Reenviar um mês substitui a versão anterior dele no painel.
 
 ## Mensagens de erro comuns
+
+- **"Nao achei o valor de ..."**: a planilha está num formato um pouco
+  diferente do esperado. Rode `99_enviar_painel.bat --diagnostico` e mande
+  o print da janela para ajustar o script (o diagnóstico não mostra valores).
 
 - **"formulas SEM valor calculado"**: a planilha foi salva por um programa e
   não pelo Excel, então as fórmulas ainda não têm resultado. Abra o arquivo
