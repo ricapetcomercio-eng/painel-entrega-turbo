@@ -175,6 +175,12 @@
   .tabela-abc th { text-align: left; color: var(--muted); font-size: 11px; text-transform: uppercase; padding: 8px 10px; border-bottom: 1px solid var(--border); }
   .tabela-abc td { padding: 7px 10px; border-bottom: 1px solid var(--border); }
   .tabela-abc tbody tr:hover { background: var(--bg-card-2); }
+  .table-scroll-canal { overflow-x: auto; }
+  #tabelaCanais td.num, #tabelaCanais th:not(:first-child) { text-align: right; white-space: nowrap; }
+  #tabelaCanais tfoot td { font-weight: 700; border-top: 1px solid var(--border); border-bottom: none; }
+  #tabelaCanais .canal-vazio { text-align: center; color: var(--muted); padding: 16px; }
+  .barra-canal { display: inline-block; vertical-align: middle; width: 64px; height: 6px; margin-left: 8px; border-radius: 999px; background: var(--bg-card-2); overflow: hidden; }
+  .barra-canal > span { display: block; height: 100%; background: var(--chart-1); }
 
   .grid-produtos-mov { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
   @media (max-width: 900px) { .grid-produtos-mov { grid-template-columns: 1fr; } }
@@ -421,6 +427,19 @@
       Cancelamentos passou a ser rastreado a partir de agora — pedidos coletados antes dessa mudança não têm esse dado (aparecem como "não cancelado" mesmo que tenham sido). Devoluções ainda não é rastreado (precisa de uma integração separada com a API de pós-venda de cada marketplace).
       Atrasados/SLA considera apenas pedidos do Mercado Livre com prazo de entrega disponível — Shopee ainda não tem esse dado capturado.
       Devoluções considera Mercado Livre (via reclamações com ação de revisão de devolução) e Shopee (via API de devoluções, excluindo pedidos de devolução cancelados/retirados). Só conta pedidos já coletados no histórico no momento em que a devolução foi identificada.
+    </div>
+
+    <div class="secao-titulo">Vendas por canal</div>
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-body">
+        <div class="table-scroll-canal">
+          <table class="tabela-abc" id="tabelaCanais" aria-describedby="notaCanais">
+            <thead><tr><th scope="col">Canal</th><th scope="col">Pedidos</th><th scope="col">Faturamento</th><th scope="col">vs período anterior</th><th scope="col">Ticket médio</th><th scope="col">% do faturamento</th></tr></thead>
+            <tbody id="tabelaCanaisCorpo"><tr><td colspan="6" class="canal-vazio">Carregando…</td></tr></tbody>
+          </table>
+        </div>
+        <div id="notaCanais" style="color:var(--muted); font-size:11px; margin-top:8px;">Mesmo período do filtro no topo. Faturamento e ticket médio não incluem pedidos cancelados (igual aos cards acima); "Pedidos" conta todos, inclusive cancelados.</div>
+      </div>
     </div>
 
     <div class="secao-titulo">Evolução das vendas</div>
@@ -1251,8 +1270,16 @@
       if (ateISO) params.set('ate', ateISO);
       const resp = await fetch('/api/analytics-todos-data?' + params.toString());
       const dados = await resp.json();
-      return dados.pedidos || [];
-    } catch (e) { return []; }
+      if (!resp.ok || !Array.isArray(dados.pedidos)) throw new Error(dados.error || ('HTTP ' + resp.status));
+      return dados.pedidos;
+    } catch (e) {
+      // Continua devolvendo lista vazia (comportamento de sempre para quem
+      // já usa), mas marcada, para o bloco "Vendas por canal" poder mostrar
+      // erro em vez de "nenhum pedido" quando a busca falhou de verdade.
+      const vazio = [];
+      vazio.erro = true;
+      return vazio;
+    }
   }
 
   // Recorta, no navegador, os pedidos de uma janela [de, ate] (inclusive
@@ -1454,6 +1481,67 @@
     container.innerHTML = alertas.map(a => `<div class="alerta-card ${a.nivel}"><span class="alerta-icone">${a.icone}</span><span>${a.texto}</span></div>`).join('');
   }
 
+  // Vendas por canal (conta × marketplace) no período do filtro (#236).
+  // Mesmas regras dos cards de cima: faturamento/ticket sem cancelados,
+  // "Pedidos" com todos -- assim a linha Total bate com os KPIs.
+  const ROTULO_MARKETPLACE = { mercado_livre: 'Mercado Livre', shopee: 'Shopee' };
+  function nomeConta(conta) {
+    return conta ? conta.charAt(0).toUpperCase() + conta.slice(1) : '-';
+  }
+  function agregarPorCanal(pedidos) {
+    const mapa = {};
+    pedidos.forEach(p => {
+      const chave = `${nomeConta(p.conta)} · ${ROTULO_MARKETPLACE[p.marketplace] || p.marketplace || '-'}`;
+      if (!mapa[chave]) mapa[chave] = { canal: chave, pedidos: 0, vendidos: 0, faturamento: 0 };
+      const c = mapa[chave];
+      c.pedidos++;
+      if (p.cancelado !== true) c.vendidos++;
+      c.faturamento += valorVendido(p);
+    });
+    return mapa;
+  }
+  function escaparHtml(t) {
+    return String(t).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  }
+  function renderizarCanais(pedidosAtual, pedidosAnterior) {
+    const corpo = document.getElementById('tabelaCanaisCorpo');
+    if (!corpo) return;
+    const tabela = document.getElementById('tabelaCanais');
+    const rodapeAntigo = tabela.querySelector('tfoot');
+    if (rodapeAntigo) rodapeAntigo.remove();
+    if (pedidosAtual.erro) {
+      corpo.innerHTML = '<tr><td colspan="6" class="canal-vazio" role="alert">Não foi possível carregar as vendas por canal agora. Tente atualizar a página em alguns minutos.</td></tr>';
+      return;
+    }
+    if (!pedidosAtual.length) {
+      corpo.innerHTML = '<tr><td colspan="6" class="canal-vazio">Nenhum pedido no período escolhido.</td></tr>';
+      return;
+    }
+    const atual = agregarPorCanal(pedidosAtual);
+    const anterior = agregarPorCanal(pedidosAnterior);
+    const linhas = Object.values(atual).sort((a, b) => b.faturamento - a.faturamento);
+    const total = linhas.reduce((t, c) => ({ pedidos: t.pedidos + c.pedidos, vendidos: t.vendidos + c.vendidos, faturamento: t.faturamento + c.faturamento }), { pedidos: 0, vendidos: 0, faturamento: 0 });
+    const totalAnterior = Object.values(anterior).reduce((t, c) => t + c.faturamento, 0);
+    const variacao = (agora, antes) => {
+      if (!antes) return '<span class="kpi-delta">–</span>';
+      const v = ((agora - antes) / antes) * 100;
+      return `<span class="kpi-delta ${v >= 0 ? 'up' : 'down'}">${v >= 0 ? '▲ +' : '▼ −'}${Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%</span>`;
+    };
+    const ticket = c => c.vendidos ? formatarMoeda(c.faturamento / c.vendidos) : '–';
+    const pct = c => total.faturamento ? (c.faturamento / total.faturamento) * 100 : 0;
+    corpo.innerHTML = linhas.map(c => `<tr>
+        <td>${escaparHtml(c.canal)}</td>
+        <td class="num">${c.pedidos.toLocaleString('pt-BR')}</td>
+        <td class="num">${formatarMoeda(c.faturamento)}</td>
+        <td class="num">${variacao(c.faturamento, anterior[c.canal] ? anterior[c.canal].faturamento : 0)}</td>
+        <td class="num">${ticket(c)}</td>
+        <td class="num">${pct(c).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%<span class="barra-canal" aria-hidden="true"><span style="width:${pct(c).toFixed(1)}%"></span></span></td>
+      </tr>`).join('');
+    const rodape = document.createElement('tfoot');
+    rodape.innerHTML = `<tr><td>Total</td><td class="num">${total.pedidos.toLocaleString('pt-BR')}</td><td class="num">${formatarMoeda(total.faturamento)}</td><td class="num">${variacao(total.faturamento, totalAnterior)}</td><td class="num">${ticket(total)}</td><td class="num">${total.faturamento ? '100%' : '–'}</td></tr>`;
+    tabela.appendChild(rodape);
+  }
+
   async function carregarExecutivo() {
     try {
       // KPIs do período selecionado no filtro global, comparado com o
@@ -1469,6 +1557,7 @@
         buscarPedidosPeriodoGenerico(deAnterior.toISOString(), ateAnterior.toISOString()),
       ]);
 
+      renderizarCanais(pedidosAtual, pedidosAnterior);
       const kpiAtual = calcularKPIs(pedidosAtual);
       const kpiAnterior = calcularKPIs(pedidosAnterior);
       renderizarAlertas(gerarAlertas(kpiAtual, kpiAnterior, pedidosAtual));
