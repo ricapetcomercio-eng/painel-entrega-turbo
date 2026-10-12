@@ -597,7 +597,7 @@
           <div class="kpi-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></div>
         </div>
         <div class="kpi-value" id="kpi-ritmo">–</div>
-        <span class="kpi-sub">média dos operadores</span>
+        <span class="kpi-sub" id="kpi-ritmo-sub">média dos operadores</span>
       </div>
       <div class="kpi tone-warn">
         <div class="kpi-top"><span class="kpi-label">Devoluções + reclamações</span>
@@ -1382,6 +1382,18 @@
     const comRitmo = dados.operadores.filter((o) => o.bipagens_por_hora != null);
     const ritmoMedio = comRitmo.length ? comRitmo.reduce((s, o) => s + o.bipagens_por_hora, 0) / comRitmo.length : null;
     $('kpi-ritmo').textContent = ritmoMedio != null ? ritmoMedio.toFixed(2) : '—';
+    // Operador cujo nome na bipagem não casa com nenhum cadastro do Ponto
+    // fica sem ritmo -- avisa quem são, pra corrigir o nome num dos lados.
+    const semCadastro = dados.operadores
+      .filter((o) => o.nome !== '(não identificado)' && o.funcionario_id == null)
+      .map((o) => o.nome);
+    const subRitmo = $('kpi-ritmo-sub');
+    subRitmo.textContent = semCadastro.length
+      ? `média · ${semCadastro.length} sem cadastro no Ponto: ${semCadastro.join(', ')}`
+      : 'média dos operadores';
+    subRitmo.title = semCadastro.length
+      ? 'Esses nomes da bipagem não batem com nenhum funcionário ativo do Ponto, por isso ficam sem bipagens/hora. Corrija o nome no RobotOmie ou no cadastro do Ponto.'
+      : '';
     const qualidadeTotal = dados.devolvidos_total + dados.reclamacoes.length;
     $('kpi-qualidade').innerHTML = dados.localizados_total
       ? `${qualidadeTotal} <small>${((qualidadeTotal / dados.localizados_total) * 100).toFixed(1)}%</small>`
