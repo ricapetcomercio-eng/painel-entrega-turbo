@@ -2,3307 +2,4040 @@
   "(G)ArranhadorBraco_AzulD": {
     "cor": "Azul",
     "custo": 26.68,
-    "produto": "Arranhador de Braço",
-    "tamanho": "G"
+    "produto": "Arranhador De Braço",
+    "tamanho": "G",
+    "unidades": 1
   },
   "(G)ArranhadorBraco_AzulE": {
     "cor": "Azul",
     "custo": 26.68,
-    "produto": "Arranhador de Braço",
-    "tamanho": "G"
+    "produto": "Arranhador De Braço",
+    "tamanho": "G",
+    "unidades": 1
   },
   "(G)ArranhadorBraco_Azul_Par": {
     "cor": "Azul",
     "custo": 53.36,
-    "produto": "Arranhador de Braço",
-    "tamanho": "G"
+    "produto": "Arranhador De Braço",
+    "tamanho": "G",
+    "unidades": 2
   },
   "(G)ArranhadorBraco_Azul_Par_Simples": {
     "cor": "Azul",
     "custo": 45.98,
-    "produto": "Arranhador de Braço Simples",
-    "tamanho": "G"
+    "produto": "Arranhador De Braço Simples",
+    "tamanho": "G",
+    "unidades": 2
   },
   "(G)ArranhadorBraco_BegeD": {
     "cor": "Bege",
     "custo": 26.68,
-    "produto": "Arranhador de Braço",
-    "tamanho": "G"
+    "produto": "Arranhador De Braço",
+    "tamanho": "G",
+    "unidades": 1
   },
   "(G)ArranhadorBraco_BegeE": {
     "cor": "Bege",
     "custo": 26.68,
-    "produto": "Arranhador de Braço",
-    "tamanho": "G"
+    "produto": "Arranhador De Braço",
+    "tamanho": "G",
+    "unidades": 1
   },
   "(G)ArranhadorBraco_Bege_Par": {
     "cor": "Bege",
     "custo": 53.36,
-    "produto": "Arranhador de Braço",
-    "tamanho": "G"
+    "produto": "Arranhador De Braço",
+    "tamanho": "G",
+    "unidades": 2
   },
   "(G)ArranhadorBraco_Bege_Par_Simples": {
     "cor": "Bege",
     "custo": 45.98,
-    "produto": "Arranhador de Braço Simples",
-    "tamanho": "G"
+    "produto": "Arranhador De Braço Simples",
+    "tamanho": "G",
+    "unidades": 2
   },
   "(G)ArranhadorBraco_CinzaD": {
     "cor": "Cinza",
     "custo": 26.68,
-    "produto": "Arranhador de Braço",
-    "tamanho": "G"
+    "produto": "Arranhador De Braço",
+    "tamanho": "G",
+    "unidades": 1
   },
   "(G)ArranhadorBraco_CinzaE": {
     "cor": "Cinza",
     "custo": 26.68,
-    "produto": "Arranhador de Braço",
-    "tamanho": "G"
+    "produto": "Arranhador De Braço",
+    "tamanho": "G",
+    "unidades": 1
   },
   "(G)ArranhadorBraco_CinzaE_Simples": {
     "cor": "Cinza",
     "custo": 22.99,
-    "produto": "Arranhador de Braço Simples",
-    "tamanho": "G"
+    "produto": "Arranhador De Braço Simples",
+    "tamanho": "G",
+    "unidades": 1
   },
   "(G)ArranhadorBraco_Cinza_Par": {
     "cor": "Cinza",
     "custo": 53.36,
-    "produto": "Arranhador de Braço",
-    "tamanho": "G"
+    "produto": "Arranhador De Braço",
+    "tamanho": "G",
+    "unidades": 2
   },
   "(G)ArranhadorBraco_Cinza_Par_Simples": {
     "cor": "Cinza",
     "custo": 45.98,
-    "produto": "Arranhador de Braço Simples",
-    "tamanho": "G"
+    "produto": "Arranhador De Braço Simples",
+    "tamanho": "G",
+    "unidades": 2
   },
   "(G)Carpete_Azul": {
     "cor": "Azul",
     "custo": 12.7,
     "produto": "Arranhador Carpete 1 Folha",
-    "tamanho": "G"
+    "tamanho": "G",
+    "unidades": 1
   },
   "(G)Carpete_Bege": {
     "cor": "Bege",
     "custo": 12.7,
     "produto": "Arranhador Carpete 1 Folha",
-    "tamanho": "G"
+    "tamanho": "G",
+    "unidades": 1
   },
   "(G)Carpete_Bege-Kit2": {
     "cor": "Bege",
     "custo": 25.4,
     "produto": "Arranhador Carpete 1 Folha",
-    "tamanho": "G"
+    "tamanho": "G",
+    "unidades": 2
   },
   "(M)ArranhadorBraco_AzulD": {
     "cor": "Azul",
     "custo": 23.17,
-    "produto": "Arranhador de Braço",
-    "tamanho": "M"
+    "produto": "Arranhador De Braço",
+    "tamanho": "M",
+    "unidades": 1
   },
   "(M)ArranhadorBraco_AzulE": {
     "cor": "Azul",
     "custo": 23.17,
-    "produto": "Arranhador de Braço",
-    "tamanho": "M"
+    "produto": "Arranhador De Braço",
+    "tamanho": "M",
+    "unidades": 1
   },
   "(M)ArranhadorBraco_Azul_Par": {
     "cor": "Azul",
     "custo": 46.34,
-    "produto": "Arranhador de Braço",
-    "tamanho": "M"
+    "produto": "Arranhador De Braço",
+    "tamanho": "M",
+    "unidades": 2
   },
   "(M)ArranhadorBraco_Azul_Par_Simples": {
     "cor": "Azul",
     "custo": 46.34,
-    "produto": "Arranhador de Braço",
-    "tamanho": "M"
+    "produto": "Arranhador De Braço",
+    "tamanho": "M",
+    "unidades": 2
   },
   "(M)ArranhadorBraco_BegeD": {
     "cor": "Bege",
     "custo": 23.17,
-    "produto": "Arranhador de Braço",
-    "tamanho": "M"
+    "produto": "Arranhador De Braço",
+    "tamanho": "M",
+    "unidades": 1
   },
   "(M)ArranhadorBraco_BegeE": {
     "cor": "Bege",
     "custo": 23.17,
-    "produto": "Arranhador de Braço",
-    "tamanho": "M"
+    "produto": "Arranhador De Braço",
+    "tamanho": "M",
+    "unidades": 1
   },
   "(M)ArranhadorBraco_Bege_Par": {
     "cor": "Bege",
     "custo": 46.34,
-    "produto": "Arranhador de Braço",
-    "tamanho": "M"
+    "produto": "Arranhador De Braço",
+    "tamanho": "M",
+    "unidades": 2
   },
   "(M)ArranhadorBraco_Bege_Par_Simples": {
     "cor": "Bege",
     "custo": 38.94,
-    "produto": "Arranhador de Braço Simples",
-    "tamanho": "M"
+    "produto": "Arranhador De Braço Simples",
+    "tamanho": "M",
+    "unidades": 2
   },
   "(M)ArranhadorBraco_CinzaD": {
     "cor": "Cinza",
     "custo": 23.17,
-    "produto": "Arranhador de Braço",
-    "tamanho": "M"
+    "produto": "Arranhador De Braço",
+    "tamanho": "M",
+    "unidades": 1
   },
   "(M)ArranhadorBraco_CinzaE": {
     "cor": "Cinza",
     "custo": 23.17,
-    "produto": "Arranhador de Braço",
-    "tamanho": "M"
+    "produto": "Arranhador De Braço",
+    "tamanho": "M",
+    "unidades": 1
   },
   "(M)ArranhadorBraco_CinzaE_Simples": {
     "cor": "Cinza",
     "custo": 19.47,
-    "produto": "Arranhador de Braço Simples",
-    "tamanho": "M"
+    "produto": "Arranhador De Braço Simples",
+    "tamanho": "M",
+    "unidades": 1
   },
   "(M)ArranhadorBraco_Cinza_Par": {
     "cor": "Cinza",
     "custo": 46.34,
-    "produto": "Arranhador de Braço",
-    "tamanho": "M"
+    "produto": "Arranhador De Braço",
+    "tamanho": "M",
+    "unidades": 2
   },
   "(M)ArranhadorBraco_Cinza_Par_Simples": {
     "cor": "Cinza",
     "custo": 38.94,
-    "produto": "Arranhador de Braço Simples",
-    "tamanho": "M"
+    "produto": "Arranhador De Braço Simples",
+    "tamanho": "M",
+    "unidades": 2
   },
   "(M)Carpete_Bege-Kit2": {
     "cor": "Bege",
     "custo": 21.7,
     "produto": "Arranhador Carpete 1 Folha",
-    "tamanho": "M"
+    "tamanho": "M",
+    "unidades": 2
   },
   "(M)Carpete_Cinza": {
     "cor": "Cinza",
     "custo": 10.85,
     "produto": "Arranhador Carpete 1 Folha",
-    "tamanho": "M"
+    "tamanho": "M",
+    "unidades": 1
   },
   "(M)Carpete_Cinza-Kit2": {
     "cor": "Cinza",
     "custo": 21.7,
     "produto": "Arranhador Carpete 1 Folha",
-    "tamanho": "M"
+    "tamanho": "M",
+    "unidades": 2
   },
   "(P)ArranhadorBraco_AzulD": {
     "cor": "Azul",
     "custo": 18.4,
-    "produto": "Arranhador de Braço",
-    "tamanho": "P"
+    "produto": "Arranhador De Braço",
+    "tamanho": "P",
+    "unidades": 1
   },
   "(P)ArranhadorBraco_AzulD-690": {
     "cor": "Azul",
     "custo": 18.4,
-    "produto": "Arranhador de Braço",
-    "tamanho": "P"
+    "produto": "Arranhador De Braço",
+    "tamanho": "P",
+    "unidades": 1
   },
   "(P)ArranhadorBraco_AzulE": {
     "cor": "Azul",
     "custo": 18.4,
-    "produto": "Arranhador de Braço",
-    "tamanho": "P"
+    "produto": "Arranhador De Braço",
+    "tamanho": "P",
+    "unidades": 1
   },
   "(P)ArranhadorBraco_AzulE-932": {
     "cor": "Azul",
     "custo": 18.4,
-    "produto": "Arranhador de Braço",
-    "tamanho": "P"
+    "produto": "Arranhador De Braço",
+    "tamanho": "P",
+    "unidades": 1
   },
   "(P)ArranhadorBraco_AzulE_Simples": {
     "cor": "Azul",
     "custo": 14.7,
-    "produto": "Arranhador de Braço Simples",
-    "tamanho": "P"
+    "produto": "Arranhador De Braço Simples",
+    "tamanho": "P",
+    "unidades": 1
   },
   "(P)ArranhadorBraco_Azul_Par": {
     "cor": "Azul",
     "custo": 36.8,
-    "produto": "Arranhador de Braço",
-    "tamanho": "P"
+    "produto": "Arranhador De Braço",
+    "tamanho": "P",
+    "unidades": 2
   },
   "(P)ArranhadorBraco_BegeD": {
     "cor": "Bege",
     "custo": 18.4,
-    "produto": "Arranhador de Braço",
-    "tamanho": "P"
+    "produto": "Arranhador De Braço",
+    "tamanho": "P",
+    "unidades": 1
   },
   "(P)ArranhadorBraco_BegeE": {
     "cor": "Bege",
     "custo": 18.4,
-    "produto": "Arranhador de Braço",
-    "tamanho": "P"
+    "produto": "Arranhador De Braço",
+    "tamanho": "P",
+    "unidades": 1
   },
   "(P)ArranhadorBraco_BegeE_Simples": {
     "cor": "Bege",
     "custo": 14.7,
-    "produto": "Arranhador de Braço Simples",
-    "tamanho": "P"
+    "produto": "Arranhador De Braço Simples",
+    "tamanho": "P",
+    "unidades": 1
   },
   "(P)ArranhadorBraco_Bege_Par": {
     "cor": "Bege",
     "custo": 36.8,
-    "produto": "Arranhador de Braço",
-    "tamanho": "P"
+    "produto": "Arranhador De Braço",
+    "tamanho": "P",
+    "unidades": 2
   },
   "(P)ArranhadorBraco_Bege_Par-748": {
     "cor": "Bege",
     "custo": 36.8,
-    "produto": "Arranhador de Braço",
-    "tamanho": "P"
+    "produto": "Arranhador De Braço",
+    "tamanho": "P",
+    "unidades": 2
   },
   "(P)ArranhadorBraco_CinzaD": {
     "cor": "Cinza",
     "custo": 18.4,
-    "produto": "Arranhador de Braço",
-    "tamanho": "P"
+    "produto": "Arranhador De Braço",
+    "tamanho": "P",
+    "unidades": 1
   },
   "(P)ArranhadorBraco_CinzaD-440": {
     "cor": "Cinza",
     "custo": 18.4,
-    "produto": "Arranhador de Braço",
-    "tamanho": "P"
+    "produto": "Arranhador De Braço",
+    "tamanho": "P",
+    "unidades": 1
   },
   "(P)ArranhadorBraco_CinzaE": {
     "cor": "Cinza",
     "custo": 18.4,
-    "produto": "Arranhador de Braço",
-    "tamanho": "P"
+    "produto": "Arranhador De Braço",
+    "tamanho": "P",
+    "unidades": 1
   },
   "(P)ArranhadorBraco_CinzaE_Simples": {
     "cor": "Cinza",
     "custo": 14.7,
-    "produto": "Arranhador de Braço Simples",
-    "tamanho": "P"
+    "produto": "Arranhador De Braço Simples",
+    "tamanho": "P",
+    "unidades": 1
   },
   "(P)ArranhadorBraco_Cinza_Par": {
     "cor": "Cinza",
     "custo": 36.8,
-    "produto": "Arranhador de Braço",
-    "tamanho": "P"
+    "produto": "Arranhador De Braço",
+    "tamanho": "P",
+    "unidades": 2
   },
   "(P)ArranhadorBraco_Cinza_Par-665": {
     "cor": "Cinza",
     "custo": 36.8,
-    "produto": "Arranhador de Braço",
-    "tamanho": "P"
+    "produto": "Arranhador De Braço",
+    "tamanho": "P",
+    "unidades": 2
   },
   "(P)ArranhadorBraco_Cinza_Par-996": {
     "cor": "Cinza",
     "custo": 36.8,
-    "produto": "Arranhador de Braço",
-    "tamanho": "P"
+    "produto": "Arranhador De Braço",
+    "tamanho": "P",
+    "unidades": 2
   },
   "(P)Braco1folha_Bege": {
-    "cor": "-",
-    "custo": null,
+    "cor": "Bege",
+    "custo": 8.33,
     "produto": "Arranhador Carpete 1 Folha",
-    "tamanho": "-"
+    "tamanho": "P",
+    "unidades": 1
   },
   "(P)Carpete_Bege": {
     "cor": "Bege",
     "custo": 8.33,
     "produto": "Arranhador Carpete 1 Folha",
-    "tamanho": "P"
+    "tamanho": "P",
+    "unidades": 1
   },
   "(P)Carpete_Bege-kit2": {
     "cor": "Bege",
     "custo": 16.66,
     "produto": "Arranhador Carpete 1 Folha",
-    "tamanho": "P"
+    "tamanho": "P",
+    "unidades": 2
   },
   "(P)Carpete_Cinza": {
     "cor": "Cinza",
     "custo": 8.33,
     "produto": "Arranhador Carpete 1 Folha",
-    "tamanho": "P"
+    "tamanho": "P",
+    "unidades": 1
   },
   "(P)Carpete_Cinza-Kit2": {
     "cor": "Cinza",
     "custo": 16.66,
     "produto": "Arranhador Carpete 1 Folha",
-    "tamanho": "P"
+    "tamanho": "P",
+    "unidades": 2
   },
   "(g)ArranhadorBraco_Azul_E": {
     "cor": "Azul",
     "custo": 26.68,
-    "produto": "Arranhador de Braço",
-    "tamanho": "G"
+    "produto": "Arranhador De Braço",
+    "tamanho": "G",
+    "unidades": 1
   },
   "(g)ArranhadorBraco_Cinza_D": {
     "cor": "Cinza",
     "custo": 26.68,
-    "produto": "Arranhador de Braço",
-    "tamanho": "G"
+    "produto": "Arranhador De Braço",
+    "tamanho": "G",
+    "unidades": 1
   },
   "(g)ArranhadorBraco_Cinza_E": {
     "cor": "Cinza",
     "custo": 26.68,
-    "produto": "Arranhador de Braço",
-    "tamanho": "G"
+    "produto": "Arranhador De Braço",
+    "tamanho": "G",
+    "unidades": 1
   },
   "(m)ArranhadorBraco_Azul_E": {
     "cor": "Azul",
     "custo": 23.17,
-    "produto": "Arranhador de Braço",
-    "tamanho": "M"
+    "produto": "Arranhador De Braço",
+    "tamanho": "M",
+    "unidades": 1
   },
   "(m)ArranhadorBraco_Bege_E": {
     "cor": "Bege",
     "custo": 23.17,
-    "produto": "Arranhador de Braço",
-    "tamanho": "M"
+    "produto": "Arranhador De Braço",
+    "tamanho": "M",
+    "unidades": 1
   },
   "(m)ArranhadorBraco_Bege_Simples": {
     "cor": "Cinza",
     "custo": 19.47,
-    "produto": "Arranhador de Braço Simples",
-    "tamanho": "M"
+    "produto": "Arranhador De Braço Simples",
+    "tamanho": "M",
+    "unidades": 1
   },
   "(m)ArranhadorBraco_Cinza_E": {
     "cor": "Cinza",
     "custo": 23.17,
-    "produto": "Arranhador de Braço",
-    "tamanho": "M"
+    "produto": "Arranhador De Braço",
+    "tamanho": "M",
+    "unidades": 1
   },
   "(p)ArranhadorBraco_Azul_Par_Simples": {
     "cor": "Azul",
     "custo": 29.4,
-    "produto": "Arranhador de Braço Simples",
-    "tamanho": "P"
+    "produto": "Arranhador De Braço Simples",
+    "tamanho": "P",
+    "unidades": 2
   },
   "(p)ArranhadorBraco_Bege_Par_Simples": {
     "cor": "Bege",
     "custo": 29.4,
-    "produto": "Arranhador de Braço Simples",
-    "tamanho": "P"
+    "produto": "Arranhador De Braço Simples",
+    "tamanho": "P",
+    "unidades": 2
   },
   "(p)ArranhadorBraco_Cinza_D": {
     "cor": "Cinza",
     "custo": 18.4,
-    "produto": "Arranhador de Braço",
-    "tamanho": "P"
+    "produto": "Arranhador De Braço",
+    "tamanho": "P",
+    "unidades": 1
   },
   "(p)ArranhadorBraco_Cinza_E": {
     "cor": "Cinza",
     "custo": 18.4,
-    "produto": "Arranhador de Braço",
-    "tamanho": "P"
+    "produto": "Arranhador De Braço",
+    "tamanho": "P",
+    "unidades": 1
   },
   "(p)ArranhadorBraco_Cinza_Par_Simples": {
     "cor": "Cinza",
     "custo": 29.4,
-    "produto": "Arranhador de Braço Simples",
-    "tamanho": "P"
+    "produto": "Arranhador De Braço Simples",
+    "tamanho": "P",
+    "unidades": 2
   },
   "01230205AA": {
     "cor": "Branco",
     "custo": null,
     "produto": "Comedouro Bebedouro Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "01230905AA": {
     "cor": "Preto",
     "custo": null,
     "produto": "Comedouro Bebedouro Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "01231205AA": {
     "cor": "Cinza",
     "custo": null,
     "produto": "Comedouro Bebedouro Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "01231305AA": {
     "cor": "Bege",
     "custo": null,
     "produto": "Comedouro Bebedouro Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "04300305AA": {
     "cor": "Branco",
     "custo": null,
     "produto": "Gaiola Criadeira Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "04300505AA": {
     "cor": "Branco",
     "custo": null,
     "produto": "Gaiola Criadeira Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "04300805AA": {
     "cor": "Branco",
     "custo": null,
     "produto": "Gaiola Criadeira Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "04600305AA": {
     "cor": "Azul",
     "custo": null,
     "produto": "Gaiola Criadeira Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "04600505AA": {
     "cor": "Vermelho",
     "custo": null,
     "produto": "Gaiola Criadeira Periqutos Jel Plast Aves Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "06110304AA": {
     "cor": "Azul",
     "custo": null,
     "produto": "Gaiola Hamster Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "06110504AA": {
     "cor": "Vermelho",
     "custo": null,
     "produto": "Gaiola Hamster Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "06350305AA": {
     "cor": "Azul",
     "custo": null,
     "produto": "Gaiola Hamster Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "06350505AA": {
     "cor": "Vermelho",
     "custo": null,
     "produto": "Gaiola Hamster Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "06360305AA": {
     "cor": "Vermelho",
     "custo": null,
     "produto": "Gaiola Hamster 3 Andares Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "06360505AA": {
     "cor": "Azul",
     "custo": null,
     "produto": "Gaiola Hamster 3 Andares Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "06400805AA": {
     "cor": "Violeta",
     "custo": null,
     "produto": "Gaiola Hamster Tubo Super Luxo 3 Andares Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "06410505AA": {
     "cor": "Vermelho",
     "custo": null,
     "produto": "Gaiola Hamster Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "06420305AA": {
     "cor": "Azul",
     "custo": null,
     "produto": "Gaiola Hamster Tubo Super Luxo 3 Andares Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "06550505AA": {
     "cor": "Vermelho",
     "custo": null,
     "produto": "Gaiola Hamster Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "06560305AA": {
     "cor": "Azul",
     "custo": null,
     "produto": "Gaiola Hamster Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "06570805AA": {
     "cor": "Roxo",
     "custo": null,
     "produto": "Gaiola Hamster Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "06900805AA": {
     "cor": "Violeta",
     "custo": null,
     "produto": "Gaiola Hamster Tubo Super Luxo Slim Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "06910505AA": {
     "cor": "Vermelho",
     "custo": null,
     "produto": "Gaiola Hamster Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "06920305AA": {
     "cor": "Azul",
     "custo": null,
     "produto": "Gaiola Hamster Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "07210305AA": {
     "cor": "Azul",
     "custo": null,
     "produto": "Gaiola Calopsita Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "07210505AA": {
     "cor": "Vermelho",
     "custo": null,
     "produto": "Gaiola Calopsita Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "07210605AA": {
     "cor": "Amarelo",
     "custo": null,
     "produto": "Gaiola Calopsita Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "07340305AA": {
     "cor": "Azul",
     "custo": null,
     "produto": "Gaiola Criadeira Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "07340505AA": {
     "cor": "Vermelho",
     "custo": null,
     "produto": "Viveiro Gaiola Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "07340605AA": {
     "cor": "Amarelo",
     "custo": null,
     "produto": "Gaiola Criadeira Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "07340805AA": {
     "cor": "Preto",
     "custo": null,
     "produto": "Gaiola Criadeira Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "07340905AA": {
     "cor": "Preto",
     "custo": null,
     "produto": "Gaiola Criadeira Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "07350305AA": {
     "cor": "Azul",
     "custo": null,
     "produto": "Viveiro Gaiola Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "07350505AA": {
     "cor": "Vermelho",
     "custo": null,
     "produto": "Viveiro Gaiola Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "07350605AA": {
     "cor": "Amarelo",
     "custo": null,
     "produto": "Viveiro Gaiola Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "07350805AA": {
     "cor": "Lilas",
     "custo": null,
     "produto": "Viveiro Gaiola Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "1": {
     "cor": "Preto",
     "custo": 8.32,
     "produto": "Pega Areia",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "11080305AA": {
     "cor": "Azul",
     "custo": null,
     "produto": "Gaiola Coelho Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "11080505AA": {
     "cor": "Vermelho",
     "custo": null,
     "produto": "Gaiola Coelho Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "11080805AA": {
     "cor": "Roxo",
     "custo": null,
     "produto": "Gaiola Coelho Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "14180305AA": {
     "cor": "Azul",
     "custo": null,
     "produto": "Gaiola Criadeira Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "14180505AA": {
     "cor": "Vermelho",
     "custo": null,
     "produto": "Gaiola Criadeira Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "14180605AA": {
     "cor": "Amarelo",
     "custo": null,
     "produto": "Gaiola Criadeira Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "14180805AA": {
     "cor": "Preto",
     "custo": null,
     "produto": "Gaiola Criadeira Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "20250305AA": {
     "cor": "Azul",
     "custo": null,
     "produto": "Caixa Sanitária Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "20250505AA": {
     "cor": "Vermelho",
     "custo": null,
     "produto": "Caixa Sanitária Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "20250605AA": {
     "cor": "Amarelo",
     "custo": null,
     "produto": "Caixa Sanitária Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "20250705AA": {
     "cor": "Rosa",
     "custo": null,
     "produto": "Caixa Sanitária Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "20250905AA": {
     "cor": "Preto",
     "custo": null,
     "produto": "Caixa Sanitária Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "20251205AA": {
     "cor": "Cinza",
     "custo": null,
     "produto": "Caixa Sanitária Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "20251305AA": {
     "cor": "Bege",
     "custo": null,
     "produto": "Caixa Sanitária Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "20300205AA": {
     "cor": "Branco",
     "custo": null,
     "produto": "Kit Higiene Sanitário Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "20300905AA": {
     "cor": "Preto",
     "custo": null,
     "produto": "Kit Higiene Sanitário Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "20301205AA": {
     "cor": "Cinza",
     "custo": null,
     "produto": "Kit Higiene Sanitário Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "20301305AA": {
     "cor": "Bege",
     "custo": null,
     "produto": "Kit Higiene Sanitário Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "3": {
     "cor": "Rosa",
     "custo": 8.32,
-    "produto": "Pega areia",
-    "tamanho": "-"
+    "produto": "Pega Areia",
+    "tamanho": "-",
+    "unidades": 1
   },
   "32150301AA": {
     "cor": "Azul",
     "custo": null,
     "produto": "Bolsa Transporte Aves Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "32150501AA": {
     "cor": "Vermelho",
     "custo": null,
     "produto": "Bolsa Transporte Aves Jel Plast",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "4": {
     "cor": "Amarelo",
     "custo": 8.32,
     "produto": "Pega Areia",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
+  },
+  "5": {
+    "cor": "Vermelho",
+    "custo": 4.1,
+    "produto": "Tapete Lavável",
+    "tamanho": "P",
+    "unidades": 1
   },
   "6": {
     "cor": "Azul",
     "custo": 5.87,
     "produto": "Tapete Lavável",
-    "tamanho": "M"
+    "tamanho": "M",
+    "unidades": 1
   },
   "7": {
     "cor": "Azul",
     "custo": 8.88,
     "produto": "Tapete Lavável",
-    "tamanho": "G"
+    "tamanho": "G",
+    "unidades": 1
   },
   "7893826613027": {
-    "cor": "60cm",
+    "cor": "60Cm",
     "custo": 15.09,
-    "produto": "Arranhador de Madeira",
-    "tamanho": "G"
+    "produto": "Arranhador De Madeira",
+    "tamanho": "G",
+    "unidades": 1
   },
   "Alimentador_Automatico": {
     "cor": "Branco",
     "custo": 14.63,
     "produto": "Alimentador Automático",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "AreiaMandioca": {
     "cor": "Bege",
     "custo": 11.9,
-    "produto": "Areia de Mandioca",
-    "tamanho": "-"
+    "produto": "Areia De Mandioca",
+    "tamanho": "-",
+    "unidades": 1
   },
   "AreiaMandioca_KIT2": {
     "cor": "Bege",
     "custo": 23.8,
-    "produto": "Areia de Mandioca",
-    "tamanho": "-"
+    "produto": "Areia De Mandioca",
+    "tamanho": "-",
+    "unidades": 2
   },
   "AreiaMandioca_KIT3": {
     "cor": "Bege",
     "custo": 35.7,
-    "produto": "Areia de Mandioca",
-    "tamanho": "-"
+    "produto": "Areia De Mandioca",
+    "tamanho": "-",
+    "unidades": 3
   },
   "AreiaMandioca_KIT4": {
     "cor": "Bege",
     "custo": 47.6,
-    "produto": "Areia de Mandioca",
-    "tamanho": "-"
+    "produto": "Areia De Mandioca",
+    "tamanho": "-",
+    "unidades": 4
   },
   "AreiaMandioca_KIT5": {
     "cor": "Bege",
     "custo": 59.5,
-    "produto": "Areia de Mandioca",
-    "tamanho": "-"
+    "produto": "Areia De Mandioca",
+    "tamanho": "-",
+    "unidades": 5
   },
   "Arranhador Adesivo 50x30 Azul": {
     "cor": "Azul",
     "custo": 3.15,
     "produto": "Arranhador Adesivo",
-    "tamanho": "50x30"
+    "tamanho": "50x30",
+    "unidades": 1
   },
   "Arranhador Adesivo 50x30 Bege": {
     "cor": "Bege",
     "custo": 3.15,
     "produto": "Arranhador Adesivo",
-    "tamanho": "50x30"
+    "tamanho": "50x30",
+    "unidades": 1
   },
   "Arranhador Adesivo 50x30 Cinza": {
     "cor": "Cinza",
     "custo": 3.15,
     "produto": "Arranhador Adesivo",
-    "tamanho": "50x30"
+    "tamanho": "50x30",
+    "unidades": 1
   },
   "Arranhador Adesivo 50x30 Grafite": {
     "cor": "Grafite",
     "custo": 3.15,
     "produto": "Arranhador Adesivo",
-    "tamanho": "50x30"
+    "tamanho": "50x30",
+    "unidades": 1
   },
   "Arranhador Adesivo 50x30 Marrom": {
     "cor": "Marrom",
     "custo": 3.15,
     "produto": "Arranhador Adesivo",
-    "tamanho": "50x30"
+    "tamanho": "50x30",
+    "unidades": 1
   },
   "Arranhador Adesivo 50x30 Preto": {
     "cor": "Preto",
     "custo": 3.15,
     "produto": "Arranhador Adesivo",
-    "tamanho": "50x30"
+    "tamanho": "50x30",
+    "unidades": 1
   },
   "Arranhador Azul 200x50": {
     "cor": "Azul",
     "custo": 20.97,
     "produto": "Arranhador Adesivo",
-    "tamanho": "200x50"
+    "tamanho": "200x50",
+    "unidades": 1
   },
   "Arranhador Bege 100x50": {
     "cor": "Bege",
     "custo": 10.49,
     "produto": "Arranhador Adesivo",
-    "tamanho": "100x50"
+    "tamanho": "100x50",
+    "unidades": 1
   },
   "Arranhador Preto 200x50": {
     "cor": "Preto",
     "custo": 20.97,
     "produto": "Arranhador Adesivo",
-    "tamanho": "200x50"
+    "tamanho": "200x50",
+    "unidades": 1
   },
   "ArranhadorAdesivoGato_Azul": {
     "cor": "Azul",
     "custo": 3.15,
     "produto": "Arranhador Adesivo Gato",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "ArranhadorAdesivoGato_AzulKIT2": {
     "cor": "Azul",
     "custo": 6.3,
     "produto": "Arranhador Adesivo Gato",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 2
   },
   "ArranhadorAdesivoGato_Bege": {
     "cor": "Bege",
     "custo": 3.15,
     "produto": "Arranhador Adesivo Gato",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "ArranhadorAdesivoGato_BegeKIT2": {
     "cor": "Bege",
     "custo": 6.3,
     "produto": "Arranhador Adesivo Gato",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 2
   },
   "ArranhadorAdesivoGato_Cinza": {
     "cor": "Cinza",
     "custo": 3.15,
     "produto": "Arranhador Adesivo Gato",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "ArranhadorAdesivoGato_CinzaKIT2": {
     "cor": "Cinza",
     "custo": 6.3,
     "produto": "Arranhador Adesivo Gato",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 2
   },
   "ArranhadorAdesivoGato_Grafite": {
     "cor": "Grafite",
     "custo": 3.15,
     "produto": "Arranhador Adesivo Gato",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "ArranhadorAdesivoGato_GrafiteKIT2": {
     "cor": "Grafite",
     "custo": 6.3,
     "produto": "Arranhador Adesivo Gato",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 2
   },
   "ArranhadorAdesivoGato_Marrom": {
     "cor": "Marrom",
     "custo": 3.15,
     "produto": "Arranhador Adesivo Gato",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "ArranhadorAdesivoGato_MarromKIT2": {
     "cor": "Marrom",
     "custo": 6.3,
     "produto": "Arranhador Adesivo Gato",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 2
   },
   "ArranhadorAdesivoGato_Preto": {
     "cor": "Preto",
     "custo": 3.15,
     "produto": "Arranhador Adesivo Gato",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "ArranhadorAdesivoGato_PretoKIT2": {
     "cor": "Preto",
     "custo": 6.3,
     "produto": "Arranhador Adesivo Gato",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 2
   },
   "ArranhadorAdesivo_Azul100x50": {
     "cor": "Azul",
     "custo": 10.49,
     "produto": "Arranhador Adesivo",
-    "tamanho": "100x50"
+    "tamanho": "100x50",
+    "unidades": 1
   },
   "ArranhadorAdesivo_Azul100x50KIT2": {
     "cor": "Azul",
     "custo": 20.98,
     "produto": "Arranhador Adesivo",
-    "tamanho": "100x50"
+    "tamanho": "100x50",
+    "unidades": 2
   },
   "ArranhadorAdesivo_Azul120x50": {
     "cor": "Azul",
     "custo": 12.58,
     "produto": "Arranhador Adesivo",
-    "tamanho": "120x50"
+    "tamanho": "120x50",
+    "unidades": 1
   },
   "ArranhadorAdesivo_Azul120x50KIT2": {
     "cor": "Azul",
     "custo": 25.16,
     "produto": "Arranhador Adesivo",
-    "tamanho": "120x50"
+    "tamanho": "120x50",
+    "unidades": 2
   },
   "ArranhadorAdesivo_Azul200x50": {
     "cor": "Azul",
     "custo": 20.97,
     "produto": "Arranhador Adesivo",
-    "tamanho": "200x50"
+    "tamanho": "200x50",
+    "unidades": 1
   },
   "ArranhadorAdesivo_Azul200x50KIT2": {
     "cor": "Azul",
     "custo": 41.94,
     "produto": "Arranhador Adesivo",
-    "tamanho": "200x50"
+    "tamanho": "200x50",
+    "unidades": 2
   },
   "ArranhadorAdesivo_Azul50x30": {
     "cor": "Azul",
     "custo": 3.15,
     "produto": "Arranhador Adesivo",
-    "tamanho": "50x30"
+    "tamanho": "50x30",
+    "unidades": 1
   },
   "ArranhadorAdesivo_Azul50x30KIT2": {
     "cor": "Azul",
     "custo": 6.3,
     "produto": "Arranhador Adesivo",
-    "tamanho": "50x30"
+    "tamanho": "50x30",
+    "unidades": 2
   },
   "ArranhadorAdesivo_Azul50x50KIT10": {
     "cor": "Azul",
     "custo": 52.425,
     "produto": "Piso Carpete",
-    "tamanho": "50x50"
+    "tamanho": "50x50",
+    "unidades": 10
   },
   "ArranhadorAdesivo_Azul50x50KIT20": {
     "cor": "Azul",
     "custo": 104.85,
     "produto": "Piso Carpete",
-    "tamanho": "50x50"
+    "tamanho": "50x50",
+    "unidades": 20
   },
   "ArranhadorAdesivo_Azul50x50M2": {
     "cor": "Azul",
     "custo": 20.97,
     "produto": "Piso Carpete",
-    "tamanho": "50x50"
+    "tamanho": "50x50",
+    "unidades": 4
   },
   "ArranhadorAdesivo_Azul70x50": {
     "cor": "Azul",
     "custo": 7.34,
     "produto": "Arranhador Adesivo",
-    "tamanho": "70x50"
+    "tamanho": "70x50",
+    "unidades": 1
   },
   "ArranhadorAdesivo_Azul70x50KIT2": {
     "cor": "Azul",
     "custo": 14.68,
     "produto": "Arranhador Adesivo",
-    "tamanho": "70x50"
+    "tamanho": "70x50",
+    "unidades": 2
   },
   "ArranhadorAdesivo_Bege100x50": {
     "cor": "Bege",
     "custo": 10.49,
     "produto": "Arranhador Adesivo",
-    "tamanho": "100x50"
+    "tamanho": "100x50",
+    "unidades": 1
   },
   "ArranhadorAdesivo_Bege100x50KIT2": {
     "cor": "Bege",
     "custo": 20.98,
     "produto": "Arranhador Adesivo",
-    "tamanho": "100x50"
+    "tamanho": "100x50",
+    "unidades": 2
   },
   "ArranhadorAdesivo_Bege120x50": {
     "cor": "Bege",
     "custo": 12.58,
     "produto": "Arranhador Adesivo",
-    "tamanho": "120x50"
+    "tamanho": "120x50",
+    "unidades": 1
   },
   "ArranhadorAdesivo_Bege120x50KIT2": {
     "cor": "Bege",
     "custo": 25.16,
     "produto": "Arranhador Adesivo",
-    "tamanho": "120x50"
+    "tamanho": "120x50",
+    "unidades": 2
   },
   "ArranhadorAdesivo_Bege200x50": {
     "cor": "Bege",
     "custo": 20.97,
     "produto": "Arranhador Adesivo",
-    "tamanho": "200x50"
+    "tamanho": "200x50",
+    "unidades": 1
   },
   "ArranhadorAdesivo_Bege200x50KIT2": {
     "cor": "Bege",
     "custo": 41.94,
     "produto": "Arranhador Adesivo",
-    "tamanho": "200x50"
+    "tamanho": "200x50",
+    "unidades": 2
   },
   "ArranhadorAdesivo_Bege50x30": {
     "cor": "Bege",
     "custo": 3.15,
     "produto": "Arranhador Adesivo",
-    "tamanho": "50x30"
+    "tamanho": "50x30",
+    "unidades": 1
   },
   "ArranhadorAdesivo_Bege50x30-Kit2": {
     "cor": "Bege",
     "custo": 6.3,
     "produto": "Arranhador Adesivo",
-    "tamanho": "50x30"
+    "tamanho": "50x30",
+    "unidades": 2
   },
   "ArranhadorAdesivo_Bege50x30KIT2": {
     "cor": "Bege",
     "custo": 6.3,
     "produto": "Arranhador Adesivo",
-    "tamanho": "50x30"
+    "tamanho": "50x30",
+    "unidades": 2
   },
   "ArranhadorAdesivo_Bege50x50KIT10": {
     "cor": "Bege",
     "custo": 52.425,
     "produto": "Piso Carpete",
-    "tamanho": "50x50"
+    "tamanho": "50x50",
+    "unidades": 10
   },
   "ArranhadorAdesivo_Bege50x50KIT20": {
     "cor": "Bege",
     "custo": 104.85,
     "produto": "Piso Carpete",
-    "tamanho": "50x50"
+    "tamanho": "50x50",
+    "unidades": 20
   },
   "ArranhadorAdesivo_Bege50x50M2": {
     "cor": "Bege",
     "custo": 20.97,
     "produto": "Piso Carpete",
-    "tamanho": "50x50"
+    "tamanho": "50x50",
+    "unidades": 4
   },
   "ArranhadorAdesivo_Bege70x50": {
     "cor": "Bege",
     "custo": 7.34,
     "produto": "Arranhador Adesivo",
-    "tamanho": "70x50"
+    "tamanho": "70x50",
+    "unidades": 1
   },
   "ArranhadorAdesivo_Bege70x50KIT2": {
     "cor": "Bege",
     "custo": 14.68,
     "produto": "Arranhador Adesivo",
-    "tamanho": "70x50"
+    "tamanho": "70x50",
+    "unidades": 2
   },
   "ArranhadorAdesivo_Chumbo50x30": {
     "cor": "Grafite",
     "custo": 3.15,
     "produto": "Arranhador Adesivo",
-    "tamanho": "50x30"
+    "tamanho": "50x30",
+    "unidades": 1
   },
   "ArranhadorAdesivo_Cinza100x50": {
     "cor": "Cinza",
     "custo": 10.49,
     "produto": "Arranhador Adesivo",
-    "tamanho": "100x50"
+    "tamanho": "100x50",
+    "unidades": 1
   },
   "ArranhadorAdesivo_Cinza100x50KIT2": {
     "cor": "Cinza",
     "custo": 20.98,
     "produto": "Arranhador Adesivo",
-    "tamanho": "100x50"
+    "tamanho": "100x50",
+    "unidades": 2
   },
   "ArranhadorAdesivo_Cinza120x50": {
     "cor": "Cinza",
     "custo": 12.58,
     "produto": "Arranhador Adesivo",
-    "tamanho": "120x50"
+    "tamanho": "120x50",
+    "unidades": 1
   },
   "ArranhadorAdesivo_Cinza120x50KIT2": {
     "cor": "Cinza",
     "custo": 25.16,
     "produto": "Arranhador Adesivo",
-    "tamanho": "120x50"
+    "tamanho": "120x50",
+    "unidades": 2
   },
   "ArranhadorAdesivo_Cinza200x50": {
     "cor": "Cinza",
     "custo": 20.97,
     "produto": "Arranhador Adesivo",
-    "tamanho": "200x50"
+    "tamanho": "200x50",
+    "unidades": 1
   },
   "ArranhadorAdesivo_Cinza200x50KIT2": {
     "cor": "Cinza",
     "custo": 41.94,
     "produto": "Arranhador Adesivo",
-    "tamanho": "200x50"
+    "tamanho": "200x50",
+    "unidades": 2
   },
   "ArranhadorAdesivo_Cinza50x30": {
     "cor": "Cinza",
     "custo": 3.15,
     "produto": "Arranhador Adesivo",
-    "tamanho": "50x30"
+    "tamanho": "50x30",
+    "unidades": 1
   },
   "ArranhadorAdesivo_Cinza50x30-kit2": {
     "cor": "Cinza",
     "custo": 6.3,
     "produto": "Arranhador Adesivo",
-    "tamanho": "50x30"
+    "tamanho": "50x30",
+    "unidades": 2
   },
   "ArranhadorAdesivo_Cinza50x30KIT2": {
     "cor": "Cinza",
     "custo": 6.3,
     "produto": "Arranhador Adesivo",
-    "tamanho": "50x30"
+    "tamanho": "50x30",
+    "unidades": 2
   },
   "ArranhadorAdesivo_Cinza50x50KIT10": {
     "cor": "Cinza",
     "custo": 52.425,
     "produto": "Piso Carpete",
-    "tamanho": "50x50"
+    "tamanho": "50x50",
+    "unidades": 10
   },
   "ArranhadorAdesivo_Cinza50x50KIT20": {
     "cor": "Cinza",
     "custo": 104.85,
     "produto": "Piso Carpete",
-    "tamanho": "50x50"
+    "tamanho": "50x50",
+    "unidades": 20
   },
   "ArranhadorAdesivo_Cinza50x50M2": {
     "cor": "Cinza",
     "custo": 20.97,
     "produto": "Piso Carpete",
-    "tamanho": "50x50"
+    "tamanho": "50x50",
+    "unidades": 4
   },
   "ArranhadorAdesivo_Cinza70x50": {
     "cor": "Cinza",
     "custo": 7.34,
     "produto": "Arranhador Adesivo",
-    "tamanho": "70x50"
+    "tamanho": "70x50",
+    "unidades": 1
   },
   "ArranhadorAdesivo_Cinza70x50KIT2": {
     "cor": "Cinza",
     "custo": 14.68,
     "produto": "Arranhador Adesivo",
-    "tamanho": "70x50"
+    "tamanho": "70x50",
+    "unidades": 2
   },
   "ArranhadorAdesivo_Grafite100x50": {
     "cor": "Grafite",
     "custo": 10.49,
     "produto": "Arranhador Adesivo",
-    "tamanho": "100x50"
+    "tamanho": "100x50",
+    "unidades": 1
   },
   "ArranhadorAdesivo_Grafite100x50KIT2": {
     "cor": "Grafite",
     "custo": 20.98,
     "produto": "Arranhador Adesivo",
-    "tamanho": "100x50"
+    "tamanho": "100x50",
+    "unidades": 2
   },
   "ArranhadorAdesivo_Grafite120x50": {
     "cor": "Grafite",
     "custo": 12.58,
     "produto": "Arranhador Adesivo",
-    "tamanho": "120x50"
+    "tamanho": "120x50",
+    "unidades": 1
   },
   "ArranhadorAdesivo_Grafite120x50KIT2": {
     "cor": "Grafite",
     "custo": 25.16,
     "produto": "Arranhador Adesivo",
-    "tamanho": "120x50"
+    "tamanho": "120x50",
+    "unidades": 2
   },
   "ArranhadorAdesivo_Grafite200x50": {
     "cor": "Grafite",
     "custo": 20.97,
     "produto": "Arranhador Adesivo",
-    "tamanho": "200x50"
+    "tamanho": "200x50",
+    "unidades": 1
   },
   "ArranhadorAdesivo_Grafite200x50KIT2": {
     "cor": "Grafite",
     "custo": 41.94,
     "produto": "Arranhador Adesivo",
-    "tamanho": "200x50"
+    "tamanho": "200x50",
+    "unidades": 2
   },
   "ArranhadorAdesivo_Grafite50x30": {
     "cor": "Grafite",
     "custo": 3.15,
     "produto": "Arranhador Adesivo",
-    "tamanho": "50x30"
+    "tamanho": "50x30",
+    "unidades": 1
   },
   "ArranhadorAdesivo_Grafite50x30KIT2": {
     "cor": "Grafite",
     "custo": 6.3,
     "produto": "Arranhador Adesivo",
-    "tamanho": "50x30"
+    "tamanho": "50x30",
+    "unidades": 2
   },
   "ArranhadorAdesivo_Grafite50x50KIT10": {
     "cor": "Grafite",
     "custo": 52.425,
     "produto": "Piso Carpete",
-    "tamanho": "50x50"
+    "tamanho": "50x50",
+    "unidades": 10
   },
   "ArranhadorAdesivo_Grafite50x50KIT20": {
     "cor": "Grafite",
     "custo": 104.85,
     "produto": "Piso Carpete",
-    "tamanho": "50x50"
+    "tamanho": "50x50",
+    "unidades": 20
   },
   "ArranhadorAdesivo_Grafite50x50M2": {
     "cor": "Grafite",
     "custo": 20.97,
     "produto": "Piso Carpete",
-    "tamanho": "50x50"
+    "tamanho": "50x50",
+    "unidades": 4
   },
   "ArranhadorAdesivo_Grafite70x50": {
     "cor": "Grafite",
     "custo": 7.34,
     "produto": "Arranhador Adesivo",
-    "tamanho": "70x50"
+    "tamanho": "70x50",
+    "unidades": 1
   },
   "ArranhadorAdesivo_Grafite70x50KIT2": {
     "cor": "Grafite",
     "custo": 14.68,
     "produto": "Arranhador Adesivo",
-    "tamanho": "70x50"
+    "tamanho": "70x50",
+    "unidades": 2
   },
   "ArranhadorAdesivo_Marrom100x50": {
     "cor": "Marrom",
     "custo": 10.49,
     "produto": "Arranhador Adesivo",
-    "tamanho": "100x50"
+    "tamanho": "100x50",
+    "unidades": 1
   },
   "ArranhadorAdesivo_Marrom100x50KIT2": {
     "cor": "Marrom",
     "custo": 20.98,
     "produto": "Arranhador Adesivo",
-    "tamanho": "100x50"
+    "tamanho": "100x50",
+    "unidades": 2
   },
   "ArranhadorAdesivo_Marrom120x50": {
     "cor": "Marrom",
     "custo": 12.58,
     "produto": "Arranhador Adesivo",
-    "tamanho": "120x50"
+    "tamanho": "120x50",
+    "unidades": 1
   },
   "ArranhadorAdesivo_Marrom120x50KIT2": {
     "cor": "Marrom",
     "custo": 25.16,
     "produto": "Arranhador Adesivo",
-    "tamanho": "120x50"
+    "tamanho": "120x50",
+    "unidades": 2
   },
   "ArranhadorAdesivo_Marrom200x50": {
     "cor": "Marrom",
     "custo": 20.97,
     "produto": "Arranhador Adesivo",
-    "tamanho": "200x50"
+    "tamanho": "200x50",
+    "unidades": 1
   },
   "ArranhadorAdesivo_Marrom200x50KIT2": {
     "cor": "Marrom",
     "custo": 41.94,
     "produto": "Arranhador Adesivo",
-    "tamanho": "200x50"
+    "tamanho": "200x50",
+    "unidades": 2
   },
   "ArranhadorAdesivo_Marrom50x30": {
     "cor": "Marrom",
     "custo": 3.15,
     "produto": "Arranhador Adesivo",
-    "tamanho": "50x30"
+    "tamanho": "50x30",
+    "unidades": 1
   },
   "ArranhadorAdesivo_Marrom50x30KIT2": {
     "cor": "Marrom",
     "custo": 6.3,
     "produto": "Arranhador Adesivo",
-    "tamanho": "50x30"
+    "tamanho": "50x30",
+    "unidades": 2
   },
   "ArranhadorAdesivo_Marrom50x50KIT10": {
     "cor": "Marrom",
     "custo": 52.425,
     "produto": "Piso Carpete",
-    "tamanho": "50x50"
+    "tamanho": "50x50",
+    "unidades": 10
   },
   "ArranhadorAdesivo_Marrom50x50KIT20": {
     "cor": "Marrom",
     "custo": 104.85,
     "produto": "Piso Carpete",
-    "tamanho": "50x50"
+    "tamanho": "50x50",
+    "unidades": 20
   },
   "ArranhadorAdesivo_Marrom50x50M2": {
     "cor": "Marrom",
     "custo": 20.97,
     "produto": "Piso Carpete",
-    "tamanho": "50x50"
+    "tamanho": "50x50",
+    "unidades": 4
   },
   "ArranhadorAdesivo_Marrom70x50": {
     "cor": "Marrom",
     "custo": 7.34,
     "produto": "Arranhador Adesivo",
-    "tamanho": "70x50"
+    "tamanho": "70x50",
+    "unidades": 1
   },
   "ArranhadorAdesivo_Marrom70x50KIT2": {
     "cor": "Marrom",
     "custo": 14.68,
     "produto": "Arranhador Adesivo",
-    "tamanho": "70x50"
+    "tamanho": "70x50",
+    "unidades": 2
   },
   "ArranhadorAdesivo_Preto100x50": {
     "cor": "Preto",
     "custo": 10.49,
     "produto": "Arranhador Adesivo",
-    "tamanho": "100x50"
+    "tamanho": "100x50",
+    "unidades": 1
   },
   "ArranhadorAdesivo_Preto100x50KIT2": {
     "cor": "Preto",
     "custo": 20.98,
     "produto": "Arranhador Adesivo",
-    "tamanho": "100x50"
+    "tamanho": "100x50",
+    "unidades": 2
   },
   "ArranhadorAdesivo_Preto120x50": {
     "cor": "Preto",
     "custo": 12.58,
     "produto": "Arranhador Adesivo",
-    "tamanho": "120x50"
+    "tamanho": "120x50",
+    "unidades": 1
   },
   "ArranhadorAdesivo_Preto120x50KIT2": {
     "cor": "Preto",
     "custo": 25.16,
     "produto": "Arranhador Adesivo",
-    "tamanho": "120x50"
+    "tamanho": "120x50",
+    "unidades": 2
   },
   "ArranhadorAdesivo_Preto200x50": {
     "cor": "Preto",
     "custo": 20.97,
     "produto": "Arranhador Adesivo",
-    "tamanho": "200x50"
+    "tamanho": "200x50",
+    "unidades": 1
   },
   "ArranhadorAdesivo_Preto200x50KIT2": {
     "cor": "Preto",
     "custo": 41.94,
     "produto": "Arranhador Adesivo",
-    "tamanho": "200x50"
+    "tamanho": "200x50",
+    "unidades": 2
   },
   "ArranhadorAdesivo_Preto50x30": {
     "cor": "Preto",
     "custo": 3.15,
     "produto": "Arranhador Adesivo",
-    "tamanho": "50x30"
+    "tamanho": "50x30",
+    "unidades": 1
   },
   "ArranhadorAdesivo_Preto50x30KIT2": {
     "cor": "Preto",
     "custo": 6.3,
     "produto": "Arranhador Adesivo",
-    "tamanho": "50x30"
+    "tamanho": "50x30",
+    "unidades": 2
   },
   "ArranhadorAdesivo_Preto50x50KIT10": {
     "cor": "Preto",
     "custo": 52.425,
     "produto": "Piso Carpete",
-    "tamanho": "50x50"
+    "tamanho": "50x50",
+    "unidades": 10
   },
   "ArranhadorAdesivo_Preto50x50KIT20": {
     "cor": "Preto",
     "custo": 104.85,
     "produto": "Piso Carpete",
-    "tamanho": "50x50"
+    "tamanho": "50x50",
+    "unidades": 20
   },
   "ArranhadorAdesivo_Preto50x50M2": {
     "cor": "Preto",
     "custo": 20.97,
     "produto": "Piso Carpete",
-    "tamanho": "50x50"
+    "tamanho": "50x50",
+    "unidades": 4
   },
   "ArranhadorAdesivo_Preto70x50": {
     "cor": "Preto",
     "custo": 7.34,
     "produto": "Arranhador Adesivo",
-    "tamanho": "70x50"
+    "tamanho": "70x50",
+    "unidades": 1
   },
   "ArranhadorAdesivo_Preto70x50KIT2": {
     "cor": "Preto",
     "custo": 14.68,
     "produto": "Arranhador Adesivo",
-    "tamanho": "70x50"
+    "tamanho": "70x50",
+    "unidades": 2
   },
   "ArranhadorAdesivo_chumbo50x30": {
     "cor": "Grafite",
     "custo": 3.15,
     "produto": "Arranhador Adesivo",
-    "tamanho": "50x30"
+    "tamanho": "50x30",
+    "unidades": 1
   },
   "ArranhadorAdesvio_Preto100x50": {
     "cor": "Preto",
     "custo": 10.49,
     "produto": "Arranhador Adesivo",
-    "tamanho": "100x50"
+    "tamanho": "100x50",
+    "unidades": 1
   },
   "ArranhadorBraco_AzulE": {
     "cor": "Azul",
     "custo": 18.4,
-    "produto": "Arranhador de Braço",
-    "tamanho": "P"
+    "produto": "Arranhador De Braço",
+    "tamanho": "P",
+    "unidades": 1
   },
   "ArranhadorBraco_BegeE": {
     "cor": "Bege",
     "custo": 18.4,
-    "produto": "Arranhador de Braço",
-    "tamanho": "P"
+    "produto": "Arranhador De Braço",
+    "tamanho": "P",
+    "unidades": 1
   },
   "ArranhadorBraco_CinzaE": {
     "cor": "Cinza",
     "custo": 18.4,
-    "produto": "Arranhador de Braço",
-    "tamanho": "P"
+    "produto": "Arranhador De Braço",
+    "tamanho": "P",
+    "unidades": 1
   },
   "ArranhadorBraco_Cinza_Par_Simples": {
     "cor": "Cinza",
     "custo": 29.4,
-    "produto": "Arranhador de Braço Simples",
-    "tamanho": "P"
+    "produto": "Arranhador De Braço Simples",
+    "tamanho": "P",
+    "unidades": 2
   },
   "ArranhadorMadeiraAzul60CM-KIT2": {
     "cor": "Azul",
     "custo": 27.96,
-    "produto": "Arranhador de Madeira",
-    "tamanho": "G"
+    "produto": "Arranhador De Madeira",
+    "tamanho": "G",
+    "unidades": 2
   },
   "ArranhadorMadeiraAzul_60CM-KIT2": {
     "cor": "Azul",
     "custo": 27.96,
-    "produto": "Arranhador de Madeira",
-    "tamanho": "G"
+    "produto": "Arranhador De Madeira",
+    "tamanho": "G",
+    "unidades": 2
   },
   "ArranhadorMadeiraBege60CM-KIT2": {
     "cor": "Bege",
     "custo": 27.96,
-    "produto": "Arranhador de Madeira",
-    "tamanho": "G"
+    "produto": "Arranhador De Madeira",
+    "tamanho": "G",
+    "unidades": 2
   },
   "ArranhadorMadeiraBege_60CM-KIT2": {
     "cor": "Bege",
     "custo": 27.96,
-    "produto": "Arranhador de Madeira",
-    "tamanho": "G"
+    "produto": "Arranhador De Madeira",
+    "tamanho": "G",
+    "unidades": 2
   },
   "ArranhadorMadeiraCinza60CM-KIT2": {
     "cor": "Cinza",
     "custo": 27.96,
-    "produto": "Arranhador de Madeira",
-    "tamanho": "G"
+    "produto": "Arranhador De Madeira",
+    "tamanho": "G",
+    "unidades": 2
   },
   "ArranhadorMadeiraCinza_60CM-KIT2": {
-    "cor": "60cm",
+    "cor": "60Cm",
     "custo": 30.18,
-    "produto": "Arranhador de Madeira",
-    "tamanho": "G"
+    "produto": "Arranhador De Madeira",
+    "tamanho": "G",
+    "unidades": 2
   },
   "ArranhadorMadeiraMarrom": {
-    "cor": "60cm",
+    "cor": "60Cm",
     "custo": 15.09,
-    "produto": "Arranhador de Madeira",
-    "tamanho": "G"
+    "produto": "Arranhador De Madeira",
+    "tamanho": "G",
+    "unidades": 1
   },
   "ArranhadorMadeiraMarrom1": {
-    "cor": "60cm",
+    "cor": "60Cm",
     "custo": 15.09,
-    "produto": "Arranhador de Madeira",
-    "tamanho": "G"
+    "produto": "Arranhador De Madeira",
+    "tamanho": "G",
+    "unidades": 1
   },
   "ArranhadorMadeiraMarrom60cm": {
-    "cor": "60cm",
+    "cor": "60Cm",
     "custo": 30.18,
-    "produto": "Arranhador de Madeira",
-    "tamanho": "G"
+    "produto": "Arranhador De Madeira",
+    "tamanho": "G",
+    "unidades": 2
   },
   "ArranhadorMadeiraMarrom60cm-KIT2": {
-    "cor": "60cm",
+    "cor": "60Cm",
     "custo": 30.18,
-    "produto": "Arranhador de Madeira",
-    "tamanho": "G"
+    "produto": "Arranhador De Madeira",
+    "tamanho": "G",
+    "unidades": 2
   },
   "ArranhadorMadeiraMarrom60cm-KIT4": {
-    "cor": "60cm",
+    "cor": "60Cm",
     "custo": 60.36,
-    "produto": "Arranhador de Madeira",
-    "tamanho": "G"
+    "produto": "Arranhador De Madeira",
+    "tamanho": "G",
+    "unidades": 4
   },
   "ArranhadorTunel_Azul": {
     "cor": "Azul",
     "custo": 16.78,
     "produto": "Arranhador Túnel",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "ArranhadorTunel_Bege": {
     "cor": "Bege",
     "custo": 16.78,
     "produto": "Arranhador Túnel",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "ArranhadorTunel_Cinza": {
     "cor": "Cinza",
     "custo": 16.78,
     "produto": "Arranhador Túnel",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Arranhadorcaragato_Azul": {
     "cor": "Azul",
     "custo": 10.23,
-    "produto": "Arranhador Cara de Gato",
-    "tamanho": "-"
+    "produto": "Arranhador Cara De Gato",
+    "tamanho": "-",
+    "unidades": 1
   },
   "Arranhadorcaragato_Bege": {
     "cor": "Bege",
     "custo": 10.23,
-    "produto": "Arranhador Cara de Gato",
-    "tamanho": "-"
+    "produto": "Arranhador Cara De Gato",
+    "tamanho": "-",
+    "unidades": 1
   },
   "Arranhadorcaragato_Cinza": {
     "cor": "Cinza",
     "custo": 10.23,
-    "produto": "Arranhador Cara de Gato",
-    "tamanho": "-"
+    "produto": "Arranhador Cara De Gato",
+    "tamanho": "-",
+    "unidades": 1
   },
   "Arranhadorcaragato_Preto": {
     "cor": "Preto",
     "custo": 10.23,
-    "produto": "Arranhador Cara de Gato",
-    "tamanho": "-"
+    "produto": "Arranhador Cara De Gato",
+    "tamanho": "-",
+    "unidades": 1
   },
   "Arranhadorparede_Azul": {
     "cor": "Azul",
     "custo": 4.68,
     "produto": "Arranhador Parede",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Arranhadorparede_Bege": {
     "cor": "Bege",
     "custo": 4.68,
     "produto": "Arranhador Parede",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Arranhadorparede_Cinza": {
     "cor": "Cinza",
     "custo": 4.68,
     "produto": "Arranhador Parede",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Arranhadorparede_Grafite": {
     "cor": "Grafite",
     "custo": 4.68,
     "produto": "Arranhador Parede",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Arranhadorparede_Marrom": {
     "cor": "Marrom",
     "custo": 4.68,
     "produto": "Arranhador Parede",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Arranhadorparede_Preto": {
     "cor": "Preto",
     "custo": 4.68,
     "produto": "Arranhador Parede",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Arranhadorparede_Sisal": {
     "cor": "Sisal",
     "custo": 4.68,
     "produto": "Arranhador Parede",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Arranhadorrampa_Cinza": {
     "cor": "Cinza",
     "custo": 5.77,
     "produto": "Arranhador Rampa",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Arranhadorrampa_azul": {
     "cor": "Azul",
     "custo": 5.77,
     "produto": "Arranhador Rampa",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Arranhadorrampa_bege": {
     "cor": "Bege",
     "custo": 5.77,
     "produto": "Arranhador Rampa",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "BanheiroInteligente": {
     "cor": "Cinza",
     "custo": 730.31,
     "produto": "Banheiro Inteligente",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "BrinquedoInterativo_Azul": {
     "cor": "Azul",
     "custo": 9.1,
     "produto": "Brinquedo Interativo",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "BrinquedoInterativo_Bege": {
     "cor": "Bege",
     "custo": 9.1,
     "produto": "Brinquedo Interativo",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "BrinquedoInterativo_Cinza": {
     "cor": "Cinza",
     "custo": 9.1,
     "produto": "Brinquedo Interativo",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "BrinquedoInterativo_Grafite": {
     "cor": "Grafite",
     "custo": 9.1,
     "produto": "Brinquedo Interativo",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "BrinquedoInterativo_Marrom": {
     "cor": "Marrom",
     "custo": 9.1,
     "produto": "Brinquedo Interativo",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "BrinquedoInterativo_Preto": {
     "cor": "Preto",
     "custo": 9.1,
     "produto": "Brinquedo Interativo",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
+  },
+  "BrinquedoLambedor": {
+    "cor": "-",
+    "custo": 8.68,
+    "produto": "Brinquedo Lambedor",
+    "tamanho": "-",
+    "unidades": 1
+  },
+  "BrinquedoLaser_Branco": {
+    "cor": "Branco",
+    "custo": 36.05,
+    "produto": "Brinquedo Laser",
+    "tamanho": "-",
+    "unidades": 1
+  },
+  "BrinquedoLaser_Rosa": {
+    "cor": "Rosa",
+    "custo": 36.05,
+    "produto": "Brinquedo Laser",
+    "tamanho": "-",
+    "unidades": 1
+  },
+  "BrinquedoLaser_Verde": {
+    "cor": "Verde",
+    "custo": 36.05,
+    "produto": "Brinquedo Laser",
+    "tamanho": "-",
+    "unidades": 1
+  },
+  "BrinquedoPesca": {
+    "cor": "-",
+    "custo": 17.36,
+    "produto": "Brinquedo Pesca Automatico",
+    "tamanho": "-",
+    "unidades": 1
   },
   "CamDryfit_XGG_Branco-Kit3": {
     "cor": "Branco",
     "custo": 17.25,
     "produto": "Camisa Dryfit",
-    "tamanho": "XGG"
+    "tamanho": "XGG",
+    "unidades": 3
   },
   "CamDryfit_XGG_Branco-Kit5": {
     "cor": "Branco",
     "custo": 28.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "XGG"
+    "tamanho": "XGG",
+    "unidades": 5
   },
   "CamaSuspensa_Azul": {
     "cor": "Azul",
     "custo": 10.53,
     "produto": "Cama Suspensa",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "CamaSuspensa_Bege": {
     "cor": "Bege",
     "custo": 10.53,
     "produto": "Cama Suspensa",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "CamaSuspensa_Cinza": {
     "cor": "Cinza",
     "custo": 10.53,
     "produto": "Cama Suspensa",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "CamiDryfit_GG_2Branca3Preta-Kit5": {
     "cor": "Preto",
     "custo": 28.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "GG"
+    "tamanho": "GG",
+    "unidades": 5
   },
   "CamiDryfit_GG_Branco-Kit3": {
     "cor": "Branco",
     "custo": 17.25,
     "produto": "Camisa Dryfit",
-    "tamanho": "GG"
+    "tamanho": "GG",
+    "unidades": 3
   },
   "CamiDryfit_GG_Branco-Kit5": {
     "cor": "Branco",
     "custo": 28.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "GG"
+    "tamanho": "GG",
+    "unidades": 5
   },
   "CamiDryfit_GG_Cinza-Kit3": {
     "cor": "Cinza",
     "custo": 17.25,
     "produto": "Camisa Dryfit",
-    "tamanho": "GG"
+    "tamanho": "GG",
+    "unidades": 3
   },
   "CamiDryfit_GG_Cinza-Kit5": {
     "cor": "Cinza",
     "custo": 28.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "GG"
+    "tamanho": "GG",
+    "unidades": 5
   },
   "CamiDryfit_GG_Preto-Kit3": {
     "cor": "Preto",
     "custo": 17.25,
     "produto": "Camisa Dryfit",
-    "tamanho": "GG"
+    "tamanho": "GG",
+    "unidades": 3
   },
   "CamiDryfit_GG_Preto-Kit5": {
     "cor": "Preto",
     "custo": 28.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "GG"
+    "tamanho": "GG",
+    "unidades": 5
   },
   "CamiDryfit_GG_Verde-Kit3": {
     "cor": "Verde",
     "custo": 17.25,
     "produto": "Camisa Dryfit",
-    "tamanho": "GG"
+    "tamanho": "GG",
+    "unidades": 3
   },
   "CamiDryfit_GG_Verde-Kit5": {
     "cor": "Verde",
     "custo": 28.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "GG"
+    "tamanho": "GG",
+    "unidades": 5
   },
   "CamiDryfit_G_2Branca3Preta-Kit5": {
     "cor": "Preto",
     "custo": 28.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "G"
+    "tamanho": "G",
+    "unidades": 5
   },
   "CamiDryfit_G_Branco-Kit3": {
     "cor": "Branco",
     "custo": 17.25,
     "produto": "Camisa Dryfit",
-    "tamanho": "G"
+    "tamanho": "G",
+    "unidades": 3
   },
   "CamiDryfit_G_Branco-Kit5": {
     "cor": "Branco",
     "custo": 28.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "G"
+    "tamanho": "G",
+    "unidades": 5
   },
   "CamiDryfit_G_Cinza-Kit3": {
     "cor": "Cinza",
     "custo": 17.25,
     "produto": "Camisa Dryfit",
-    "tamanho": "G"
+    "tamanho": "G",
+    "unidades": 3
   },
   "CamiDryfit_G_Cinza-Kit5": {
     "cor": "Cinza",
     "custo": 28.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "G"
+    "tamanho": "G",
+    "unidades": 5
   },
   "CamiDryfit_G_Preto-Kit3": {
     "cor": "Preto",
     "custo": 17.25,
     "produto": "Camisa Dryfit",
-    "tamanho": "G"
+    "tamanho": "G",
+    "unidades": 3
   },
   "CamiDryfit_G_Preto-Kit5": {
     "cor": "Preto",
     "custo": 28.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "G"
+    "tamanho": "G",
+    "unidades": 5
   },
   "CamiDryfit_G_Verde-Kit3": {
     "cor": "Verde",
     "custo": 17.25,
     "produto": "Camisa Dryfit",
-    "tamanho": "G"
+    "tamanho": "G",
+    "unidades": 3
   },
   "CamiDryfit_G_Verde-Kit5": {
     "cor": "Verde",
     "custo": 28.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "G"
+    "tamanho": "G",
+    "unidades": 5
   },
   "CamiDryfit_M_2Branca3Preta-Kit5": {
     "cor": "Preto",
     "custo": 28.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "M"
+    "tamanho": "M",
+    "unidades": 5
   },
   "CamiDryfit_M_Branco-Kit3": {
     "cor": "Branco",
     "custo": 17.25,
     "produto": "Camisa Dryfit",
-    "tamanho": "M"
+    "tamanho": "M",
+    "unidades": 3
   },
   "CamiDryfit_M_Branco-Kit5": {
     "cor": "Branco",
     "custo": 28.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "M"
+    "tamanho": "M",
+    "unidades": 5
   },
   "CamiDryfit_M_Cinza-Kit3": {
     "cor": "Cinza",
     "custo": 17.25,
     "produto": "Camisa Dryfit",
-    "tamanho": "M"
+    "tamanho": "M",
+    "unidades": 3
   },
   "CamiDryfit_M_Cinza-Kit5": {
     "cor": "Cinza",
     "custo": 28.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "M"
+    "tamanho": "M",
+    "unidades": 5
   },
   "CamiDryfit_M_Preto-Kit3": {
     "cor": "Preto",
     "custo": 17.25,
     "produto": "Camisa Dryfit",
-    "tamanho": "M"
+    "tamanho": "M",
+    "unidades": 3
   },
   "CamiDryfit_M_Preto-Kit5": {
     "cor": "Preto",
     "custo": 28.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "M"
+    "tamanho": "M",
+    "unidades": 5
   },
   "CamiDryfit_M_Verde-Kit3": {
     "cor": "Verde",
     "custo": 17.25,
     "produto": "Camisa Dryfit",
-    "tamanho": "M"
+    "tamanho": "M",
+    "unidades": 3
   },
   "CamiDryfit_M_Verde-Kit5": {
     "cor": "Verde",
     "custo": 28.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "M"
+    "tamanho": "M",
+    "unidades": 5
   },
   "CamiDryfit_P_2Branca3Preta-Kit5": {
     "cor": "Preto",
     "custo": 28.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "P"
+    "tamanho": "P",
+    "unidades": 5
   },
   "CamiDryfit_P_Branco-Kit3": {
     "cor": "Branco",
     "custo": 17.25,
     "produto": "Camisa Dryfit",
-    "tamanho": "P"
+    "tamanho": "P",
+    "unidades": 3
   },
   "CamiDryfit_P_Branco-Kit5": {
     "cor": "Branco",
     "custo": 28.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "P"
+    "tamanho": "P",
+    "unidades": 5
   },
   "CamiDryfit_P_Cinza-Kit3": {
     "cor": "Cinza",
     "custo": 17.25,
     "produto": "Camisa Dryfit",
-    "tamanho": "P"
+    "tamanho": "P",
+    "unidades": 3
   },
   "CamiDryfit_P_Cinza-Kit5": {
     "cor": "Cinza",
     "custo": 28.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "P"
+    "tamanho": "P",
+    "unidades": 5
   },
   "CamiDryfit_P_Preto-Kit3": {
     "cor": "Preto",
     "custo": 17.25,
     "produto": "Camisa Dryfit",
-    "tamanho": "P"
+    "tamanho": "P",
+    "unidades": 3
   },
   "CamiDryfit_P_Preto-Kit5": {
     "cor": "Preto",
     "custo": 28.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "P"
+    "tamanho": "P",
+    "unidades": 5
   },
   "CamiDryfit_P_Verde-Kit3": {
     "cor": "Verde",
     "custo": 17.25,
     "produto": "Camisa Dryfit",
-    "tamanho": "P"
+    "tamanho": "P",
+    "unidades": 3
   },
   "CamiDryfit_P_Verde-Kit5": {
     "cor": "Verde",
     "custo": 28.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "P"
+    "tamanho": "P",
+    "unidades": 5
   },
   "CamiDryfit_XGG_2Branca3Preta-Kit5": {
     "cor": "Preto",
     "custo": 28.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "XGG"
+    "tamanho": "XGG",
+    "unidades": 5
   },
   "CamiDryfit_XGG_Branco-Kit5": {
     "cor": "Branco",
     "custo": 28.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "XGG"
+    "tamanho": "XGG",
+    "unidades": 5
   },
   "CamiDryfit_XGG_Cinza-Kit3": {
     "cor": "Cinza",
     "custo": 17.25,
     "produto": "Camisa Dryfit",
-    "tamanho": "XGG"
+    "tamanho": "XGG",
+    "unidades": 3
   },
   "CamiDryfit_XGG_Cinza-Kit5": {
     "cor": "Cinza",
     "custo": 28.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "XGG"
+    "tamanho": "XGG",
+    "unidades": 5
   },
   "CamiDryfit_XGG_Preto-Kit3": {
     "cor": "Preto",
     "custo": 17.25,
     "produto": "Camisa Dryfit",
-    "tamanho": "XGG"
+    "tamanho": "XGG",
+    "unidades": 3
   },
   "CamiDryfit_XGG_Preto-Kit5": {
     "cor": "Preto",
     "custo": 28.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "XGG"
+    "tamanho": "XGG",
+    "unidades": 5
   },
   "CamiDryfit_XGG_Verde-Kit3": {
     "cor": "Verde",
     "custo": 17.25,
     "produto": "Camisa Dryfit",
-    "tamanho": "XGG"
+    "tamanho": "XGG",
+    "unidades": 3
   },
   "CamiDryfit_XGG_Verde-Kit5": {
     "cor": "Verde",
     "custo": 28.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "XGG"
+    "tamanho": "XGG",
+    "unidades": 5
   },
   "Caminha02_Azul": {
     "cor": "Azul",
     "custo": 11.68,
     "produto": "Caminha 02",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Caminha02_Bege": {
     "cor": "Bege",
     "custo": 11.68,
     "produto": "Caminha 02",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Caminha02_Cinza": {
     "cor": "Cinza",
     "custo": 11.68,
     "produto": "Caminha 02",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Caminha03_Azul": {
     "cor": "Azul",
     "custo": 12.07484415584416,
     "produto": "Casinha 03",
-    "tamanho": "P"
+    "tamanho": "P",
+    "unidades": 1
   },
   "Caminha03_Bege": {
     "cor": "Bege",
     "custo": 12.07484415584416,
     "produto": "Casinha 03",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Caminha04_Azul": {
     "cor": "Azul",
     "custo": 22.35,
     "produto": "Casinha 04",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Caminha04_Bege": {
     "cor": "Bege",
     "custo": 22.35,
     "produto": "Casinha 04",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Caminha04_Cinza": {
     "cor": "Cinza",
     "custo": 22.35,
     "produto": "Casinha 04",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Caminha05_Azul": {
     "cor": "Azul",
     "custo": 12.52393506493507,
     "produto": "Casinha 05",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Caminha05_Bege": {
     "cor": "Bege",
     "custo": 12.07484415584416,
     "produto": "Casinha 05",
-    "tamanho": "P"
+    "tamanho": "P",
+    "unidades": 1
   },
   "Caminha05_Cinza": {
     "cor": "Cinza",
     "custo": 12.52393506493507,
     "produto": "Casinha 05",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Caminha06_Azul": {
     "cor": "Azul",
     "custo": 17.83,
     "produto": "Casinha 06",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Caminha08_Bege": {
     "cor": "Bege",
     "custo": 25.95,
     "produto": "Casinha 08",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Caminha16_Azul": {
     "cor": "Azul",
     "custo": 27.65,
     "produto": "Casinha 16",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Caminha16_Bege": {
     "cor": "Bege",
     "custo": 27.65,
     "produto": "Casinha 16",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Caminha16_Cinza": {
     "cor": "Cinza",
     "custo": 27.65,
     "produto": "Casinha 16",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Camisa_Dryfit_GG_Branco": {
     "cor": "Branco",
     "custo": 5.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "GG"
+    "tamanho": "GG",
+    "unidades": 1
   },
   "Camisa_Dryfit_GG_Cinza": {
     "cor": "Cinza",
     "custo": 5.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "GG"
+    "tamanho": "GG",
+    "unidades": 1
   },
   "Camisa_Dryfit_GG_Preto": {
     "cor": "Preto",
     "custo": 5.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "GG"
+    "tamanho": "GG",
+    "unidades": 1
   },
   "Camisa_Dryfit_GG_Verde": {
     "cor": "Verde",
     "custo": 5.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "GG"
+    "tamanho": "GG",
+    "unidades": 1
+  },
+  "Camisa_Dryfit_GG_´Preto": {
+    "cor": "Preto",
+    "custo": 5.75,
+    "produto": "Camisa Dryfit",
+    "tamanho": "GG",
+    "unidades": 1
   },
   "Camisa_Dryfit_G_Branco": {
     "cor": "Branco",
     "custo": 5.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "G"
+    "tamanho": "G",
+    "unidades": 1
   },
   "Camisa_Dryfit_G_Cinza": {
     "cor": "Cinza",
     "custo": 5.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "G"
+    "tamanho": "G",
+    "unidades": 1
   },
   "Camisa_Dryfit_G_Preto": {
     "cor": "Preto",
     "custo": 5.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "G"
+    "tamanho": "G",
+    "unidades": 1
   },
   "Camisa_Dryfit_G_Verde": {
     "cor": "Verde",
     "custo": 5.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "G"
+    "tamanho": "G",
+    "unidades": 1
   },
   "Camisa_Dryfit_M_Branco": {
     "cor": "Branco",
     "custo": 5.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "M"
+    "tamanho": "M",
+    "unidades": 1
   },
   "Camisa_Dryfit_M_Cinza": {
     "cor": "Cinza",
     "custo": 5.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "M"
+    "tamanho": "M",
+    "unidades": 1
   },
   "Camisa_Dryfit_M_Preto": {
     "cor": "Preto",
     "custo": 5.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "M"
+    "tamanho": "M",
+    "unidades": 1
   },
   "Camisa_Dryfit_M_Verde": {
     "cor": "Verde",
     "custo": 5.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "M"
+    "tamanho": "M",
+    "unidades": 1
   },
   "Camisa_Dryfit_P_Branco": {
     "cor": "Branco",
     "custo": 5.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "P"
+    "tamanho": "P",
+    "unidades": 1
   },
   "Camisa_Dryfit_P_Cinza": {
     "cor": "Cinza",
     "custo": 5.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "P"
+    "tamanho": "P",
+    "unidades": 1
   },
   "Camisa_Dryfit_P_Preto": {
     "cor": "Preto",
     "custo": 5.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "P"
+    "tamanho": "P",
+    "unidades": 1
   },
   "Camisa_Dryfit_P_Verde": {
     "cor": "Verde",
     "custo": 5.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "P"
+    "tamanho": "P",
+    "unidades": 1
+  },
+  "Camisa_Dryfit_P_´Preto": {
+    "cor": "Preto",
+    "custo": 5.75,
+    "produto": "Camisa Dryfit",
+    "tamanho": "P",
+    "unidades": 1
   },
   "Camisa_Dryfit_XGG_Branco": {
     "cor": "Branco",
     "custo": 5.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "XGG"
+    "tamanho": "XGG",
+    "unidades": 1
   },
   "Camisa_Dryfit_XGG_Cinza": {
     "cor": "Cinza",
     "custo": 5.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "XGG"
+    "tamanho": "XGG",
+    "unidades": 1
   },
   "Camisa_Dryfit_XGG_Preto": {
     "cor": "Preto",
     "custo": 5.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "XGG"
+    "tamanho": "XGG",
+    "unidades": 1
   },
   "Camisa_Dryfit_XGG_Verde": {
     "cor": "Verde",
     "custo": 5.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "XGG"
+    "tamanho": "XGG",
+    "unidades": 1
+  },
+  "Camisa_Dryfit_XGG_´Preto": {
+    "cor": "Preto",
+    "custo": 5.75,
+    "produto": "Camisa Dryfit",
+    "tamanho": "XGG",
+    "unidades": 1
   },
   "Capa_Carro": {
     "cor": "Preto",
     "custo": 13.112,
     "produto": "Capa Carro",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Casatoca_Azul": {
     "cor": "Azul",
     "custo": 27.2338,
     "produto": "Casinha Toca",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Casatoca_Azul_3": {
     "cor": "Azul",
     "custo": 27.2338,
     "produto": "Casinha Toca",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Casatoca_Bege": {
     "cor": "Bege",
     "custo": 27.2338,
     "produto": "Casinha Toca",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Casatoca_Bege_3": {
     "cor": "Bege",
     "custo": 27.2338,
     "produto": "Casinha Toca",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Casatoca_Caramelo": {
     "cor": "Caramelo",
     "custo": 27.2338,
     "produto": "Casinha Toca",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Casatoca_Caramelo_3": {
     "cor": "Caramelo",
     "custo": 27.2338,
     "produto": "Casinha Toca",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Casatoca_Chumbo": {
     "cor": "Grafite",
     "custo": 27.2338,
     "produto": "Casinha Toca",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Casatoca_Chumbo_3": {
     "cor": "Grafite",
     "custo": 27.2338,
     "produto": "Casinha Toca",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Casatoca_Cinza": {
     "cor": "Cinza",
     "custo": 27.2338,
     "produto": "Casinha Toca",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Casatoca_Cinza_3": {
     "cor": "Cinza",
     "custo": 27.2338,
     "produto": "Casinha Toca",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Casatoca_Verde": {
     "cor": "Verde",
     "custo": 27.2338,
     "produto": "Casinha Toca",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Casatoca_Verde_3": {
     "cor": "Verde",
     "custo": 27.2338,
     "produto": "Casinha Toca",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Casinha06_Bege": {
     "cor": "Bege",
     "custo": 17.83,
     "produto": "Casinha 06",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Casinha06_Cinza": {
     "cor": "Cinza",
     "custo": 17.83,
     "produto": "Casinha 06",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Casinha07_Azul": {
     "cor": "Azul",
     "custo": 21.94,
     "produto": "Casinha 07",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Casinha07_Bege": {
     "cor": "Bege",
     "custo": 21.94,
     "produto": "Casinha 07",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Casinha07_Cinza": {
     "cor": "Cinza",
     "custo": 21.94,
     "produto": "Casinha 07",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Casinha08_Azul": {
     "cor": "Azul",
     "custo": 25.95,
     "produto": "Casinha 08",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Casinha08_Cinza": {
     "cor": "Cinza",
     "custo": 25.95,
     "produto": "Casinha 08",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Casinha09_Azul": {
     "cor": "Azul",
     "custo": 14.58,
     "produto": "Casinha 09",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Casinha09_Bege": {
     "cor": "Bege",
     "custo": 14.58,
     "produto": "Casinha 09",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Casinha09_Cinza": {
     "cor": "Cinza",
     "custo": 14.58,
     "produto": "Casinha 09",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Casinha10_Azul": {
     "cor": "Azul",
     "custo": 29.09,
     "produto": "Casinha 10",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Casinha10_Bege": {
     "cor": "Bege",
     "custo": 29.09,
     "produto": "Casinha 10",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Casinha10_Cinza": {
     "cor": "Cinza",
     "custo": 29.09,
     "produto": "Casinha 10",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Casinha12_Azul": {
     "cor": "Azul",
     "custo": 30.9,
     "produto": "Casinha 12",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Casinha12_Bege": {
     "cor": "Bege",
     "custo": 30.9,
     "produto": "Casinha 12",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Casinha12_Cinza": {
     "cor": "Cinza",
     "custo": 30.9,
     "produto": "Casinha 12",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Casinha13_Azul": {
     "cor": "Azul",
     "custo": 23.76,
     "produto": "Casinha 13",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Casinha13_Bege": {
     "cor": "Bege",
     "custo": 23.76,
     "produto": "Casinha 13",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Casinha13_Cinza": {
     "cor": "Cinza",
     "custo": 23.76,
     "produto": "Casinha 13",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Casinha14_Azul": {
     "cor": "Azul",
     "custo": 27.25,
     "produto": "Casinha 14",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Casinha14_Bege": {
     "cor": "Bege",
     "custo": 27.25,
     "produto": "Casinha 14",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Casinha14_Cinza": {
     "cor": "Cinza",
     "custo": 27.25,
     "produto": "Casinha 14",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Casinha15_Azul": {
     "cor": "Azul",
     "custo": 27.65,
     "produto": "Casinha 15",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Casinha15_Bege": {
     "cor": "Bege",
     "custo": 27.65,
     "produto": "Casinha 15",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Casinha15_Cinza": {
     "cor": "Cinza",
     "custo": 27.65,
     "produto": "Casinha 15",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Chuchups_Atum": {
     "cor": "Atum",
     "custo": 5.31,
     "produto": "Chuchups",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Chuchups_Atum-Kit4": {
     "cor": "Atum",
     "custo": 5.31,
     "produto": "Chuchups",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Chuchups_Atum-kit4": {
     "cor": "Atum",
     "custo": 5.31,
     "produto": "Chuchups",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Chuchups_Frango": {
     "cor": "Frango",
     "custo": 5.31,
     "produto": "Chuchups",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Chuchups_Frango-kit4": {
     "cor": "Frango",
     "custo": 5.31,
     "produto": "Chuchups",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 4
   },
   "Chuchups_FrangocomAtum": {
-    "cor": "Frango com Atum",
+    "cor": "Frango Com Atum",
     "custo": 5.31,
     "produto": "Chuchups",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Chuchups_FrangocomAtum-KIT4": {
-    "cor": "Frango com Atum",
+    "cor": "Frango Com Atum",
     "custo": 5.31,
     "produto": "Chuchups",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 4
   },
   "Chuchups_FrangocomAtum-kit4": {
-    "cor": "Frango com Atum",
+    "cor": "Frango Com Atum",
     "custo": 5.31,
     "produto": "Chuchups",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 4
   },
   "Chuchups_Salmão": {
     "cor": "Salmão",
     "custo": 5.31,
     "produto": "Chuchups",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Chuchups_Salmão-kit4": {
     "cor": "Salmão",
     "custo": 5.31,
     "produto": "Chuchups",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 4
   },
   "Coletor100x60_Cinza": {
     "cor": "Cinza",
     "custo": 16.44,
-    "produto": "Tapete Coletor de Areia",
-    "tamanho": "-"
+    "produto": "Tapete Coletor De Areia",
+    "tamanho": "-",
+    "unidades": 1
   },
   "Coletor100x60_Offwhite": {
     "cor": "Offwhite",
     "custo": 16.44,
-    "produto": "Tapete Coletor de Areia",
-    "tamanho": "-"
+    "produto": "Tapete Coletor De Areia",
+    "tamanho": "-",
+    "unidades": 1
   },
   "Coletor100x60_Preto": {
     "cor": "Preto",
     "custo": 16.44,
-    "produto": "Tapete Coletor de Areia",
-    "tamanho": "-"
+    "produto": "Tapete Coletor De Areia",
+    "tamanho": "-",
+    "unidades": 1
   },
   "ComedouroInteligente": {
     "cor": "Branco",
     "custo": 130.43,
     "produto": "Comedouro Inteligente",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Comedouro_Azul": {
     "cor": "Azul",
     "custo": 8.32,
     "produto": "Tapete Comedouro",
-    "tamanho": "P"
+    "tamanho": "P",
+    "unidades": 1
+  },
+  "Comedouro_Verde": {
+    "cor": "Verde",
+    "custo": 4.2,
+    "produto": "Tapete Comedouro",
+    "tamanho": "-",
+    "unidades": 1
   },
   "Comedouro_Vermelho": {
     "cor": "Vermelho",
     "custo": 8.32,
     "produto": "Tapete Comedouro",
-    "tamanho": "P"
+    "tamanho": "P",
+    "unidades": 1
   },
   "Degrau_Azul-Kit3": {
     "cor": "Azul",
     "custo": 19.86,
     "produto": "Degrau",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 3
   },
   "Degrau_Azul-Kit5": {
     "cor": "Azul",
     "custo": 33.1,
     "produto": "Degrau",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 5
   },
   "Degrau_Bege-Kit3": {
     "cor": "Bege",
     "custo": 19.86,
     "produto": "Degrau",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 3
   },
   "Degrau_Bege-Kit5": {
     "cor": "Bege",
     "custo": 33.1,
     "produto": "Degrau",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 5
   },
   "Degrau_Cinza-Kit3": {
     "cor": "Cinza",
     "custo": 19.86,
     "produto": "Degrau",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 3
   },
   "Degrau_Cinza-Kit5": {
     "cor": "Cinza",
     "custo": 33.1,
     "produto": "Degrau",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 5
   },
   "Degrau_Grafite": {
     "cor": "Grafite",
     "custo": 6.62,
     "produto": "Degrau",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Degrau_Grafite-Kit2": {
     "cor": "Grafite",
     "custo": 13.24,
     "produto": "Degrau",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 2
   },
   "Degrau_Grafite-Kit3": {
     "cor": "Grafite",
     "custo": 19.86,
     "produto": "Degrau",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 3
   },
   "Degrau_Grafite-Kit5": {
     "cor": "Grafite",
     "custo": 33.1,
     "produto": "Degrau",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 5
   },
   "Degrau_Marrom-Kit3": {
     "cor": "Marrom",
     "custo": 19.86,
     "produto": "Degrau",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 3
   },
   "Degrau_Marrom-Kit5": {
     "cor": "Marrom",
     "custo": 33.1,
     "produto": "Degrau",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 5
   },
   "Degrau_Preto-Kit3": {
     "cor": "Preto",
     "custo": 19.86,
     "produto": "Degrau",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 3
   },
   "Degrau_Preto-Kit5": {
     "cor": "Preto",
     "custo": 33.1,
     "produto": "Degrau",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 5
   },
   "G-ArranhadorBraco-Azul-Simples": {
     "cor": "Azul",
     "custo": 22.99,
-    "produto": "Arranhador de Braço Simples",
-    "tamanho": "G"
+    "produto": "Arranhador De Braço Simples",
+    "tamanho": "G",
+    "unidades": 1
   },
   "G-ArranhadorBraco-Bege-Simples": {
     "cor": "Bege",
     "custo": 22.99,
-    "produto": "Arranhador de Braço Simples",
-    "tamanho": "G"
+    "produto": "Arranhador De Braço Simples",
+    "tamanho": "G",
+    "unidades": 1
   },
   "G-ArranhadorBraco-Cinza-Simples": {
     "cor": "Cinza",
     "custo": 22.99,
-    "produto": "Arranhador de Braço Simples",
-    "tamanho": "G"
+    "produto": "Arranhador De Braço Simples",
+    "tamanho": "G",
+    "unidades": 1
   },
   "Juta_menor": {
-    "cor": "60cm",
+    "cor": "60Cm",
     "custo": 15.09,
-    "produto": "Arranhador de Madeira",
-    "tamanho": "G"
+    "produto": "Arranhador De Madeira",
+    "tamanho": "G",
+    "unidades": 1
   },
   "Juta_menor-kit2": {
     "cor": "Bege",
     "custo": 27.96,
-    "produto": "Arranhador de Madeira",
-    "tamanho": "G"
+    "produto": "Arranhador De Madeira",
+    "tamanho": "G",
+    "unidades": 2
   },
   "K71": {
     "cor": "Vermelho",
     "custo": 8.88,
     "produto": "Tapete Lavável",
-    "tamanho": "G"
+    "tamanho": "G",
+    "unidades": 1
   },
   "Kit 2 Arranhador Adesivo 50x30 Bege": {
     "cor": "Bege",
     "custo": 3.15,
     "produto": "Arranhador Adesivo",
-    "tamanho": "50x30"
+    "tamanho": "50x30",
+    "unidades": 2
   },
   "Kit 2 Arranhador Adesivo 50x30 Marrom": {
     "cor": "Marrom",
     "custo": 6.3,
     "produto": "Arranhador Adesivo",
-    "tamanho": "50x30"
+    "tamanho": "50x30",
+    "unidades": 2
   },
   "Kit10_Lavavel-P-Azul+BRINDE": {
     "cor": "Azul",
     "custo": 41.0,
     "produto": "Tapete Lavável",
-    "tamanho": "P"
+    "tamanho": "P",
+    "unidades": 10
   },
   "Kit10_Lavavel-P-Rosa+BRINDE": {
     "cor": "Rosa",
     "custo": 41.0,
     "produto": "Tapete Lavável",
-    "tamanho": "P"
+    "tamanho": "P",
+    "unidades": 10
+  },
+  "Kit_2_Camisa_Dryfit_M_Preta": {
+    "cor": "Preto",
+    "custo": 11.5,
+    "produto": "Camisa Dryfit",
+    "tamanho": "M",
+    "unidades": 2
+  },
+  "Kit_2_Camisa_Dryfit_M_Verde": {
+    "cor": "Verde",
+    "custo": 11.5,
+    "produto": "Camisa Dryfit",
+    "tamanho": "M",
+    "unidades": 2
+  },
+  "Kit_2_Camisa_Dryfit_XGG_Preta": {
+    "cor": "Preto",
+    "custo": 11.5,
+    "produto": "Camisa Dryfit",
+    "tamanho": "XGG",
+    "unidades": 2
+  },
+  "Kit_3_Camisa_Dryfit_GG_Verde": {
+    "cor": "Verde",
+    "custo": 17.25,
+    "produto": "Camisa Dryfit",
+    "tamanho": "GG",
+    "unidades": 3
+  },
+  "Kit_3_Camisa_Dryfit_G_Preta": {
+    "cor": "Preto",
+    "custo": 17.25,
+    "produto": "Camisa Dryfit",
+    "tamanho": "G",
+    "unidades": 3
+  },
+  "Kit_3_Camisa_Dryfit_M_Preta": {
+    "cor": "Preto",
+    "custo": 17.25,
+    "produto": "Camisa Dryfit",
+    "tamanho": "M",
+    "unidades": 3
+  },
+  "Kit_3_Camisa_Dryfit_XGG_Preta": {
+    "cor": "Preto",
+    "custo": 17.25,
+    "produto": "Camisa Dryfit",
+    "tamanho": "XGG",
+    "unidades": 3
+  },
+  "Kit_3_Camisa_Dryfit_XGG_Verde": {
+    "cor": "Verde",
+    "custo": 17.25,
+    "produto": "Camisa Dryfit",
+    "tamanho": "XGG",
+    "unidades": 3
+  },
+  "Kit_5_Camisa_Dryfit_GG_Verde": {
+    "cor": "Preto",
+    "custo": 28.75,
+    "produto": "Camisa Dryfit",
+    "tamanho": "GG",
+    "unidades": 5
+  },
+  "Kit_5_Camisa_Dryfit_M_Branco": {
+    "cor": "Branco",
+    "custo": 28.75,
+    "produto": "Camisa Dryfit",
+    "tamanho": "M",
+    "unidades": 5
+  },
+  "Kit_5_Camisa_Dryfit_M_Verde": {
+    "cor": "Verde",
+    "custo": 28.75,
+    "produto": "Camisa Dryfit",
+    "tamanho": "M",
+    "unidades": 5
+  },
+  "Kit_5_Camisa_Dryfit_XGG_Preta": {
+    "cor": "Preto",
+    "custo": 28.75,
+    "produto": "Camisa Dryfit",
+    "tamanho": "XGG",
+    "unidades": 5
   },
   "LavavelG-AzulKIT5": {
     "cor": "Azul",
     "custo": 44.4,
     "produto": "Tapete Lavável",
-    "tamanho": "G"
+    "tamanho": "G",
+    "unidades": 5
   },
   "LavavelG-VermelhoKIT5": {
     "cor": "Vermelho",
     "custo": 44.4,
     "produto": "Tapete Lavável",
-    "tamanho": "G"
+    "tamanho": "G",
+    "unidades": 5
   },
   "LavavelGVermelho": {
     "cor": "Vermelho",
     "custo": 8.88,
     "produto": "Tapete Lavável",
-    "tamanho": "G"
+    "tamanho": "G",
+    "unidades": 1
   },
   "LavavelG_Azul-KIT5": {
     "cor": "Azul",
     "custo": 44.4,
     "produto": "Tapete Lavável",
-    "tamanho": "G"
+    "tamanho": "G",
+    "unidades": 5
   },
   "LavavelG_Azul-KIT7": {
     "cor": "Azul",
     "custo": 62.16,
     "produto": "Tapete Lavável",
-    "tamanho": "G"
+    "tamanho": "G",
+    "unidades": 7
   },
   "LavavelG_Rosa": {
     "cor": "Rosa",
     "custo": 8.88,
     "produto": "Tapete Lavável",
-    "tamanho": "G"
+    "tamanho": "G",
+    "unidades": 1
   },
   "LavavelG_RosaKIT5": {
     "cor": "Rosa",
     "custo": 44.4,
     "produto": "Tapete Lavável",
-    "tamanho": "G"
+    "tamanho": "G",
+    "unidades": 5
   },
   "LavavelG_azul-kit6": {
     "cor": "Azul",
     "custo": 53.28,
     "produto": "Tapete Lavável",
-    "tamanho": "G"
+    "tamanho": "G",
+    "unidades": 6
   },
   "LavavelG_vermelho-kit6": {
     "cor": "Vermelho",
     "custo": 53.28,
     "produto": "Tapete Lavável",
-    "tamanho": "G"
+    "tamanho": "G",
+    "unidades": 6
   },
   "LavavelM-AzulKIT2": {
     "cor": "Azul",
     "custo": 11.74,
     "produto": "Tapete Lavável",
-    "tamanho": "M"
+    "tamanho": "M",
+    "unidades": 2
   },
   "LavavelM-AzulKIT5": {
     "cor": "Azul",
     "custo": 29.35,
     "produto": "Tapete Lavável",
-    "tamanho": "M"
+    "tamanho": "M",
+    "unidades": 5
   },
   "LavavelM-VermelhoKIT2": {
     "cor": "Vermelho",
     "custo": 11.74,
     "produto": "Tapete Lavável",
-    "tamanho": "M"
+    "tamanho": "M",
+    "unidades": 2
   },
   "LavavelM-VermelhoKIT5": {
     "cor": "Vermelho",
     "custo": 29.35,
     "produto": "Tapete Lavável",
-    "tamanho": "M"
+    "tamanho": "M",
+    "unidades": 5
   },
   "LavavelM_Azul-KIT10": {
     "cor": "Azul",
     "custo": 58.7,
     "produto": "Tapete Lavável",
-    "tamanho": "M"
+    "tamanho": "M",
+    "unidades": 10
   },
   "LavavelM_Rosa-KIT2": {
     "cor": "Rosa",
     "custo": 11.74,
     "produto": "Tapete Lavável",
-    "tamanho": "M"
+    "tamanho": "M",
+    "unidades": 2
   },
   "LavavelM_RosaKIT2": {
     "cor": "Rosa",
     "custo": 11.74,
     "produto": "Tapete Lavável",
-    "tamanho": "M"
+    "tamanho": "M",
+    "unidades": 2
   },
   "LavavelM_RosaKIT5": {
     "cor": "Rosa",
     "custo": 29.35,
     "produto": "Tapete Lavável",
-    "tamanho": "M"
+    "tamanho": "M",
+    "unidades": 5
   },
   "LavavelM_Vermelho-KIT5": {
     "cor": "Vermelho",
     "custo": 29.35,
     "produto": "Tapete Lavável",
-    "tamanho": "M"
+    "tamanho": "M",
+    "unidades": 5
   },
   "LavavelP-Azul": {
     "cor": "Azul",
     "custo": 4.1,
     "produto": "Tapete Lavável",
-    "tamanho": "P"
+    "tamanho": "P",
+    "unidades": 1
   },
   "LavavelP-AzulKIT5": {
     "cor": "Azul",
     "custo": 20.5,
     "produto": "Tapete Lavável",
-    "tamanho": "P"
+    "tamanho": "P",
+    "unidades": 5
   },
   "LavavelP-Vermelho": {
     "cor": "Vermelho",
     "custo": 4.1,
     "produto": "Tapete Lavável",
-    "tamanho": "P"
+    "tamanho": "P",
+    "unidades": 1
   },
   "LavavelP-VermelhoKIT5": {
     "cor": "Vermelho",
     "custo": 20.5,
     "produto": "Tapete Lavável",
-    "tamanho": "P"
+    "tamanho": "P",
+    "unidades": 5
   },
   "LavavelP_Azul": {
     "cor": "Azul",
     "custo": 4.1,
     "produto": "Tapete Lavável",
-    "tamanho": "P"
+    "tamanho": "P",
+    "unidades": 1
   },
   "LavavelP_Azul-961": {
     "cor": "Azul",
     "custo": 4.1,
     "produto": "Tapete Lavável",
-    "tamanho": "P"
+    "tamanho": "P",
+    "unidades": 1
   },
   "LavavelP_Azul-KIT10": {
     "cor": "Azul",
     "custo": 41.0,
     "produto": "Tapete Lavável",
-    "tamanho": "P"
+    "tamanho": "P",
+    "unidades": 10
   },
   "LavavelP_Azul-KIT2": {
     "cor": "Azul",
     "custo": 8.2,
     "produto": "Tapete Lavável",
-    "tamanho": "P"
+    "tamanho": "P",
+    "unidades": 2
   },
   "LavavelP_Azul-KIT3": {
     "cor": "Azul",
     "custo": 12.3,
     "produto": "Tapete Lavável",
-    "tamanho": "P"
+    "tamanho": "P",
+    "unidades": 3
   },
   "LavavelP_Rosa": {
     "cor": "Rosa",
     "custo": 4.1,
     "produto": "Tapete Lavável",
-    "tamanho": "P"
+    "tamanho": "P",
+    "unidades": 1
   },
   "LavavelP_RosaKIT5": {
     "cor": "Rosa",
     "custo": 20.5,
     "produto": "Tapete Lavável",
-    "tamanho": "P"
+    "tamanho": "P",
+    "unidades": 5
   },
   "LavavelP_Vermelho": {
     "cor": "Vermelho",
     "custo": 4.1,
     "produto": "Tapete Lavável",
-    "tamanho": "P"
+    "tamanho": "P",
+    "unidades": 1
   },
   "LavavelP_Vermelho-KIT10": {
     "cor": "Vermelho",
     "custo": 41.0,
     "produto": "Tapete Lavável",
-    "tamanho": "P"
+    "tamanho": "P",
+    "unidades": 10
   },
   "LavavelgAzul": {
     "cor": "Azul",
     "custo": 8.88,
     "produto": "Tapete Lavável",
-    "tamanho": "G"
+    "tamanho": "G",
+    "unidades": 1
   },
   "M-ArranhadorBraco-Azul-Simples": {
     "cor": "Azul",
     "custo": 19.47,
-    "produto": "Arranhador de Braço Simples",
-    "tamanho": "M"
+    "produto": "Arranhador De Braço Simples",
+    "tamanho": "M",
+    "unidades": 1
   },
   "M-ArranhadorBraco-Bege-Simples": {
     "cor": "Bege",
     "custo": 19.47,
-    "produto": "Arranhador de Braço Simples",
-    "tamanho": "M"
+    "produto": "Arranhador De Braço Simples",
+    "tamanho": "M",
+    "unidades": 1
   },
   "M-ArranhadorBraco-Cinza-Simples": {
     "cor": "Cinza",
     "custo": 19.47,
-    "produto": "Arranhador de Braço Simples",
-    "tamanho": "M"
+    "produto": "Arranhador De Braço Simples",
+    "tamanho": "M",
+    "unidades": 1
   },
   "MLKIT_MLB5026010272_184532629671": {
     "cor": "Branco",
     "custo": 28.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "P"
+    "tamanho": "P",
+    "unidades": 5
   },
   "MLKIT_MLB5026010272_184532629673": {
     "cor": "Branco",
     "custo": 28.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "M"
+    "tamanho": "M",
+    "unidades": 5
   },
   "MLKIT_MLB5026010272_184532629675": {
     "cor": "Branco",
     "custo": 28.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "G"
+    "tamanho": "G",
+    "unidades": 5
   },
   "MLKIT_MLB5026010272_184532629677": {
     "cor": "Branco",
     "custo": 28.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "GG"
+    "tamanho": "GG",
+    "unidades": 5
   },
   "MLKIT_MLB5026010272_184532629679": {
     "cor": "Branco",
     "custo": 28.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "XGG"
+    "tamanho": "XGG",
+    "unidades": 5
   },
   "MLKIT_MLB5026010272_184532629681": {
     "cor": "Preto",
     "custo": 28.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "P"
+    "tamanho": "P",
+    "unidades": 5
   },
   "MLKIT_MLB5026010272_184532629683": {
     "cor": "Preto",
     "custo": 28.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "M"
+    "tamanho": "M",
+    "unidades": 5
   },
   "MLKIT_MLB5026010272_184532629685": {
     "cor": "Preto",
     "custo": 28.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "G"
+    "tamanho": "G",
+    "unidades": 5
   },
   "MLKIT_MLB5026010272_184532629687": {
     "cor": "Preto",
     "custo": 28.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "GG"
+    "tamanho": "GG",
+    "unidades": 5
   },
   "MLKIT_MLB5026010272_184532629689": {
     "cor": "Preto",
     "custo": 28.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "XGG"
+    "tamanho": "XGG",
+    "unidades": 5
   },
   "MLKIT_MLB5026010272_184532629691": {
     "cor": "Cinza",
     "custo": 28.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "P"
+    "tamanho": "P",
+    "unidades": 5
   },
   "MLKIT_MLB5026010272_184532629693": {
     "cor": "Cinza",
     "custo": 28.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "M"
+    "tamanho": "M",
+    "unidades": 5
   },
   "MLKIT_MLB5026010272_184532629695": {
     "cor": "Cinza",
     "custo": 28.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "G"
+    "tamanho": "G",
+    "unidades": 5
   },
   "MLKIT_MLB5026010272_184532629697": {
     "cor": "Cinza",
     "custo": 28.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "GG"
+    "tamanho": "GG",
+    "unidades": 5
   },
   "MLKIT_MLB5026010272_184532629699": {
     "cor": "Cinza",
     "custo": 28.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "XGG"
+    "tamanho": "XGG",
+    "unidades": 5
   },
   "MLKIT_MLB5026010272_184532629701": {
     "cor": "Verde",
     "custo": 28.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "P"
+    "tamanho": "P",
+    "unidades": 5
   },
   "MLKIT_MLB5026010272_184532629705": {
     "cor": "Verde",
     "custo": 28.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "G"
+    "tamanho": "G",
+    "unidades": 5
   },
   "MLKIT_MLB5026010272_184532629707": {
     "cor": "Verde",
     "custo": 28.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "GG"
+    "tamanho": "GG",
+    "unidades": 5
   },
   "MLKIT_MLB5026010272_184532629709": {
     "cor": "Verde",
     "custo": 28.75,
     "produto": "Camisa Dryfit",
-    "tamanho": "XGG"
+    "tamanho": "XGG",
+    "unidades": 5
   },
   "NichoPlayground_Azul": {
     "cor": "Azul",
     "custo": 21.87,
     "produto": "Nicho Playground",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "NichoPlayground_Bege": {
     "cor": "Bege",
     "custo": 21.87,
     "produto": "Nicho Playground",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "NichoPlayground_Cinza": {
     "cor": "Cinza",
     "custo": 21.87,
     "produto": "Nicho Playground",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Nichogrande_Cinza": {
     "cor": "Cinza",
     "custo": 56.4,
     "produto": "Nicho Grande",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "P- ArranhadorBraco-BegeD": {
     "cor": "Bege",
     "custo": 18.4,
-    "produto": "Arranhador de Braço",
-    "tamanho": "P"
+    "produto": "Arranhador De Braço",
+    "tamanho": "P",
+    "unidades": 1
   },
   "P-ArranhadorBraco-Azul-Simples": {
     "cor": "Azul",
     "custo": 14.7,
-    "produto": "Arranhador de Braço Simples",
-    "tamanho": "P"
+    "produto": "Arranhador De Braço Simples",
+    "tamanho": "P",
+    "unidades": 1
   },
   "P-ArranhadorBraco-AzulD": {
     "cor": "Azul",
     "custo": 18.4,
-    "produto": "Arranhador de Braço",
-    "tamanho": "P"
+    "produto": "Arranhador De Braço",
+    "tamanho": "P",
+    "unidades": 1
   },
   "P-ArranhadorBraco-Bege-Simples": {
     "cor": "Bege",
     "custo": 14.7,
-    "produto": "Arranhador de Braço Simples",
-    "tamanho": "P"
+    "produto": "Arranhador De Braço Simples",
+    "tamanho": "P",
+    "unidades": 1
   },
   "P-ArranhadorBraco-Cinza-Simples": {
     "cor": "Cinza",
     "custo": 14.7,
-    "produto": "Arranhador de Braço Simples",
-    "tamanho": "P"
+    "produto": "Arranhador De Braço Simples",
+    "tamanho": "P",
+    "unidades": 1
   },
   "P-ArranhadorBraco-CinzaD": {
     "cor": "Cinza",
     "custo": 18.4,
-    "produto": "Arranhador de Braço",
-    "tamanho": "P"
+    "produto": "Arranhador De Braço",
+    "tamanho": "P",
+    "unidades": 1
   },
   "P-ArranhadorBracoAzulE": {
     "cor": "Azul",
     "custo": 18.4,
-    "produto": "Arranhador de Braço",
-    "tamanho": "P"
+    "produto": "Arranhador De Braço",
+    "tamanho": "P",
+    "unidades": 1
   },
   "P-ArranhadorBracoBegeE": {
     "cor": "Bege",
     "custo": 18.4,
-    "produto": "Arranhador de Braço",
-    "tamanho": "P"
+    "produto": "Arranhador De Braço",
+    "tamanho": "P",
+    "unidades": 1
   },
   "P-ArranhadorBracoCinzaE": {
     "cor": "Cinza",
     "custo": 18.4,
-    "produto": "Arranhador de Braço",
-    "tamanho": "P"
+    "produto": "Arranhador De Braço",
+    "tamanho": "P",
+    "unidades": 1
   },
   "PASanitario_Preto": {
     "cor": "Preto",
     "custo": 59.92,
-    "produto": "Sanitario e Pega Areia",
-    "tamanho": "-"
+    "produto": "Sanitario E Pega Areia",
+    "tamanho": "-",
+    "unidades": 1
   },
   "PASanitario_Verde": {
     "cor": "Verde",
     "custo": 59.92,
-    "produto": "Sanitario e Pega Areia",
-    "tamanho": "-"
+    "produto": "Sanitario E Pega Areia",
+    "tamanho": "-",
+    "unidades": 1
   },
   "PASanitario_bege": {
     "cor": "Bege",
     "custo": 59.92,
-    "produto": "Sanitario e Pega Areia",
-    "tamanho": "-"
+    "produto": "Sanitario E Pega Areia",
+    "tamanho": "-",
+    "unidades": 1
   },
   "PAsanitario_Cinza": {
     "cor": "Cinza",
     "custo": 59.92,
-    "produto": "Sanitario e Pega Areia",
-    "tamanho": "-"
+    "produto": "Sanitario E Pega Areia",
+    "tamanho": "-",
+    "unidades": 1
   },
   "PRD392272774115826": {
     "cor": "Preto",
     "custo": 3.15,
     "produto": "Arranhador Adesivo",
-    "tamanho": "48X30"
+    "tamanho": "48X30",
+    "unidades": 1
   },
   "PatoInterativo": {
     "cor": "Amarelo",
     "custo": 10.62,
     "produto": "Pato Interativo",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "PegaAreia_Amarelo": {
     "cor": "Amarelo",
     "custo": 8.32,
     "produto": "Pega Areia",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "PegaAreia_Amarelo-KIT2": {
     "cor": "Amarelo",
     "custo": 16.64,
     "produto": "Pega Areia",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 2
   },
   "PegaAreia_Azul": {
     "cor": "Azul",
     "custo": 8.32,
     "produto": "Pega Areia",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "PegaAreia_Azul-KIT2": {
     "cor": "Azul",
     "custo": 16.64,
     "produto": "Pega Areia",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 2
   },
   "PegaAreia_Preto": {
     "cor": "Preto",
     "custo": 8.32,
     "produto": "Pega Areia",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "PegaAreia_Preto-KIT2": {
     "cor": "Preto",
     "custo": 16.64,
     "produto": "Pega Areia",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 2
   },
   "PegaAreia_Preto-KIT3": {
     "cor": "Preto",
     "custo": 24.96,
     "produto": "Pega Areia",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 3
   },
   "PegaAreia_Preto-KIT4": {
     "cor": "Preto",
     "custo": 33.28,
     "produto": "Pega Areia",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 4
   },
   "PegaAreia_Rosa": {
     "cor": "Rosa",
     "custo": 8.32,
     "produto": "Pega Areia",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "PegaAreia_Rosa-KIT2": {
     "cor": "Rosa",
     "custo": 16.64,
     "produto": "Pega Areia",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 2
   },
   "Playground02_Cinza": {
     "cor": "Cinza",
     "custo": 106.8,
     "produto": "Playground 02",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Playground03_Cinza": {
     "cor": "Cinza",
     "custo": 106.8,
     "produto": "Playground 03",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Playground04_Cinza": {
     "cor": "Cinza",
     "custo": 106.8,
     "produto": "Playground 04",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Playground05_Cinza": {
     "cor": "Cinza",
     "custo": 106.8,
     "produto": "Playground 05",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Playground06_Cinza": {
     "cor": "Cinza",
     "custo": 106.8,
     "produto": "Playground 06",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Playground_1": {
     "cor": "Cinza",
     "custo": 16.28,
     "produto": "Playground",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "PosteArranhador": {
     "cor": "Sisal",
     "custo": 4.08,
     "produto": "Poste Arranhador",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Presilhas_Aspirais": {
     "cor": "-",
     "custo": 0.38,
     "produto": "Presilhas Aspirais",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Presilhas_AspiraisKIT16": {
     "cor": "-",
-    "custo": null,
+    "custo": 6.08,
     "produto": "Presilhas Aspirais",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 16
   },
   "Presilhas_AspiraisKIT24": {
     "cor": "-",
-    "custo": null,
+    "custo": 9.120000000000001,
     "produto": "Presilhas Aspirais",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 24
   },
   "Presilhas_AspiraisKIT32": {
     "cor": "-",
-    "custo": null,
+    "custo": 12.16,
     "produto": "Presilhas Aspirais",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 32
   },
   "Presilhas_AspiraisKIT50": {
     "cor": "-",
-    "custo": null,
+    "custo": 19.0,
     "produto": "Presilhas Aspirais",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 50
   },
   "Presilhas_AspiraisKIT8": {
     "cor": "-",
-    "custo": null,
+    "custo": 3.04,
     "produto": "Presilhas Aspirais",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 8
   },
   "Rampa6mm_Azul": {
     "cor": "Azul",
     "custo": 17.02,
-    "produto": "Rampa 6mm",
-    "tamanho": "-"
+    "produto": "Rampa 6Mm",
+    "tamanho": "-",
+    "unidades": 1
   },
   "Rampa6mm_Bege": {
     "cor": "Bege",
     "custo": 17.02,
-    "produto": "Rampa 6mm",
-    "tamanho": "-"
+    "produto": "Rampa 6Mm",
+    "tamanho": "-",
+    "unidades": 1
   },
   "Rampa6mm_Cinza": {
     "cor": "Cinza",
     "custo": 17.02,
-    "produto": "Rampa 6mm",
-    "tamanho": "-"
+    "produto": "Rampa 6Mm",
+    "tamanho": "-",
+    "unidades": 1
+  },
+  "SanitarioAluminio_Bege": {
+    "cor": "Bege",
+    "custo": 70.22,
+    "produto": "Sanitario De Aluminio",
+    "tamanho": "-",
+    "unidades": 1
+  },
+  "SanitarioAluminio_Preto": {
+    "cor": "Preto",
+    "custo": 70.22,
+    "produto": "Sanitario De Aluminio",
+    "tamanho": "-",
+    "unidades": 1
   },
   "Sanitario_Bege": {
     "cor": "Bege",
     "custo": 51.6,
     "produto": "Sanitário",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Sanitario_Cinza": {
     "cor": "Cinza",
     "custo": 51.6,
     "produto": "Sanitário",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Sanitario_Preto": {
     "cor": "Preto",
     "custo": 51.6,
     "produto": "Sanitário",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "Sanitario_Verde": {
     "cor": "Verde",
     "custo": 51.6,
     "produto": "Sanitário",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
+  },
+  "SofaPapelao": {
+    "cor": "-",
+    "custo": 36.08,
+    "produto": "Sofa De Papelão",
+    "tamanho": "-",
+    "unidades": 1
+  },
+  "TocaFeltro_Azul": {
+    "cor": "Azul",
+    "custo": 35.46,
+    "produto": "Toca Feltro (Importação)",
+    "tamanho": "-",
+    "unidades": 1
   },
   "capa_carro": {
     "cor": "Preto",
     "custo": 13.112,
     "produto": "Capa Carro",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "k12": {
     "cor": "Preto",
     "custo": 8.32,
     "produto": "Pega Areia",
-    "tamanho": "-"
+    "tamanho": "-",
+    "unidades": 1
   },
   "k23": {
     "cor": "Rosa",
     "custo": 8.32,
-    "produto": "Pega areia",
-    "tamanho": "-"
+    "produto": "Pega Areia",
+    "tamanho": "-",
+    "unidades": 1
   },
   "k52": {
     "cor": "Azul",
     "custo": 8.32,
     "produto": "Tapete Lavável",
-    "tamanho": "P"
+    "tamanho": "P",
+    "unidades": 2
   },
   "k62": {
     "cor": "Azul",
     "custo": 11.74,
     "produto": "Tapete Lavável",
-    "tamanho": "M"
+    "tamanho": "M",
+    "unidades": 2
   },
   "pArranhadorBraco_Azul_Par_Simples": {
     "cor": "Azul",
     "custo": 29.4,
-    "produto": "Arranhador de Braço Simples",
-    "tamanho": "P"
+    "produto": "Arranhador De Braço Simples",
+    "tamanho": "P",
+    "unidades": 2
   },
   "pArranhadorBraco_Bege_Par_Simples": {
     "cor": "Bege",
     "custo": 29.4,
-    "produto": "Arranhador de Braço Simples",
-    "tamanho": "P"
+    "produto": "Arranhador De Braço Simples",
+    "tamanho": "P",
+    "unidades": 2
   }
 }
