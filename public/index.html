@@ -2616,7 +2616,19 @@
     }
   }
 
+  // Gráficos do Dashboard (buscarPorPeriodo lê o mês inteiro de
+  // historico_todos a cada chamada): atualização automática a cada 10 min,
+  // não mais a cada 1 min — com o Dashboard aberto o dia todo, era um dos
+  // maiores consumos de leitura do Turso (estouro da cota em out/2026;
+  // decisão do Ricardo em 27/10/2026). Troca de período continua imediata.
+  const INTERVALO_ANALYTICS_MS = 10 * 60 * 1000;
+  let ultimaCargaAnalytics = 0;
+  function carregarAnalyticsSeVencido() {
+    if (Date.now() - ultimaCargaAnalytics >= INTERVALO_ANALYTICS_MS) carregarAnalytics();
+  }
+
   async function carregarAnalytics() {
+    ultimaCargaAnalytics = Date.now();
     try {
       const params = new URLSearchParams();
       if (periodoAtual.de) params.set('de', periodoAtual.de);
@@ -2806,12 +2818,13 @@
     carregarAnalytics();
     // Só atualiza sozinho com a aba visível: um Dashboard esquecido aberto
     // (minimizado, atrás de outra aba) não fica consultando o servidor a
-    // cada 30/60s à toa (#233, Restrição de design nº 1 do CLAUDE.md). Ao
-    // voltar para a aba, atualiza na hora uma vez.
+    // cada 30s à toa (#233, Restrição de design nº 1 do CLAUDE.md). Ao
+    // voltar para a aba, atualiza na hora uma vez (os gráficos só se já
+    // passaram 10 min da última carga, ver INTERVALO_ANALYTICS_MS).
     setInterval(() => { if (!document.hidden) carregar(); }, 30000);
-    setInterval(() => { if (!document.hidden) carregarAnalytics(); }, 60000);
+    setInterval(() => { if (!document.hidden) carregarAnalyticsSeVencido(); }, 60000);
     document.addEventListener('visibilitychange', () => {
-      if (!document.hidden) { carregar(); carregarAnalytics(); }
+      if (!document.hidden) { carregar(); carregarAnalyticsSeVencido(); }
     });
     mudarAba('executivo');
   }

@@ -33,31 +33,14 @@ Nunca misture: não leve fonte/cor da TV para o admin, nem componentes do
 admin para a TV. `backfill-runner.html` é ferramenta interna avulsa — fica
 fora do padrão de propósito.
 
-## Painel de estoque: implementação oficial ainda não definida
+## Painel de estoque: fonte oficial
 
-O painel de estoque existe em duas cópias: as páginas `public/estoque.html`,
-`public/estoque-atualizar.html` e `public/estoque-saldo.html` deste repo, e
-o repositório separado `painel-estoque-adesivo` (com o mesmo catálogo, mas
-código que já divergiu). **Qual das duas é a implementação oficial ainda
-depende de uma decisão do dono do projeto, que será tomada separadamente,
-depois da análise comparativa das duas implementações.** Esta skill não
-escolhe nenhuma delas.
-
-Esta skill trata só do padrão visual. Ela **não** define qual cópia do
-estoque é a fonte de verdade, nem do painel nem da lógica de negócio — o
-fato de `public/estoque.html` ser usado no teste `revisao-estoque` e de as
-páginas `estoque*.html` deste repo aparecerem aqui como exemplo de tela não
-significa que sejam a versão oficial. Até a decisão estar registrada (no `CLAUDE.md` ou na skill de
-estoque):
-- antes de alterar qualquer tela de estoque, confirme com o dono em qual
-  cópia a mudança deve ser feita;
-- não use nenhuma das duas como referência de regra de negócio de estoque
-  (cálculo, catálogo, contagem) para a outra, nem copie lógica entre elas;
-- ao revisar uma tela de estoque, avalie só o visual e diga explicitamente
-  que a escolha da versão oficial está pendente.
-
-Quando a decisão for registrada, substitua esta seção por um apontamento
-para ela.
+Decidido pelo dono em 10/10/2026: a fonte oficial do painel de estoque é
+**este repo** (`public/estoque.html`, `public/estoque-atualizar.html`,
+`public/estoque-saldo.html`). O repositório `painel-estoque-adesivo` é
+legado: não altere nem use como referência. Regras de negócio de estoque
+(cálculo, catálogo, contagem) ficam na skill `ricapet-estoque` — esta skill
+cuida só do visual dessas telas.
 
 ## Fluxo de trabalho
 
@@ -182,8 +165,8 @@ temas. Se a cor vai servir a mais de uma página, ela pertence ao
 - Tabela larga: dentro de `.table-scroll` (rolagem horizontal no próprio
   bloco); a página inteira nunca rola para o lado.
 - `estoque-atualizar.html` é a tela pensada para celular no galpão: alvos
-  de toque ≥ 44px, um assunto por tela. (Referência só de layout mobile —
-  ver "Painel de estoque" acima sobre a implementação oficial.)
+  de toque ≥ 44px, um assunto por tela. (Referência de layout mobile; regras de estoque na skill
+  `ricapet-estoque`.)
 
 ## Acessibilidade (mínimo que todo PR de tela deve cumprir)
 
