@@ -87,6 +87,31 @@ levar isso em conta:
 - `/api/dashboard-data.js` (consumido pelo frontend) é, por design, CPU quase
   zero — só lê dado já pronto do banco. **NUNCA colocar lógica pesada ali.**
 
+## Restrição de design nº 2: cota de leituras do Turso
+
+- O Turso cobra por **linha percorrida** por consulta, não por consulta. Em
+  26/10/2026 a conta chegou a 503,7M linhas lidas em 30 dias, acima dos 500M
+  do plano grátis, e o Turso **bloqueou todas as leituras**: TV, painel,
+  ponto, bipagem e coleta pararam das ~23h às 10h30 de 27/10. O Ricardo
+  passou a conta para o plano **Developer** (US$ 5,99/mês, 2,5B linhas/mês,
+  "Overages off": se passar da cota, bloqueia de novo em vez de cobrar).
+- Correções aplicadas logo depois (decisão do Ricardo, 27/10/2026):
+  - `listarRecentes` (`lib/historicoFlex.js`) e `listarRecentesTurbo`
+    (`lib/historicoTurboLive.js`) ganharam o mesmo teto de 15 dias do "ML
+    geral"/"Shopee geral". O `OR categoria = 'aguardando'` sem teto impedia o
+    índice de data, e cada chamada varria a tabela inteira (`SCAN` → `SEARCH`
+    no plano da consulta). Pedido "aguardando" há mais de 15 dias sai da TV e
+    da reverificação.
+  - Gráficos do Dashboard (`carregarAnalytics` em `public/index.html`, que lê
+    o mês inteiro de `historico_todos`) atualizam sozinhos a cada **10 min**,
+    não a cada 1 min. Os números ao vivo continuam a cada 30s (só leem
+    `kv_simples`, 1 linha por chave).
+- Ao escrever consulta nova: sempre filtrar primeiro por uma coluna com
+  índice (`date_created_ts`, chave primária) e nunca deixar um `OR` com
+  coluna sem índice no nível de cima do `WHERE`. Ao criar polling no
+  navegador, pensar em quantas linhas cada chamada lê × quantas telas ficam
+  abertas o dia todo.
+
 ## Fluxo de dados
 
 ```
