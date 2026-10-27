@@ -201,6 +201,12 @@ function parseIntervalo(query) {
 // em `data`... na prática filtramos por bipado_em_ts, que já vem em epoch
 // pronto pra isso, ver comentário no schema) + agregação em JS — mesmo
 // espírito "CPU quase zero" de api/dashboard-data.js, nada de loop de rede.
+// "  Vitória  Lima" -> "vitoria lima": sem acento, minúsculo, espaços únicos.
+function normalizarNomePessoa(nome) {
+  return String(nome || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
 async function responderVisaoBipagem(req, res) {
   const db = getDb();
   const resultadoSessao = await obterAdminSessao(req.query.sessao, db, 'bipagem');
@@ -364,19 +370,21 @@ async function responderVisaoBipagem(req, res) {
   });
 
   // Cruza com o Ponto: pra cada operador identificado (bipado_por casa com
-  // funcionarios.nome, comparação sem acento/maiúscula não é feita aqui --
-  // exige que o nome no relatório de bipagem bata com o cadastro do ponto),
-  // soma o tempo trabalhado NESSE DIA e calcula bipagens/hora trabalhada.
+  // funcionarios.nome, ignorando acento, maiúscula e espaço repetido -- antes
+  // "Vitoria" na bipagem e "Vitória" no Ponto, ou um espaço a mais, faziam o
+  // operador ficar sem ritmo sem nenhum aviso; issue #231), soma o tempo
+  // trabalhado no período e calcula bipagens/hora trabalhada. Quem continua
+  // sem casar sai com funcionario_id null (a tela avisa).
   const nomesOperadores = [...porOperadorMapa.keys()].filter((n) => n !== '(não identificado)');
   const funcionariosPorNome = new Map();
   if (nomesOperadores.length) {
     const rsFunc = await db.execute('SELECT id, nome FROM funcionarios WHERE ativo = 1');
-    rsFunc.rows.forEach((f) => funcionariosPorNome.set(String(f.nome).trim().toLowerCase(), f));
+    rsFunc.rows.forEach((f) => funcionariosPorNome.set(normalizarNomePessoa(f.nome), f));
   }
 
   const operadores = [];
   for (const op of porOperadorMapa.values()) {
-    const func = funcionariosPorNome.get(op.nome.trim().toLowerCase());
+    const func = funcionariosPorNome.get(normalizarNomePessoa(op.nome));
     let minutosTrabalhados = null;
     let turnoEmAndamento = false;
     if (func) {
