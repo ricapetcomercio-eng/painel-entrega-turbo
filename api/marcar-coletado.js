@@ -42,10 +42,18 @@ module.exports = async (req, res) => {
 
     let rs;
     if (tipo === 'ml') {
+      // Aceita o número do envio (shipment_id, o "Envio:" da etiqueta Flex)
+      // OU o número do pedido (order_id): a etiqueta do "ML geral"
+      // (agência/coleta) não traz o mesmo texto da Flex, e a bipagem desses
+      // pedidos não estava tirando o card da TV. Janela de 15 dias (mesmo
+      // teto de listarMlAguardando/listarRecentes) usa o índice de data em
+      // vez de varrer a tabela inteira a cada bipagem (cota de leituras do
+      // Turso, Restrição de design nº 2 do CLAUDE.md).
+      const limiteMaximo = Date.now() - 15 * 24 * 60 * 60 * 1000;
       const rsFlex = await db.execute({
         sql: `UPDATE historico_flex SET categoria = 'coletado', coletado = 1, coletado_em = ?
-              WHERE shipment_id = ? AND categoria = 'aguardando'`,
-        args: [agora, identificador],
+              WHERE date_created_ts >= ? AND (shipment_id = ? OR order_id = ?) AND categoria = 'aguardando'`,
+        args: [agora, limiteMaximo, identificador, identificador],
       });
       // Também marca no histórico geral (historico_todos) — pedido ML de
       // QUALQUER forma de entrega, não só Flex (ver lib/historicoTodos.js:
@@ -58,9 +66,10 @@ module.exports = async (req, res) => {
       // que o lado Shopee já fazia aqui.
       const rsTodos = await db.execute({
         sql: `UPDATE historico_todos SET categoria = 'coletado', coletado = 1, coletado_em = ?
-              WHERE marketplace = 'mercado_livre' AND shipment_id = ?
+              WHERE date_created_ts >= ? AND marketplace = 'mercado_livre'
+                AND (shipment_id = ? OR order_id = ?)
                 AND (categoria IS NULL OR categoria = 'aguardando')`,
-        args: [agora, identificador],
+        args: [agora, limiteMaximo, identificador, identificador],
       });
       rs = { rowsAffected: (rsFlex.rowsAffected || 0) + (rsTodos.rowsAffected || 0) };
     } else {
