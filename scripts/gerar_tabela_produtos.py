@@ -8,9 +8,10 @@ Rode sempre que TABELA_AUXILIAR.xlsx for atualizado, e dê git push depois —
 pedido com PRODUTO/COR/TAMANHO/CUSTO.
 
 Uso:
-    python scripts/gerar_tabela_produtos.py
+    python scripts/gerar_tabela_produtos.py [caminho/da/TABELA_AUXILIAR.xlsx]
 """
 import json
+import sys
 from pathlib import Path
 
 import openpyxl
@@ -20,7 +21,8 @@ SAIDA = Path(__file__).parent.parent / "lib" / "tabelaProdutos.json"
 
 
 def main():
-    wb = openpyxl.load_workbook(PLANILHA, data_only=True)
+    planilha = Path(sys.argv[1]) if len(sys.argv) > 1 else PLANILHA
+    wb = openpyxl.load_workbook(planilha, data_only=True)
     ws = wb["TABELA_PRODUTOS"]
 
     # Colunas: Código do anúncio, Número do produto, Número da variação,
@@ -28,7 +30,7 @@ def main():
     mapa = {}
     sem_sku = 0
     for row in ws.iter_rows(min_row=2, values_only=True):
-        sku, produto, cor, tamanho, custo = row[3], row[5], row[6], row[7], row[9]
+        sku, produto, cor, tamanho, unidade, custo = row[3], row[5], row[6], row[7], row[8], row[9]
         if not sku:
             sem_sku += 1
             continue
@@ -39,6 +41,10 @@ def main():
             "produto": produto or "Não identificado",
             "cor": cor or "-",
             "tamanho": tamanho or "-",
+            # Quantas peças saem do estoque por unidade vendida desse SKU
+            # (KIT2 = 2, KIT20 = 20, "_Par" = 2...). Usado pela baixa
+            # automática em lib/estoqueSaldo.js.
+            "unidades": int(unidade) if isinstance(unidade, (int, float)) and unidade >= 1 else 1,
             "custo": float(custo) if isinstance(custo, (int, float)) else None,
         }
 
