@@ -1859,7 +1859,24 @@ async function configPonto(db) {
     // pra nao contar atraso/extra dentro dela (CLT art. 58: ate 10 min/dia).
     limite_batidas_dia: Math.max(parseInt(c.limite_batidas_dia, 10) || 8, 2),
     tolerancia_min: c.tolerancia_min != null ? Math.max(parseInt(c.tolerancia_min, 10) || 0, 0) : 10,
+    // Local da empresa para a batida por GPS (editável na tela Empresa do
+    // Controle de Ponto). Quem confere a distância é o app de ponto (ele
+    // recebe estes valores no login e em ?tipo=ponto-local); null = ainda
+    // não configurado, o app segue com o que tiver gravado nele.
+    latitude: numeroOuNull(c.latitude),
+    longitude: numeroOuNull(c.longitude),
+    raio_metros: c.raio_metros != null && c.raio_metros !== '' ? Math.max(parseInt(c.raio_metros, 10) || 0, 0) || null : null,
   };
+}
+
+function numeroOuNull(v) {
+  if (v == null || v === '') return null;
+  const n = Number(String(v).replace(',', '.'));
+  return Number.isFinite(n) ? n : null;
+}
+
+function localPonto(cfg) {
+  return { latitude: cfg.latitude, longitude: cfg.longitude, raio_metros: cfg.raio_metros, endereco: cfg.endereco };
 }
 
 // ---- Fase 4: inalterabilidade (NSR + hash encadeado, append-only) ----
@@ -2160,7 +2177,16 @@ async function debugPontoLogin(req, res) {
     ok: true, tipo: 'ponto-login',
     token: gerarTokenPonto(funcionario), nome: funcionario.nome, admin: funcionario.admin === 1,
     super_admin: superAdmin, paginas: await paginasPermitidas(db, funcionario.id, superAdmin),
+    local_ponto: localPonto(await configPonto(db)),
   });
+}
+
+// Local da empresa para o app de ponto conferir a distância da batida por GPS
+// (latitude, longitude, raio_metros), lido da tela Empresa do Controle de Ponto.
+async function debugPontoLocal(req, res) {
+  const db = getDb();
+  await garantirEsquemaPonto(db);
+  res.status(200).json({ ok: true, tipo: 'ponto-local', ...localPonto(await configPonto(db)) });
 }
 
 // Valida um token de login do portal (usado pelo checkout_bipagem.py pra
@@ -2708,10 +2734,15 @@ async function debugPontoAdminEmpresa(req, res) {
   const db = getDb();
   const admin = await exigirAdmin(req, res, db);
   if (!admin) return;
-  const { empresa, cnpj, endereco, limite_batidas_dia, tolerancia_min } = req.body || {};
+  const { empresa, cnpj, endereco, limite_batidas_dia, tolerancia_min, latitude, longitude, raio_metros } = req.body || {};
+  const lat = numeroOuNull(latitude), lng = numeroOuNull(longitude), raio = numeroOuNull(raio_metros);
+  if (latitude != null && latitude !== '' && (lat === null || lat < -90 || lat > 90)) { res.status(400).json({ error: 'Latitude inválida (use o número do Google Maps, ex.: -23.6123).' }); return; }
+  if (longitude != null && longitude !== '' && (lng === null || lng < -180 || lng > 180)) { res.status(400).json({ error: 'Longitude inválida (use o número do Google Maps, ex.: -46.6123).' }); return; }
+  if (raio_metros != null && raio_metros !== '' && (raio === null || raio < 10 || raio > 50000)) { res.status(400).json({ error: 'Distância máxima precisa ser entre 10 e 50000 metros.' }); return; }
   const pares = [
     ['empresa', empresa], ['cnpj', cnpj], ['endereco', endereco],
     ['limite_batidas_dia', limite_batidas_dia], ['tolerancia_min', tolerancia_min],
+    ['latitude', lat], ['longitude', lng], ['raio_metros', raio != null ? Math.round(raio) : null],
   ];
   for (const [k, v] of pares) {
     if (v == null || v === '') continue;
@@ -3401,7 +3432,7 @@ async function debugPontoAdminAFD(req, res) {
 // usam o PONTO_PUBLIC_SECRET, próprio e mais fraco, mesma lógica do
 // ESTOQUE_PUBLIC_SECRET abaixo.
 const TIPOS_PUBLICOS_PONTO = new Set([
-  'ponto-funcionarios', 'ponto-login', 'ponto-bater', 'ponto-historico',
+  'ponto-funcionarios', 'ponto-login', 'ponto-bater', 'ponto-historico', 'ponto-local',
   'ponto-editar-proprio', 'ponto-solicitar-correcao', 'ponto-validar-token',
   'ponto-admin-visao', 'ponto-admin-editar', 'ponto-admin-resolver', 'ponto-admin-jornada',
   'ponto-admin-integridade', 'ponto-admin-cpf', 'ponto-admin-afd', 'ponto-admin-abono',
@@ -4005,6 +4036,7 @@ module.exports = async (req, res) => {
     if (req.query.tipo === 'portal-log-acesso') return await debugPortalLogAcesso(req, res);
     if (req.query.tipo === 'portal-trocar-token') return await debugPortalTrocarToken(req, res);
     if (req.query.tipo === 'ponto-bater') return await debugPontoBater(req, res);
+    if (req.query.tipo === 'ponto-local') return await debugPontoLocal(req, res);
     if (req.query.tipo === 'ponto-historico') return await debugPontoHistorico(req, res);
     if (req.query.tipo === 'ponto-editar-proprio') return await debugPontoEditarProprio(req, res);
     if (req.query.tipo === 'ponto-solicitar-correcao') return await debugPontoSolicitarCorrecao(req, res);
