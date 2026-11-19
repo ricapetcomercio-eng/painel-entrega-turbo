@@ -425,6 +425,22 @@
     <input type="text" id="emp-cnpj" class="campo-empresa">
     <label class="m-label">Endereço</label>
     <input type="text" id="emp-endereco" class="campo-empresa">
+    <label class="m-label">Local para bater o ponto pelo GPS</label>
+    <div style="display:flex;gap:10px">
+      <div style="flex:1">
+        <label class="m-label" for="emp-lat">Latitude</label>
+        <input type="text" id="emp-lat" class="campo-empresa" inputmode="decimal" placeholder="-23.6123">
+      </div>
+      <div style="flex:1">
+        <label class="m-label" for="emp-lng">Longitude</label>
+        <input type="text" id="emp-lng" class="campo-empresa" inputmode="decimal" placeholder="-46.6123">
+      </div>
+      <div style="flex:1">
+        <label class="m-label" for="emp-raio">Distância (m)</label>
+        <input type="number" id="emp-raio" class="campo-empresa" min="10" step="10" placeholder="800">
+      </div>
+    </div>
+    <p style="font-size:.72rem;color:var(--ink-muted);margin:-4px 0 8px">No Google Maps, clique com o botão direito em cima do prédio e copie os dois números (latitude, longitude). Colar os dois juntos no campo Latitude também funciona.</p>
     <div style="display:flex;gap:10px">
       <div style="flex:1">
         <label class="m-label">Máx. batidas/dia</label>
@@ -516,6 +532,9 @@
     $('emp-endereco').value = c.endereco || '';
     $('emp-limite').value = c.limite_batidas_dia || 8;
     $('emp-tolerancia').value = c.tolerancia_min != null ? c.tolerancia_min : 10;
+    $('emp-lat').value = c.latitude != null ? c.latitude : '';
+    $('emp-lng').value = c.longitude != null ? c.longitude : '';
+    $('emp-raio').value = c.raio_metros != null ? c.raio_metros : '';
     $('emp-erro').textContent = '';
     $('fer-data').value = (estado && estado.hoje) || '';
     $('fer-obs').value = '';
@@ -525,8 +544,20 @@
   $('emp-cancelar').addEventListener('click', () => { modalEmpresa.hidden = true; });
   modalEmpresa.addEventListener('click', (e) => { if (e.target === modalEmpresa) modalEmpresa.hidden = true; });
 
+  // Colar "-23.61, -46.62" (como o Google Maps copia) no campo Latitude
+  // separa sozinho nos dois campos.
+  function separarCoordenadas() {
+    const m = $('emp-lat').value.match(/^\s*(-?\d+(?:\.\d+)?)\s*[,;]\s*(-?\d+(?:\.\d+)?)\s*$/);
+    if (m) { $('emp-lat').value = m[1]; $('emp-lng').value = m[2]; }
+  }
+  // Só ao colar ou ao sair do campo: separar a cada tecla quebrava quem
+  // digitasse "-23.6, -46.6" à mão.
+  $('emp-lat').addEventListener('paste', () => setTimeout(separarCoordenadas, 0));
+  $('emp-lat').addEventListener('change', separarCoordenadas);
+
   $('emp-salvar').addEventListener('click', async () => {
     $('emp-erro').textContent = '';
+    separarCoordenadas();
     try {
       await api('ponto-admin-empresa', {
         token: sessao.token,
@@ -535,6 +566,9 @@
         endereco: $('emp-endereco').value.trim(),
         limite_batidas_dia: parseInt($('emp-limite').value, 10) || 8,
         tolerancia_min: parseInt($('emp-tolerancia').value, 10) || 0,
+        latitude: $('emp-lat').value.trim().replace(',', '.'),
+        longitude: $('emp-lng').value.trim().replace(',', '.'),
+        raio_metros: $('emp-raio').value.trim(),
       });
       await carregar();
       modalEmpresa.hidden = true;
